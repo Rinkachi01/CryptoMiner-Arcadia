@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoMiner Arcadia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Modal de Login -->
+<div id="login-modal" class="modal">
+    <div class="login-box">
+        <h1 class="login-title">CRYPTOMINER ARCADIA</h1>
+        <div class="input-group">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" id="username" placeholder="Username" autocomplete="username">
+        </div>
+        <div class="input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        </div>
+        <p id="login-msg" style="color: #ff4444; margin: 10px 0; font-size: 10px; min-height: 14px;"></p>
+        <div class="login-actions">
+            <button id="btn-login" class="btn-neon-green">ENTER SYSTEM</button>
+            <button id="btn-register" class="btn-neon-outline">CREATE ACCOUNT</button>
+        </div>
+    </div>
+</div>
+
+    <div id="game-start-modal" class="modal hidden">
+        <div class="game-start-card">
+            <div class="card-header">
+                <div id="game-icon-display" class="game-big-icon"></div>
+                <div class="header-info">
+                    <h2 id="start-game-title">Game Title</h2>
+                    <span id="start-game-diff">Level 1</span>
+                </div>
+            </div>
+            <div class="stats-container">
+                <div class="stat-box">
+                    <span>REWARD</span>
+                    <h3 id="start-game-reward" style="color: #00ffff;">500 GH/s</h3>
+                </div>
+                <div class="stat-box">
+                    <span>TIME</span>
+                    <h3 id="start-game-time">60s</h3>
+                </div>
+                <div class="stat-box">
+                    <span>TARGET</span>
+                    <h3 id="start-game-target">1000</h3>
+                </div>
+            </div>
+            <button id="btn-play-real" class="btn-neon-green full-width"><i class="fa-solid fa-play"></i> START GAME</button>
+            <button onclick="closeModal('game-start-modal')" class="btn-text">Cancel</button>
+        </div>
+    </div>
+
+    <div id="loading-screen" class="modal hidden" style="background: #0b0e14; z-index: 2000;">
+        <div class="loader-content" style="text-align: center;">
+            <i class="fa-solid fa-server fa-bounce" style="color:#00ffff; font-size:40px; margin-bottom:20px;"></i>
+            <p id="loading-text" style="font-family: 'Press Start 2P'; font-size:10px; color:#00ffff; margin-bottom: 10px;">CONNECTING...</p>
+            <div class="loading-bar"><div id="loading-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="victory-modal" class="modal hidden">
+        <div class="victory-card">
+            <div class="victory-header">
+                <i class="fa-solid fa-trophy" style="color: #ffd700; font-size: 40px; margin-bottom: 10px;"></i>
+                <h2>GAME FINISHED!</h2>
+            </div>
+            <div class="victory-body">
+                <div class="v-row">
+                    <span>You Gained:</span>
+                    <span id="vic-power" style="color: #00ff00;">+ 500 GH/s</span>
+                </div>
+                <div id="vic-drop" class="v-row" style="display:none; color:#ffd700; margin-top: 10px; border-top: 1px solid #333; padding-top: 5px;">
+                    <span>Item Drop:</span>
+                    <span>🔋 BATTERY</span>
+                </div>
+            </div>
+            <div class="vic-btns">
+                <button onclick="closeVictory()" class="btn-neon-blue">GO HOME</button>
+                <button onclick="closeVictoryAndPlay()" class="btn-neon-green">GAMES</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-canvas-modal" class="modal hidden">
+        <div class="game-frame">
+            <div class="game-hud">
+                <div class="hud-left">
+                    <span>TIME: <b id="game-timer">60</b></span>
+                    <span style="margin-left: 20px;">SCORE: <b id="game-score">0</b></span>
+                </div>
+                <div class="hud-right">
+                    <span id="game-lives">❤️❤️❤️</span>
+                    <span style="margin-left: 20px;" id="game-target">TARGET: 1000</span>
+                </div>
+            </div>
+            <canvas id="gameCanvas" width="600" height="450"></canvas>
+            <button onclick="abortGame()" class="close-btn">×</button>
+        </div>
+    </div>
+
+    <div id="equip-modal" class="modal hidden">
+        <div class="game-start-card">
+            <h3>SELECT ITEM</h3>
+            <div id="equip-list" class="store-grid" style="max-height: 300px; overflow-y: auto; margin: 20px 0;"></div>
+            <button onclick="closeModal('equip-modal')" class="btn-text">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Modal específico para Crypto 2048 -->
+    <div id="crypto2048-modal" class="modal hidden">
+        <div class="game-frame" style="max-width: 850px; padding: 20px;">
+            <div class="crypto2048-container">
+                <!-- Área esquerda: Jogo -->
+                <div class="game-area-left">
+                    <div class="game-header-2048">
+                        <div class="game-title-2048">CRYPTO 2048</div>
+                        <div class="game-stats-2048">
+                            <div class="stat-item">
+                                <div class="stat-label">SCORE</div>
+                                <div class="stat-value" id="crypto2048-score">0</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">TIME</div>
+                                <div class="stat-value" id="crypto2048-time">60</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Grade do jogo -->
+                    <div class="game-board-2048" id="crypto2048-board">
+                        <!-- Tiles serão gerados por JavaScript -->
+                    </div>
+                    
+                    <!-- High Score -->
+                    <div class="high-score-display">
+                        <div class="high-score-label">HIGH SCORE</div>
+                        <div class="high-score-value" id="crypto2048-highscore">0</div>
+                    </div>
+                    
+                    <!-- Barra de progresso (versão mobile) -->
+                    <div class="progress-section" style="display: none;" id="mobile-progress">
+                        <div class="progress-label">PROGRESS TO BITCOIN</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="mobile-progress-bar"></div>
+                        </div>
+                        <div class="progress-text" id="mobile-progress-text">0%</div>
+                    </div>
+                </div>
+                
+                <!-- Área direita: Legenda e Moedas -->
+                <div class="game-area-right">
+                    <!-- Legenda de progressão -->
+                    <div class="legend-header">
+                        <h3>PROGRESSION LEGEND</h3>
+                        <div class="legend-subtitle">Merge to advance</div>
+                    </div>
+                    
+                    <div class="progression-list" id="progression-list">
+                        <!-- Itens gerados por JavaScript -->
+                    </div>
+                    
+                    <!-- Moedas ganhadas -->
+                    <div class="coins-section">
+                        <div class="coins-header">
+                            <h4>COINS EARNED</h4>
+                        </div>
+                        <div class="coins-list" id="coins-list">
+                            <!-- Moedas serão atualizadas por JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progresso -->
+                    <div class="progress-section">
+                        <div class="progress-label">PROGRESS TO BITCOIN</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">0%</div>
+                    </div>
+                    
+                    <!-- Controles -->
+                    <div class="controls-info">
+                        <div class="controls-text">CONTROLS</div>
+                        <div class="controls-buttons">
+                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('up')">↑ UP</button>
+                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('left')">← LEFT</button>
+                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('down')">↓ DOWN</button>
+                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('right')">→ RIGHT</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Instruções -->
+                    <div class="game-instructions">
+                        <div class="instructions-text">
+                            Use <strong>ARROW KEYS</strong> or <strong>SWIPE</strong><br>
+                            Combine similar crypto tiles<br>
+                            Reach <strong>BITCOIN (2048)</strong> to win!
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botão de fechar -->
+            <button onclick="currentGameEngine && currentGameEngine.exit()" class="close-btn">×</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="logo-area"><i class="fa-solid fa-microchip"></i></div>
+            <button class="nav-item active" onclick="nav('home')"><i class="fa-solid fa-house"></i></button>
+            <button class="nav-item" onclick="nav('games')"><i class="fa-solid fa-gamepad"></i></button>
+            <button class="nav-item" onclick="nav('store')"><i class="fa-solid fa-cart-shopping"></i></button>
+            <div style="flex:1"></div>
+            <button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </nav>
+
+        <main class="content">
+            <header>
+                <div class="user-block" style="display: flex; align-items: center; gap: 10px;">
+                    <div class="avatar" style="width: 30px; height: 30px; background: #333; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-user-astronaut"></i></div>
+                    <span id="user-display" style="font-weight: bold;">Guest</span>
+                </div>
+                <div class="wallet-block">
+                    <span class="bat-display"><i class="fa-solid fa-battery-full"></i> <b id="battery-count">0</b></span>
+                    <span class="rct-display"><i class="fa-solid fa-wallet"></i> <b id="balance">0.00</b> RCT</span>
+                </div>
+            </header>
+
+            <section id="view-home" class="page active">
+                <div class="dashboard">
+                    <div class="col-left">
+                        <div class="panel energy-panel">
+                            <div class="panel-head"><span>ELECTRICITY</span><i class="fa-solid fa-bolt" style="color:#ffeb3b"></i></div>
+                            <div class="energy-bars">
+                                <div class="bar" id="bar-1"></div><div class="bar" id="bar-2"></div><div class="bar" id="bar-3"></div><div class="bar" id="bar-4"></div>
+                            </div>
+                            <div class="energy-timer" id="energy-timer">--:--:--</div>
+                            <div class="recharge-actions">
+                                <button id="btn-free" onclick="recharge('free')">Free</button>
+                                <button id="btn-item" onclick="recharge('battery')">Battery</button>
+                            </div>
+                        </div>
+                        <div class="panel stats-panel">
+                            <div class="stat-group"><label>MY POWER</label><span class="val-cyan" id="power">0 GH/s</span></div>
+                            <div class="stat-group"><label>NETWORK</label><span class="val-white" id="network-power">0 EH/s</span></div>
+                            <div class="stat-group"><label>REWARD (EST)</label><span class="val-gold" id="estimated-reward">0.000000</span></div>
+                        </div>
+                    </div>
+
+                    <div class="col-center">
+                        <div class="room-container">
+                            <div class="room-controls">
+                                <button onclick="changeRoom(-1)"><i class="fa-solid fa-caret-left"></i></button>
+                                <span id="room-name">ROOM 1</span>
+                                <button onclick="changeRoom(1)"><i class="fa-solid fa-caret-right"></i></button>
+                            </div>
+                            <div class="room-grid" id="mining-room"></div>
+                        </div>
+                        <div class="inventory-container">
+                            <div class="inv-tabs">
+                                <button id="tab-miner" class="active" onclick="setInvTab('miner')">MINERS</button>
+                                <button id="tab-rack" onclick="setInvTab('rack')">RACKS</button>
+                            </div>
+                            <div class="inv-list" id="inventory-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-games" class="page hidden">
+                <div class="arcade-header" style="margin-bottom: 20px; text-align: center;">
+                    <h2>ARCADE CENTER</h2>
+                    <p style="color: #666; font-size: 12px; margin-top: 5px;">Play games to increase your mining power for 24 hours!</p>
+                    <p style="color: #ff9800; font-size: 10px; margin-top: 5px;">More games coming soon...</p>
+                </div>
+                <div class="games-grid" id="games-list">
+                    <!-- Jogos serão renderizados por JavaScript -->
+                </div>
+            </section>
+
+            <section id="view-store" class="page hidden">
+                <div class="store-header">
+                    <h2>HARDWARE STORE</h2>
+                    <div class="store-switches">
+                        <button onclick="renderStore('miner')">Miners</button>
+                        <button onclick="renderStore('rack')">Racks</button>
+                    </div>
+                </div>
+                <div class="store-grid" id="store-list"></div>
+            </section>
+        </main>
+    </div>
+    <!-- Remova o script.js antigo e adicione: -->
+<script type="module" src="main.js"></script>
+</body>
+</html>
