@@ -2,37 +2,39 @@
 const fs = require('fs');
 const path = require('path');
 
-// Criar diretório de assets se não existir
-const assetsDir = path.join(__dirname, 'assets');
-if (!fs.existsSync(assetsDir)) {
-    fs.mkdirSync(assetsDir, { recursive: true });
-}
+// Criar diretórios necessários
+const assetsDir = path.join(__dirname, 'public', 'assets');
+const imagesDir = path.join(assetsDir, 'images');
+const coinsDir = path.join(assetsDir, 'coins');
+const minersDir = path.join(assetsDir, 'miners');
 
-// Lista de arquivos que você tem (ajuste conforme necessário)
-const imageFiles = [
-    'binance.png',
-    'btc.svg',
-    'cma-coin.png',
-    'doge.svg',
-    'ethereum.png',
-    'ltc.svg',
-    'matic.svg',
-    'solana.png',
-    'trx.png',
-    'usdt.png',
-    'xmr.svg',
-    'xrp.svg'
-];
-
-// Mover arquivos para a pasta assets (se estiverem na raiz)
-imageFiles.forEach(file => {
-    const sourcePath = path.join(__dirname, file);
-    const destPath = path.join(assetsDir, file);
-    
-    if (fs.existsSync(sourcePath)) {
-        fs.renameSync(sourcePath, destPath);
-        console.log(`Movido: ${file} -> assets/${file}`);
+[assetsDir, imagesDir, coinsDir, minersDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
     }
 });
 
-console.log('Imagens organizadas com sucesso!');
+// Mover imagens existentes
+const imageFiles = fs.readdirSync(__dirname).filter(file => 
+    /\.(png|svg|jpg|jpeg|gif)$/i.test(file)
+);
+
+imageFiles.forEach(file => {
+    const source = path.join(__dirname, file);
+    let destination;
+    
+    if (file.includes('coin') || file.includes('cma')) {
+        destination = path.join(coinsDir, file);
+    } else if (file.includes('miner') || file.includes('gpu') || file.includes('asic')) {
+        destination = path.join(minersDir, file);
+    } else {
+        destination = path.join(imagesDir, file);
+    }
+    
+    if (fs.existsSync(source)) {
+        fs.renameSync(source, destination);
+        console.log(`Movido: ${file} -> ${destination.replace(__dirname, '')}`);
+    }
+});
+
+console.log('✅ Imagens organizadas com sucesso!');

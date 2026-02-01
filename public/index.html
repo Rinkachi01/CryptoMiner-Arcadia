@@ -3,29 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Crypto Miner Arcadia - Um jogo de mineração de criptomoedas. Monte sua fazenda de mineração, jogue minigames e ganhe recompensas!">
+    <meta name="keywords" content="criptomoeda, mineração, bitcoin, ethereum, jogo, crypto, miner">
+    <meta name="author" content="Crypto Miner Arcadia">
     <title>CryptoMiner Arcadia</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="CryptoMiner Arcadia">
+    <meta property="og:description" content="Monte sua fazenda de mineração e domine o mundo das criptomoedas!">
+    <meta property="og:image" content="assets/images/og-image.png">
+    <meta property="og:url" content="https://cryptominerarcadia.com">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CryptoMiner Arcadia">
+    <meta name="twitter:description" content="Monte sua fazenda de mineração e domine o mundo das criptomoedas!">
+    <meta name="twitter:image" content="assets/images/twitter-image.png">
+    
+    <!-- Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Manifest para PWA -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0b0e14">
 </head>
 <body>
-
-    <!-- Modal de Login -->
+      <!-- Modal de Login -->
+<!-- index.html - Ajustar o modal de login -->
 <div id="login-modal" class="modal">
     <div class="login-box">
-        <h1 class="login-title">CRYPTOMINER ARCADIA</h1>
-        <div class="input-group">
-            <i class="fa-solid fa-user"></i>
-            <input type="text" id="username" placeholder="Username" autocomplete="username">
+        <div class="login-title">CRYPTO MINER ARCADIA</div>
+        
+        <div class="login-tabs">
+            <button id="tab-login" class="login-tab active">LOGIN</button>
+            <button id="tab-register" class="login-tab">REGISTRO</button>
         </div>
-        <div class="input-group">
-            <i class="fa-solid fa-lock"></i>
-            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        
+        <div id="login-form" class="login-form">
+            <div class="input-group">
+                <input type="text" id="login-username" placeholder="Usuário" autocomplete="username">
+            </div>
+            <div class="input-group">
+                <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password">
+            </div>
+            <div id="login-msg" class="login-msg"></div>
+            <div class="login-actions">
+                <button id="btn-login" class="btn-neon-green">ENTRAR</button>
+            </div>
         </div>
-        <p id="login-msg" style="color: #ff4444; margin: 10px 0; font-size: 10px; min-height: 14px;"></p>
-        <div class="login-actions">
-            <button id="btn-login" class="btn-neon-green">ENTER SYSTEM</button>
-            <button id="btn-register" class="btn-neon-outline">CREATE ACCOUNT</button>
+        
+        <div id="register-form" class="login-form hidden">
+            <div class="input-group">
+                <input type="text" id="register-username" placeholder="Usuário" autocomplete="username">
+            </div>
+            <div class="input-group">
+                <input type="password" id="register-password" placeholder="Senha" autocomplete="new-password">
+            </div>
+            <div id="register-msg" class="login-msg"></div>
+            <div class="login-actions">
+                <button id="btn-register" class="btn-neon-green">CRIAR CONTA</button>
+            </div>
         </div>
     </div>
 </div>
@@ -301,5 +349,25 @@
     </div>
     <!-- Remova o script.js antigo e adicione: -->
 <script type="module" src="main.js"></script>
+
+<!-- Service Worker para PWA -->
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('ServiceWorker registrado com sucesso: ', registration.scope);
+                }).catch(error => {
+                    console.log('Falha ao registrar ServiceWorker: ', error);
+                });
+            });
+        }
+    </script>
+    
+    <!-- Analytics (opcional) -->
+    <script>
+        // Aqui você pode adicionar Google Analytics ou outro serviço
+        console.log('Crypto Miner Arcadia carregado!');
+    </script>
 </body>
 </html>

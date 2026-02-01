@@ -1,13 +1,15 @@
 {
   "name": "projetominer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Crypto Miner Arcadia - Um jogo de mineração de criptomoedas",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "organize-images": "node organize-images.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["crypto", "mining", "game", "bitcoin", "ethereum"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -18,5 +20,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }

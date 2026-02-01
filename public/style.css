@@ -379,15 +379,34 @@ header {
     box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
 }
 
-.room-container::after {
-    content: ''; 
-    position: absolute; 
-    top: 60%; 
-    left: 0; 
-    width: 100%; 
-    height: 2px; 
-    background: #000;
+.room-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 15px;
+    padding: 20px;
+    min-height: 500px;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    border: 3px solid #333;
+    border-radius: 15px;
+    position: relative;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
 }
+
+.room-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        linear-gradient(90deg, transparent 95%, rgba(0,255,255,0.1) 100%),
+        linear-gradient(0deg, transparent 95%, rgba(0,255,255,0.1) 100%);
+    background-size: 50px 50px;
+    pointer-events: none;
+}
+
 
 .room-controls { 
     display: flex; 
@@ -656,23 +675,32 @@ header {
 }
 
 /* Racks e Slots */
-.rack { 
-    display: grid; 
-    padding: 2px; 
-    border: 2px solid; 
-    position: relative; 
-    margin: 2px; 
-} 
+.rack {
+    border-radius: 10px;
+    padding: 10px;
+    display: grid;
+    gap: 5px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
 
-.rack-wood { 
-    border-color: #5d4037; 
-    background: #3e2723; 
-} 
+.rack-wood {
+    background: linear-gradient(135deg, #3e2723 0%, #5d4037 100%);
+    border: 3px solid #5d4037;
+    box-shadow: 0 5px 15px rgba(93, 64, 55, 0.3);
+}
 
-.rack-metal { 
-    border-color: #607d8b; 
-    background: #263238; 
-} 
+.rack-metal {
+    background: linear-gradient(135deg, #263238 0%, #37474f 100%);
+    border: 3px solid #607d8b;
+    box-shadow: 0 5px 15px rgba(96, 125, 139, 0.3);
+}
+
+.rack:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,255,255,0.2);
+}
 
 .rack-small { 
     width: 100px; 
@@ -690,19 +718,38 @@ header {
     gap: 2px; 
 }
 
-.slot { 
-    background: rgba(0,0,0,0.3); 
-    border: 1px dashed rgba(255,255,255,0.1); 
-    cursor: pointer; 
-    transition: 0.2s; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-} 
+.slot {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
 
-.slot:hover { 
-    background: rgba(255,255,255,0.1); 
-    border-color: rgba(255,255,255,0.3); 
+.slot:hover {
+    border-color: var(--cyan);
+    background: rgba(0, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+.slot::before {
+    content: '+';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.1);
+    font-weight: bold;
+}
+
+.slot:hover::before {
+    color: rgba(0, 255, 255, 0.3);
 }
 
 .size-2 { 
@@ -1465,4 +1512,355 @@ header {
     height: 50px;
     margin: 0 auto 10px;
     object-fit: contain;
+}
+
+/* Adicionar ao final do arquivo */
+
+/* Ajustes para telas muito pequenas */
+@media (max-width: 480px) {
+    .sidebar {
+        width: 50px;
+    }
+
+    .content {
+        padding: 10px;
+    }
+
+    header {
+        padding: 10px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .wallet-block span {
+        margin-left: 0;
+        margin-right: 10px;
+    }
+
+    .dashboard {
+        gap: 10px;
+    }
+
+    .col-left {
+        order: 2;
+    }
+
+    .col-center {
+        order: 1;
+    }
+
+    .room-container {
+        min-height: 300px;
+        padding: 10px;
+    }
+
+    .games-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .store-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal {
+        padding: 10px;
+    }
+
+    .game-start-card {
+        width: 95%;
+        padding: 15px;
+    }
+}
+
+/* Melhorias para acessibilidade */
+button:focus, input:focus {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+}
+
+/* Animações de entrada */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Estilos para scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--text-dim);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan);
+}
+
+/* Tooltips */
+[title] {
+    position: relative;
+}
+
+[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Estilos para os slots de mineração */
+.slot {
+    position: relative;
+}
+
+.slot::after {
+    content: '+';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.1);
+    font-size: 24px;
+}
+
+.slot:hover::after {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Estilos para o inventário */
+.inv-item {
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    min-width: 80px;
+}
+
+.inv-item:hover {
+    border-color: var(--cyan);
+    background: rgba(0, 255, 255, 0.05);
+}
+
+.inv-item.selected {
+    border-color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
+}
+
+/* style.css - Adicionar estilos para a nova UI */
+
+/* Login modal com abas */
+.login-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+}
+
+.login-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #666;
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 8px;
+}
+
+.login-tab.active {
+    color: var(--cyan);
+    border-bottom: 2px solid var(--cyan);
+}
+
+.login-form {
+    margin-top: 20px;
+}
+
+/* Sala de mineração */
+.room-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 20px;
+    padding: 20px;
+    min-height: 500px;
+    background: linear-gradient(to bottom, #0a0a0a 0%, #1a1a1a 100%);
+    border: 2px solid #333;
+    border-radius: 10px;
+    position: relative;
+}
+
+.empty-rack-slot {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.empty-rack-slot:hover {
+    border-color: var(--cyan);
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.slot-placeholder {
+    font-size: 30px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.rack {
+    border-radius: 10px;
+    padding: 10px;
+    display: grid;
+    gap: 5px;
+}
+
+.rack-small {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+.rack-large {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+.slot {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    transition: all 0.3s;
+}
+
+.slot:hover {
+    border-color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
+}
+
+/* MINERADORES ANIMADOS */
+.miner {
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+.miner-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+    filter: drop-shadow(0 0 5px currentColor);
+}
+
+.miner-name {
+    font-size: 8px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ANIMAÇÕES ESPECÍFICAS POR TIPO */
+.miner-fan { animation: spin 2s linear infinite; color: #aaa; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.miner-gpu { animation: pulse 1.5s ease-in-out infinite; color: #00ff00; }
+@keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+
+.miner-asic { animation: shake 0.5s ease-in-out infinite; color: #ff0000; }
+@keyframes shake { 
+    0%, 100% { transform: translateX(0); } 
+    25% { transform: translateX(-2px); } 
+    75% { transform: translateX(2px); } 
+}
+
+.miner-quantum { 
+    animation: glow 2s ease-in-out infinite; 
+    color: #00ffff; 
+    text-shadow: 0 0 10px #00ffff;
+}
+@keyframes glow { 
+    0%, 100% { opacity: 0.7; } 
+    50% { opacity: 1; } 
+}
+
+/* Inventário */
+.inv-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.inv-item {
+    background: var(--bg-card);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: move;
+    transition: all 0.3s;
+    min-width: 100px;
+}
+
+.inv-item:hover {
+    border-color: var(--cyan);
+    transform: translateY(-5px);
+}
+
+/* Barras de energia */
+.energy-bars {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.bar {
+    flex: 1;
+    height: 20px;
+    background: #222;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.bar.active {
+    background: linear-gradient(to right, var(--cyan), var(--neon-green));
+    box-shadow: 0 0 10px var(--cyan);
 }
