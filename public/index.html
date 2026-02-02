@@ -3,443 +3,839 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Crypto Miner Arcadia - Um jogo de mineração de criptomoedas. Monte sua fazenda de mineração, jogue minigames e ganhe recompensas!">
-    <meta name="keywords" content="criptomoeda, mineração, bitcoin, ethereum, jogo, crypto, miner">
+    <meta name="description" content="Crypto Miner Arcadia - Monte sua fazenda de mineração, jogue minigames e domine o mundo das criptomoedas!">
+    <meta name="keywords" content="criptomoeda, mineração, bitcoin, ethereum, jogo, crypto, miner, arcade">
     <meta name="author" content="Crypto Miner Arcadia">
-    <title>CryptoMiner Arcadia</title>
-    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <title>Crypto Miner Arcadia 2.0</title>
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
     
     <!-- Open Graph Tags -->
-    <meta property="og:title" content="CryptoMiner Arcadia">
+    <meta property="og:title" content="Crypto Miner Arcadia 2.0">
     <meta property="og:description" content="Monte sua fazenda de mineração e domine o mundo das criptomoedas!">
-    <meta property="og:image" content="assets/images/og-image.png">
+    <meta property="og:image" content="assets/og-image.png">
     <meta property="og:url" content="https://cryptominerarcadia.com">
     <meta property="og:type" content="website">
     
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="CryptoMiner Arcadia">
-    <meta name="twitter:description" content="Monte sua fazenda de mineração e domine o mundo das criptomoedas!">
-    <meta name="twitter:image" content="assets/images/twitter-image.png">
-    
     <!-- Fontes -->
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
     
-    <!-- Manifest para PWA -->
+    <!-- Manifest PWA -->
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
     
     <!-- Theme Color -->
     <meta name="theme-color" content="#0b0e14">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 </head>
 <body>
-      <!-- Modal de Login -->
-<!-- index.html - Ajustar o modal de login -->
-<div id="login-modal" class="modal">
-    <div class="login-box">
-        <div class="login-title">CRYPTO MINER ARCADIA</div>
-        
-        <div class="login-tabs">
-            <button id="tab-login" class="login-tab active">LOGIN</button>
-            <button id="tab-register" class="login-tab">REGISTRO</button>
-        </div>
-        
-        <div id="login-form" class="login-form">
-            <div class="input-group">
-                <input type="text" id="login-username" placeholder="Usuário" autocomplete="username">
+    <!-- Modal de Login/Registro -->
+    <div id="login-modal" class="modal">
+        <div class="login-box">
+            <div class="login-header">
+                <i class="fa-solid fa-bitcoin-sign logo-main"></i>
+                <h1 class="login-title">CRYPTO MINER ARCADIA</h1>
+                <p class="login-subtitle">Monte sua fazenda de mineração e domine o mundo crypto!</p>
             </div>
-            <div class="input-group">
-                <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password">
+            
+            <div class="login-tabs">
+                <button id="tab-login" class="login-tab active">
+                    <i class="fa-solid fa-right-to-bracket"></i> LOGIN
+                </button>
+                <button id="tab-register" class="login-tab">
+                    <i class="fa-solid fa-user-plus"></i> REGISTRO
+                </button>
             </div>
-            <div id="login-msg" class="login-msg"></div>
-            <div class="login-actions">
-                <button id="btn-login" class="btn-neon-green">ENTRAR</button>
-            </div>
-        </div>
-        
-        <div id="register-form" class="login-form hidden">
-            <div class="input-group">
-                <input type="text" id="register-username" placeholder="Usuário" autocomplete="username">
-            </div>
-            <div class="input-group">
-                <input type="password" id="register-password" placeholder="Senha" autocomplete="new-password">
-            </div>
-            <div id="register-msg" class="login-msg"></div>
-            <div class="login-actions">
-                <button id="btn-register" class="btn-neon-green">CRIAR CONTA</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-    <div id="game-start-modal" class="modal hidden">
-        <div class="game-start-card">
-            <div class="card-header">
-                <div id="game-icon-display" class="game-big-icon"></div>
-                <div class="header-info">
-                    <h2 id="start-game-title">Game Title</h2>
-                    <span id="start-game-diff">Level 1</span>
+            
+            <!-- Formulário de Login -->
+            <div id="login-form" class="login-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="login-username" placeholder="Nome de usuário" autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password">
+                </div>
+                <div id="login-msg" class="login-msg"></div>
+                <div class="login-actions">
+                    <button id="btn-login" class="btn-neon-green">
+                        <i class="fa-solid fa-play"></i> ENTRAR NO JOGO
+                    </button>
+                </div>
+                <div class="login-links">
+                    <a href="#" onclick="showForgotPassword()">Esqueceu a senha?</a>
                 </div>
             </div>
-            <div class="stats-container">
-                <div class="stat-box">
-                    <span>REWARD</span>
-                    <h3 id="start-game-reward" style="color: #00ffff;">500 GH/s</h3>
-                </div>
-                <div class="stat-box">
-                    <span>TIME</span>
-                    <h3 id="start-game-time">60s</h3>
-                </div>
-                <div class="stat-box">
-                    <span>TARGET</span>
-                    <h3 id="start-game-target">1000</h3>
-                </div>
-            </div>
-            <button id="btn-play-real" class="btn-neon-green full-width"><i class="fa-solid fa-play"></i> START GAME</button>
-            <button onclick="closeModal('game-start-modal')" class="btn-text">Cancel</button>
-        </div>
-    </div>
-
-    <div id="loading-screen" class="modal hidden" style="background: #0b0e14; z-index: 2000;">
-        <div class="loader-content" style="text-align: center;">
-            <i class="fa-solid fa-server fa-bounce" style="color:#00ffff; font-size:40px; margin-bottom:20px;"></i>
-            <p id="loading-text" style="font-family: 'Press Start 2P'; font-size:10px; color:#00ffff; margin-bottom: 10px;">CONNECTING...</p>
-            <div class="loading-bar"><div id="loading-fill"></div></div>
-        </div>
-    </div>
-
-<div id="register-form" class="login-form hidden">
-    <!-- ADICIONAR ESTA SEÇÃO DE BÔNUS -->
-    <div class="register-bonus" style="
-        background: linear-gradient(135deg, rgba(0,255,157,0.1) 0%, rgba(0,200,255,0.1) 100%);
-        border: 2px solid var(--neon-green);
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 20px;
-        font-size: 11px;
-        line-height: 1.5;
-        text-align: center;
-        box-shadow: 0 0 15px rgba(0,255,157,0.2);
-    ">
-        <i class="fa-solid fa-gift" style="color:var(--neon-green); font-size:14px;"></i>
-        <strong style="color:var(--neon-green);"> REGISTRE-SE AGORA E GANHE:</strong><br>
-        <div style="margin-top: 8px;">
-            <span style="color:#00ffff;">• 1 Minerador Inicial (100 GH/s)</span><br>
-            <span style="color:#00ff9d;">• 1 Rack Pequeno (4 slots)</span><br>
-            <span style="color:#ffd700;">• 5 Baterias de Energia</span><br>
-            <span style="color:#ffffff;">• 100.00 CMA Coins</span>
-        </div>
-        <div style="margin-top: 8px; font-size: 9px; color: #aaa;">
-            Comece sua jornada na mineração!
-        </div>
-    </div>
-    
-    <div class="input-group">
-        <i class="fa-solid fa-user" style="color:#666; margin-right:10px;"></i>
-        <input type="text" id="register-username" placeholder="Escolha um nome de usuário" autocomplete="username">
-    </div>
-    <div class="input-group">
-        <i class="fa-solid fa-lock" style="color:#666; margin-right:10px;"></i>
-        <input type="password" id="register-password" placeholder="Senha (mínimo 8 caracteres)" autocomplete="new-password">
-    </div>
-    <div id="register-msg" class="login-msg"></div>
-    <div class="login-actions">
-        <button id="btn-register" class="btn-neon-green" style="width:100%;">
-            <i class="fa-solid fa-user-plus"></i> CRIAR CONTA GRÁTIS
-        </button>
-    </div>
-</div>
-
-    <div id="victory-modal" class="modal hidden">
-        <div class="victory-card">
-            <div class="victory-header">
-                <i class="fa-solid fa-trophy" style="color: #ffd700; font-size: 40px; margin-bottom: 10px;"></i>
-                <h2>GAME FINISHED!</h2>
-            </div>
-            <div class="victory-body">
-                <div class="v-row">
-                    <span>You Gained:</span>
-                    <span id="vic-power" style="color: #00ff00;">+ 500 GH/s</span>
-                </div>
-                <div id="vic-drop" class="v-row" style="display:none; color:#ffd700; margin-top: 10px; border-top: 1px solid #333; padding-top: 5px;">
-                    <span>Item Drop:</span>
-                    <span>🔋 BATTERY</span>
-                </div>
-            </div>
-            <div class="vic-btns">
-                <button onclick="closeVictory()" class="btn-neon-blue">GO HOME</button>
-                <button onclick="closeVictoryAndPlay()" class="btn-neon-green">GAMES</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="game-canvas-modal" class="modal hidden">
-        <div class="game-frame">
-            <div class="game-hud">
-                <div class="hud-left">
-                    <span>TIME: <b id="game-timer">60</b></span>
-                    <span style="margin-left: 20px;">SCORE: <b id="game-score">0</b></span>
-                </div>
-                <div class="hud-right">
-                    <span id="game-lives">❤️❤️❤️</span>
-                    <span style="margin-left: 20px;" id="game-target">TARGET: 1000</span>
-                </div>
-            </div>
-            <canvas id="gameCanvas" width="600" height="450"></canvas>
-            <button onclick="abortGame()" class="close-btn">×</button>
-        </div>
-    </div>
-
-    <div id="equip-modal" class="modal hidden">
-        <div class="game-start-card">
-            <h3>SELECT ITEM</h3>
-            <div id="equip-list" class="store-grid" style="max-height: 300px; overflow-y: auto; margin: 20px 0;"></div>
-            <button onclick="closeModal('equip-modal')" class="btn-text">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Adicionado: Estrutura completa da sala de mineração -->
-<div id="room-container" class="room-grid">
-    <!-- 12 slots serão gerados por JavaScript -->
-</div>
-
-<!-- Adicionado: Inventário completo -->
-<div class="inventory-section">
-    <div class="inv-tabs">
-        <button class="inv-tab active" data-tab="machines">Miners</button>
-        <button class="inv-tab" data-tab="racks">Racks</button>
-    </div>
-    
-    <div id="inventory-machines" class="inv-list active">
-        <!-- Máquinas serão inseridas aqui -->
-    </div>
-    
-    <div id="inventory-racks" class="inv-list">
-        <!-- Racks serão inseridas aqui -->
-    </div>
-</div>
-
-<!-- Adicionado: Modal para colocar racks -->
-<div id="rack-placement-modal" class="modal hidden">
-    <div class="modal-content">
-        <h3>Place Rack in Room</h3>
-        <div id="rack-placement-slots" class="room-grid-preview"></div>
-        <button onclick="placeSelectedRack()">Confirm</button>
-    </div>
-</div>
-
-    <!-- Modal específico para Crypto 2048 -->
-    <div id="crypto2048-modal" class="modal hidden">
-        <div class="game-frame" style="max-width: 850px; padding: 20px;">
-            <div class="crypto2048-container">
-                <!-- Área esquerda: Jogo -->
-                <div class="game-area-left">
-                    <div class="game-header-2048">
-                        <div class="game-title-2048">CRYPTO 2048</div>
-                        <div class="game-stats-2048">
-                            <div class="stat-item">
-                                <div class="stat-label">SCORE</div>
-                                <div class="stat-value" id="crypto2048-score">0</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">TIME</div>
-                                <div class="stat-value" id="crypto2048-time">60</div>
-                            </div>
+            
+            <!-- Formulário de Registro -->
+            <div id="register-form" class="login-form hidden">
+                <!-- Bônus de Boas-Vindas -->
+                <div class="welcome-bonus">
+                    <div class="bonus-header">
+                        <i class="fa-solid fa-gift"></i>
+                        <h3>BÔNUS DE BOAS-VINDAS!</h3>
+                    </div>
+                    <div class="bonus-items">
+                        <div class="bonus-item">
+                            <i class="fa-solid fa-coins" style="color: #ffd700;"></i>
+                            <span>500 CMA Coins</span>
                         </div>
-                    </div>
-                    
-                    <!-- Grade do jogo -->
-                    <div class="game-board-2048" id="crypto2048-board">
-                        <!-- Tiles serão gerados por JavaScript -->
-                    </div>
-                    
-                    <!-- High Score -->
-                    <div class="high-score-display">
-                        <div class="high-score-label">HIGH SCORE</div>
-                        <div class="high-score-value" id="crypto2048-highscore">0</div>
-                    </div>
-                    
-                    <!-- Barra de progresso (versão mobile) -->
-                    <div class="progress-section" style="display: none;" id="mobile-progress">
-                        <div class="progress-label">PROGRESS TO BITCOIN</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="mobile-progress-bar"></div>
+                        <div class="bonus-item">
+                            <i class="fa-solid fa-battery-full" style="color: #00ff00;"></i>
+                            <span>10 Baterias</span>
                         </div>
-                        <div class="progress-text" id="mobile-progress-text">0%</div>
+                        <div class="bonus-item">
+                            <i class="fa-solid fa-microchip" style="color: #00ffff;"></i>
+                            <span>2 Mineradores</span>
+                        </div>
+                        <div class="bonus-item">
+                            <i class="fa-solid fa-server" style="color: #ff9800;"></i>
+                            <span>2 Racks</span>
+                        </div>
+                        <div class="bonus-item">
+                            <i class="fa-solid fa-door-open" style="color: #9c27b0;"></i>
+                            <span>2 Salas</span>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Área direita: Legenda e Moedas -->
-                <div class="game-area-right">
-                    <!-- Legenda de progressão -->
-                    <div class="legend-header">
-                        <h3>PROGRESSION LEGEND</h3>
-                        <div class="legend-subtitle">Merge to advance</div>
-                    </div>
-                    
-                    <div class="progression-list" id="progression-list">
-                        <!-- Itens gerados por JavaScript -->
-                    </div>
-                    
-                    <!-- Moedas ganhadas -->
-                    <div class="coins-section">
-                        <div class="coins-header">
-                            <h4>COINS EARNED</h4>
-                        </div>
-                        <div class="coins-list" id="coins-list">
-                            <!-- Moedas serão atualizadas por JavaScript -->
-                        </div>
-                    </div>
-                    
-                    <!-- Barra de progresso -->
-                    <div class="progress-section">
-                        <div class="progress-label">PROGRESS TO BITCOIN</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="progress-bar"></div>
-                        </div>
-                        <div class="progress-text" id="progress-text">0%</div>
-                    </div>
-                    
-                    <!-- Controles -->
-                    <div class="controls-info">
-                        <div class="controls-text">CONTROLS</div>
-                        <div class="controls-buttons">
-                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('up')">↑ UP</button>
-                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('left')">← LEFT</button>
-                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('down')">↓ DOWN</button>
-                            <button class="control-btn" onclick="currentGameEngine && currentGameEngine.move('right')">→ RIGHT</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Instruções -->
-                    <div class="game-instructions">
-                        <div class="instructions-text">
-                            Use <strong>ARROW KEYS</strong> or <strong>SWIPE</strong><br>
-                            Combine similar crypto tiles<br>
-                            Reach <strong>BITCOIN (2048)</strong> to win!
-                        </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="register-username" placeholder="Escolha um nome de usuário" autocomplete="username">
+                    <div class="input-hint">Mínimo 3 caracteres</div>
+                </div>
+                
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="register-password" placeholder="Crie uma senha forte" autocomplete="new-password">
+                    <div class="input-hint">Mínimo 8 caracteres</div>
+                </div>
+                
+                <div class="password-strength" id="password-strength">
+                    <div class="strength-bar"></div>
+                    <div class="strength-text">Força da senha: <span id="strength-text">Fraca</span></div>
+                </div>
+                
+                <div class="password-requirements">
+                    <h4>Requisitos de segurança:</h4>
+                    <ul>
+                        <li id="req-length"><i class="fa-solid fa-check"></i> Mínimo 8 caracteres</li>
+                        <li id="req-upper"><i class="fa-solid fa-times"></i> Letra maiúscula</li>
+                        <li id="req-lower"><i class="fa-solid fa-check"></i> Letra minúscula</li>
+                        <li id="req-number"><i class="fa-solid fa-times"></i> Número</li>
+                        <li id="req-special"><i class="fa-solid fa-times"></i> Caractere especial</li>
+                    </ul>
+                </div>
+                
+                <div id="register-msg" class="login-msg"></div>
+                
+                <div class="terms-agreement">
+                    <input type="checkbox" id="terms-checkbox">
+                    <label for="terms-checkbox">Concordo com os <a href="#" onclick="showTerms()">Termos de Serviço</a> e <a href="#" onclick="showPrivacy()">Política de Privacidade</a></label>
+                </div>
+                
+                <div class="login-actions">
+                    <button id="btn-register" class="btn-neon-green" disabled>
+                        <i class="fa-solid fa-rocket"></i> CRIAR CONTA E COMEÇAR
+                    </button>
+                </div>
+                
+                <div class="social-login">
+                    <p>Ou registre-se com:</p>
+                    <div class="social-buttons">
+                        <button class="btn-social google">
+                            <i class="fa-brands fa-google"></i> Google
+                        </button>
+                        <button class="btn-social github">
+                            <i class="fa-brands fa-github"></i> GitHub
+                        </button>
                     </div>
                 </div>
             </div>
             
-            <!-- Botão de fechar -->
-            <button onclick="currentGameEngine && currentGameEngine.exit()" class="close-btn">×</button>
+            <div class="login-footer">
+                <p>Ao se registrar, você concorda com nossos termos e política.</p>
+                <p class="version">v2.0.0 • Crypto Miner Arcadia</p>
+            </div>
         </div>
     </div>
 
-    <div class="layout">
-        <nav class="sidebar">
-            <div class="logo-area"><i class="fa-solid fa-microchip"></i></div>
-            <button class="nav-item active" onclick="nav('home')"><i class="fa-solid fa-house"></i></button>
-            <button class="nav-item" onclick="nav('games')"><i class="fa-solid fa-gamepad"></i></button>
-            <button class="nav-item" onclick="nav('store')"><i class="fa-solid fa-cart-shopping"></i></button>
-            <div style="flex:1"></div>
-            <button class="nav-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
-        </nav>
-
-        <main class="content">
-            <header>
-                <div class="user-block" style="display: flex; align-items: center; gap: 10px;">
-                    <div class="avatar" style="width: 30px; height: 30px; background: #333; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-user-astronaut"></i></div>
-                    <span id="user-display" style="font-weight: bold;">Guest</span>
-                </div>
-                <div class="wallet-block">
-                    <span class="bat-display"><i class="fa-solid fa-battery-full"></i> <b id="battery-count">0</b></span>
-                    <span class="rct-display"><i class="fa-solid fa-wallet"></i> <b id="balance">0.00</b> RCT</span>
-                </div>
-            </header>
-
-            <section id="view-home" class="page active">
-                <div class="dashboard">
-                    <div class="col-left">
-                        <div class="panel energy-panel">
-                            <div class="panel-head"><span>ELECTRICITY</span><i class="fa-solid fa-bolt" style="color:#ffeb3b"></i></div>
-                            <div class="energy-bars">
-                                <div class="bar" id="bar-1"></div><div class="bar" id="bar-2"></div><div class="bar" id="bar-3"></div><div class="bar" id="bar-4"></div>
-                            </div>
-                            <div class="energy-timer" id="energy-timer">--:--:--</div>
-                            <div class="recharge-actions">
-                                <button id="btn-free" onclick="recharge('free')">Free</button>
-                                <button id="btn-item" onclick="recharge('battery')">Battery</button>
-                            </div>
-                        </div>
-                        <div class="panel stats-panel">
-                            <div class="stat-group"><label>MY POWER</label><span class="val-cyan" id="power">0 GH/s</span></div>
-                            <div class="stat-group"><label>NETWORK</label><span class="val-white" id="network-power">0 EH/s</span></div>
-                            <div class="stat-group"><label>REWARD (EST)</label><span class="val-gold" id="estimated-reward">0.000000</span></div>
-                        </div>
-                    </div>
-
-                    <div class="col-center">
-                        <div class="room-container">
-                            <div class="room-controls">
-                                <button onclick="changeRoom(-1)"><i class="fa-solid fa-caret-left"></i></button>
-                                <span id="room-name">ROOM 1</span>
-                                <button onclick="changeRoom(1)"><i class="fa-solid fa-caret-right"></i></button>
-                            </div>
-                            <div class="room-grid" id="mining-room"></div>
-                        </div>
-                        <div class="inventory-container">
-                            <div class="inv-tabs">
-                                <button id="tab-miner" class="active" onclick="setInvTab('miner')">MINERS</button>
-                                <button id="tab-rack" onclick="setInvTab('rack')">RACKS</button>
-                            </div>
-                            <div class="inv-list" id="inventory-list"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="view-games" class="page hidden">
-                <div class="arcade-header" style="margin-bottom: 20px; text-align: center;">
-                    <h2>ARCADE CENTER</h2>
-                    <p style="color: #666; font-size: 12px; margin-top: 5px;">Play games to increase your mining power for 24 hours!</p>
-                    <p style="color: #ff9800; font-size: 10px; margin-top: 5px;">More games coming soon...</p>
-                </div>
-                <div class="games-grid" id="games-list">
-                    <!-- Jogos serão renderizados por JavaScript -->
-                </div>
-            </section>
-
-            <section id="view-store" class="page hidden">
-                <div class="store-header">
-                    <h2>HARDWARE STORE</h2>
-                    <div class="store-switches">
-                        <button onclick="renderStore('miner')">Miners</button>
-                        <button onclick="renderStore('rack')">Racks</button>
-                    </div>
-                </div>
-                <div class="store-grid" id="store-list"></div>
-            </section>
-        </main>
+    <!-- Modal de Recuperação de Senha -->
+    <div id="forgot-modal" class="modal hidden">
+        <div class="login-box">
+            <div class="login-header">
+                <i class="fa-solid fa-key"></i>
+                <h2>RECUPERAR SENHA</h2>
+            </div>
+            <div class="input-group">
+                <input type="email" id="forgot-email" placeholder="Seu e-mail cadastrado">
+            </div>
+            <div id="forgot-msg" class="login-msg"></div>
+            <div class="login-actions">
+                <button onclick="sendResetLink()" class="btn-neon-blue">ENVIAR LINK</button>
+                <button onclick="closeModal('forgot-modal')" class="btn-text">Cancelar</button>
+            </div>
+        </div>
     </div>
-    <!-- Remova o script.js antigo e adicione: -->
-<script type="module" src="main.js"></script>
 
-<!-- Service Worker para PWA -->
+    <!-- Modal de Termos -->
+    <div id="terms-modal" class="modal hidden">
+        <div class="modal-content large">
+            <h2>TERMOS DE SERVIÇO</h2>
+            <div class="terms-content">
+                <p>Bem-vindo ao Crypto Miner Arcadia! Estes são os termos de serviço...</p>
+                <!-- Conteúdo dos termos -->
+            </div>
+            <button onclick="closeModal('terms-modal')" class="btn-neon-green">ENTENDI</button>
+        </div>
+    </div>
 
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="modal">
+        <div class="loader-content">
+            <div class="loader-icon">
+                <i class="fa-solid fa-server fa-spin"></i>
+            </div>
+            <h2 id="loading-text">INICIALIZANDO CRYPTO MINER ARCADIA</h2>
+            <div class="loading-bar">
+                <div id="loading-fill"></div>
+            </div>
+            <p class="loading-tip" id="loading-tip">Carregando recursos do jogo...</p>
+        </div>
+    </div>
+
+    <!-- Interface Principal do Jogo (inicialmente escondida) -->
+    <div id="game-interface" class="hidden">
+        <div class="layout">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <div class="logo-area">
+                    <i class="fa-solid fa-bitcoin-sign"></i>
+                    <span class="logo-text">CMA</span>
+                </div>
+                
+                <div class="nav-section">
+                    <h3 class="nav-section-title">MENU</h3>
+                    <button class="nav-item active" data-page="home">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Início</span>
+                    </button>
+                    <button class="nav-item" data-page="mining">
+                        <i class="fa-solid fa-hard-drive"></i>
+                        <span>Mineração</span>
+                    </button>
+                    <button class="nav-item" data-page="games">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <span>Arcade</span>
+                        <span class="nav-badge">5</span>
+                    </button>
+                    <button class="nav-item" data-page="store">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span>Loja</span>
+                    </button>
+                    <button class="nav-item" data-page="inventory">
+                        <i class="fa-solid fa-box"></i>
+                        <span>Inventário</span>
+                    </button>
+                </div>
+                
+                <div class="nav-section">
+                    <h3 class="nav-section-title">SOCIAL</h3>
+                    <button class="nav-item" data-page="friends">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Amigos</span>
+                    </button>
+                    <button class="nav-item" data-page="leaderboard">
+                        <i class="fa-solid fa-trophy"></i>
+                        <span>Ranking</span>
+                    </button>
+                    <button class="nav-item" data-page="missions">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                        <span>Missões</span>
+                        <span class="nav-badge new">3</span>
+                    </button>
+                </div>
+                
+                <div class="nav-section">
+                    <h3 class="nav-section-title">CONFIG</h3>
+                    <button class="nav-item" data-page="settings">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Configurações</span>
+                    </button>
+                    <button class="nav-item" onclick="logout()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Sair</span>
+                    </button>
+                </div>
+                
+                <div class="user-profile">
+                    <div class="user-avatar" id="user-avatar">
+                        <i class="fa-solid fa-user-astronaut"></i>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name" id="user-display">Carregando...</div>
+                        <div class="user-level">Nível <span id="user-level">1</span></div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Conteúdo Principal -->
+            <main class="content">
+                <!-- Header -->
+                <header class="main-header">
+                    <div class="header-left">
+                        <div class="balance-display">
+                            <i class="fa-solid fa-coins"></i>
+                            <div>
+                                <div class="balance-label">SALDO</div>
+                                <div class="balance-amount" id="balance">0.00 CMA</div>
+                            </div>
+                        </div>
+                        
+                        <div class="power-display">
+                            <i class="fa-solid fa-bolt"></i>
+                            <div>
+                                <div class="power-label">POTÊNCIA</div>
+                                <div class="power-amount" id="power">0 GH/s</div>
+                            </div>
+                        </div>
+                        
+                        <div class="energy-display">
+                            <i class="fa-solid fa-battery-full"></i>
+                            <div>
+                                <div class="energy-label">ENERGIA</div>
+                                <div class="energy-time" id="energy-timer">24:00:00</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="header-right">
+                        <div class="battery-display">
+                            <i class="fa-solid fa-battery-three-quarters"></i>
+                            <span id="battery-count">10</span>
+                        </div>
+                        
+                        <div class="network-display">
+                            <i class="fa-solid fa-globe"></i>
+                            <span id="network-power">1.5 EH/s</span>
+                        </div>
+                        
+                        <button class="btn-notification" id="btn-notifications">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="notification-count">3</span>
+                        </button>
+                        
+                        <button class="btn-quick-mine" onclick="quickMine()">
+                            <i class="fa-solid fa-hammer"></i>
+                            MINERAR
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Páginas do Jogo -->
+                <section id="page-home" class="page active">
+                    <div class="dashboard">
+                        <!-- Estatísticas Rápidas -->
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-coins"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Ganhos Hoje</div>
+                                    <div class="stat-value" id="today-earnings">0.00 CMA</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Hashrate</div>
+                                    <div class="stat-value" id="current-hashrate">0 H/s</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-temperature-high"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Temperatura</div>
+                                    <div class="stat-value" id="rig-temperature">32°C</div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">
+                                    <i class="fa-solid fa-bolt"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Consumo</div>
+                                    <div class="stat-value" id="power-consumption">0 W</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sala de Mineração Principal -->
+                        <div class="mining-room-section">
+                            <div class="section-header">
+                                <h2><i class="fa-solid fa-hard-drive"></i> SALA DE MINERAÇÃO</h2>
+                                <div class="room-controls">
+                                    <button onclick="changeRoom(-1)" class="btn-room-nav">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <span id="room-name">SALA 1</span>
+                                    <button onclick="changeRoom(1)" class="btn-room-nav">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                    <button onclick="buyNewRoom()" class="btn-neon-outline">
+                                        <i class="fa-solid fa-plus"></i> Nova Sala
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="room-container" id="room-container">
+                                <!-- Grid 4x3 será gerado por JavaScript -->
+                            </div>
+                            
+                            <div class="room-stats">
+                                <div class="room-stat">
+                                    <span>Racks Instalados:</span>
+                                    <strong id="installed-racks">0/12</strong>
+                                </div>
+                                <div class="room-stat">
+                                    <span>Espaço Livre:</span>
+                                    <strong id="free-slots">12 slots</strong>
+                                </div>
+                                <div class="room-stat">
+                                    <span>Eficiência:</span>
+                                    <strong id="room-efficiency">0%</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inventário Rápido -->
+                        <div class="quick-inventory">
+                            <div class="section-header">
+                                <h2><i class="fa-solid fa-box"></i> INVENTÁRIO RÁPIDO</h2>
+                                <button onclick="showFullInventory()" class="btn-text">Ver tudo</button>
+                            </div>
+                            
+                            <div class="inv-tabs">
+                                <button class="inv-tab active" data-tab="miners">Mineradores</button>
+                                <button class="inv-tab" data-tab="racks">Racks</button>
+                                <button class="inv-tab" data-tab="upgrades">Upgrades</button>
+                            </div>
+                            
+                            <div class="inv-list" id="quick-inventory">
+                                <!-- Itens serão carregados por JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Missões do Dia -->
+                        <div class="daily-missions">
+                            <div class="section-header">
+                                <h2><i class="fa-solid fa-flag-checkered"></i> MISSÕES DO DIA</h2>
+                                <div class="missions-timer">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span id="missions-reset">23:45:12</span>
+                                </div>
+                            </div>
+                            
+                            <div class="missions-list" id="daily-missions">
+                                <!-- Missões serão carregadas por JavaScript -->
+                            </div>
+                            
+                            <div class="missions-rewards">
+                                <div class="reward-progress">
+                                    <div class="progress-label">
+                                        <span>Progresso Diário:</span>
+                                        <span id="missions-progress">0/3</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="missions-progress-bar"></div>
+                                    </div>
+                                </div>
+                                <button class="btn-neon-green" id="claim-missions">RESGATAR RECOMPENSAS</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Página de Mineração -->
+                <section id="page-mining" class="page hidden">
+                    <div class="mining-page">
+                        <h1><i class="fa-solid fa-hard-drive"></i> CENTRO DE MINERAÇÃO</h1>
+                        
+                        <!-- Estatísticas Detalhadas -->
+                        <div class="mining-stats">
+                            <div class="mining-stat-card">
+                                <h3>HASHRATE TOTAL</h3>
+                                <div class="mining-stat-value" id="total-hashrate">0 GH/s</div>
+                                <div class="mining-stat-change" id="hashrate-change">+0%</div>
+                            </div>
+                            
+                            <div class="mining-stat-card">
+                                <h3>GANHO POR HORA</h3>
+                                <div class="mining-stat-value" id="hourly-earnings">0.00 CMA</div>
+                                <div class="mining-stat-sub">Estimado</div>
+                            </div>
+                            
+                            <div class="mining-stat-card">
+                                <h3>EFICIÊNCIA</h3>
+                                <div class="mining-stat-value" id="mining-efficiency">0%</div>
+                                <div class="mining-stat-sub">Comparado ao máximo</div>
+                            </div>
+                            
+                            <div class="mining-stat-card">
+                                <h3>TEMPO ATIVO</h3>
+                                <div class="mining-stat-value" id="uptime">0:00</div>
+                                <div class="mining-stat-sub">Desde o último reset</div>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico de Mineração (simulado) -->
+                        <div class="mining-chart">
+                            <h3>HISTÓRICO DE MINERAÇÃO</h3>
+                            <div class="chart-container">
+                                <canvas id="miningChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Mineradores -->
+                        <div class="miners-list-section">
+                            <h3>MEUS MINERADORES</h3>
+                            <div class="miners-filters">
+                                <button class="filter-btn active">Todos</button>
+                                <button class="filter-btn">Ativos</button>
+                                <button class="filter-btn">Inativos</button>
+                                <button class="filter-btn">Por Potência</button>
+                                <button class="filter-btn">Por Eficiência</button>
+                            </div>
+                            
+                            <div class="miners-grid" id="miners-grid">
+                                <!-- Mineradores serão carregados por JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Auto-Mineração -->
+                        <div class="auto-mining">
+                            <h3>AUTO-MINERAÇÃO</h3>
+                            <div class="auto-mining-settings">
+                                <div class="setting">
+                                    <label for="auto-mine-toggle">
+                                        <input type="checkbox" id="auto-mine-toggle">
+                                        Ativar Auto-Mineração
+                                    </label>
+                                    <p class="setting-description">Mine automaticamente a cada 5 minutos</p>
+                                </div>
+                                
+                                <div class="setting">
+                                    <label>Intervalo:</label>
+                                    <select id="auto-mine-interval">
+                                        <option value="5">5 minutos</option>
+                                        <option value="10">10 minutos</option>
+                                        <option value="15">15 minutos</option>
+                                        <option value="30">30 minutos</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="setting">
+                                    <label>Notificações:</label>
+                                    <select id="auto-mine-notifications">
+                                        <option value="all">Todas as minerações</option>
+                                        <option value="large">Só grandes ganhos</option>
+                                        <option value="none">Nenhuma</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-neon-green" onclick="saveAutoMining()">
+                                <i class="fa-solid fa-save"></i> SALVAR CONFIGURAÇÕES
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Página de Jogos -->
+                <section id="page-games" class="page hidden">
+                    <div class="games-page">
+                        <div class="games-header">
+                            <h1><i class="fa-solid fa-gamepad"></i> CENTRO ARCADE</h1>
+                            <p>Jogue minigames para aumentar seu poder de mineração por 24 horas!</p>
+                            <div class="games-stats">
+                                <div class="games-stat">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span>Bônus Ativo: <strong id="active-bonus">0%</strong></span>
+                                </div>
+                                <div class="games-stat">
+                                    <i class="fa-solid fa-trophy"></i>
+                                    <span>Recorde: <strong id="high-score">0</strong></span>
+                                </div>
+                                <div class="games-stat">
+                                    <i class="fa-solid fa-coins"></i>
+                                    <span>Ganhos em Jogos: <strong id="games-earnings">0 CMA</strong></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Jogos -->
+                        <div class="games-grid" id="games-grid">
+                            <!-- Jogos serão carregados por JavaScript -->
+                        </div>
+
+                        <!-- Jogos em Destaque -->
+                        <div class="featured-games">
+                            <h2><i class="fa-solid fa-star"></i> JOGOS EM DESTAQUE</h2>
+                            <div class="featured-slider">
+                                <div class="featured-game">
+                                    <div class="featured-badge">MAIS POPULAR</div>
+                                    <div class="featured-icon">
+                                        <i class="fa-solid fa-coins"></i>
+                                    </div>
+                                    <h3>CRYPTO 2048</h3>
+                                    <p>Combine criptomoedas para alcançar o Bitcoin!</p>
+                                    <button class="btn-neon-green" data-game="crypto-2048">JOGAR AGORA</button>
+                                </div>
+                                
+                                <div class="featured-game">
+                                    <div class="featured-badge">NOVO</div>
+                                    <div class="featured-icon">
+                                        <i class="fa-solid fa-robot"></i>
+                                    </div>
+                                    <h3>CRYPTO DEFENDER</h3>
+                                    <p>Proteja sua carteira de hackers!</p>
+                                    <button class="btn-neon-green" data-game="crypto-defender">JOGAR AGORA</button>
+                                </div>
+                                
+                                <div class="featured-game">
+                                    <div class="featured-badge">RECOMPENSA DUPLA</div>
+                                    <div class="featured-icon">
+                                        <i class="fa-solid fa-rocket"></i>
+                                    </div>
+                                    <h3>FLAPPY ROCKET</h3>
+                                    <p>Desvie dos obstáculos no espaço!</p>
+                                    <button class="btn-neon-green" data-game="flappy-rocket">JOGAR AGORA</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Eventos de Jogo -->
+                        <div class="game-events">
+                            <h2><i class="fa-solid fa-calendar-star"></i> EVENTOS ATIVOS</h2>
+                            <div class="events-list">
+                                <div class="event-card">
+                                    <div class="event-time">
+                                        <i class="fa-solid fa-clock"></i>
+                                        <span>24h restantes</span>
+                                    </div>
+                                    <h3>TORNEIO DE FIM DE SEMANA</h3>
+                                    <p>Jogue qualquer minigame para competir no ranking. Prêmios: 10.000 CMA para o 1º lugar!</p>
+                                    <button class="btn-neon-outline">PARTICIPAR</button>
+                                </div>
+                                
+                                <div class="event-card">
+                                    <div class="event-time">
+                                        <i class="fa-solid fa-clock"></i>
+                                        <span>7 dias restantes</span>
+                                    </div>
+                                    <h3>DESAFIO SEMANAL</h3>
+                                    <p>Complete 10 jogos para receber um minerador exclusivo!</p>
+                                    <div class="event-progress">
+                                        <div class="progress-label">Progresso: 2/10</div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 20%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Página da Loja -->
+                <section id="page-store" class="page hidden">
+                    <div class="store-page">
+                        <h1><i class="fa-solid fa-cart-shopping"></i> LOJA DE HARDWARE</h1>
+                        
+                        <div class="store-categories">
+                            <button class="store-category active" data-category="miners">
+                                <i class="fa-solid fa-microchip"></i>
+                                <span>Mineradores</span>
+                            </button>
+                            <button class="store-category" data-category="racks">
+                                <i class="fa-solid fa-server"></i>
+                                <span>Racks</span>
+                            </button>
+                            <button class="store-category" data-category="upgrades">
+                                <i class="fa-solid fa-arrow-up"></i>
+                                <span>Upgrades</span>
+                            </button>
+                            <button class="store-category" data-category="energy">
+                                <i class="fa-solid fa-bolt"></i>
+                                <span>Energia</span>
+                            </button>
+                            <button class="store-category" data-category="skins">
+                                <i class="fa-solid fa-palette"></i>
+                                <span>Skins</span>
+                            </button>
+                        </div>
+
+                        <!-- Produtos em Destaque -->
+                        <div class="store-featured">
+                            <h2><i class="fa-solid fa-crown"></i> EM DESTAQUE</h2>
+                            <div class="featured-product">
+                                <div class="featured-product-image">
+                                    <i class="fa-solid fa-atom"></i>
+                                </div>
+                                <div class="featured-product-info">
+                                    <div class="featured-badge">LIMITADO</div>
+                                    <h3>QUANTUM MINER PRO</h3>
+                                    <p class="featured-description">Minerador de última geração com tecnologia quântica. 10.000 GH/s de poder!</p>
+                                    <div class="featured-price">
+                                        <div class="old-price">15.000 CMA</div>
+                                        <div class="new-price">10.000 CMA</div>
+                                        <div class="discount">-33%</div>
+                                    </div>
+                                    <button class="btn-neon-green">COMPRAR AGORA</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Produtos -->
+                        <div class="store-products" id="store-products">
+                            <!-- Produtos serão carregados por JavaScript -->
+                        </div>
+
+                        <!-- Pacotes e Bundles -->
+                        <div class="store-bundles">
+                            <h2><i class="fa-solid fa-gift"></i> PACOTES ESPECIAIS</h2>
+                            <div class="bundles-grid">
+                                <div class="bundle-card">
+                                    <div class="bundle-header">INICIANTE</div>
+                                    <div class="bundle-content">
+                                        <ul>
+                                            <li>1 Minerador GPU Pro</li>
+                                            <li>1 Rack Grande</li>
+                                            <li>5 Baterias</li>
+                                            <li>500 CMA Bonus</li>
+                                        </ul>
+                                        <div class="bundle-price">1.500 CMA</div>
+                                        <div class="bundle-savings">Economize 30%</div>
+                                        <button class="btn-neon-green">COMPRAR PACOTE</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="bundle-card popular">
+                                    <div class="bundle-header">MAIS POPULAR</div>
+                                    <div class="bundle-content">
+                                        <ul>
+                                            <li>3 Mineradores RTX</li>
+                                            <li>2 Racks Industriais</li>
+                                            <li>20 Baterias</li>
+                                            <li>2.000 CMA Bonus</li>
+                                            <li>Skins Exclusivas</li>
+                                        </ul>
+                                        <div class="bundle-price">5.000 CMA</div>
+                                        <div class="bundle-savings">Economize 50%</div>
+                                        <button class="btn-neon-green">COMPRAR PACOTE</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="bundle-card">
+                                    <div class="bundle-header">PROFISSIONAL</div>
+                                    <div class="bundle-content">
+                                        <ul>
+                                            <li>1 Quantum Miner</li>
+                                            <li>4 Racks Server</li>
+                                            <li>50 Baterias</li>
+                                            <li>5.000 CMA Bonus</li>
+                                            <li>Todas as Skins</li>
+                                            <li>Upgrades Premium</li>
+                                        </ul>
+                                        <div class="bundle-price">15.000 CMA</div>
+                                        <div class="bundle-savings">Economize 60%</div>
+                                        <button class="btn-neon-green">COMPRAR PACOTE</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Outras páginas serão adicionadas aqui -->
+                
+                <!-- Footer do Jogo -->
+                <footer class="game-footer">
+                    <div class="footer-left">
+                        <span>Crypto Miner Arcadia v2.0</span>
+                        <span class="footer-separator">•</span>
+                        <span id="online-users">152 jogadores online</span>
+                        <span class="footer-separator">•</span>
+                        <span>Ping: <span id="ping">24ms</span></span>
+                    </div>
+                    <div class="footer-right">
+                        <button class="btn-text" onclick="showHelp()">
+                            <i class="fa-solid fa-circle-question"></i> Ajuda
+                        </button>
+                        <button class="btn-text" onclick="showSupport()">
+                            <i class="fa-solid fa-headset"></i> Suporte
+                        </button>
+                        <button class="btn-text" onclick="showAbout()">
+                            <i class="fa-solid fa-info-circle"></i> Sobre
+                        </button>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modais de Jogo -->
+    <div id="game-start-modal" class="modal hidden">
+        <div class="game-start-card">
+            <!-- Conteúdo será preenchido por JavaScript -->
+        </div>
+    </div>
+
+    <div id="victory-modal" class="modal hidden">
+        <div class="victory-card">
+            <!-- Conteúdo será preenchido por JavaScript -->
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="modal hidden">
+        <div class="modal-content large">
+            <!-- Conteúdo será preenchido por JavaScript -->
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content large">
+            <!-- Conteúdo será preenchido por JavaScript -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="main.js"></script>
+    
+    <!-- Service Worker para PWA -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('ServiceWorker registrado com sucesso: ', registration.scope);
+                    console.log('Service Worker registrado:', registration.scope);
                 }).catch(error => {
-                    console.log('Falha ao registrar ServiceWorker: ', error);
+                    console.log('Falha ao registrar Service Worker:', error);
                 });
             });
         }
-    </script>
-    
-    <!-- Analytics (opcional) -->
-    <script>
-        // Aqui você pode adicionar Google Analytics ou outro serviço
-        console.log('Crypto Miner Arcadia carregado!');
     </script>
 </body>
 </html>

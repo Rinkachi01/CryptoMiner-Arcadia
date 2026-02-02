@@ -1,7 +1,7 @@
 {
   "name": "Crypto Miner Arcadia",
   "short_name": "CryptoMiner",
-  "description": "Um jogo de mineração de criptomoedas. Monte sua fazenda de mineração, jogue minigames e ganhe recompensas!",
+  "description": "Monte sua fazenda de mineração, jogue minigames e domine o mundo das criptomoedas!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b0e14",
@@ -9,44 +9,76 @@
   "orientation": "landscape-primary",
   "icons": [
     {
-      "src": "assets/images/icon-72x72.png",
+      "src": "/assets/icon-72x72.png",
       "sizes": "72x72",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "assets/images/icon-96x96.png",
+      "src": "/assets/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-128x128.png",
+      "src": "/assets/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-144x144.png",
+      "src": "/assets/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-152x152.png",
+      "src": "/assets/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-192x192.png",
+      "src": "/assets/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-384x384.png",
+      "src": "/assets/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png"
     },
     {
-      "src": "assets/images/icon-512x512.png",
+      "src": "/assets/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    }
+  ],
+  "categories": ["games", "entertainment", "finance"],
+  "screenshots": [
+    {
+      "src": "/assets/screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Tela principal do jogo"
+    },
+    {
+      "src": "/assets/screenshot2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Sala de mineração"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Iniciar Mineração",
+      "short_name": "Minerar",
+      "description": "Iniciar mineração automática",
+      "url": "/?action=mine",
+      "icons": [{ "src": "/assets/shortcut-mine.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Jogos Arcade",
+      "short_name": "Arcade",
+      "description": "Acessar minigames",
+      "url": "/?action=games",
+      "icons": [{ "src": "/assets/shortcut-games.png", "sizes": "96x96" }]
     }
   ]
 }

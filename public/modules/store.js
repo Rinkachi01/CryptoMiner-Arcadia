@@ -1,85 +1,212 @@
-// modules/store.js - Sistema da loja
-import { apiCall } from './api.js';
+// ===========================================
+// STORE MODULE - Sistema da loja
+// ===========================================
 
-let currentStoreTab = 'miner';
+import { apiCall, buyItem } from './api.js';
 
+let currentStoreTab = 'miners';
+
+/**
+ * Inicializa a loja
+ */
 export function initStore() {
-    // Configurar tabs da loja
-    document.querySelectorAll('.store-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            const tabName = e.target.dataset.tab;
-            if (tabName) setStoreTab(tabName);
-        });
-    });
+    console.log('🏪 Inicializando loja...');
+    
+    // Configurar event listeners
+    setupStoreEventListeners();
+    
+    console.log('✅ Loja inicializada');
 }
 
-export function setStoreTab(tab) {
-    currentStoreTab = tab;
-    renderStore();
-}
-
-export function renderStore() {
-    const storeList = document.getElementById('store-list');
-    if (!storeList || !window.CATALOG) return;
-
-    storeList.innerHTML = '';
-
-    const items = currentStoreTab === 'miner' ? window.CATALOG.miners : window.CATALOG.racks;
-
+/**
+ * Renderiza a loja
+ */
+export function renderStore(category = 'miners') {
+    currentStoreTab = category;
+    
+    const storeProducts = document.getElementById('store-products');
+    if (!storeProducts || !window.CATALOG) return;
+    
+    storeProducts.innerHTML = '';
+    
+    let items = [];
+    let title = '';
+    
+    switch(category) {
+        case 'miners':
+            items = window.CATALOG.miners || [];
+            title = 'Mineradores';
+            break;
+        case 'racks':
+            items = window.CATALOG.racks || [];
+            title = 'Racks';
+            break;
+        case 'upgrades':
+            items = window.CATALOG.upgrades || [];
+            title = 'Upgrades';
+            break;
+        case 'energy':
+            items = []; // Seriam itens de energia
+            title = 'Energia';
+            break;
+        case 'skins':
+            items = []; // Seriam skins
+            title = 'Skins';
+            break;
+    }
+    
+    if (items.length === 0) {
+        storeProducts.innerHTML = `
+            <div class="empty-store">
+                <i class="fa-solid fa-box-open"></i>
+                <h3>Em breve!</h3>
+                <p>Mais ${title.toLowerCase()} serão adicionados em breve.</p>
+            </div>
+        `;
+        return;
+    }
+    
     items.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'store-item';
+        const productCard = document.createElement('div');
+        productCard.className = 'product-card';
         
-        itemElement.innerHTML = `
-            <div class="store-icon">
-                <i class="fa-solid ${currentStoreTab === 'miner' ? 'fa-microchip' : 'fa-server'}"></i>
+        let statsHTML = '';
+        let icon = 'fa-box';
+        
+        if (category === 'miners') {
+            statsHTML = `
+                <div class="product-stat">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>${item.power} GH/s</span>
+                </div>
+                <div class="product-stat">
+                    <i class="fa-solid fa-plug"></i>
+                    <span>${item.watts} W</span>
+                </div>
+                <div class="product-stat">
+                    <i class="fa-solid fa-expand"></i>
+                    <span>${item.size} slot(s)</span>
+                </div>
+            `;
+            icon = 'fa-microchip';
+            
+        } else if (category === 'racks') {
+            statsHTML = `
+                <div class="product-stat">
+                    <i class="fa-solid fa-server"></i>
+                    <span>${item.slots} slots</span>
+                </div>
+                <div class="product-stat">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>${item.size || 'Médio'}</span>
+                </div>
+            `;
+            icon = 'fa-server';
+            
+        } else if (category === 'upgrades') {
+            statsHTML = `
+                <div class="product-stat">
+                    <i class="fa-solid fa-arrow-up"></i>
+                    <span>${item.description}</span>
+                </div>
+            `;
+            icon = 'fa-arrow-up';
+        }
+        
+        productCard.innerHTML = `
+            <div class="product-icon">
+                <i class="fa-solid ${icon}"></i>
             </div>
-            <div class="store-name">${item.name}</div>
-            <div class="store-stats">
-                ${currentStoreTab === 'miner' ? 
-                    `<div><small>Power: ${item.power} GH/s</small></div>
-                     <div><small>Size: ${item.size} slot(s)</small></div>
-                     <div><small>Watts: ${item.watts}</small></div>` :
-                    `<div><small>Slots: ${item.slots}</small></div>`
-                }
+            
+            <h3>${item.name}</h3>
+            
+            <div class="product-stats">
+                ${statsHTML}
             </div>
-            <div class="store-price">${item.cost.toFixed(2)} RCT</div>
-            <button class="buy-btn" data-id="${item.id}" data-type="${currentStoreTab}">
-                COMPRAR
+            
+            <div class="product-price">
+                ${item.cost.toFixed(2)} CMA
+            </div>
+            
+            <button class="btn-neon-green buy-btn" 
+                    data-id="${item.id}" 
+                    data-type="${category}"
+                    ${window.USER_DATA?.balance >= item.cost ? '' : 'disabled'}>
+                ${window.USER_DATA?.balance >= item.cost ? 'COMPRAR' : 'SALDO INSUFICIENTE'}
             </button>
         `;
-
-        storeList.appendChild(itemElement);
+        
+        storeProducts.appendChild(productCard);
     });
+    
+    // Re-configurar event listeners
+    setupStoreEventListeners();
+}
 
-    // Adicionar event listeners aos botões de compra
+/**
+ * Configura event listeners da loja
+ */
+function setupStoreEventListeners() {
+    // Botões de compra
     document.querySelectorAll('.buy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            const type = e.target.dataset.type;
+            const itemId = e.target.dataset.id;
+            const itemType = e.target.dataset.type;
             
-            if (id && type) {
-                await buyItem(id, type);
+            if (itemId && itemType) {
+                await purchaseItem(itemId, itemType);
             }
         });
     });
 }
 
-async function buyItem(itemId, itemType) {
-    const response = await apiCall('buy', {
-        item_id: itemId,
-        type: itemType
-    });
-
-    if (response.success) {
-        alert('Compra realizada com sucesso!');
-        // Atualizar dados do usuário
-        window.updateData && await window.updateData();
-    } else {
-        alert(response.message || 'Erro ao comprar item');
+/**
+ * Realiza uma compra
+ */
+async function purchaseItem(itemId, itemType) {
+    if (!window.USER_DATA) {
+        alert('Você precisa estar logado para comprar itens.');
+        return;
+    }
+    
+    // Confirmar compra
+    if (!confirm('Deseja realmente comprar este item?')) {
+        return;
+    }
+    
+    try {
+        const response = await buyItem(itemId, itemType);
+        
+        if (response.success) {
+            // Atualizar dados do usuário
+            if (window.updateData) {
+                await window.updateData();
+            }
+            
+            // Atualizar interface da loja
+            renderStore(currentStoreTab);
+            
+            // Mostrar notificação
+            if (window.showNotification) {
+                window.showNotification(
+                    '✅ Compra Realizada',
+                    `Você comprou ${response.item?.name || 'o item'}!`,
+                    'success'
+                );
+            }
+            
+        } else {
+            alert(response.message || 'Erro ao comprar item');
+        }
+        
+    } catch (error) {
+        console.error('Erro na compra:', error);
+        alert('Erro de conexão com o servidor');
     }
 }
 
 // Exportar para uso global
+window.initStore = initStore;
 window.renderStore = renderStore;
-window.setStoreTab = setStoreTab;
+
+console.log('✅ store.js carregado');

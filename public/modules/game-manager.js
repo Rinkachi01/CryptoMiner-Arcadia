@@ -1,175 +1,288 @@
-// modules/game-manager.js - Gerenciador de jogos
-import { apiCall } from './api.js';
+// ===========================================
+// GAME MANAGER - Gerenciador de minigames
+// ===========================================
 
-let currentGame = null;
-let gameInterval = null;
+import { apiCall, startGame, claimGameReward } from './api.js';
 
+/**
+ * Inicializa o gerenciador de jogos
+ */
 export function initGameManager() {
-    renderGames();
+    console.log('🎮 Inicializando gerenciador de jogos...');
+    
+    // Configurar event listeners para os jogos
+    setupGameEventListeners();
+    
+    console.log('✅ Gerenciador de jogos inicializado');
 }
 
+/**
+ * Renderiza a lista de jogos
+ */
 export function renderGames() {
-    const gamesList = document.getElementById('games-list');
-    if (!gamesList || !window.GAMES_BASE) return;
-
-    gamesList.innerHTML = '';
-
-    Object.entries(window.GAMES_BASE).forEach(([id, game]) => {
-        const gameElement = document.createElement('div');
-        gameElement.className = 'game-card';
-        gameElement.dataset.gameId = id;
+    const gamesGrid = document.getElementById('games-grid');
+    if (!gamesGrid || !window.GAMES_BASE) return;
+    
+    gamesGrid.innerHTML = '';
+    
+    Object.entries(window.GAMES_BASE).forEach(([gameId, gameData]) => {
+        const level = window.USER_LEVELS_DATA[gameId]?.level || 1;
+        const lastPlayed = window.USER_LEVELS_DATA[gameId]?.last_played || 0;
         
-        const level = window.USER_LEVELS_DATA?.[id]?.level || 1;
-        const lastPlayed = window.USER_LEVELS_DATA?.[id]?.last_played || 0;
-        const cooldown = 30 + (level * 15);
+        // Calcular cooldown
+        const cooldown = 30 + (level * 15); // 30s + 15s por nível
         const timePassed = Date.now() - lastPlayed;
         const canPlay = timePassed >= (cooldown * 1000);
+        const cooldownLeft = Math.ceil((cooldown * 1000 - timePassed) / 1000);
         
-        gameElement.innerHTML = `
-            <div class="g-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <i class="fa-solid ${getGameIcon(id)}"></i>
+        // Calcular recompensa
+        const baseReward = gameData.reward || 100;
+        const reward = Math.floor(baseReward * Math.pow(gameData.diff_mult || 1.2, level - 1));
+        
+        const gameCard = document.createElement('div');
+        gameCard.className = 'game-card';
+        gameCard.innerHTML = `
+            <div class="game-icon">
+                <i class="${getGameIcon(gameId)}"></i>
             </div>
-            <div class="game-title">${game.name}</div>
-            <div class="diff-dots">
-                ${Array.from({length: 5}, (_, i) => 
-                    `<div class="dot ${i < level ? 'on' : ''}"></div>`
-                ).join('')}
+            <h3>${gameData.name}</h3>
+            <p class="game-description">${getGameDescription(gameId)}</p>
+            
+            <div class="game-stats">
+                <div class="game-stat">
+                    <i class="fa-solid fa-coins"></i>
+                    <span>${reward} GH/s</span>
+                </div>
+                <div class="game-stat">
+                    <i class="fa-solid fa-clock"></i>
+                    <span>${gameData.time}s</span>
+                </div>
+                <div class="game-stat">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span>Nível ${level}</span>
+                </div>
             </div>
-            <div class="game-reward">Reward: ${calculateReward(id, level)} GH/s</div>
-            <div class="game-time">Time: ${game.time}s</div>
-            <div class="game-target">Target: ${calculateTarget(id, level)}</div>
-            <button class="btn-neon-green" 
-                    data-game-start="${id}"
+            
+            <button class="btn-neon-green play-btn" 
+                    data-game="${gameId}"
                     ${!canPlay ? 'disabled' : ''}>
-                ${canPlay ? 'PLAY' : `COOLDOWN: ${Math.ceil((cooldown * 1000 - timePassed) / 1000)}s`}
+                ${canPlay ? 'JOGAR' : `COOLDOWN: ${cooldownLeft}s`}
             </button>
         `;
-
-        gamesList.appendChild(gameElement);
+        
+        gamesGrid.appendChild(gameCard);
     });
+    
+    // Re-configurar event listeners
+    setupGameEventListeners();
+}
 
-    // Adicionar event listeners
-    document.querySelectorAll('[data-game-start]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const gameId = e.target.dataset.gameStart;
-            startGame(gameId);
+/**
+ * Obtém ícone do jogo
+ */
+function getGameIcon(gameId) {
+    switch(gameId) {
+        case 'coin-clicker': return 'fa-solid fa-coins';
+        case 'flappy-rocket': return 'fa-solid fa-rocket';
+        case 'crypto-2048': return 'fa-solid fa-th';
+        case 'crypto-match': return 'fa-solid fa-puzzle-piece';
+        case 'crypto-defender': return 'fa-solid fa-shield-alt';
+        default: return 'fa-solid fa-gamepad';
+    }
+}
+
+/**
+ * Obtém descrição do jogo
+ */
+function getGameDescription(gameId) {
+    switch(gameId) {
+        case 'coin-clicker': return 'Clique nas moedas para coletar!';
+        case 'flappy-rocket': return 'Desvie dos obstáculos no espaço!';
+        case 'crypto-2048': return 'Combine criptomoedas para alcançar o Bitcoin!';
+        case 'crypto-match': return 'Encontre pares de criptomoedas iguais!';
+        case 'crypto-defender': return 'Proteja sua carteira de hackers!';
+        default: return 'Divirta-se e ganhe recompensas!';
+    }
+}
+
+/**
+ * Configura event listeners dos jogos
+ */
+function setupGameEventListeners() {
+    // Botões de jogar
+    document.querySelectorAll('.play-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const gameId = e.target.dataset.game;
+            if (gameId) {
+                await launchGame(gameId);
+            }
+        });
+    });
+    
+    // Botões de jogos em destaque
+    document.querySelectorAll('[data-game]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const gameId = e.target.dataset.game;
+            if (gameId) {
+                await launchGame(gameId);
+            }
         });
     });
 }
 
-function getGameIcon(gameId) {
-    switch(gameId) {
-        case 'coin-clicker': return 'fa-coins';
-        case 'flappy-rocket': return 'fa-rocket';
-        case 'crypto-2048': return 'fa-th';
-        default: return 'fa-gamepad';
-    }
-}
-
-function calculateReward(gameId, level) {
-    const game = window.GAMES_BASE[gameId];
-    if (!game) return 0;
-    return Math.floor(game.reward * Math.pow(game.diff_mult, level - 1));
-}
-
-function calculateTarget(gameId, level) {
-    const game = window.GAMES_BASE[gameId];
-    if (!game) return 0;
+/**
+ * Lança um jogo
+ */
+async function launchGame(gameId) {
+    console.log(`🎮 Iniciando jogo: ${gameId}`);
     
-    // Ajustar a meta para ser mais alcançável
-    let target = game.base_target + ((level - 1) * game.target_step);
+    // Mostrar modal de loading
+    showGameLoading(gameId);
     
-    // Ajustes específicos por jogo
-    switch(gameId) {
-        case 'coin-clicker':
-            // Reduzir a meta para níveis mais altos
-            target = Math.min(target, 500);
-            break;
-        case 'flappy-rocket':
-            // Aumentar a meta gradualmente
-            target = Math.min(target, 20);
-            break;
-        case 'crypto-2048':
-            // Meta mais suave
-            target = Math.min(target, 2048);
-            break;
-    }
-    
-    return target;
-}
-
-export async function startGame(gameId) {
-    const response = await apiCall('game/start', { game_id: gameId });
-    
-    if (response.success) {
-        // Iniciar o jogo
-        switch(gameId) {
-            case 'coin-clicker':
-                startCoinClicker(gameId);
-                break;
-            case 'flappy-rocket':
-                startFlappyRocket(gameId);
-                break;
-            case 'crypto-2048':
-                startCrypto2048(gameId);
-                break;
-        }
-    } else {
-        alert(response.message || 'Erro ao iniciar jogo');
-    }
-}
-
-function startCoinClicker(gameId) {
-    // Implementar o jogo Coin Clicker
-    alert('Coin Clicker iniciado!');
-    // Aqui você integraria o jogo real
-}
-
-function startFlappyRocket(gameId) {
-    // Implementar o jogo Flappy Rocket
-    alert('Flappy Rocket iniciado!');
-}
-
-function startCrypto2048(gameId) {
-    // Implementar o jogo Crypto 2048
-    alert('Crypto 2048 iniciado!');
-}
-
-export function finishGame(gameId, score, won) {
-    // Enviar resultado para o servidor
-    apiCall('game/claim', {
-        game_id: gameId,
-        score: score,
-        won: won
-    }).then(response => {
+    try {
+        // Iniciar jogo no servidor
+        const response = await startGame(gameId);
+        
         if (response.success) {
-            showVictoryModal(response.reward, response.battery, response.level);
+            // Em uma implementação completa, aqui iniciaria o jogo real
+            // Por enquanto, simular um jogo
+            simulateGame(gameId, response);
+        } else {
+            alert(response.message || 'Erro ao iniciar jogo');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao iniciar jogo:', error);
+        alert('Erro de conexão com o servidor');
+    }
+}
+
+/**
+ * Mostra loading do jogo
+ */
+function showGameLoading(gameId) {
+    // Implementar modal de loading específico do jogo
+    console.log(`⏳ Carregando jogo: ${gameId}`);
+}
+
+/**
+ * Simula um jogo (para demonstração)
+ */
+async function simulateGame(gameId, startData) {
+    // Para demonstração, vamos simular um jogo simples
+    const gameName = window.GAMES_BASE[gameId]?.name || 'Jogo';
+    const duration = window.GAMES_BASE[gameId]?.time || 60;
+    
+    alert(`🎮 ${gameName} iniciado!\n\nDuração: ${duration}s\n\nEm uma versão completa, o jogo real seria carregado aqui.`);
+    
+    // Simular resultado após um tempo
+    setTimeout(async () => {
+        const score = Math.floor(Math.random() * 1000) + 500;
+        const won = Math.random() > 0.3; // 70% de chance de vitória
+        
+        // Reivindicar recompensa
+        await finishGame(gameId, score, won);
+    }, 2000);
+}
+
+/**
+ * Finaliza um jogo e reivindica recompensa
+ */
+async function finishGame(gameId, score, won) {
+    try {
+        const response = await claimGameReward(gameId, score, won);
+        
+        if (response.success) {
+            showVictoryModal(response, score, won);
+            
             // Atualizar dados do usuário
-            window.updateData && window.updateData();
+            if (window.updateData) {
+                await window.updateData();
+            }
+            
             // Atualizar lista de jogos
             renderGames();
+            
         } else {
-            alert(response.message || 'Erro ao finalizar jogo');
+            alert(response.message || 'Erro ao reivindicar recompensa');
         }
-    });
+        
+    } catch (error) {
+        console.error('Erro ao finalizar jogo:', error);
+        alert('Erro de conexão com o servidor');
+    }
 }
 
-function showVictoryModal(reward, battery, level) {
-    const modal = document.getElementById('victory-modal');
-    if (!modal) return;
-
-    document.getElementById('vic-power').textContent = `+ ${reward} GH/s`;
-    document.getElementById('vic-drop').style.display = battery ? 'flex' : 'none';
+/**
+ * Mostra modal de vitória
+ */
+function showVictoryModal(result, score, won) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="victory-card">
+            <div class="victory-header">
+                <i class="fa-solid fa-${won ? 'trophy' : 'times'}"></i>
+                <h2>${won ? 'VITÓRIA!' : 'FIM DE JOGO'}</h2>
+            </div>
+            
+            <div class="victory-body">
+                <div class="victory-stat">
+                    <span>Pontuação:</span>
+                    <strong>${score}</strong>
+                </div>
+                
+                <div class="victory-stat">
+                    <span>Recompensa:</span>
+                    <strong style="color: var(--neon-green);">+${result.reward} GH/s</strong>
+                </div>
+                
+                ${result.coins ? `
+                <div class="victory-stat">
+                    <span>Moedas:</span>
+                    <strong style="color: var(--cyan);">+${result.coins} CMA</strong>
+                </div>
+                ` : ''}
+                
+                ${result.battery ? `
+                <div class="victory-stat">
+                    <span>Item Drop:</span>
+                    <strong style="color: var(--warning);">+1 Bateria</strong>
+                </div>
+                ` : ''}
+                
+                ${result.experience ? `
+                <div class="victory-stat">
+                    <span>Experiência:</span>
+                    <strong style="color: var(--neon-pink);">+${result.experience} XP</strong>
+                </div>
+                ` : ''}
+                
+                ${result.level_up ? `
+                <div class="victory-bonus">
+                    <i class="fa-solid fa-star"></i>
+                    <span>NOVO NÍVEL ALCANÇADO!</span>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="victory-actions">
+                <button class="btn-neon-green" onclick="this.closest('.modal').remove(); window.navigateTo('games');">
+                    VOLTAR AOS JOGOS
+                </button>
+                <button class="btn-neon-outline" onclick="this.closest('.modal').remove(); window.navigateTo('home');">
+                    IR PARA INÍCIO
+                </button>
+            </div>
+        </div>
+    `;
     
-    modal.classList.remove('hidden');
+    document.body.appendChild(modal);
 }
 
 // Exportar para uso global
-window.closeVictory = function() {
-    document.getElementById('victory-modal').classList.add('hidden');
-};
+window.initGameManager = initGameManager;
+window.renderGames = renderGames;
+window.launchGame = launchGame;
 
-window.closeVictoryAndPlay = function() {
-    document.getElementById('victory-modal').classList.add('hidden');
-    navigateTo('games');
-};
+console.log('✅ game-manager.js carregado');
