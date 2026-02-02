@@ -1864,3 +1864,90 @@ button:focus, input:focus {
     background: linear-gradient(to right, var(--cyan), var(--neon-green));
     box-shadow: 0 0 10px var(--cyan);
 }
+
+/* Estilos para o bônus de registro */
+.register-bonus {
+    animation: pulseBonus 2s infinite alternate;
+}
+
+@keyframes pulseBonus {
+    0% { box-shadow: 0 0 10px rgba(0,255,157,0.2); }
+    100% { box-shadow: 0 0 20px rgba(0,255,157,0.4); }
+}
+
+/* Melhorias nos inputs */
+.input-group {
+    transition: all 0.3s ease;
+}
+
+.input-group:focus-within {
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,255,255,0.2);
+}
+
+/* Botões com ícones */
+.btn-neon-green i, .btn-neon-blue i {
+    margin-right: 8px;
+}
+
+/* Animações de loading */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Responsividade para login */
+@media (max-width: 480px) {
+    .login-box {
+        width: 90%;
+        padding: 20px;
+    }
+    
+    .register-bonus {
+        font-size: 10px;
+        padding: 10px;
+    }
+}
+
+/* Melhorias na barra de energia */
+.energy-bars {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 15px;
+}
+
+.bar {
+    height: 20px;
+    background: #222;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.bar.active {
+    background: linear-gradient(to right, var(--cyan), var(--neon-green));
+    box-shadow: 0 0 8px var(--cyan);
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}

@@ -114,6 +114,48 @@
         </div>
     </div>
 
+<div id="register-form" class="login-form hidden">
+    <!-- ADICIONAR ESTA SEÇÃO DE BÔNUS -->
+    <div class="register-bonus" style="
+        background: linear-gradient(135deg, rgba(0,255,157,0.1) 0%, rgba(0,200,255,0.1) 100%);
+        border: 2px solid var(--neon-green);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 20px;
+        font-size: 11px;
+        line-height: 1.5;
+        text-align: center;
+        box-shadow: 0 0 15px rgba(0,255,157,0.2);
+    ">
+        <i class="fa-solid fa-gift" style="color:var(--neon-green); font-size:14px;"></i>
+        <strong style="color:var(--neon-green);"> REGISTRE-SE AGORA E GANHE:</strong><br>
+        <div style="margin-top: 8px;">
+            <span style="color:#00ffff;">• 1 Minerador Inicial (100 GH/s)</span><br>
+            <span style="color:#00ff9d;">• 1 Rack Pequeno (4 slots)</span><br>
+            <span style="color:#ffd700;">• 5 Baterias de Energia</span><br>
+            <span style="color:#ffffff;">• 100.00 CMA Coins</span>
+        </div>
+        <div style="margin-top: 8px; font-size: 9px; color: #aaa;">
+            Comece sua jornada na mineração!
+        </div>
+    </div>
+    
+    <div class="input-group">
+        <i class="fa-solid fa-user" style="color:#666; margin-right:10px;"></i>
+        <input type="text" id="register-username" placeholder="Escolha um nome de usuário" autocomplete="username">
+    </div>
+    <div class="input-group">
+        <i class="fa-solid fa-lock" style="color:#666; margin-right:10px;"></i>
+        <input type="password" id="register-password" placeholder="Senha (mínimo 8 caracteres)" autocomplete="new-password">
+    </div>
+    <div id="register-msg" class="login-msg"></div>
+    <div class="login-actions">
+        <button id="btn-register" class="btn-neon-green" style="width:100%;">
+            <i class="fa-solid fa-user-plus"></i> CRIAR CONTA GRÁTIS
+        </button>
+    </div>
+</div>
+
     <div id="victory-modal" class="modal hidden">
         <div class="victory-card">
             <div class="victory-header">
@@ -161,6 +203,36 @@
             <button onclick="closeModal('equip-modal')" class="btn-text">Cancel</button>
         </div>
     </div>
+
+    <!-- Adicionado: Estrutura completa da sala de mineração -->
+<div id="room-container" class="room-grid">
+    <!-- 12 slots serão gerados por JavaScript -->
+</div>
+
+<!-- Adicionado: Inventário completo -->
+<div class="inventory-section">
+    <div class="inv-tabs">
+        <button class="inv-tab active" data-tab="machines">Miners</button>
+        <button class="inv-tab" data-tab="racks">Racks</button>
+    </div>
+    
+    <div id="inventory-machines" class="inv-list active">
+        <!-- Máquinas serão inseridas aqui -->
+    </div>
+    
+    <div id="inventory-racks" class="inv-list">
+        <!-- Racks serão inseridas aqui -->
+    </div>
+</div>
+
+<!-- Adicionado: Modal para colocar racks -->
+<div id="rack-placement-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Place Rack in Room</h3>
+        <div id="rack-placement-slots" class="room-grid-preview"></div>
+        <button onclick="placeSelectedRack()">Confirm</button>
+    </div>
+</div>
 
     <!-- Modal específico para Crypto 2048 -->
     <div id="crypto2048-modal" class="modal hidden">

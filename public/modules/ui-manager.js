@@ -229,3 +229,70 @@ function updateInventory(machines, racks) {
         });
     }
 }
+
+// Sistema completo de renderização da sala
+export function renderRoom(roomIdx, racks, machines) {
+    const roomContainer = document.getElementById('room-container');
+    if (!roomContainer) return;
+    
+    roomContainer.innerHTML = '';
+    
+    // Criar grid 4x3 (12 slots)
+    for (let i = 0; i < 12; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'room-slot';
+        slot.dataset.slotIndex = i;
+        
+        // Verificar se tem rack neste slot
+        const rackInSlot = racks.find(r => r.room_idx === roomIdx && r.position === i);
+        
+        if (rackInSlot) {
+            const rackElement = createRackElement(rackInSlot, machines);
+            slot.appendChild(rackElement);
+        } else {
+            // Slot vazio - pode colocar rack
+            slot.innerHTML = `
+                <div class="empty-slot" onclick="openRackPlacement(${i})">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Rack</span>
+                </div>
+            `;
+        }
+        
+        roomContainer.appendChild(slot);
+    }
+}
+
+function createRackElement(rack, machines) {
+    const rackElement = document.createElement('div');
+    rackElement.className = `rack ${rack.type_id === 'r_small' ? 'rack-small' : 'rack-large'}`;
+    rackElement.dataset.rackId = rack.id;
+    
+    const slots = rack.type_id === 'r_small' ? 4 : 8;
+    
+    for (let i = 0; i < slots; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'rack-slot';
+        slot.dataset.slotIndex = i;
+        
+        // Verificar se tem máquina neste slot
+        const machineInSlot = machines.find(m => 
+            m.rack_id === rack.id && m.position === i
+        );
+        
+        if (machineInSlot) {
+            const miner = window.CATALOG.miners.find(m => m.id === machineInSlot.type_id);
+            if (miner) {
+                slot.innerHTML = createMinerHTML(miner);
+                slot.title = `${miner.name} - ${miner.power} GH/s`;
+            }
+        } else {
+            slot.innerHTML = '<div class="empty-miner-slot">+</div>';
+            slot.onclick = () => openMachinePlacement(rack.id, i);
+        }
+        
+        rackElement.appendChild(slot);
+    }
+    
+    return rackElement;
+}
