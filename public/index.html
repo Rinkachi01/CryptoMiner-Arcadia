@@ -7,12 +7,27 @@
     <meta name="keywords" content="criptomoeda, mineração, bitcoin, ethereum, jogo, crypto, miner, arcade">
     <meta name="author" content="Crypto Miner Arcadia">
     <title>Crypto Miner Arcadia 2.0</title>
-    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+    
+    <!-- CSP Meta Tag para evitar eval() -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/ https://fonts.googleapis.com/;
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/ https://fonts.googleapis.com/;
+        font-src 'self' https://cdnjs.cloudflare.com/ajax/libs/ https://fonts.gstatic.com/;
+        img-src 'self' data: https:;
+        connect-src 'self';
+        frame-src 'none';
+        object-src 'none';
+        base-uri 'self';
+        form-action 'self';
+    ">
+    
+    <!-- Favicon base64 inline para evitar erro -->
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0iIzAwZmZmZiIvPjxwYXRoIGQ9Ik0yNi41IDIzLjVMMzIgMTlMMzcuNSAyMy41TDM0IDI4SDMwTDI2LjUgMjMuNVoiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNMjYuNSAzOS41TDM0IDM2SDMwTDI2LjUgMzkuNVoiIGZpbGw9IiMwMDAwMDAiLz48cGF0aCBkPSJNMzcuNSAzOS41TDMwIDM2SDM0TDM3LjUgMzkuNVoiIGZpbGw9IiMwMDAwMDAiLz48L3N2Zz4=">
     
     <!-- Open Graph Tags -->
     <meta property="og:title" content="Crypto Miner Arcadia 2.0">
     <meta property="og:description" content="Monte sua fazenda de mineração e domine o mundo das criptomoedas!">
-    <meta property="og:image" content="assets/og-image.png">
     <meta property="og:url" content="https://cryptominerarcadia.com">
     <meta property="og:type" content="website">
     
@@ -23,14 +38,8 @@
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
     
-    <!-- Manifest PWA -->
-    <link rel="manifest" href="manifest.json">
-    
     <!-- Theme Color -->
     <meta name="theme-color" content="#0b0e14">
-    
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 </head>
 <body>
     <!-- Modal de Login/Registro -->
@@ -54,12 +63,14 @@
             <!-- Formulário de Login -->
             <div id="login-form" class="login-form">
                 <div class="input-group">
+                    <label for="login-username" class="sr-only">Nome de usuário</label>
                     <i class="fa-solid fa-user"></i>
-                    <input type="text" id="login-username" placeholder="Nome de usuário" autocomplete="username">
+                    <input type="text" id="login-username" placeholder="Nome de usuário" autocomplete="username" aria-label="Nome de usuário">
                 </div>
                 <div class="input-group">
+                    <label for="login-password" class="sr-only">Senha</label>
                     <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password">
+                    <input type="password" id="login-password" placeholder="Senha" autocomplete="current-password" aria-label="Senha">
                 </div>
                 <div id="login-msg" class="login-msg"></div>
                 <div class="login-actions">
@@ -105,14 +116,16 @@
                 </div>
                 
                 <div class="input-group">
+                    <label for="register-username" class="sr-only">Nome de usuário</label>
                     <i class="fa-solid fa-user"></i>
-                    <input type="text" id="register-username" placeholder="Escolha um nome de usuário" autocomplete="username">
+                    <input type="text" id="register-username" placeholder="Escolha um nome de usuário" autocomplete="username" aria-label="Nome de usuário para registro">
                     <div class="input-hint">Mínimo 3 caracteres</div>
                 </div>
                 
                 <div class="input-group">
+                    <label for="register-password" class="sr-only">Senha</label>
                     <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="register-password" placeholder="Crie uma senha forte" autocomplete="new-password">
+                    <input type="password" id="register-password" placeholder="Crie uma senha forte" autocomplete="new-password" aria-label="Senha para registro">
                     <div class="input-hint">Mínimo 8 caracteres</div>
                 </div>
                 
@@ -135,7 +148,7 @@
                 <div id="register-msg" class="login-msg"></div>
                 
                 <div class="terms-agreement">
-                    <input type="checkbox" id="terms-checkbox">
+                    <input type="checkbox" id="terms-checkbox" aria-label="Concordo com os termos">
                     <label for="terms-checkbox">Concordo com os <a href="#" onclick="showTerms()">Termos de Serviço</a> e <a href="#" onclick="showPrivacy()">Política de Privacidade</a></label>
                 </div>
                 
@@ -148,10 +161,10 @@
                 <div class="social-login">
                     <p>Ou registre-se com:</p>
                     <div class="social-buttons">
-                        <button class="btn-social google">
+                        <button class="btn-social google" aria-label="Registrar com Google">
                             <i class="fa-brands fa-google"></i> Google
                         </button>
-                        <button class="btn-social github">
+                        <button class="btn-social github" aria-label="Registrar com GitHub">
                             <i class="fa-brands fa-github"></i> GitHub
                         </button>
                     </div>
@@ -173,7 +186,8 @@
                 <h2>RECUPERAR SENHA</h2>
             </div>
             <div class="input-group">
-                <input type="email" id="forgot-email" placeholder="Seu e-mail cadastrado">
+                <label for="forgot-email" class="sr-only">E-mail</label>
+                <input type="email" id="forgot-email" placeholder="Seu e-mail cadastrado" aria-label="E-mail para recuperação de senha">
             </div>
             <div id="forgot-msg" class="login-msg"></div>
             <div class="login-actions">
@@ -325,7 +339,7 @@
                             <span id="network-power">1.5 EH/s</span>
                         </div>
                         
-                        <button class="btn-notification" id="btn-notifications">
+                        <button class="btn-notification" id="btn-notifications" aria-label="Notificações">
                             <i class="fa-solid fa-bell"></i>
                             <span class="notification-count">3</span>
                         </button>
@@ -388,11 +402,11 @@
                             <div class="section-header">
                                 <h2><i class="fa-solid fa-hard-drive"></i> SALA DE MINERAÇÃO</h2>
                                 <div class="room-controls">
-                                    <button onclick="changeRoom(-1)" class="btn-room-nav">
+                                    <button onclick="changeRoom(-1)" class="btn-room-nav" aria-label="Sala anterior">
                                         <i class="fa-solid fa-chevron-left"></i>
                                     </button>
                                     <span id="room-name">SALA 1</span>
-                                    <button onclick="changeRoom(1)" class="btn-room-nav">
+                                    <button onclick="changeRoom(1)" class="btn-room-nav" aria-label="Próxima sala">
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                     <button onclick="buyNewRoom()" class="btn-neon-outline">
@@ -538,7 +552,7 @@
                                 </div>
                                 
                                 <div class="setting">
-                                    <label>Intervalo:</label>
+                                    <label for="auto-mine-interval">Intervalo:</label>
                                     <select id="auto-mine-interval">
                                         <option value="5">5 minutos</option>
                                         <option value="10">10 minutos</option>
@@ -548,7 +562,7 @@
                                 </div>
                                 
                                 <div class="setting">
-                                    <label>Notificações:</label>
+                                    <label for="auto-mine-notifications">Notificações:</label>
                                     <select id="auto-mine-notifications">
                                         <option value="all">Todas as minerações</option>
                                         <option value="large">Só grandes ganhos</option>
@@ -820,19 +834,21 @@
         <div class="modal-content large">
             <!-- Conteúdo será preenchido por JavaScript -->
         </div>
-    </div>
-
+    </div> 
+    
     <!-- Scripts -->
     <script type="module" src="main.js"></script>
     
-    <!-- Service Worker para PWA -->
+    <!-- Service Worker com fallback -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('Service Worker registrado:', registration.scope);
-                }).catch(error => {
-                    console.log('Falha ao registrar Service Worker:', error);
+            window.addEventListener('load', function() {
+                // Tentar registrar com fallback
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }).catch(function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                    // Silenciar erro se falhar
                 });
             });
         }

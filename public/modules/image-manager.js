@@ -1,4 +1,5 @@
 // modules/image-manager.js - Gerenciador de imagens das moedas
+
 export const COIN_IMAGES = {
     // Mapeamento das moedas para os arquivos
     'BTC': { 
@@ -45,7 +46,7 @@ export const COIN_IMAGES = {
     },
     'ADA': { 
         name: 'Cardano',
-        image: 'assets/cma-coin.png', // Usando a imagem da CMA para ADA por enquanto
+        image: 'assets/cma-coin.png',
         fallback: '🔷',
         color: '#0033AD'
     },
@@ -84,6 +85,16 @@ export const COIN_IMAGES = {
 // Cache de imagens carregadas
 const imageCache = new Map();
 
+// Verificar se o arquivo existe
+async function checkImageExists(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+    });
+}
+
 export async function loadCoinImage(coinSymbol) {
     const coinData = COIN_IMAGES[coinSymbol];
     if (!coinData) return null;
@@ -91,6 +102,14 @@ export async function loadCoinImage(coinSymbol) {
     // Se já estiver em cache, retornar
     if (imageCache.has(coinSymbol)) {
         return imageCache.get(coinSymbol);
+    }
+    
+    // Verificar se a imagem existe
+    const exists = await checkImageExists(coinData.image);
+    
+    if (!exists) {
+        console.warn(`Imagem não encontrada: ${coinData.image}, usando fallback`);
+        return null;
     }
     
     // Tentar carregar a imagem
@@ -104,7 +123,7 @@ export async function loadCoinImage(coinSymbol) {
         
         img.onerror = () => {
             console.warn(`Falha ao carregar imagem para ${coinSymbol}, usando fallback`);
-            resolve(null); // Retornar null para usar fallback
+            resolve(null);
         };
         
         img.src = coinData.image;
@@ -114,7 +133,17 @@ export async function loadCoinImage(coinSymbol) {
 export function getCoinHTML(coinSymbol, size = 'medium') {
     const coinData = COIN_IMAGES[coinSymbol];
     if (!coinData) {
-        return `<div style="color: #fff; background: #333; border-radius: 50%; width: ${getSize(size)}; height: ${getSize(size)}; display: flex; align-items: center; justify-content: center;">?</div>`;
+        return `<div class="coin-fallback" style="
+            background: #333; 
+            color: #fff; 
+            border-radius: 50%; 
+            width: ${getSize(size)}; 
+            height: ${getSize(size)}; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-weight: bold;
+        ">?</div>`;
     }
     
     const sizes = {
@@ -139,14 +168,27 @@ export function getCoinHTML(coinSymbol, size = 'medium') {
             position: relative;
             overflow: hidden;
         ">
+            <div class="coin-fallback" style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
+                font-size: ${size === 'small' ? '16px' : size === 'medium' ? '24px' : '32px'};
+                color: ${coinData.color};
+            ">
+                ${coinData.fallback}
+            </div>
             <img src="${coinData.image}" 
                  alt="${coinData.name}"
                  style="
                     width: 70%;
                     height: 70%;
                     object-fit: contain;
+                    display: none;
                  "
-                 onerror="this.style.display='none'; this.parentElement.innerHTML='${coinData.fallback}'; this.parentElement.style.fontSize='${size === 'small' ? '16px' : size === 'medium' ? '24px' : '32px'}'"
+                 onload="this.style.display='block'; this.previousElementSibling.style.display='none'"
+                 onerror="this.style.display='none'"
             >
         </div>
     `;

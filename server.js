@@ -8,9 +8,37 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Username'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware para CSP
+app.use((req, res, next) => {
+  // Headers de segurança
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
+    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
+    "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "connect-src 'self' http://localhost:3000; " +
+    "frame-src 'none'; " +
+    "object-src 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self';"
+  );
+  
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
 
 // Criar estrutura de diretórios se não existir
 const directories = ['public', 'public/assets', 'public/modules'];
@@ -63,15 +91,18 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Rota de registro
+// Rota de registro - CORRIGIDA PARA EVITAR LOOP
 app.post('/api/auth/register', (req, res) => {
     try {
+        console.log('📝 Recebida requisição de registro:', req.body);
+        
         const { username, password } = req.body;
         
         console.log('📝 Tentativa de registro:', username);
         
         // Validações
         if (!username || !password) {
+            console.log('❌ Campos faltando');
             return res.status(400).json({
                 success: false,
                 message: 'Preencha todos os campos'
@@ -79,6 +110,7 @@ app.post('/api/auth/register', (req, res) => {
         }
         
         if (username.length < 3) {
+            console.log('❌ Nome de usuário muito curto');
             return res.status(400).json({
                 success: false,
                 message: 'Nome de usuário deve ter pelo menos 3 caracteres'
@@ -86,6 +118,7 @@ app.post('/api/auth/register', (req, res) => {
         }
         
         if (password.length < 8) {
+            console.log('❌ Senha muito curta');
             return res.status(400).json({
                 success: false,
                 message: 'Senha deve ter pelo menos 8 caracteres'
@@ -94,6 +127,7 @@ app.post('/api/auth/register', (req, res) => {
         
         // Verificar caracteres válidos
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            console.log('❌ Caracteres inválidos no nome de usuário');
             return res.status(400).json({
                 success: false,
                 message: 'Use apenas letras, números e underscore (_)'
@@ -104,6 +138,7 @@ app.post('/api/auth/register', (req, res) => {
         
         // Verificar se usuário já existe
         if (users[username]) {
+            console.log('❌ Nome de usuário já existe');
             return res.status(400).json({
                 success: false,
                 message: 'Nome de usuário já está em uso'
@@ -119,21 +154,19 @@ app.post('/api/auth/register', (req, res) => {
             id: userId,
             username: username,
             password: hashPassword(password),
-            balance: 500.00, // Bônus: 500 CMA Coins
-            batteries: 10, // Bônus: 10 baterias
+            balance: 500.00,
+            batteries: 10,
             total_power: 100,
             network_power: 1500000000,
             estimated_reward: 0.005,
-            electricity_expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 horas
+            electricity_expires_at: Date.now() + (24 * 60 * 60 * 1000),
             server_time: Date.now(),
-            rooms_unlocked: 2, // Bônus: 2 salas desbloqueadas
+            rooms_unlocked: 2,
             level: 1,
             experience: 0,
             created_at: Date.now(),
             last_login: Date.now(),
-            // Bônus de boas-vindas
             welcome_bonus: true,
-            // Inventário inicial
             racks: [
                 {
                     id: rackId,
@@ -163,7 +196,7 @@ app.post('/api/auth/register', (req, res) => {
                     name: 'Minerador Inicial Pro',
                     rack_id: rackId,
                     position: 0,
-                    power: 500, // Bônus: 500 GH/s
+                    power: 500,
                     watts: 100,
                     style: 'STARTER',
                     bonus: true
@@ -180,14 +213,12 @@ app.post('/api/auth/register', (req, res) => {
                     bonus: true
                 }
             ],
-            // Missões iniciais
             missions: {
                 daily: [],
                 achievements: [
                     { id: 'welcome', completed: true, reward: 100 }
                 ]
             },
-            // Estatísticas
             stats: {
                 games_played: 0,
                 total_mining: 0,
@@ -201,6 +232,7 @@ app.post('/api/auth/register', (req, res) => {
         
         console.log(`✅ Novo usuário registrado: ${username} (ID: ${userId})`);
         
+        // NÃO fazer login automático - apenas confirmar registro
         res.json({
             success: true,
             message: '🎉 Conta criada com sucesso! Bônus de boas-vindas concedidos!',
@@ -216,7 +248,9 @@ app.post('/api/auth/register', (req, res) => {
                 miners: 2,
                 racks: 2,
                 rooms: 2
-            }
+            },
+            // IMPORTANTE: Não retornar token ou fazer login automático
+            requires_login: true
         });
         
     } catch (error) {
@@ -228,7 +262,7 @@ app.post('/api/auth/register', (req, res) => {
     }
 });
 
-// Rota de login
+// Rota de login - CORRIGIDA
 app.post('/api/auth/login', (req, res) => {
     try {
         const { username, password } = req.body;
@@ -289,7 +323,8 @@ app.post('/api/auth/login', (req, res) => {
         res.json({
             success: true,
             message: 'Login bem-sucedido!',
-            user: userResponse
+            user: userResponse,
+            token: `token_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`
         });
         
     } catch (error) {
@@ -608,7 +643,7 @@ app.post('/api/game/start', (req, res) => {
         message: 'Jogo iniciado!',
         game_id: game_id,
         timestamp: Date.now(),
-        cooldown: 60 // segundos
+        cooldown: 60
     });
 });
 
@@ -644,7 +679,7 @@ app.post('/api/game/claim', (req, res) => {
     
     // Atualizar usuário
     user.total_power += reward;
-    user.balance += reward * 0.1; // 10% do reward em moedas
+    user.balance += reward * 0.1;
     if (batteryDrop) user.batteries += 1;
     user.experience += experience;
     user.stats.games_played += 1;
@@ -655,7 +690,7 @@ app.post('/api/game/claim', (req, res) => {
     if (user.experience >= expNeeded) {
         user.level += 1;
         user.experience = 0;
-        user.balance += 500; // Bônus de level up
+        user.balance += 500;
     }
     
     writeUsers(users);
@@ -707,7 +742,7 @@ app.post('/api/rack/place', (req, res) => {
     
     // Verificar se posição está disponível
     const racksInRoom = user.racks.filter(r => r.room_idx === room_idx && r.position !== null);
-    if (racksInRoom.length >= 12) { // Máximo 12 racks por sala
+    if (racksInRoom.length >= 12) {
         return res.json({
             success: false,
             message: 'Sala cheia'
@@ -784,15 +819,12 @@ app.post('/api/miner/equip', (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
     const users = readUsers();
     
-    // Converter objeto em array
     const usersArray = Object.values(users);
     
-    // Ordenar por diferentes critérios
     const byPower = [...usersArray].sort((a, b) => b.total_power - a.total_power);
     const byBalance = [...usersArray].sort((a, b) => b.balance - a.balance);
     const byLevel = [...usersArray].sort((a, b) => b.level - a.level);
     
-    // Formatar para leaderboard (esconder informações sensíveis)
     const formatForLeaderboard = (usersList, criteria) => {
         return usersList.slice(0, 10).map((user, index) => ({
             rank: index + 1,
@@ -826,7 +858,7 @@ app.get('/api/stats', (req, res) => {
         total_mining_power: totalPower,
         total_wealth: totalBalance,
         average_level: avgLevel.toFixed(1),
-        online_users: Math.floor(totalUsers * 0.3) // Simulação
+        online_users: Math.floor(totalUsers * 0.3)
     });
 });
 

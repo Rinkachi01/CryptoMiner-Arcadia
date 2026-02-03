@@ -1,5 +1,5 @@
 // ===========================================
-// AUTHENTICATION MODULE
+// AUTHENTICATION MODULE - CORRIGIDO
 // ===========================================
 
 const API_URL = '/api';
@@ -30,6 +30,10 @@ export async function handleLogin() {
             body: JSON.stringify({ username, password })
         });
         
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success) {
@@ -39,6 +43,9 @@ export async function handleLogin() {
             localStorage.setItem('username', username);
             localStorage.setItem('loggedIn', 'true');
             localStorage.setItem('userData', JSON.stringify(data.user));
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+            }
             
             // Atualizar UI
             document.getElementById('user-display').textContent = username;
@@ -47,6 +54,12 @@ export async function handleLogin() {
             setTimeout(() => {
                 document.getElementById('login-modal').classList.add('hidden');
                 document.getElementById('game-interface').classList.remove('hidden');
+                
+                // Mostrar tela de loading
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.classList.remove('hidden');
+                }
                 
                 if (window.initSystem) {
                     window.initSystem();
@@ -64,7 +77,7 @@ export async function handleLogin() {
 }
 
 /**
- * Lida com o processo de registro
+ * Lida com o processo de registro - CORRIGIDO
  */
 export async function handleRegister() {
     const username = document.getElementById('register-username').value.trim();
@@ -106,6 +119,12 @@ export async function handleRegister() {
             body: JSON.stringify({ username, password })
         });
         
+        // Verificar se a resposta é OK (status 2xx)
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
+        }
+        
         const data = await response.json();
         
         if (data.success) {
@@ -114,6 +133,8 @@ export async function handleRegister() {
             // Limpar campos
             document.getElementById('register-username').value = '';
             document.getElementById('register-password').value = '';
+            document.getElementById('terms-checkbox').checked = false;
+            document.getElementById('btn-register').disabled = true;
             
             // Mostrar detalhes do bônus
             if (data.bonus) {
@@ -124,10 +145,15 @@ export async function handleRegister() {
                 );
             }
             
-            // Trocar para aba de login após 2 segundos
+            // IMPORTANTE: Não fazer login automático
+            // Apenas mostrar mensagem e trocar para aba de login
             setTimeout(() => {
                 showLoginTab();
                 showAuthMessage('✅ Agora faça login para começar!', 'success', 'login-msg');
+                
+                // Pré-preencher o nome de usuário
+                document.getElementById('login-username').value = username;
+                document.getElementById('login-password').focus();
             }, 2000);
             
         } else {
@@ -136,7 +162,7 @@ export async function handleRegister() {
         
     } catch (error) {
         console.error('Erro no registro:', error);
-        showAuthMessage('❌ Erro de conexão com o servidor', 'error', 'register-msg');
+        showAuthMessage('❌ Erro de conexão com o servidor. Verifique se o servidor está rodando.', 'error', 'register-msg');
     }
 }
 
@@ -275,7 +301,6 @@ export function showTerms() {
  * Mostra política de privacidade
  */
 export function showPrivacy() {
-    // Similar a showTerms, implementar se tiver modal separado
     alert('Política de Privacidade será mostrada aqui.');
 }
 

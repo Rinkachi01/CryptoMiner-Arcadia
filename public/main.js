@@ -21,7 +21,7 @@ window.CURRENT_ROOM_IDX = 0;
 window.USER_LEVELS_DATA = {};
 window.APP_STATE = {
     initialized: false,
-    loading: true,
+    loading: false,
     miningInterval: null,
     updateInterval: null
 };
@@ -40,6 +40,13 @@ async function initSystem() {
         console.warn('⚠️ Sistema já inicializado');
         return;
     }
+    
+    if (window.APP_STATE.loading) {
+        console.warn('⚠️ Sistema já está carregando');
+        return;
+    }
+    
+    window.APP_STATE.loading = true;
     
     try {
         // Atualizar texto de loading
@@ -115,6 +122,7 @@ async function initSystem() {
     } catch (error) {
         console.error('❌ Erro ao inicializar sistema:', error);
         showErrorModal('Erro de inicialização', 'Não foi possível carregar o jogo. Por favor, recarregue a página.');
+        window.APP_STATE.loading = false;
     }
 }
 
@@ -122,11 +130,16 @@ async function initSystem() {
  * Inicia os loops de atualização automática
  */
 function startUpdateLoops() {
-    // Atualizar dados a cada 30 segundos
+    // Limpar intervalos anteriores se existirem
     if (window.APP_STATE.updateInterval) {
         clearInterval(window.APP_STATE.updateInterval);
     }
     
+    if (window.APP_STATE.miningInterval) {
+        clearInterval(window.APP_STATE.miningInterval);
+    }
+    
+    // Atualizar dados a cada 30 segundos
     window.APP_STATE.updateInterval = setInterval(async () => {
         if (window.USER_DATA && !window.APP_STATE.loading) {
             await updateData();
@@ -134,10 +147,6 @@ function startUpdateLoops() {
     }, 30000);
     
     // Mineração automática a cada 1 minuto
-    if (window.APP_STATE.miningInterval) {
-        clearInterval(window.APP_STATE.miningInterval);
-    }
-    
     window.APP_STATE.miningInterval = setInterval(async () => {
         if (window.USER_DATA && !window.APP_STATE.loading) {
             await mine();
@@ -151,9 +160,6 @@ function startUpdateLoops() {
 // LOADING SCREEN FUNCTIONS
 // ===========================================
 
-/**
- * Atualiza o texto da tela de loading
- */
 function updateLoadingText(text) {
     const loadingText = document.getElementById('loading-text');
     if (loadingText) {
@@ -161,16 +167,12 @@ function updateLoadingText(text) {
     }
 }
 
-/**
- * Atualiza o progresso da barra de loading
- */
 function updateLoadingProgress(percent) {
     const loadingFill = document.getElementById('loading-fill');
     if (loadingFill) {
         loadingFill.style.width = `${percent}%`;
     }
     
-    // Atualizar dicas de carregamento
     const loadingTip = document.getElementById('loading-tip');
     const tips = [
         'Dica: Complete missões diárias para ganhar bônus!',
@@ -188,9 +190,6 @@ function updateLoadingProgress(percent) {
     }
 }
 
-/**
- * Esconde a tela de loading
- */
 function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
     if (loadingScreen) {
@@ -202,9 +201,6 @@ function hideLoadingScreen() {
 // NAVIGATION FUNCTIONS
 // ===========================================
 
-/**
- * Navega para uma página específica
- */
 function navigateTo(pageId) {
     // Esconder todas as páginas
     document.querySelectorAll('.page').forEach(page => {
@@ -232,9 +228,6 @@ function navigateTo(pageId) {
     }
 }
 
-/**
- * Executa ações quando uma página é carregada
- */
 function onPageLoad(pageId) {
     switch(pageId) {
         case 'home':
@@ -270,9 +263,6 @@ function onPageLoad(pageId) {
     }
 }
 
-/**
- * Muda de sala de mineração
- */
 function changeRoom(direction) {
     if (!window.USER_DATA) return;
     
@@ -309,11 +299,19 @@ function changeRoom(direction) {
 // UI HELPER FUNCTIONS
 // ===========================================
 
-/**
- * Mostra uma notificação na tela
- */
 function showNotification(title, message, type = 'info') {
-    // Criar elemento de notificação
+    // Verificar se o sistema de notificações existe
+    if (window.Notifications) {
+        window.Notifications.show({
+            type: type,
+            title: title,
+            message: message,
+            duration: 5000
+        });
+        return;
+    }
+    
+    // Fallback para notificações básicas
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     
@@ -333,23 +331,40 @@ function showNotification(title, message, type = 'info') {
     // Adicionar ao DOM
     document.body.appendChild(notification);
     
-    // Adicionar estilos
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--bg-card);
-        border: 1px solid ${type === 'success' ? 'var(--success)' : 
-                          type === 'error' ? 'var(--error)' : 
-                          type === 'warning' ? 'var(--warning)' : 'var(--info)'};
-        border-radius: var(--border-radius);
-        padding: var(--space-md);
-        width: 300px;
-        max-width: 90vw;
-        box-shadow: var(--shadow-medium);
-        z-index: 1000;
-        animation: slideInRight 0.3s ease;
-    `;
+    // Adicionar estilos básicos se não existirem
+    if (!document.querySelector('#notification-styles')) {
+        const style = document.createElement('style');
+        style.id = 'notification-styles';
+        style.textContent = `
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--bg-card);
+                border-radius: var(--border-radius);
+                padding: var(--space-md);
+                width: 300px;
+                max-width: 90vw;
+                box-shadow: var(--shadow-medium);
+                z-index: 1000;
+                animation: slideInRight 0.3s ease;
+                border-left: 4px solid;
+            }
+            .notification-success { border-left-color: var(--success); }
+            .notification-error { border-left-color: var(--error); }
+            .notification-warning { border-left-color: var(--warning); }
+            .notification-info { border-left-color: var(--info); }
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     // Adicionar evento de fechar
     const closeBtn = notification.querySelector('.notification-close');
@@ -367,9 +382,6 @@ function showNotification(title, message, type = 'info') {
     }, 5000);
 }
 
-/**
- * Mostra modal de erro
- */
 function showErrorModal(title, message) {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -391,9 +403,6 @@ function showErrorModal(title, message) {
     document.body.appendChild(modal);
 }
 
-/**
- * Mostra notificação de boas-vindas
- */
 function showWelcomeNotification() {
     const username = localStorage.getItem('username');
     if (!username) return;
@@ -422,9 +431,6 @@ function showWelcomeNotification() {
 // EVENT LISTENERS SETUP
 // ===========================================
 
-/**
- * Configura todos os event listeners
- */
 function setupEventListeners() {
     // Login/Register tabs
     document.getElementById('tab-login')?.addEventListener('click', showLoginTab);
@@ -475,7 +481,10 @@ function setupEventListeners() {
     document.querySelectorAll('.inv-tab').forEach(tab => {
         tab.addEventListener('click', (e) => {
             const tabType = e.currentTarget.dataset.tab;
-            // Implementar troca de abas do inventário
+            const invList = document.getElementById('quick-inventory');
+            if (invList) {
+                invList.innerHTML = `<p>Carregando ${tabType}...</p>`;
+            }
         });
     });
     
@@ -516,9 +525,6 @@ function setupEventListeners() {
     }
 }
 
-/**
- * Verifica a força da senha durante o registro
- */
 function checkPasswordStrength() {
     const password = document.getElementById('register-password').value;
     const strengthBar = document.querySelector('.strength-bar');
@@ -527,6 +533,7 @@ function checkPasswordStrength() {
     
     if (!password) {
         container.className = 'password-strength';
+        if (strengthBar) strengthBar.style.width = '0%';
         return;
     }
     
@@ -545,7 +552,10 @@ function checkPasswordStrength() {
         const element = document.getElementById(`req-${req}`);
         if (element) {
             element.className = requirements[req] ? 'valid' : 'invalid';
-            element.querySelector('i').className = requirements[req] ? 'fa-solid fa-check' : 'fa-solid fa-times';
+            const icon = element.querySelector('i');
+            if (icon) {
+                icon.className = requirements[req] ? 'fa-solid fa-check' : 'fa-solid fa-times';
+            }
         }
         
         if (requirements[req]) strength++;
@@ -554,35 +564,39 @@ function checkPasswordStrength() {
     // Atualizar visualização da força
     let strengthLevel = '';
     let color = '';
+    let width = 0;
     
     if (strength <= 1) {
         strengthLevel = 'Muito Fraca';
         color = 'error';
+        width = 20;
     } else if (strength <= 2) {
         strengthLevel = 'Fraca';
         color = 'warning';
+        width = 40;
     } else if (strength <= 3) {
         strengthLevel = 'Média';
         color = 'warning';
+        width = 60;
     } else if (strength <= 4) {
         strengthLevel = 'Forte';
         color = 'success';
+        width = 80;
     } else {
         strengthLevel = 'Excelente';
         color = 'excellent';
+        width = 100;
     }
     
-    container.className = `password-strength ${color}`;
+    if (container) container.className = `password-strength ${color}`;
     if (strengthText) strengthText.textContent = strengthLevel;
+    if (strengthBar) strengthBar.style.width = `${width}%`;
 }
 
 // ===========================================
-// AUTHENTICATION CHECK
+// AUTHENTICATION CHECK - CORRIGIDA
 // ===========================================
 
-/**
- * Verifica autenticação existente
- */
 function checkExistingAuth() {
     const username = localStorage.getItem('username');
     const loggedIn = localStorage.getItem('loggedIn');
@@ -608,6 +622,14 @@ function checkExistingAuth() {
             gameInterface.classList.remove('hidden');
         }
         
+        // Mostrar tela de loading
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.classList.remove('hidden');
+            updateLoadingText('Inicializando sistema...');
+            updateLoadingProgress(0);
+        }
+        
         return true;
     }
     
@@ -615,11 +637,31 @@ function checkExistingAuth() {
 }
 
 // ===========================================
-// DOM CONTENT LOADED
+// DOM CONTENT LOADED - CORRIGIDO
 // ===========================================
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📄 DOM carregado, configurando sistema...');
+    
+    // Adicionar classe sr-only ao CSS se não existir
+    if (!document.querySelector('#sr-only-styles')) {
+        const style = document.createElement('style');
+        style.id = 'sr-only-styles';
+        style.textContent = `
+            .sr-only {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     // Configurar event listeners
     setupEventListeners();
@@ -628,7 +670,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isAuthenticated = checkExistingAuth();
     
     if (isAuthenticated) {
-        // Iniciar sistema
+        // Iniciar sistema após um pequeno delay
         setTimeout(() => initSystem(), 500);
     } else {
         // Mostrar modal de login
@@ -638,10 +680,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             showLoginTab();
         }
         
-        // Esconder interface do jogo
+        // Esconder interface do jogo e tela de loading
         const gameInterface = document.getElementById('game-interface');
         if (gameInterface) {
             gameInterface.classList.add('hidden');
+        }
+        
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
         }
     }
     
@@ -661,9 +708,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GLOBAL FUNCTIONS
 // ===========================================
 
-/**
- * Função para mineração rápida
- */
 window.quickMine = async function() {
     if (!window.USER_DATA) return;
     
@@ -690,42 +734,27 @@ window.quickMine = async function() {
     }
 };
 
-/**
- * Função para recarregar energia
- */
 window.rechargeEnergy = function(type) {
     if (!window.USER_DATA) return;
     
-    // Implementar lógica de recarga
     showNotification('⚡ Energia', `Recarga ${type} solicitada`, 'info');
 };
 
-/**
- * Função para mostrar inventário completo
- */
 window.showFullInventory = function() {
     navigateTo('inventory');
 };
 
-/**
- * Função para comprar nova sala
- */
 window.buyNewRoom = function() {
     if (!window.USER_DATA) return;
     
-    // Verificar se pode comprar
     if (window.USER_DATA.balance < 1000) {
         showNotification('❌ Saldo Insuficiente', 'Precisa de 1000 CMA para nova sala', 'error');
         return;
     }
     
-    // Implementar compra de sala
     showNotification('🚧 Em Desenvolvimento', 'Esta função estará disponível em breve', 'info');
 };
 
-/**
- * Função para fechar modais
- */
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -733,23 +762,14 @@ window.closeModal = function(modalId) {
     }
 };
 
-/**
- * Função para mostrar ajuda
- */
 window.showHelp = function() {
     showNotification('❓ Ajuda', 'Visite a seção de Configurações para mais informações', 'info');
 };
 
-/**
- * Função para mostrar suporte
- */
 window.showSupport = function() {
     showNotification('🛟 Suporte', 'Entre em contato: support@cryptominerarcadia.com', 'info');
 };
 
-/**
- * Função para mostrar sobre
- */
 window.showAbout = function() {
     showNotification('ℹ️ Sobre', 'Crypto Miner Arcadia 2.0 • Desenvolvido com ❤️', 'info');
 };
@@ -758,16 +778,12 @@ window.showAbout = function() {
 // TEMPORARY PLACEHOLDER FUNCTIONS
 // ===========================================
 
-/**
- * Renderiza a sala de mineração (placeholder)
- */
 function renderMiningRoom() {
     const roomContainer = document.getElementById('room-container');
     if (!roomContainer) return;
     
     roomContainer.innerHTML = '';
     
-    // Criar 12 slots (4x3)
     for (let i = 0; i < 12; i++) {
         const slot = document.createElement('div');
         slot.className = 'room-slot';
@@ -785,13 +801,9 @@ function renderMiningRoom() {
         roomContainer.appendChild(slot);
     }
     
-    // Atualizar estatísticas da sala
     updateRoomStats();
 }
 
-/**
- * Atualiza estatísticas da sala (placeholder)
- */
 function updateRoomStats() {
     const installedRacks = document.getElementById('installed-racks');
     const freeSlots = document.getElementById('free-slots');
@@ -802,23 +814,14 @@ function updateRoomStats() {
     if (roomEfficiency) roomEfficiency.textContent = '0%';
 }
 
-/**
- * Renderiza estatísticas de mineração (placeholder)
- */
 function renderMiningStats() {
     // Implementar quando a página de mineração for desenvolvida
 }
 
-/**
- * Carrega leaderboard (placeholder)
- */
 function loadLeaderboard() {
     // Implementar quando a página de leaderboard for desenvolvida
 }
 
-/**
- * Carrega missões (placeholder)
- */
 function loadMissions() {
     // Implementar quando a página de missões for desenvolvida
 }
@@ -832,6 +835,5 @@ window.updateData = updateData;
 window.logout = logout;
 window.navigateTo = navigateTo;
 window.changeRoom = changeRoom;
-window.quickMine = window.quickMine;
 
 console.log('✅ main.js carregado');

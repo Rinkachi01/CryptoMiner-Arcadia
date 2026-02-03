@@ -1,1 +1,82 @@
-{}
+{
+  "rinkachi": {
+    "id": "user_1770088902233",
+    "username": "rinkachi",
+    "password": "50dc81b87a8af58f14e9ba15122a3b6f8839c7388eecf2dadf4c946240c960af",
+    "balance": 500,
+    "batteries": 10,
+    "total_power": 100,
+    "network_power": 1500000000,
+    "estimated_reward": 0.005,
+    "electricity_expires_at": 1770175302233,
+    "server_time": 1770088924177,
+    "rooms_unlocked": 2,
+    "level": 1,
+    "experience": 0,
+    "created_at": 1770088902233,
+    "last_login": 1770088924177,
+    "welcome_bonus": true,
+    "racks": [
+      {
+        "id": "rack_1770088902233",
+        "type_id": "r_small",
+        "name": "Rack Pequeno de Boas-Vindas",
+        "room_idx": 0,
+        "position": 0,
+        "slots": 4,
+        "style": "wood",
+        "bonus": true
+      },
+      {
+        "id": "rack_1770088902234",
+        "type_id": "r_large",
+        "name": "Rack Grande Premium",
+        "room_idx": 1,
+        "position": 0,
+        "slots": 8,
+        "style": "metal",
+        "bonus": true
+      }
+    ],
+    "machines": [
+      {
+        "id": "miner_1770088902233",
+        "type_id": "miner_starter",
+        "name": "Minerador Inicial Pro",
+        "rack_id": "rack_1770088902233",
+        "position": 0,
+        "power": 500,
+        "watts": 100,
+        "style": "STARTER",
+        "bonus": true
+      },
+      {
+        "id": "miner_1770088902234",
+        "type_id": "miner_gpu",
+        "name": "GPU Miner Gratuito",
+        "rack_id": null,
+        "position": null,
+        "power": 1000,
+        "watts": 300,
+        "style": "GT730",
+        "bonus": true
+      }
+    ],
+    "missions": {
+      "daily": [],
+      "achievements": [
+        {
+          "id": "welcome",
+          "completed": true,
+          "reward": 100
+        }
+      ]
+    },
+    "stats": {
+      "games_played": 0,
+      "total_mining": 0,
+      "items_bought": 0,
+      "total_earned": 500
+    }
+  }
+}
