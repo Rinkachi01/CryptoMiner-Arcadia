@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Construa sua sala, instale mineradores e dispute recompensas em pools virtuais.",
+    "Compre equipamentos, instale racks em posições gratuitas e mantenha sua mineração virtual energizada.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Construa sua sala, organize até 12 racks e evolua sua mineração virtual.",
+      "Compre, instale e energize: 12 posições gratuitas de rack por sala.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1760,
         height: 926,
-        alt: "Crypto Miner Arcadia — construa, mine e evolua",
+        alt: "Crypto Miner Arcadia — compre, instale e energize",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Construa sua sala, organize até 12 racks e evolua sua mineração virtual.",
+      "Compre, instale e energize: 12 posições gratuitas de rack por sala.",
     images: ["/og.png"],
   },
 };

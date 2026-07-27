@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BATTERY_HOURS,
   BLOCK_INTERVAL_SECONDS,
+  ENERGY_CLAIM_COOLDOWN_HOURS,
+  ENERGY_CLAIM_HOURS,
+  MAX_ENERGY_HOURS,
   ROOM_RACK_CAPACITY,
   calculateVirtualPaybackDays,
   canInstallAt,
@@ -31,9 +35,9 @@ test("encaixe de duas fans exige dois slots contínuos livres", () => {
   assert.ok(twoFans);
 
   const installed = [
-    { minerId: "byte-spark", slotIndex: 0 },
-    { minerId: "amber-core", slotIndex: 2 },
-    { minerId: "violet-bit", slotIndex: 5 },
+    { instanceId: "one", minerId: "byte-spark", slotIndex: 0 },
+    { instanceId: "two", minerId: "amber-core", slotIndex: 2 },
+    { instanceId: "three", minerId: "violet-bit", slotIndex: 5 },
   ];
 
   assert.equal(findNextAvailableSlot(installed, twoFans), 6);
@@ -46,6 +50,13 @@ test("todas as pools usam blocos de dez minutos", () => {
 
 test("cada sala possui doze posições de rack", () => {
   assert.equal(ROOM_RACK_CAPACITY, 12);
+});
+
+test("energia trabalha em ciclos de doze horas", () => {
+  assert.equal(BATTERY_HOURS, 12);
+  assert.equal(ENERGY_CLAIM_HOURS, 12);
+  assert.equal(ENERGY_CLAIM_COOLDOWN_HOURS, 12);
+  assert.equal(MAX_ENERGY_HOURS, 96);
 });
 
 test("catálogo mantém progressão virtual conservadora", () => {

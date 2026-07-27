@@ -1,4 +1,4 @@
-# Crypto Miner Arcadia — economia inicial v1
+# Crypto Miner Arcadia — economia inicial v2
 
 ## Escopo
 
@@ -59,12 +59,21 @@ compras, concentração de poder, saldo mediano e tempo de progressão.
 
 ## Energia
 
-- quatro células de 24 horas;
-- cada bateria recarrega uma célula;
+- oito células de 12 horas;
+- resgate gratuito de 12 horas a cada 12 horas;
+- cada bateria adiciona mais 12 horas;
 - máximo inicial de 96 horas;
 - baterias podem ser compradas com CMA;
 - minigames poderão conceder baterias posteriormente;
 - sem energia, mineradores deixam de produzir, mas permanecem instalados.
+
+## Racks e posições
+
+- cada sala possui 12 posições gratuitas e predeterminadas;
+- o jogador compra apenas o rack, nunca o espaço da sala;
+- racks comprados entram no inventário antes da instalação;
+- cada rack básico possui quatro prateleiras e oito slots;
+- mineradores de duas fans ocupam dois slots contínuos da mesma prateleira.
 
 ## Minigames
 
@@ -89,4 +98,3 @@ utilidade do CMA.
   https://www.blocklooter.com/
 - GDC, Economic Balancing Through Sink Design:
   https://www.gdcvault.com/play/1020524/Economic-Balancing-and-Improved-Monetization
-

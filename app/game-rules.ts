@@ -8,7 +8,9 @@ export const BLOCK_INTERVAL_SECONDS = 600;
 export const BLOCKS_PER_DAY = 86_400 / BLOCK_INTERVAL_SECONDS;
 export const RACK_PRICE_CMA = 5;
 export const BATTERY_PRICE_CMA = 0.5;
-export const BATTERY_HOURS = 24;
+export const BATTERY_HOURS = 12;
+export const ENERGY_CLAIM_HOURS = 12;
+export const ENERGY_CLAIM_COOLDOWN_HOURS = 12;
 export const MAX_ENERGY_HOURS = 96;
 
 export type MinerRarity =
@@ -31,6 +33,7 @@ export type MinerDefinition = {
 };
 
 export type InstalledMiner = {
+  instanceId: string;
   minerId: string;
   slotIndex: number;
 };
@@ -170,8 +173,16 @@ export const pools: MiningPool[] = [
 ];
 
 export const defaultInstalledMiners: InstalledMiner[] = [
-  { minerId: "byte-spark", slotIndex: 0 },
-  { minerId: "dual-nova", slotIndex: 2 },
+  {
+    instanceId: "starter-byte-spark",
+    minerId: "byte-spark",
+    slotIndex: 0,
+  },
+  {
+    instanceId: "starter-dual-nova",
+    minerId: "dual-nova",
+    slotIndex: 2,
+  },
 ];
 
 export function getMiner(minerId: string) {
@@ -180,12 +191,12 @@ export function getMiner(minerId: string) {
 
 export function getOccupiedSlots(
   installed: InstalledMiner[],
-  ignoredMinerId?: string,
+  ignoredInstanceId?: string,
 ) {
   const occupied = new Set<number>();
 
   for (const placement of installed) {
-    if (placement.minerId === ignoredMinerId) continue;
+    if (placement.instanceId === ignoredInstanceId) continue;
     const miner = getMiner(placement.minerId);
     if (!miner) continue;
 
@@ -215,7 +226,7 @@ export function canInstallAt(
     return false;
   }
 
-  const occupied = getOccupiedSlots(installed, miner.id);
+  const occupied = getOccupiedSlots(installed);
 
   for (let offset = 0; offset < miner.slotSize; offset += 1) {
     if (occupied.has(slotIndex + offset)) {

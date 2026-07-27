@@ -7,6 +7,8 @@ import { assetsManifest } from "./assets.manifest";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
+  ENERGY_CLAIM_COOLDOWN_HOURS,
+  ENERGY_CLAIM_HOURS,
   MAX_ENERGY_HOURS,
   RACK_CAPACITY,
   RACK_COLUMNS,
@@ -27,8 +29,14 @@ import {
   type PoolId,
 } from "./game-rules";
 
-type ViewId = "mine" | "pools" | "inventory";
+type ViewId = "mine" | "pools" | "inventory" | "shop";
 type RoomId = "room-1" | "room-2";
+type ShopCategory = "miners" | "racks" | "energy";
+
+type MinerUnit = {
+  instanceId: string;
+  minerId: string;
+};
 
 type RackInstance = {
   id: string;
@@ -57,9 +65,12 @@ type SavedGameState = {
   selectedPoolId: PoolId;
   cmaBalance: number;
   batteryCount: number;
-  energyHours: number;
+  energyExpiresAt: number;
+  lastEnergyClaimAt: number;
   activeRoomId: RoomId;
   ownedRoomIds: RoomId[];
+  rackInventoryCount: number;
+  minerInventory: MinerUnit[];
   racks: RackInstance[];
   rackMiners: Record<string, InstalledMiner[]>;
 };
@@ -73,6 +84,7 @@ const navigation: Array<{
   { id: "mine", label: "Sala de mineração", shortLabel: "Sala", glyph: "M" },
   { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P" },
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
+  { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
 ];
 
 const roomDefinitions: RoomDefinition[] = [
@@ -95,18 +107,18 @@ const roomDefinitions: RoomDefinition[] = [
 ];
 
 const rackPositions: RackPosition[] = [
-  { left: 54, top: 10, width: 21, height: 32, zIndex: 3 },
-  { left: 77, top: 18, width: 17, height: 26, zIndex: 3 },
-  { left: 2, top: 43, width: 17, height: 26, zIndex: 5 },
-  { left: 21, top: 43, width: 17, height: 26, zIndex: 5 },
-  { left: 40, top: 43, width: 17, height: 26, zIndex: 5 },
-  { left: 59, top: 43, width: 17, height: 26, zIndex: 5 },
-  { left: 78, top: 43, width: 17, height: 26, zIndex: 5 },
-  { left: 3, top: 67, width: 17, height: 27, zIndex: 7 },
-  { left: 22, top: 67, width: 17, height: 27, zIndex: 7 },
-  { left: 41, top: 67, width: 17, height: 27, zIndex: 7 },
-  { left: 60, top: 67, width: 17, height: 27, zIndex: 7 },
-  { left: 79, top: 67, width: 17, height: 27, zIndex: 7 },
+  { left: 1.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 17.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 34.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 50.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 67.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 83.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
+  { left: 1.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 17.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 34.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 50.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 67.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 83.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
 ];
 
 const defaultRacks: RackInstance[] = [
@@ -116,6 +128,21 @@ const defaultRacks: RackInstance[] = [
 const defaultRackMiners: Record<string, InstalledMiner[]> = {
   "rack-01": defaultInstalledMiners,
 };
+
+const defaultMinerInventory: MinerUnit[] = miners
+  .filter(
+    (miner) =>
+      !defaultInstalledMiners.some(
+        (placement) => placement.minerId === miner.id,
+      ),
+  )
+  .map((miner) => ({
+    instanceId: `starter-${miner.id}`,
+    minerId: miner.id,
+  }));
+
+const MS_PER_HOUR = 60 * 60 * 1000;
+const INITIAL_ENERGY_HOURS = 48;
 
 const rarityLabels = {
   common: "Comum",
@@ -154,10 +181,17 @@ function formatCma(value: number) {
   });
 }
 
-function formatEnergy(hours: number) {
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  return `${days}d ${remainingHours.toString().padStart(2, "0")}h`;
+function formatEnergy(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  return `${hours.toString().padStart(2, "0")}h ${minutes
+    .toString()
+    .padStart(2, "0")}m`;
+}
+
+function createInstanceId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function isPoolId(value: unknown): value is PoolId {
@@ -193,11 +227,27 @@ function isRackMinerMap(
       if (!placement || typeof placement !== "object") return false;
       const candidate = placement as Partial<InstalledMiner>;
       return (
+        typeof candidate.instanceId === "string" &&
         typeof candidate.minerId === "string" &&
         Boolean(getMiner(candidate.minerId)) &&
-        typeof candidate.slotIndex === "number"
+        typeof candidate.slotIndex === "number" &&
+        candidate.slotIndex >= 0 &&
+        candidate.slotIndex < RACK_CAPACITY
       );
     });
+  });
+}
+
+function isMinerInventory(value: unknown): value is MinerUnit[] {
+  if (!Array.isArray(value)) return false;
+  return value.every((unit) => {
+    if (!unit || typeof unit !== "object") return false;
+    const candidate = unit as Partial<MinerUnit>;
+    return (
+      typeof candidate.instanceId === "string" &&
+      typeof candidate.minerId === "string" &&
+      Boolean(getMiner(candidate.minerId))
+    );
   });
 }
 
@@ -208,29 +258,115 @@ function isSavedGameState(value: unknown): value is SavedGameState {
     isPoolId(candidate.selectedPoolId) &&
     typeof candidate.cmaBalance === "number" &&
     typeof candidate.batteryCount === "number" &&
-    typeof candidate.energyHours === "number" &&
+    typeof candidate.energyExpiresAt === "number" &&
+    typeof candidate.lastEnergyClaimAt === "number" &&
     isRoomId(candidate.activeRoomId) &&
     Array.isArray(candidate.ownedRoomIds) &&
     candidate.ownedRoomIds.every(isRoomId) &&
+    typeof candidate.rackInventoryCount === "number" &&
+    isMinerInventory(candidate.minerInventory) &&
     isRackInstanceArray(candidate.racks) &&
     isRackMinerMap(candidate.rackMiners)
   );
 }
 
+function migrateLegacyState(value: unknown, now: number): SavedGameState | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as {
+    selectedPoolId?: unknown;
+    cmaBalance?: unknown;
+    batteryCount?: unknown;
+    energyHours?: unknown;
+    activeRoomId?: unknown;
+    ownedRoomIds?: unknown;
+    racks?: unknown;
+    rackMiners?: unknown;
+  };
+
+  if (
+    !isPoolId(candidate.selectedPoolId) ||
+    typeof candidate.cmaBalance !== "number" ||
+    typeof candidate.batteryCount !== "number" ||
+    typeof candidate.energyHours !== "number" ||
+    !isRoomId(candidate.activeRoomId) ||
+    !Array.isArray(candidate.ownedRoomIds) ||
+    !candidate.ownedRoomIds.every(isRoomId) ||
+    !isRackInstanceArray(candidate.racks) ||
+    !candidate.rackMiners ||
+    typeof candidate.rackMiners !== "object"
+  ) {
+    return null;
+  }
+
+  const migratedRackMiners: Record<string, InstalledMiner[]> = {};
+  const installedModelIds = new Set<string>();
+
+  for (const [rackId, placements] of Object.entries(candidate.rackMiners)) {
+    if (!Array.isArray(placements)) continue;
+    migratedRackMiners[rackId] = placements.flatMap((placement, index) => {
+      if (!placement || typeof placement !== "object") return [];
+      const legacy = placement as { minerId?: unknown; slotIndex?: unknown };
+      if (
+        typeof legacy.minerId !== "string" ||
+        !getMiner(legacy.minerId) ||
+        typeof legacy.slotIndex !== "number"
+      ) {
+        return [];
+      }
+      installedModelIds.add(legacy.minerId);
+      return [
+        {
+          instanceId: `legacy-${rackId}-${legacy.minerId}-${index}`,
+          minerId: legacy.minerId,
+          slotIndex: legacy.slotIndex,
+        },
+      ];
+    });
+  }
+
+  return {
+    selectedPoolId: candidate.selectedPoolId,
+    cmaBalance: candidate.cmaBalance,
+    batteryCount: candidate.batteryCount,
+    energyExpiresAt:
+      now + Math.max(0, candidate.energyHours) * MS_PER_HOUR,
+    lastEnergyClaimAt: 0,
+    activeRoomId: candidate.activeRoomId,
+    ownedRoomIds: candidate.ownedRoomIds,
+    rackInventoryCount: 0,
+    minerInventory: miners
+      .filter((miner) => !installedModelIds.has(miner.id))
+      .map((miner) => ({
+        instanceId: `legacy-inventory-${miner.id}`,
+        minerId: miner.id,
+      })),
+    racks: candidate.racks,
+    rackMiners: migratedRackMiners,
+  };
+}
+
 export function ArcadiaGame() {
   const [activeView, setActiveView] = useState<ViewId>("mine");
+  const [shopCategory, setShopCategory] =
+    useState<ShopCategory>("miners");
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
   const [cmaBalance, setCmaBalance] = useState(86.4);
   const [batteryCount, setBatteryCount] = useState(2);
-  const [energyHours, setEnergyHours] = useState(48);
+  const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
+  const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
+  const [clockNow, setClockNow] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
+  const [rackInventoryCount, setRackInventoryCount] = useState(0);
+  const [minerInventory, setMinerInventory] =
+    useState<MinerUnit[]>(defaultMinerInventory);
   const [racks, setRacks] = useState<RackInstance[]>(defaultRacks);
   const [rackMiners, setRackMiners] =
     useState<Record<string, InstalledMiner[]>>(defaultRackMiners);
   const [activeRackId, setActiveRackId] = useState("rack-01");
   const [rackOpen, setRackOpen] = useState(false);
   const [roomsOpen, setRoomsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
@@ -246,14 +382,25 @@ export function ArcadiaGame() {
     () => Object.values(rackMiners).flat(),
     [rackMiners],
   );
-  const allInstalledMinerIds = useMemo(
-    () => new Set(allInstalled.map((placement) => placement.minerId)),
-    [allInstalled],
-  );
   const installedPower = useMemo(
     () => getInstalledPower(allInstalled),
     [allInstalled],
   );
+  const energySeconds = hydrated
+    ? Math.max(0, Math.ceil((energyExpiresAt - clockNow) / 1000))
+    : INITIAL_ENERGY_HOURS * 3600;
+  const effectivePower = energySeconds > 0 ? installedPower : 0;
+  const energyClaimCooldownSeconds = Math.max(
+    0,
+    Math.ceil(
+      (lastEnergyClaimAt +
+        ENERGY_CLAIM_COOLDOWN_HOURS * MS_PER_HOUR -
+        clockNow) /
+        1000,
+    ),
+  );
+  const canClaimEnergy =
+    hydrated && energyClaimCooldownSeconds === 0;
   const currentRoomRacks = useMemo(
     () => racks.filter((rack) => rack.roomId === activeRoomId),
     [activeRoomId, racks],
@@ -262,35 +409,52 @@ export function ArcadiaGame() {
     racks.find((rack) => rack.id === activeRackId) ?? currentRoomRacks[0];
   const activeRackMiners = activeRack ? rackMiners[activeRack.id] ?? [] : [];
   const estimatedReward = useMemo(
-    () => calculateEstimatedReward(selectedPool, installedPower),
-    [installedPower, selectedPool],
+    () => calculateEstimatedReward(selectedPool, effectivePower),
+    [effectivePower, selectedPool],
   );
 
   useEffect(() => {
     const loadSavedState = window.setTimeout(() => {
+      const now = Date.now();
       try {
-        const saved = window.localStorage.getItem("arcadia-game-state-v2");
-        if (saved) {
-          const parsed: unknown = JSON.parse(saved);
-          if (isSavedGameState(parsed)) {
-            setSelectedPoolId(parsed.selectedPoolId);
-            setCmaBalance(parsed.cmaBalance);
-            setBatteryCount(parsed.batteryCount);
-            setEnergyHours(parsed.energyHours);
-            setActiveRoomId(parsed.activeRoomId);
-            setOwnedRoomIds(parsed.ownedRoomIds);
-            setRacks(parsed.racks);
-            setRackMiners(parsed.rackMiners);
-            setActiveRackId(parsed.racks[0]?.id ?? "rack-01");
+        const currentSaved =
+          window.localStorage.getItem("arcadia-game-state-v3");
+        const legacySaved =
+          window.localStorage.getItem("arcadia-game-state-v2");
+        let restored: SavedGameState | null = null;
+
+        if (currentSaved) {
+          const parsed: unknown = JSON.parse(currentSaved);
+          if (isSavedGameState(parsed)) restored = parsed;
+        } else if (legacySaved) {
+          restored = migrateLegacyState(JSON.parse(legacySaved), now);
+        }
+
+        if (restored) {
+            setSelectedPoolId(restored.selectedPoolId);
+            setCmaBalance(restored.cmaBalance);
+            setBatteryCount(restored.batteryCount);
+            setEnergyExpiresAt(restored.energyExpiresAt);
+            setLastEnergyClaimAt(restored.lastEnergyClaimAt);
+            setActiveRoomId(restored.activeRoomId);
+            setOwnedRoomIds(restored.ownedRoomIds);
+            setRackInventoryCount(restored.rackInventoryCount);
+            setMinerInventory(restored.minerInventory);
+            setRacks(restored.racks);
+            setRackMiners(restored.rackMiners);
+            setActiveRackId(restored.racks[0]?.id ?? "rack-01");
             const pool = pools.find(
-              (item) => item.id === parsed.selectedPoolId,
+              (item) => item.id === restored.selectedPoolId,
             );
             if (pool) setSecondsLeft(pool.blockSeconds);
-          }
+        } else {
+          setEnergyExpiresAt(now + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
         }
       } catch {
         // O estado inicial seguro continua ativo se o armazenamento falhar.
+        setEnergyExpiresAt(now + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
       } finally {
+        setClockNow(now);
         setHydrated(true);
       }
     }, 0);
@@ -304,23 +468,29 @@ export function ArcadiaGame() {
       selectedPoolId,
       cmaBalance,
       batteryCount,
-      energyHours,
+      energyExpiresAt,
+      lastEnergyClaimAt,
       activeRoomId,
       ownedRoomIds,
+      rackInventoryCount,
+      minerInventory,
       racks,
       rackMiners,
     };
     window.localStorage.setItem(
-      "arcadia-game-state-v2",
+      "arcadia-game-state-v3",
       JSON.stringify(savedState),
     );
   }, [
     activeRoomId,
     batteryCount,
     cmaBalance,
-    energyHours,
+    energyExpiresAt,
     hydrated,
+    lastEnergyClaimAt,
+    minerInventory,
     ownedRoomIds,
+    rackInventoryCount,
     rackMiners,
     racks,
     selectedPoolId,
@@ -331,6 +501,7 @@ export function ArcadiaGame() {
       setSecondsLeft((current) =>
         current <= 1 ? selectedPool.blockSeconds : current - 1,
       );
+      setClockNow(Date.now());
     }, 1000);
     return () => window.clearInterval(timer);
   }, [selectedPool.blockSeconds]);
@@ -348,15 +519,13 @@ export function ArcadiaGame() {
     };
   }, [rackOpen, roomsOpen]);
 
-  function installMiner(minerId: string, requestedSlot?: number) {
+  function installMiner(instanceId: string, requestedSlot?: number) {
     if (!activeRack) return;
-    const miner = getMiner(minerId);
+    const unit = minerInventory.find(
+      (item) => item.instanceId === instanceId,
+    );
+    const miner = unit ? getMiner(unit.minerId) : undefined;
     if (!miner) return;
-
-    if (allInstalledMinerIds.has(minerId)) {
-      setToast(`${miner.name} já está instalado em um rack.`);
-      return;
-    }
 
     const current = rackMiners[activeRack.id] ?? [];
     const slotIndex =
@@ -377,8 +546,14 @@ export function ArcadiaGame() {
 
     setRackMiners((state) => ({
       ...state,
-      [activeRack.id]: [...current, { minerId, slotIndex }],
+      [activeRack.id]: [
+        ...current,
+        { instanceId, minerId: miner.id, slotIndex },
+      ],
     }));
+    setMinerInventory((items) =>
+      items.filter((item) => item.instanceId !== instanceId),
+    );
     setToast(
       `${miner.name} instalado no${
         miner.slotSize === 1 ? ` slot ${slotIndex + 1}` : "s dois slots"
@@ -386,20 +561,35 @@ export function ArcadiaGame() {
     );
   }
 
-  function removeMiner(minerId: string) {
+  function removeMiner(instanceId: string) {
     if (!activeRack) return;
-    const miner = getMiner(minerId);
+    const placement = activeRackMiners.find(
+      (item) => item.instanceId === instanceId,
+    );
+    if (!placement) return;
+    const miner = getMiner(placement.minerId);
     setRackMiners((state) => ({
       ...state,
       [activeRack.id]: (state[activeRack.id] ?? []).filter(
-        (placement) => placement.minerId !== minerId,
+        (item) => item.instanceId !== instanceId,
       ),
     }));
+    setMinerInventory((items) => [
+      ...items,
+      { instanceId, minerId: placement.minerId },
+    ]);
     setToast(`${miner?.name ?? "Minerador"} voltou para o inventário.`);
   }
 
   function removeAllMiners() {
     if (!activeRack || activeRackMiners.length === 0) return;
+    setMinerInventory((items) => [
+      ...items,
+      ...activeRackMiners.map(({ instanceId, minerId }) => ({
+        instanceId,
+        minerId,
+      })),
+    ]);
     setRackMiners((state) => ({ ...state, [activeRack.id]: [] }));
     setToast("Todos os mineradores desse rack voltaram para o inventário.");
   }
@@ -431,7 +621,13 @@ export function ArcadiaGame() {
     }
   }
 
-  function buyRack(positionIndex: number) {
+  function openStore(category: ShopCategory) {
+    setShopCategory(category);
+    setActiveView("shop");
+    setWalletOpen(false);
+  }
+
+  function placeRack(positionIndex: number) {
     if (!ownedRoomIds.includes(activeRoomId)) return;
     if (currentRoomRacks.length >= ROOM_RACK_CAPACITY) {
       setToast("Essa sala já atingiu o limite de 12 racks.");
@@ -440,18 +636,19 @@ export function ArcadiaGame() {
     if (currentRoomRacks.some((rack) => rack.positionIndex === positionIndex)) {
       return;
     }
-    if (cmaBalance < RACK_PRICE_CMA) {
-      setToast("Saldo CMA insuficiente para comprar esse rack.");
+    if (rackInventoryCount <= 0) {
+      openStore("racks");
+      setToast("Compre um rack na loja antes de instalar.");
       return;
     }
 
-    const rackId = `rack-${Date.now()}`;
+    const rackId = createInstanceId("rack");
     const rack: RackInstance = {
       id: rackId,
       roomId: activeRoomId,
       positionIndex,
     };
-    setCmaBalance((balance) => balance - RACK_PRICE_CMA);
+    setRackInventoryCount((count) => Math.max(0, count - 1));
     setRacks((items) => [...items, rack]);
     setRackMiners((items) => ({ ...items, [rackId]: [] }));
     setActiveRackId(rackId);
@@ -487,17 +684,77 @@ export function ArcadiaGame() {
     setActiveRoomId(room.id);
     setEditMode(true);
     setRoomsOpen(false);
-    setToast(`${room.name} desbloqueado. Escolha onde instalar o primeiro rack.`);
+    setToast(`${room.name} desbloqueado. As 12 posições já estão disponíveis.`);
   }
 
-  function buyBattery() {
-    if (cmaBalance < BATTERY_PRICE_CMA) {
-      setToast("Saldo CMA insuficiente para comprar uma bateria.");
+  function buyMiners(minerId: string, quantity: number) {
+    const miner = getMiner(minerId);
+    if (!miner || quantity < 1) return;
+    const total = miner.priceCma * quantity;
+    if (cmaBalance < total) {
+      setToast("Saldo CMA insuficiente para essa compra.");
       return;
     }
-    setCmaBalance((balance) => balance - BATTERY_PRICE_CMA);
-    setBatteryCount((count) => count + 1);
-    setToast("Uma bateria foi adicionada ao inventário.");
+    setCmaBalance((balance) => balance - total);
+    setMinerInventory((items) => [
+      ...items,
+      ...Array.from({ length: quantity }, (_, index) => ({
+        instanceId: createInstanceId(`${miner.id}-${index}`),
+        minerId: miner.id,
+      })),
+    ]);
+    setToast(
+      `${quantity}x ${miner.name} ${
+        quantity === 1 ? "adicionado" : "adicionados"
+      } ao inventário.`,
+    );
+  }
+
+  function buyRacks(quantity: number) {
+    if (quantity < 1) return;
+    const total = RACK_PRICE_CMA * quantity;
+    if (cmaBalance < total) {
+      setToast("Saldo CMA insuficiente para comprar esses racks.");
+      return;
+    }
+    setCmaBalance((balance) => balance - total);
+    setRackInventoryCount((count) => count + quantity);
+    setToast(
+      `${quantity} rack${quantity === 1 ? "" : "s"} enviado${
+        quantity === 1 ? "" : "s"
+      } ao inventário.`,
+    );
+  }
+
+  function buyBatteries(quantity: number) {
+    if (quantity < 1) return;
+    const total = BATTERY_PRICE_CMA * quantity;
+    if (cmaBalance < total) {
+      setToast("Saldo CMA insuficiente para comprar essas baterias.");
+      return;
+    }
+    setCmaBalance((balance) => balance - total);
+    setBatteryCount((count) => count + quantity);
+    setToast(
+      `${quantity} bateria${quantity === 1 ? "" : "s"} adicionada${
+        quantity === 1 ? "" : "s"
+      } ao inventário.`,
+    );
+  }
+
+  function extendEnergy(hours: number) {
+    const now = Date.now();
+    setClockNow(now);
+    setEnergyExpiresAt((current) => {
+      const remaining = Math.max(0, current - now);
+      return (
+        now +
+        Math.min(
+          MAX_ENERGY_HOURS * MS_PER_HOUR,
+          remaining + hours * MS_PER_HOUR,
+        )
+      );
+    });
   }
 
   function useBattery() {
@@ -505,15 +762,32 @@ export function ArcadiaGame() {
       setToast("Você não possui baterias. Compre uma ou ganhe em minigames.");
       return;
     }
-    if (energyHours >= MAX_ENERGY_HOURS) {
-      setToast("As quatro células de energia já estão carregadas.");
+    if (energySeconds >= MAX_ENERGY_HOURS * 3600) {
+      setToast("As oito células de energia já estão carregadas.");
       return;
     }
     setBatteryCount((count) => count - 1);
-    setEnergyHours((hours) =>
-      Math.min(MAX_ENERGY_HOURS, hours + BATTERY_HOURS),
-    );
-    setToast("Bateria utilizada: +24 horas de energia.");
+    extendEnergy(BATTERY_HOURS);
+    setToast(`Bateria utilizada: +${BATTERY_HOURS} horas de energia.`);
+  }
+
+  function claimEnergy() {
+    if (!canClaimEnergy) {
+      setToast(
+        `Próxima recarga gratuita em ${formatTimer(
+          energyClaimCooldownSeconds,
+        )}.`,
+      );
+      return;
+    }
+    if (energySeconds >= MAX_ENERGY_HOURS * 3600) {
+      setToast("Use parte da energia antes de fazer um novo resgate.");
+      return;
+    }
+    const now = Date.now();
+    setLastEnergyClaimAt(now);
+    extendEnergy(ENERGY_CLAIM_HOURS);
+    setToast(`Recarga gratuita resgatada: +${ENERGY_CLAIM_HOURS} horas.`);
   }
 
   const balances = [
@@ -560,16 +834,40 @@ export function ArcadiaGame() {
           SISTEMA ONLINE
         </div>
 
-        <div className="balances" aria-label="Saldos virtuais">
-          {balances.map((balance) => (
-            <div className="balance-chip" key={balance.symbol}>
-              <img src={balance.asset} alt={balance.alt} />
-              <span>
-                <small>{balance.symbol}</small>
-                <strong>{balance.value}</strong>
-              </span>
+        <div className="balances wallet-control">
+          <button
+            className="wallet-trigger"
+            type="button"
+            aria-expanded={walletOpen}
+            aria-controls="wallet-menu"
+            onClick={() => setWalletOpen((open) => !open)}
+          >
+            <img src={assetsManifest.cmaCoin.path} alt="" />
+            <span>
+              <small>SALDO CMA</small>
+              <strong>{formatCma(cmaBalance)}</strong>
+            </span>
+            <b aria-hidden="true">⌄</b>
+          </button>
+          {walletOpen && (
+            <div
+              className="wallet-menu"
+              id="wallet-menu"
+              aria-label="Saldos virtuais"
+            >
+              <div className="wallet-menu-title">
+                <span>CARTEIRA VIRTUAL</span>
+                <small>sem saque nesta fase</small>
+              </div>
+              {balances.map((balance) => (
+                <div className="wallet-balance-row" key={balance.symbol}>
+                  <img src={balance.asset} alt={balance.alt} />
+                  <span>{balance.symbol}</span>
+                  <strong>{balance.value}</strong>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <button className="player-chip" type="button" aria-label="Perfil">
@@ -618,12 +916,19 @@ export function ArcadiaGame() {
         <div className="workspace-heading">
           <div>
             <span className="eyebrow">
-              {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
+              {activeView === "shop" ? (
+                <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
+              ) : (
+                <>
+                  {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
+                </>
+              )}
             </span>
             <h1>
               {activeView === "mine" && "Sua sala de mineração"}
               {activeView === "pools" && "Pools de mineração"}
               {activeView === "inventory" && "Inventário de equipamentos"}
+              {activeView === "shop" && "Loja de equipamentos"}
             </h1>
           </div>
           <div className="block-timer">
@@ -648,9 +953,9 @@ export function ArcadiaGame() {
             <span className="metric-icon power">H</span>
             <div>
               <small>PODER INSTALADO</small>
-              <strong>{formatPower(installedPower)}</strong>
+              <strong>{formatPower(effectivePower)}</strong>
             </div>
-            <em>ATIVO</em>
+            <em>{energySeconds > 0 ? "ATIVO" : "SEM ENERGIA"}</em>
           </article>
           <article>
             <span className="metric-icon slots">R</span>
@@ -666,7 +971,7 @@ export function ArcadiaGame() {
             <img src={assetsManifest.battery.path} alt="" />
             <div>
               <small>ENERGIA</small>
-              <strong>{formatEnergy(energyHours)}</strong>
+              <strong>{formatEnergy(energySeconds)}</strong>
             </div>
             <em>{batteryCount} BATERIAS</em>
           </article>
@@ -691,15 +996,19 @@ export function ArcadiaGame() {
               estimatedReward,
               selectedPool.decimals,
             )} ${selectedPool.symbol}`}
-            energyHours={energyHours}
+            energySeconds={energySeconds}
             batteryCount={batteryCount}
+            rackInventoryCount={rackInventoryCount}
+            canClaimEnergy={canClaimEnergy}
+            claimCooldownSeconds={energyClaimCooldownSeconds}
             ownedRooms={ownedRoomIds.length}
             onSetEditMode={setEditMode}
             onOpenRack={openRack}
-            onBuyRack={buyRack}
+            onPlaceRack={placeRack}
             onOpenPools={() => setActiveView("pools")}
             onOpenRooms={() => setRoomsOpen(true)}
-            onBuyBattery={buyBattery}
+            onOpenStore={openStore}
+            onClaimEnergy={claimEnergy}
             onUseBattery={useBattery}
           />
         )}
@@ -707,15 +1016,38 @@ export function ArcadiaGame() {
         {activeView === "pools" && (
           <PoolsView
             selectedPoolId={selectedPoolId}
-            installedPower={installedPower}
+            installedPower={effectivePower}
             onChoosePool={choosePool}
           />
         )}
 
         {activeView === "inventory" && (
           <InventoryView
-            installedMinerIds={allInstalledMinerIds}
+            minerInventory={minerInventory}
+            installedMiners={allInstalled}
+            rackInventoryCount={rackInventoryCount}
+            batteryCount={batteryCount}
             onOpenRack={openRackFromInventory}
+            onOpenStore={openStore}
+          />
+        )}
+
+        {activeView === "shop" && (
+          <ShopView
+            activeCategory={shopCategory}
+            cmaBalance={cmaBalance}
+            minerInventory={minerInventory}
+            installedMiners={allInstalled}
+            rackInventoryCount={rackInventoryCount}
+            batteryCount={batteryCount}
+            onSetCategory={setShopCategory}
+            onBuyMiners={buyMiners}
+            onBuyRacks={buyRacks}
+            onBuyBatteries={buyBatteries}
+            onGoToRoom={() => {
+              setActiveView("mine");
+              setEditMode(true);
+            }}
           />
         )}
       </section>
@@ -741,7 +1073,7 @@ export function ArcadiaGame() {
           ).padStart(2, "0")}`}
           roomName={activeRoom.name}
           installed={activeRackMiners}
-          allInstalledMinerIds={allInstalledMinerIds}
+          minerInventory={minerInventory}
           onInstall={installMiner}
           onRemove={removeMiner}
           onRemoveAll={removeAllMiners}
@@ -777,15 +1109,19 @@ function MiningRoom({
   editMode,
   selectedPoolId,
   estimatedReward,
-  energyHours,
+  energySeconds,
   batteryCount,
+  rackInventoryCount,
+  canClaimEnergy,
+  claimCooldownSeconds,
   ownedRooms,
   onSetEditMode,
   onOpenRack,
-  onBuyRack,
+  onPlaceRack,
   onOpenPools,
   onOpenRooms,
-  onBuyBattery,
+  onOpenStore,
+  onClaimEnergy,
   onUseBattery,
 }: {
   activeRoom: RoomDefinition;
@@ -794,15 +1130,19 @@ function MiningRoom({
   editMode: boolean;
   selectedPoolId: PoolId;
   estimatedReward: string;
-  energyHours: number;
+  energySeconds: number;
   batteryCount: number;
+  rackInventoryCount: number;
+  canClaimEnergy: boolean;
+  claimCooldownSeconds: number;
   ownedRooms: number;
   onSetEditMode: (value: boolean) => void;
   onOpenRack: (rackId: string) => void;
-  onBuyRack: (positionIndex: number) => void;
+  onPlaceRack: (positionIndex: number) => void;
   onOpenPools: () => void;
   onOpenRooms: () => void;
-  onBuyBattery: () => void;
+  onOpenStore: (category: ShopCategory) => void;
+  onClaimEnergy: () => void;
   onUseBattery: () => void;
 }) {
   const selectedPool =
@@ -863,12 +1203,16 @@ function MiningRoom({
                   className="rack-placement"
                   style={style}
                   key={`empty-${positionIndex}`}
-                  onClick={() => onBuyRack(positionIndex)}
-                  aria-label={`Comprar rack para a posição ${positionIndex + 1}`}
+                  onClick={() => onPlaceRack(positionIndex)}
+                  aria-label={`Instalar rack na posição ${positionIndex + 1}`}
                 >
                   <span>+</span>
                   <small>POSIÇÃO {positionIndex + 1}</small>
-                  <b>{formatCma(RACK_PRICE_CMA)} CMA</b>
+                  <b>
+                    {rackInventoryCount > 0
+                      ? `INSTALAR · ${rackInventoryCount} DISP.`
+                      : "ABRIR LOJA"}
+                  </b>
                 </button>
               );
             }
@@ -897,12 +1241,12 @@ function MiningRoom({
                   return (
                     <img
                       className={`rack-miner size-${miner.slotSize}`}
-                      key={placement.minerId}
+                      key={placement.instanceId}
                       src={miner.asset}
                       alt={miner.alt}
                       style={{
-                        left: `${27 + column * 24}%`,
-                        top: `${row * 23.5 + 2}%`,
+                        left: `${29 + column * 23.5}%`,
+                        top: `${row * 23.5 + 3}%`,
                       }}
                     />
                   );
@@ -919,7 +1263,9 @@ function MiningRoom({
             {editMode ? (
               <>
                 <span>EDITANDO LAYOUT</span>
-                Clique em uma posição azul para instalar um rack
+                {rackInventoryCount > 0
+                  ? `${rackInventoryCount} rack disponível · escolha uma posição`
+                  : "Compre um rack na loja e escolha uma posição gratuita"}
               </>
             ) : (
               <>
@@ -930,7 +1276,7 @@ function MiningRoom({
           </div>
 
           <div className="room-coordinates">
-            {ROOM_RACK_CAPACITY} POSIÇÕES · LAYOUT V.02
+            {ROOM_RACK_CAPACITY} POSIÇÕES GRATUITAS · LAYOUT V.03
           </div>
         </div>
       </section>
@@ -948,7 +1294,7 @@ function MiningRoom({
           <div>
             <small>MINERANDO AGORA</small>
             <strong>{selectedPool.name}</strong>
-            <span>100% do poder</span>
+            <span>{energySeconds > 0 ? "100% do poder" : "pausado sem energia"}</span>
           </div>
           <button type="button" onClick={onOpenPools}>
             TROCAR
@@ -965,9 +1311,12 @@ function MiningRoom({
         </div>
 
         <EnergyCard
-          energyHours={energyHours}
+          energySeconds={energySeconds}
           batteryCount={batteryCount}
-          onBuyBattery={onBuyBattery}
+          canClaim={canClaimEnergy}
+          claimCooldownSeconds={claimCooldownSeconds}
+          onClaim={onClaimEnergy}
+          onOpenStore={() => onOpenStore("energy")}
           onUseBattery={onUseBattery}
         />
 
@@ -1001,17 +1350,23 @@ function MiningRoom({
 }
 
 function EnergyCard({
-  energyHours,
+  energySeconds,
   batteryCount,
-  onBuyBattery,
+  canClaim,
+  claimCooldownSeconds,
+  onClaim,
+  onOpenStore,
   onUseBattery,
 }: {
-  energyHours: number;
+  energySeconds: number;
   batteryCount: number;
-  onBuyBattery: () => void;
+  canClaim: boolean;
+  claimCooldownSeconds: number;
+  onClaim: () => void;
+  onOpenStore: () => void;
   onUseBattery: () => void;
 }) {
-  const chargedCells = Math.ceil(energyHours / BATTERY_HOURS);
+  const chargedCells = Math.ceil(energySeconds / (BATTERY_HOURS * 3600));
 
   return (
     <div className="energy-card">
@@ -1021,27 +1376,44 @@ function EnergyCard({
         </div>
         <div>
           <small>ENERGIA DOS MINERADORES</small>
-          <strong>{formatEnergy(energyHours)}</strong>
+          <strong>{formatEnergy(energySeconds)}</strong>
           <span>{batteryCount} baterias no inventário</span>
         </div>
       </div>
-      <div className="energy-cells" aria-label={`${chargedCells} de 4 células carregadas`}>
-        {Array.from({ length: 4 }, (_, index) => (
+      <div
+        className="energy-cells"
+        aria-label={`${chargedCells} de 8 células carregadas`}
+      >
+        {Array.from({ length: 8 }, (_, index) => (
           <i className={index < chargedCells ? "charged" : ""} key={index}>
-            24h
+            12h
           </i>
         ))}
+      </div>
+      <div className="daily-energy">
+        <span>
+          <small>RECARGA GRATUITA</small>
+          <strong>+{ENERGY_CLAIM_HOURS}h a cada 12h</strong>
+        </span>
+        <button type="button" onClick={onClaim} disabled={!canClaim}>
+          {canClaim
+            ? "RESGATAR"
+            : `EM ${formatEnergy(claimCooldownSeconds)}`}
+        </button>
       </div>
       <div className="energy-actions">
         <button
           type="button"
           onClick={onUseBattery}
-          disabled={batteryCount === 0 || energyHours >= MAX_ENERGY_HOURS}
+          disabled={
+            batteryCount === 0 ||
+            energySeconds >= MAX_ENERGY_HOURS * 3600
+          }
         >
-          USAR BATERIA
+          USAR BATERIA · +{BATTERY_HOURS}H
         </button>
-        <button type="button" onClick={onBuyBattery}>
-          COMPRAR · {formatCma(BATTERY_PRICE_CMA)} CMA
+        <button type="button" onClick={onOpenStore}>
+          IR PARA LOJA
         </button>
       </div>
       <p>Minigames poderão conceder baterias nas próximas etapas.</p>
@@ -1153,40 +1525,85 @@ function PoolsView({
 }
 
 function InventoryView({
-  installedMinerIds,
+  minerInventory,
+  installedMiners,
+  rackInventoryCount,
+  batteryCount,
   onOpenRack,
+  onOpenStore,
 }: {
-  installedMinerIds: Set<string>;
+  minerInventory: MinerUnit[];
+  installedMiners: InstalledMiner[];
+  rackInventoryCount: number;
+  batteryCount: number;
   onOpenRack: () => void;
+  onOpenStore: (category: ShopCategory) => void;
 }) {
   return (
     <section className="inventory-view">
       <div className="section-intro">
         <div>
-          <span className="eyebrow">CATÁLOGO INICIAL · 07 MINERADORES</span>
+          <span className="eyebrow">INVENTÁRIO · EQUIPAMENTOS ADQUIRIDOS</span>
           <h2>Seus equipamentos</h2>
           <p>
             Mineradores de uma fan ocupam 1 slot. Modelos de duas fans usam uma
             prateleira inteira e entregam mais poder por espaço.
           </p>
         </div>
-        <button className="primary-action" type="button" onClick={onOpenRack}>
-          GERENCIAR RACK
-        </button>
+        <div className="inventory-actions">
+          <button className="primary-action" type="button" onClick={onOpenRack}>
+            GERENCIAR RACK
+          </button>
+          <button type="button" onClick={() => onOpenStore("miners")}>
+            ABRIR LOJA
+          </button>
+        </div>
+      </div>
+
+      <div className="inventory-summary">
+        <article>
+          <img src={assetsManifest.rackBasic.path} alt="" />
+          <span>
+            <small>RACKS DISPONÍVEIS</small>
+            <strong>{rackInventoryCount}</strong>
+          </span>
+          <button type="button" onClick={() => onOpenStore("racks")}>
+            COMPRAR
+          </button>
+        </article>
+        <article>
+          <img src={assetsManifest.battery.path} alt="" />
+          <span>
+            <small>BATERIAS DE 12H</small>
+            <strong>{batteryCount}</strong>
+          </span>
+          <button type="button" onClick={() => onOpenStore("energy")}>
+            COMPRAR
+          </button>
+        </article>
       </div>
 
       <div className="inventory-grid">
         {miners.map((miner) => {
-          const isInstalled = installedMinerIds.has(miner.id);
+          const availableCount = minerInventory.filter(
+            (unit) => unit.minerId === miner.id,
+          ).length;
+          const installedCount = installedMiners.filter(
+            (unit) => unit.minerId === miner.id,
+          ).length;
+          const ownedCount = availableCount + installedCount;
 
           return (
-            <article className={`inventory-card ${miner.rarity}`} key={miner.id}>
+            <article
+              className={`inventory-card ${miner.rarity} ${
+                ownedCount === 0 ? "not-owned" : ""
+              }`}
+              key={miner.id}
+            >
               <div className="inventory-art">
                 <span>{rarityLabels[miner.rarity]}</span>
                 <img src={miner.asset} alt={miner.alt} />
-                <b className="price-badge">
-                  {formatCma(miner.priceCma)} CMA
-                </b>
+                <b className="owned-badge">VOCÊ TEM · {ownedCount}</b>
               </div>
               <div className="inventory-info">
                 <span>
@@ -1212,8 +1629,8 @@ function InventoryView({
                     </strong>
                   </p>
                 </div>
-                <em className={isInstalled ? "installed" : ""}>
-                  {isInstalled ? "INSTALADO EM UM RACK" : "NO INVENTÁRIO"}
+                <em className={installedCount > 0 ? "installed" : ""}>
+                  {availableCount} DISPONÍVEL · {installedCount} INSTALADO
                 </em>
               </div>
             </article>
@@ -1224,11 +1641,293 @@ function InventoryView({
   );
 }
 
+function QuantityPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="quantity-picker" aria-label={label}>
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        disabled={value <= 1}
+        aria-label="Diminuir quantidade"
+      >
+        −
+      </button>
+      <strong>{value}</strong>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(10, value + 1))}
+        disabled={value >= 10}
+        aria-label="Aumentar quantidade"
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function ShopView({
+  activeCategory,
+  cmaBalance,
+  minerInventory,
+  installedMiners,
+  rackInventoryCount,
+  batteryCount,
+  onSetCategory,
+  onBuyMiners,
+  onBuyRacks,
+  onBuyBatteries,
+  onGoToRoom,
+}: {
+  activeCategory: ShopCategory;
+  cmaBalance: number;
+  minerInventory: MinerUnit[];
+  installedMiners: InstalledMiner[];
+  rackInventoryCount: number;
+  batteryCount: number;
+  onSetCategory: (category: ShopCategory) => void;
+  onBuyMiners: (minerId: string, quantity: number) => void;
+  onBuyRacks: (quantity: number) => void;
+  onBuyBatteries: (quantity: number) => void;
+  onGoToRoom: () => void;
+}) {
+  const [minerQuantities, setMinerQuantities] = useState<
+    Record<string, number>
+  >({});
+  const [rackQuantity, setRackQuantity] = useState(1);
+  const [batteryQuantity, setBatteryQuantity] = useState(1);
+
+  return (
+    <section className="shop-view">
+      <div className="shop-hero">
+        <div>
+          <span className="eyebrow">LOJA OFICIAL · PAGAMENTO EM CMA</span>
+          <h2>Monte sua operação</h2>
+          <p>
+            Compre equipamentos aqui. As 12 posições de cada sala são gratuitas:
+            você paga apenas pelo rack que será instalado.
+          </p>
+        </div>
+        <div className="shop-wallet">
+          <img src={assetsManifest.cmaCoin.path} alt="" />
+          <span>
+            <small>SALDO DISPONÍVEL</small>
+            <strong>{formatCma(cmaBalance)} CMA</strong>
+          </span>
+        </div>
+      </div>
+
+      <nav className="shop-tabs" aria-label="Categorias da loja">
+        <button
+          type="button"
+          className={activeCategory === "miners" ? "active" : ""}
+          onClick={() => onSetCategory("miners")}
+        >
+          MINERADORES
+        </button>
+        <button
+          type="button"
+          className={activeCategory === "racks" ? "active" : ""}
+          onClick={() => onSetCategory("racks")}
+        >
+          RACKS · {rackInventoryCount}
+        </button>
+        <button
+          type="button"
+          className={activeCategory === "energy" ? "active" : ""}
+          onClick={() => onSetCategory("energy")}
+        >
+          ENERGIA · {batteryCount}
+        </button>
+      </nav>
+
+      {activeCategory === "miners" && (
+        <div className="shop-miner-grid">
+          {miners.map((miner) => {
+            const quantity = minerQuantities[miner.id] ?? 1;
+            const owned =
+              minerInventory.filter((unit) => unit.minerId === miner.id)
+                .length +
+              installedMiners.filter((unit) => unit.minerId === miner.id)
+                .length;
+            const total = miner.priceCma * quantity;
+
+            return (
+              <article
+                className={`shop-product-card ${miner.rarity}`}
+                key={miner.id}
+              >
+                <div className="shop-product-art">
+                  <span>{rarityLabels[miner.rarity]}</span>
+                  <img src={miner.asset} alt={miner.alt} />
+                  <b>{formatCma(miner.priceCma)} CMA</b>
+                </div>
+                <div className="shop-product-info">
+                  <small>
+                    {miner.slotSize === 1 ? "PEQUENO" : "MÉDIO"} ·{" "}
+                    {miner.fanCount} {miner.fanCount === 1 ? "FAN" : "FANS"}
+                  </small>
+                  <h3>{miner.name}</h3>
+                  <dl>
+                    <div>
+                      <dt>Poder</dt>
+                      <dd>{formatPower(miner.powerGh)}</dd>
+                    </div>
+                    <div>
+                      <dt>Espaço</dt>
+                      <dd>{miner.slotSize} slot{miner.slotSize === 1 ? "" : "s"}</dd>
+                    </div>
+                    <div>
+                      <dt>Você tem</dt>
+                      <dd>{owned}</dd>
+                    </div>
+                  </dl>
+                  <QuantityPicker
+                    value={quantity}
+                    onChange={(value) =>
+                      setMinerQuantities((state) => ({
+                        ...state,
+                        [miner.id]: value,
+                      }))
+                    }
+                    label={`Quantidade de ${miner.name}`}
+                  />
+                  <div className="shop-total">
+                    <span>TOTAL</span>
+                    <strong>{formatCma(total)} CMA</strong>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={total > cmaBalance}
+                    onClick={() => onBuyMiners(miner.id, quantity)}
+                  >
+                    {total > cmaBalance ? "SALDO INSUFICIENTE" : "COMPRAR"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {activeCategory === "racks" && (
+        <div className="shop-feature-grid">
+          <article className="feature-product-card">
+            <div className="feature-product-art rack">
+              <img src={assetsManifest.rackBasic.path} alt={assetsManifest.rackBasic.alt} />
+              <span>RACK BÁSICO 8</span>
+            </div>
+            <div className="feature-product-info">
+              <span className="eyebrow">ESTRUTURA · 4 PRATELEIRAS</span>
+              <h3>Rack básico de 8 slots</h3>
+              <p>
+                Compatível com mineradores de uma e duas fans. Depois da compra,
+                instale gratuitamente em qualquer posição vazia da sala.
+              </p>
+              <ul>
+                <li>8 slots em 4 prateleiras</li>
+                <li>Posições da sala sem custo</li>
+                <li>{rackInventoryCount} disponíveis no inventário</li>
+              </ul>
+              <QuantityPicker
+                value={rackQuantity}
+                onChange={setRackQuantity}
+                label="Quantidade de racks"
+              />
+              <div className="shop-total">
+                <span>TOTAL</span>
+                <strong>
+                  {formatCma(RACK_PRICE_CMA * rackQuantity)} CMA
+                </strong>
+              </div>
+              <button
+                type="button"
+                disabled={RACK_PRICE_CMA * rackQuantity > cmaBalance}
+                onClick={() => onBuyRacks(rackQuantity)}
+              >
+                COMPRAR RACK
+              </button>
+              {rackInventoryCount > 0 && (
+                <button
+                  className="secondary-shop-action"
+                  type="button"
+                  onClick={onGoToRoom}
+                >
+                  INSTALAR NA SALA
+                </button>
+              )}
+            </div>
+          </article>
+        </div>
+      )}
+
+      {activeCategory === "energy" && (
+        <div className="shop-feature-grid energy">
+          <article className="feature-product-card">
+            <div className="feature-product-art energy">
+              <img src={assetsManifest.battery.path} alt={assetsManifest.battery.alt} />
+              <span>BATERIA ARCADIA · +12H</span>
+            </div>
+            <div className="feature-product-info">
+              <span className="eyebrow">ENERGIA · RESERVA PORTÁTIL</span>
+              <h3>Bateria de mineração</h3>
+              <p>
+                Cada bateria adiciona 12 horas, até o limite de 96 horas.
+                Baterias também poderão ser conquistadas nos minigames.
+              </p>
+              <ul>
+                <li>+12 horas por bateria</li>
+                <li>Resgate gratuito de +12h a cada 12h</li>
+                <li>{batteryCount} baterias no inventário</li>
+              </ul>
+              <QuantityPicker
+                value={batteryQuantity}
+                onChange={setBatteryQuantity}
+                label="Quantidade de baterias"
+              />
+              <div className="shop-total">
+                <span>TOTAL</span>
+                <strong>
+                  {formatCma(BATTERY_PRICE_CMA * batteryQuantity)} CMA
+                </strong>
+              </div>
+              <button
+                type="button"
+                disabled={BATTERY_PRICE_CMA * batteryQuantity > cmaBalance}
+                onClick={() => onBuyBatteries(batteryQuantity)}
+              >
+                COMPRAR BATERIA
+              </button>
+            </div>
+          </article>
+
+          <aside className="energy-shop-note">
+            <span>PRÓXIMA ETAPA</span>
+            <h3>Recompensas dos minigames</h3>
+            <p>
+              O desenho já reserva baterias e pequenas quantidades de CMA como
+              recompensas, mas a emissão ainda não foi ativada para não
+              desbalancear a economia.
+            </p>
+          </aside>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RackManager({
   rackLabel,
   roomName,
   installed,
-  allInstalledMinerIds,
+  minerInventory,
   onInstall,
   onRemove,
   onRemoveAll,
@@ -1237,9 +1936,9 @@ function RackManager({
   rackLabel: string;
   roomName: string;
   installed: InstalledMiner[];
-  allInstalledMinerIds: Set<string>;
-  onInstall: (minerId: string, slotIndex?: number) => void;
-  onRemove: (minerId: string) => void;
+  minerInventory: MinerUnit[];
+  onInstall: (instanceId: string, slotIndex?: number) => void;
+  onRemove: (instanceId: string) => void;
   onRemoveAll: () => void;
   onClose: () => void;
 }) {
@@ -1296,12 +1995,12 @@ function RackManager({
                   <button
                     type="button"
                     className={`preview-miner corrected size-${miner.slotSize}`}
-                    key={placement.minerId}
+                    key={placement.instanceId}
                     style={{
-                      left: `${27 + column * 24}%`,
-                      top: `${row * 23.5 + 2}%`,
+                      left: `${29 + column * 23.5}%`,
+                      top: `${row * 23.5 + 3}%`,
                     }}
-                    onClick={() => onRemove(miner.id)}
+                    onClick={() => onRemove(placement.instanceId)}
                     title={`Retirar ${miner.name}`}
                   >
                     <img src={miner.asset} alt={miner.alt} />
@@ -1381,7 +2080,7 @@ function RackManager({
                       type="button"
                       className="slot-installed"
                       style={{ gridColumn: `span ${miner.slotSize}` }}
-                      onClick={() => onRemove(miner.id)}
+                      onClick={() => onRemove(placement.instanceId)}
                       key={slotIndex}
                     >
                       <img src={miner.asset} alt="" />
@@ -1413,7 +2112,7 @@ function RackManager({
               <div>
                 <span>SEUS MINERADORES</span>
                 <strong>
-                  {miners.length - allInstalledMinerIds.size} disponíveis
+                  {minerInventory.length} disponíveis
                 </strong>
               </div>
               <span>
@@ -1425,26 +2124,20 @@ function RackManager({
 
             <div className="rack-miner-list">
               {miners.map((miner) => {
-                const installedHere = installed.some(
-                  (item) => item.minerId === miner.id,
+                const availableUnits = minerInventory.filter(
+                  (unit) => unit.minerId === miner.id,
                 );
-                const installedElsewhere =
-                  allInstalledMinerIds.has(miner.id) && !installedHere;
-                const possibleSlot = installedHere
-                  ? null
-                  : targetSlot === null
+                if (availableUnits.length === 0) return null;
+                const nextUnit = availableUnits[0];
+                const possibleSlot =
+                  targetSlot === null
                     ? findNextAvailableSlot(installed, miner)
                     : canInstallAt(installed, miner, targetSlot)
                       ? targetSlot
                       : null;
 
                 return (
-                  <article
-                    className={`rack-miner-card ${
-                      installedHere ? "installed" : ""
-                    }`}
-                    key={miner.id}
-                  >
+                  <article className="rack-miner-card" key={miner.id}>
                     <div className={`mini-rarity ${miner.rarity}`}>
                       {rarityLabels[miner.rarity]}
                     </div>
@@ -1458,7 +2151,8 @@ function RackManager({
                       <h3>{miner.name}</h3>
                       <p>
                         {formatPower(miner.powerGh)} ·{" "}
-                        {formatCma(miner.priceCma)} CMA
+                        {availableUnits.length} disponível
+                        {availableUnits.length === 1 ? "" : "is"}
                       </p>
                     </div>
                     <div className="slot-cost">
@@ -1468,34 +2162,26 @@ function RackManager({
                         {miner.slotSize === 1 ? "SLOT" : "SLOTS"}
                       </strong>
                     </div>
-                    {installedHere ? (
-                      <button
-                        className="remove"
-                        type="button"
-                        onClick={() => onRemove(miner.id)}
-                      >
-                        RETIRAR
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={installedElsewhere || possibleSlot === null}
-                        onClick={() => {
-                          if (possibleSlot === null) return;
-                          onInstall(miner.id, possibleSlot);
-                          setTargetSlot(null);
-                        }}
-                      >
-                        {installedElsewhere
-                          ? "EM OUTRO RACK"
-                          : possibleSlot === null
-                            ? "NÃO CABE"
-                            : "INSTALAR"}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={possibleSlot === null}
+                      onClick={() => {
+                        if (possibleSlot === null) return;
+                        onInstall(nextUnit.instanceId, possibleSlot);
+                        setTargetSlot(null);
+                      }}
+                    >
+                      {possibleSlot === null ? "NÃO CABE" : "INSTALAR"}
+                    </button>
                   </article>
                 );
               })}
+              {minerInventory.length === 0 && (
+                <div className="empty-rack-inventory">
+                  <strong>NENHUM MINERADOR DISPONÍVEL</strong>
+                  <span>Compre novos equipamentos na loja.</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

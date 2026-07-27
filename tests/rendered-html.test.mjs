@@ -34,8 +34,11 @@ test("renderiza a experiência principal do Crypto Miner Arcadia", async () => {
   assert.match(html, /Sala de minera[cç][aã]o/i);
   assert.match(html, /Pools/i);
   assert.match(html, /Invent[aá]rio/i);
+  assert.match(html, /Loja/i);
   assert.match(html, /RACKS NESTA SALA/i);
   assert.match(html, /ENERGIA/i);
+  assert.match(html, /RECARGA GRATUITA/i);
+  assert.match(html, /h a cada 12h/i);
   assert.match(html, /ESTIMATIVA POR BLOCO[^<]*10 MIN/i);
   assert.doesNotMatch(html, />CONSUMO</i);
   assert.doesNotMatch(html, /codex-preview/i);
