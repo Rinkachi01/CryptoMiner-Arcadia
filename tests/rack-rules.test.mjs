@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BLOCK_INTERVAL_SECONDS,
+  ROOM_RACK_CAPACITY,
+  calculateVirtualPaybackDays,
   canInstallAt,
   findNextAvailableSlot,
   getMiner,
+  miners,
+  pools,
 } from "../app/game-rules.ts";
 
 test("minerador de uma fan ocupa um único slot", () => {
@@ -34,3 +39,18 @@ test("encaixe de duas fans exige dois slots contínuos livres", () => {
   assert.equal(findNextAvailableSlot(installed, twoFans), 6);
 });
 
+test("todas as pools usam blocos de dez minutos", () => {
+  assert.equal(BLOCK_INTERVAL_SECONDS, 600);
+  assert.equal(pools.every((pool) => pool.blockSeconds === 600), true);
+});
+
+test("cada sala possui doze posições de rack", () => {
+  assert.equal(ROOM_RACK_CAPACITY, 12);
+});
+
+test("catálogo mantém progressão virtual conservadora", () => {
+  const paybackDays = miners.map(calculateVirtualPaybackDays);
+  assert.equal(paybackDays.every((days) => days >= 240), true);
+  assert.equal(paybackDays.every((days) => days <= 400), true);
+  assert.ok(miners.at(-1).powerGh / miners.at(-1).slotSize > miners[0].powerGh);
+});

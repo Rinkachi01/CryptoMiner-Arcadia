@@ -3,6 +3,13 @@ import { assetsManifest } from "./assets.manifest.ts";
 export const RACK_COLUMNS = 2;
 export const RACK_ROWS = 4;
 export const RACK_CAPACITY = RACK_COLUMNS * RACK_ROWS;
+export const ROOM_RACK_CAPACITY = 12;
+export const BLOCK_INTERVAL_SECONDS = 600;
+export const BLOCKS_PER_DAY = 86_400 / BLOCK_INTERVAL_SECONDS;
+export const RACK_PRICE_CMA = 5;
+export const BATTERY_PRICE_CMA = 0.5;
+export const BATTERY_HOURS = 24;
+export const MAX_ENERGY_HOURS = 96;
 
 export type MinerRarity =
   | "common"
@@ -19,7 +26,6 @@ export type MinerDefinition = {
   fanCount: 1 | 2;
   slotSize: 1 | 2;
   powerGh: number;
-  energyW: number;
   rarity: MinerRarity;
   priceCma: number;
 };
@@ -52,10 +58,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerOne.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 120,
-    energyW: 65,
+    powerGh: 100,
     rarity: "common",
-    priceCma: 4,
+    priceCma: 3,
   },
   {
     id: "amber-core",
@@ -64,10 +69,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerTwo.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 210,
-    energyW: 80,
+    powerGh: 260,
     rarity: "uncommon",
-    priceCma: 8.5,
+    priceCma: 7.5,
   },
   {
     id: "dual-nova",
@@ -76,10 +80,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerThree.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 540,
-    energyW: 145,
+    powerGh: 1250,
     rarity: "rare",
-    priceCma: 18,
+    priceCma: 30,
   },
   {
     id: "cryo-twin",
@@ -88,10 +91,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerFour.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 880,
-    energyW: 185,
+    powerGh: 2800,
     rarity: "rare",
-    priceCma: 27,
+    priceCma: 62,
   },
   {
     id: "magenta-flux",
@@ -100,10 +102,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerFive.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 1260,
-    energyW: 220,
+    powerGh: 6200,
     rarity: "epic",
-    priceCma: 42,
+    priceCma: 128,
   },
   {
     id: "violet-bit",
@@ -112,10 +113,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerSix.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 360,
-    energyW: 105,
+    powerGh: 620,
     rarity: "uncommon",
-    priceCma: 13,
+    priceCma: 16,
   },
   {
     id: "helix-gold",
@@ -124,10 +124,9 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerSeven.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 1680,
-    energyW: 250,
+    powerGh: 14500,
     rarity: "legendary",
-    priceCma: 64,
+    priceCma: 280,
   },
 ];
 
@@ -138,9 +137,9 @@ export const pools: MiningPool[] = [
     symbol: "CMA",
     asset: assetsManifest.cmaCoin.path,
     decimals: 6,
-    blockSeconds: 300,
-    rewardAtomic: 25_000_000n,
-    networkPowerGh: 750_000,
+    blockSeconds: BLOCK_INTERVAL_SECONDS,
+    rewardAtomic: 8_000_000n,
+    networkPowerGh: 15_000_000,
     color: "#a9ff3f",
     tagline: "A moeda central da economia de Arcadia",
   },
@@ -150,7 +149,7 @@ export const pools: MiningPool[] = [
     symbol: "BTC",
     asset: assetsManifest.bitcoin.path,
     decimals: 8,
-    blockSeconds: 600,
+    blockSeconds: BLOCK_INTERVAL_SECONDS,
     rewardAtomic: 85_000n,
     networkPowerGh: 1_800_000,
     color: "#f5a524",
@@ -162,9 +161,9 @@ export const pools: MiningPool[] = [
     symbol: "DOGE",
     asset: assetsManifest.dogecoin.path,
     decimals: 8,
-    blockSeconds: 240,
-    rewardAtomic: 90_000_000_000n,
-    networkPowerGh: 900_000,
+    blockSeconds: BLOCK_INTERVAL_SECONDS,
+    rewardAtomic: 2_500_000_000n,
+    networkPowerGh: 4_000_000,
     color: "#f4d45f",
     tagline: "Blocos rápidos para uma progressão leve",
   },
@@ -246,16 +245,31 @@ export function getInstalledPower(installed: InstalledMiner[]) {
   }, 0);
 }
 
-export function getInstalledEnergy(installed: InstalledMiner[]) {
-  return installed.reduce((total, placement) => {
-    return total + (getMiner(placement.minerId)?.energyW ?? 0);
-  }, 0);
-}
-
 export function getUsedSlotCount(installed: InstalledMiner[]) {
   return installed.reduce((total, placement) => {
     return total + (getMiner(placement.minerId)?.slotSize ?? 0);
   }, 0);
+}
+
+export function calculateDailyEstimatedReward(
+  pool: MiningPool,
+  playerPowerGh: number,
+) {
+  return calculateEstimatedReward(pool, playerPowerGh) * BigInt(BLOCKS_PER_DAY);
+}
+
+export function calculateVirtualPaybackDays(miner: MinerDefinition) {
+  const cmaPool = pools[0];
+  const dailyRewardAtomic =
+    (cmaPool.rewardAtomic *
+      BigInt(miner.powerGh) *
+      BigInt(BLOCKS_PER_DAY)) /
+    BigInt(cmaPool.networkPowerGh);
+
+  if (dailyRewardAtomic <= 0n) return Number.POSITIVE_INFINITY;
+
+  const priceAtomic = BigInt(Math.round(miner.priceCma * 1_000_000));
+  return Number(priceAtomic) / Number(dailyRewardAtomic);
 }
 
 export function calculateEstimatedReward(
