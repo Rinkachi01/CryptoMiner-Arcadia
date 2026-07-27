@@ -1,61 +1,66 @@
-# Crypto Miner Arcadia — economia inicial v2
+# Crypto Miner Arcadia — economia inicial v3
 
 ## Escopo
 
-Esta versão é uma simulação virtual. CMA, BTC e DOGE exibidos no jogo não
-possuem saque, depósito ou garantia de conversão. A relação `1 CMA = US$ 1` é
-uma unidade contábil interna para precificação e não uma promessa de resgate.
+Esta versão continua sendo uma simulação virtual. CMA, BTC e DOGE exibidos no
+jogo não possuem saque, depósito nem promessa de conversão. A unidade contábil
+interna da CMA não aparece na interface do jogador.
 
-## Decisões da primeira calibração
+## Multi-mineração e blocos
 
-- Todas as pools fecham blocos a cada 10 minutos: 144 blocos por dia.
-- O jogador aloca 100% do poder em uma única pool.
-- Recompensa individual:
+- CMA, Bitcoin e Dogecoin fecham blocos simulados a cada 10 minutos: 144 blocos
+  por dia.
+- O jogador distribui o próprio poder em percentuais inteiros entre as três
+  pools.
+- A distribuição só pode ser aplicada quando a soma fecha exatamente 100%.
+- Cada pool calcula sua recompensa de forma independente:
 
 ```text
-recompensa = recompensa_do_bloco × poder_do_jogador / poder_total_da_pool
+poder_alocado = poder_total_do_jogador × percentual_da_pool
+recompensa = recompensa_do_bloco × poder_alocado / poder_total_da_pool
 ```
 
-- CMA inicia com recompensa de 8 CMA por bloco e rede simulada de
-  15.000.000 GH/s.
-- O preço por TH melhora gradualmente nos equipamentos avançados. O ganho não é
-  linear porque equipamentos maiores também economizam espaço de rack.
-- A faixa de retorno virtual de teste dos equipamentos fica aproximadamente
-  entre 250 e 370 dias no estado inicial da rede. Isso não é ROI financeiro:
-  dificuldade, recompensa, reserva e poder global podem mudar.
+- A CMA inicia com 8 CMA por bloco e rede simulada de 60.000.000 GH/s.
+- A estimativa é informativa, nunca um retorno garantido. Poder de rede,
+  recompensa e orçamento diário poderão ser rebalanceados.
 
-## Catálogo inicial
+## Catálogo recalibrado
+
+Os preços foram reduzidos tomando como referência as capturas fornecidas de
+jogos semelhantes. A dificuldade da rede CMA foi ajustada em conjunto para
+manter uma progressão virtual conservadora, próxima de 294 a 313 dias no
+estado inicial da rede.
 
 | Minerador | Fans | Slots | Poder | Preço |
 |---|---:|---:|---:|---:|
-| Byte Spark | 1 | 1 | 100 GH/s | 3 CMA |
-| Amber Core | 1 | 1 | 260 GH/s | 7,5 CMA |
-| Violet Bit | 1 | 1 | 620 GH/s | 16 CMA |
-| Dual Nova | 2 | 2 | 1.250 GH/s | 30 CMA |
-| Cryo Twin | 2 | 2 | 2.800 GH/s | 62 CMA |
-| Magenta Flux | 2 | 2 | 6.200 GH/s | 128 CMA |
-| Helix Gold | 2 | 2 | 14.500 GH/s | 280 CMA |
+| Byte Spark | 1 | 1 | 100 GH/s | 0,60 CMA |
+| Amber Core | 1 | 1 | 260 GH/s | 1,50 CMA |
+| Violet Bit | 1 | 1 | 620 GH/s | 3,60 CMA |
+| Dual Nova | 2 | 2 | 1.250 GH/s | 7,20 CMA |
+| Cryo Twin | 2 | 2 | 2.800 GH/s | 16 CMA |
+| Magenta Flux | 2 | 2 | 6.200 GH/s | 35 CMA |
+| Helix Gold | 2 | 2 | 14.500 GH/s | 84 CMA |
 
 ## Fontes e sumidouros
 
-Fontes iniciais:
+Fontes previstas:
 
 - recompensa de bloco;
-- bônus de onboarding;
+- bônus de onboarding limitado;
 - poder temporário de minigames;
+- baterias de baixa frequência em minigames;
 - eventos controlados.
 
-Sumidouros iniciais:
+Sumidouros atuais:
 
-- racks: 5 CMA;
-- segunda sala: 20 CMA;
-- baterias: 0,5 CMA;
+- rack básico: 0,35 CMA;
+- segunda sala: 8 CMA;
+- bateria de 12 horas: 0,05 CMA;
 - mineradores.
 
-Antes de qualquer recompensa resgatável, o servidor deverá limitar a emissão
-por um orçamento diário de reserva. Se o poder da rede crescer, a recompensa
-individual cai automaticamente. A administração deve monitorar emissão,
-compras, concentração de poder, saldo mediano e tempo de progressão.
+Antes de ativar qualquer recompensa resgatável, o servidor deverá aplicar
+orçamento diário de emissão, limites por conta, telemetria antifraude e
+controle de reserva.
 
 ## Energia
 
@@ -73,28 +78,26 @@ compras, concentração de poder, saldo mediano e tempo de progressão.
 - o jogador compra apenas o rack, nunca o espaço da sala;
 - racks comprados entram no inventário antes da instalação;
 - cada rack básico possui quatro prateleiras e oito slots;
+- mineradores de uma fan ocupam um slot;
 - mineradores de duas fans ocupam dois slots contínuos da mesma prateleira.
 
 ## Minigames
 
-O poder de minigames deve ser temporário, ter limite diário e validação no
-servidor. Jogos mais fáceis ou mais explorados recebem menos poder. Baterias
-podem ser uma recompensa de baixa frequência, sem substituir a principal
-utilidade do CMA.
+Os três conceitos iniciais são Packet Catch, Hash Match e Circuit Rush. Primeiro
+serão testados sem recompensa. Depois receberão sessões assinadas, pontuação
+validada no servidor, limite diário e poder temporário. Baterias e fragmentos de
+CMA só serão ativados com teto de emissão.
 
 ## Referências analisadas
 
-- RollerCoin, Mining Basics:
-  https://rollercoin.com/how-it-works/basics
+- RollerCoin, Multi Mining:
+  https://rollercoin.com/how-it-works/multi-mining
+- RollerCoin, Multi-mining release:
+  https://rollercoin.com/blog/multi-mining-has-been-released
 - RollerCoin, Mining Power:
   https://rollercoin.com/blog/rolleracademy-2-0-mining-power
-- RollerCoin, Electricity Update:
-  https://rollercoin.com/blog/electricity-update
+- RollerCoin, Energy Batteries:
+  https://rollercoin.com/blog/dev-diaries-part-7
 - RollerCoin, Economics Update:
   https://rollercoin.com/blog/rollercoin-universes-economics-update-doge-withdrawals-consensus-balancing-and-new-algorithms
-- RollerCoin, Inventory Update:
-  https://rollercoin.com/blog/new-game-inventory-upgrade
-- Blocklooter:
-  https://www.blocklooter.com/
-- GDC, Economic Balancing Through Sink Design:
-  https://www.gdcvault.com/play/1020524/Economic-Balancing-and-Improved-Monetization
+- Capturas de preço e interface fornecidas pelo proprietário do projeto.

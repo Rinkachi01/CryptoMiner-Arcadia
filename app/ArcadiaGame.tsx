@@ -29,9 +29,11 @@ import {
   type PoolId,
 } from "./game-rules";
 
-type ViewId = "mine" | "pools" | "inventory" | "shop";
+type ViewId = "mine" | "pools" | "inventory" | "shop" | "games";
 type RoomId = "room-1" | "room-2";
 type ShopCategory = "miners" | "racks" | "energy";
+type WalletSymbol = "CMA" | "BTC" | "DOGE";
+type PoolAllocations = Record<PoolId, number>;
 
 type MinerUnit = {
   instanceId: string;
@@ -63,6 +65,8 @@ type RackPosition = {
 
 type SavedGameState = {
   selectedPoolId: PoolId;
+  poolAllocations: PoolAllocations;
+  displayedBalanceSymbol: WalletSymbol;
   cmaBalance: number;
   batteryCount: number;
   energyExpiresAt: number;
@@ -85,6 +89,7 @@ const navigation: Array<{
   { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P" },
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
+  { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
 ];
 
 const roomDefinitions: RoomDefinition[] = [
@@ -102,7 +107,7 @@ const roomDefinitions: RoomDefinition[] = [
     label: "SALA 02",
     asset: assetsManifest.roomTwo.path,
     alt: assetsManifest.roomTwo.alt,
-    priceCma: 20,
+    priceCma: 8,
   },
 ];
 
@@ -143,6 +148,11 @@ const defaultMinerInventory: MinerUnit[] = miners
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const INITIAL_ENERGY_HOURS = 48;
+const defaultPoolAllocations: PoolAllocations = {
+  cma: 100,
+  btc: 0,
+  doge: 0,
+};
 
 const rarityLabels = {
   common: "Comum",
@@ -196,6 +206,25 @@ function createInstanceId(prefix: string) {
 
 function isPoolId(value: unknown): value is PoolId {
   return pools.some((pool) => pool.id === value);
+}
+
+function isWalletSymbol(value: unknown): value is WalletSymbol {
+  return value === "CMA" || value === "BTC" || value === "DOGE";
+}
+
+function isPoolAllocations(value: unknown): value is PoolAllocations {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<PoolAllocations>;
+  const values = pools.map((pool) => candidate[pool.id]);
+  return (
+    values.every(
+      (allocation) =>
+        typeof allocation === "number" &&
+        Number.isInteger(allocation) &&
+        allocation >= 0 &&
+        allocation <= 100,
+    ) && values.reduce((total, allocation) => total + (allocation ?? 0), 0) === 100
+  );
 }
 
 function isRoomId(value: unknown): value is RoomId {
@@ -256,6 +285,8 @@ function isSavedGameState(value: unknown): value is SavedGameState {
   const candidate = value as Partial<SavedGameState>;
   return (
     isPoolId(candidate.selectedPoolId) &&
+    isPoolAllocations(candidate.poolAllocations) &&
+    isWalletSymbol(candidate.displayedBalanceSymbol) &&
     typeof candidate.cmaBalance === "number" &&
     typeof candidate.batteryCount === "number" &&
     typeof candidate.energyExpiresAt === "number" &&
@@ -326,6 +357,12 @@ function migrateLegacyState(value: unknown, now: number): SavedGameState | null 
 
   return {
     selectedPoolId: candidate.selectedPoolId,
+    poolAllocations: {
+      cma: candidate.selectedPoolId === "cma" ? 100 : 0,
+      btc: candidate.selectedPoolId === "btc" ? 100 : 0,
+      doge: candidate.selectedPoolId === "doge" ? 100 : 0,
+    },
+    displayedBalanceSymbol: "CMA",
     cmaBalance: candidate.cmaBalance,
     batteryCount: candidate.batteryCount,
     energyExpiresAt:
@@ -345,11 +382,51 @@ function migrateLegacyState(value: unknown, now: number): SavedGameState | null 
   };
 }
 
+function migrateV3State(value: unknown): SavedGameState | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Omit<
+    SavedGameState,
+    "poolAllocations" | "displayedBalanceSymbol"
+  >;
+
+  if (
+    !isPoolId(candidate.selectedPoolId) ||
+    typeof candidate.cmaBalance !== "number" ||
+    typeof candidate.batteryCount !== "number" ||
+    typeof candidate.energyExpiresAt !== "number" ||
+    typeof candidate.lastEnergyClaimAt !== "number" ||
+    !isRoomId(candidate.activeRoomId) ||
+    !Array.isArray(candidate.ownedRoomIds) ||
+    !candidate.ownedRoomIds.every(isRoomId) ||
+    typeof candidate.rackInventoryCount !== "number" ||
+    !isMinerInventory(candidate.minerInventory) ||
+    !isRackInstanceArray(candidate.racks) ||
+    !isRackMinerMap(candidate.rackMiners)
+  ) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    poolAllocations: {
+      cma: candidate.selectedPoolId === "cma" ? 100 : 0,
+      btc: candidate.selectedPoolId === "btc" ? 100 : 0,
+      doge: candidate.selectedPoolId === "doge" ? 100 : 0,
+    },
+    displayedBalanceSymbol: "CMA",
+  };
+}
+
 export function ArcadiaGame() {
   const [activeView, setActiveView] = useState<ViewId>("mine");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
+  const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
+    defaultPoolAllocations,
+  );
+  const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
+    useState<WalletSymbol>("CMA");
   const [cmaBalance, setCmaBalance] = useState(86.4);
   const [batteryCount, setBatteryCount] = useState(2);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
@@ -408,16 +485,14 @@ export function ArcadiaGame() {
   const activeRack =
     racks.find((rack) => rack.id === activeRackId) ?? currentRoomRacks[0];
   const activeRackMiners = activeRack ? rackMiners[activeRack.id] ?? [] : [];
-  const estimatedReward = useMemo(
-    () => calculateEstimatedReward(selectedPool, effectivePower),
-    [effectivePower, selectedPool],
-  );
 
   useEffect(() => {
     const loadSavedState = window.setTimeout(() => {
       const now = Date.now();
       try {
         const currentSaved =
+          window.localStorage.getItem("arcadia-game-state-v4");
+        const previousSaved =
           window.localStorage.getItem("arcadia-game-state-v3");
         const legacySaved =
           window.localStorage.getItem("arcadia-game-state-v2");
@@ -426,12 +501,16 @@ export function ArcadiaGame() {
         if (currentSaved) {
           const parsed: unknown = JSON.parse(currentSaved);
           if (isSavedGameState(parsed)) restored = parsed;
+        } else if (previousSaved) {
+          restored = migrateV3State(JSON.parse(previousSaved));
         } else if (legacySaved) {
           restored = migrateLegacyState(JSON.parse(legacySaved), now);
         }
 
         if (restored) {
             setSelectedPoolId(restored.selectedPoolId);
+            setPoolAllocations(restored.poolAllocations);
+            setDisplayedBalanceSymbol(restored.displayedBalanceSymbol);
             setCmaBalance(restored.cmaBalance);
             setBatteryCount(restored.batteryCount);
             setEnergyExpiresAt(restored.energyExpiresAt);
@@ -466,6 +545,8 @@ export function ArcadiaGame() {
     if (!hydrated) return;
     const savedState: SavedGameState = {
       selectedPoolId,
+      poolAllocations,
+      displayedBalanceSymbol,
       cmaBalance,
       batteryCount,
       energyExpiresAt,
@@ -478,18 +559,20 @@ export function ArcadiaGame() {
       rackMiners,
     };
     window.localStorage.setItem(
-      "arcadia-game-state-v3",
+      "arcadia-game-state-v4",
       JSON.stringify(savedState),
     );
   }, [
     activeRoomId,
     batteryCount,
     cmaBalance,
+    displayedBalanceSymbol,
     energyExpiresAt,
     hydrated,
     lastEnergyClaimAt,
     minerInventory,
     ownedRoomIds,
+    poolAllocations,
     rackInventoryCount,
     rackMiners,
     racks,
@@ -594,11 +677,17 @@ export function ArcadiaGame() {
     setToast("Todos os mineradores desse rack voltaram para o inventário.");
   }
 
-  function choosePool(poolId: PoolId) {
-    const pool = pools.find((item) => item.id === poolId);
-    setSelectedPoolId(poolId);
-    if (pool) setSecondsLeft(pool.blockSeconds);
-    setToast(`100% do seu poder foi direcionado para ${pool?.symbol}.`);
+  function applyPoolAllocations(next: PoolAllocations) {
+    if (!isPoolAllocations(next)) {
+      setToast("A distribuição das pools precisa somar exatamente 100%.");
+      return;
+    }
+    const primaryPool = pools.reduce((largest, pool) =>
+      next[pool.id] > next[largest.id] ? pool : largest,
+    );
+    setPoolAllocations(next);
+    setSelectedPoolId(primaryPool.id);
+    setToast("Distribuição de poder atualizada nas três pools.");
   }
 
   function openRack(rackId: string) {
@@ -790,7 +879,12 @@ export function ArcadiaGame() {
     setToast(`Recarga gratuita resgatada: +${ENERGY_CLAIM_HOURS} horas.`);
   }
 
-  const balances = [
+  const balances: Array<{
+    symbol: WalletSymbol;
+    value: string;
+    asset: string;
+    alt: string;
+  }> = [
     {
       symbol: "CMA",
       value: formatCma(cmaBalance),
@@ -810,6 +904,10 @@ export function ArcadiaGame() {
       alt: assetsManifest.dogecoin.alt,
     },
   ];
+  const displayedBalance =
+    balances.find(
+      (balance) => balance.symbol === displayedBalanceSymbol,
+    ) ?? balances[0];
 
   return (
     <main className="arcadia-shell">
@@ -842,10 +940,10 @@ export function ArcadiaGame() {
             aria-controls="wallet-menu"
             onClick={() => setWalletOpen((open) => !open)}
           >
-            <img src={assetsManifest.cmaCoin.path} alt="" />
+            <img src={displayedBalance.asset} alt="" />
             <span>
-              <small>SALDO CMA</small>
-              <strong>{formatCma(cmaBalance)}</strong>
+              <small>SALDO {displayedBalance.symbol}</small>
+              <strong>{displayedBalance.value}</strong>
             </span>
             <b aria-hidden="true">⌄</b>
           </button>
@@ -860,11 +958,26 @@ export function ArcadiaGame() {
                 <small>sem saque nesta fase</small>
               </div>
               {balances.map((balance) => (
-                <div className="wallet-balance-row" key={balance.symbol}>
+                <button
+                  type="button"
+                  className={`wallet-balance-row ${
+                    displayedBalanceSymbol === balance.symbol ? "selected" : ""
+                  }`}
+                  key={balance.symbol}
+                  onClick={() => {
+                    setDisplayedBalanceSymbol(balance.symbol);
+                    setWalletOpen(false);
+                  }}
+                >
                   <img src={balance.asset} alt={balance.alt} />
                   <span>{balance.symbol}</span>
                   <strong>{balance.value}</strong>
-                </div>
+                  <em>
+                    {displayedBalanceSymbol === balance.symbol
+                      ? "EXIBINDO"
+                      : "FIXAR"}
+                  </em>
+                </button>
               ))}
             </div>
           )}
@@ -900,12 +1013,6 @@ export function ArcadiaGame() {
           ))}
         </nav>
 
-        <div className="economy-anchor">
-          <span>BASE DA ECONOMIA</span>
-          <strong>1 CMA = US$ 1</strong>
-          <small>Âncora contábil interna</small>
-        </div>
-
         <div className="simulation-note">
           <span>SIMULAÇÃO VIRTUAL</span>
           <p>Sem mineração real, depósito ou saque nesta fase.</p>
@@ -918,6 +1025,8 @@ export function ArcadiaGame() {
             <span className="eyebrow">
               {activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
+              ) : activeView === "games" ? (
+                <>ARCADE ARCADIA <i /> PROTÓTIPOS DE MINIGAMES</>
               ) : (
                 <>
                   {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
@@ -929,22 +1038,8 @@ export function ArcadiaGame() {
               {activeView === "pools" && "Pools de mineração"}
               {activeView === "inventory" && "Inventário de equipamentos"}
               {activeView === "shop" && "Loja de equipamentos"}
+              {activeView === "games" && "Central de minigames"}
             </h1>
-          </div>
-          <div className="block-timer">
-            <span>PRÓXIMO BLOCO · {selectedPool.symbol}</span>
-            <strong>{formatTimer(secondsLeft)}</strong>
-            <div>
-              <i
-                style={{
-                  width: `${
-                    ((selectedPool.blockSeconds - secondsLeft) /
-                      selectedPool.blockSeconds) *
-                    100
-                  }%`,
-                }}
-              />
-            </div>
           </div>
         </div>
 
@@ -978,10 +1073,13 @@ export function ArcadiaGame() {
           <article>
             <span className="metric-icon pool">P</span>
             <div>
-              <small>POOL ATUAL</small>
-              <strong>{selectedPool.symbol}</strong>
+              <small>POOLS ATIVAS</small>
+              <strong>
+                {pools.filter((pool) => poolAllocations[pool.id] > 0).length} /{" "}
+                {pools.length}
+              </strong>
             </div>
-            <em>100% ALOCADO</em>
+            <em>100% DISTRIBUÍDO</em>
           </article>
         </div>
 
@@ -991,11 +1089,8 @@ export function ArcadiaGame() {
             roomRacks={currentRoomRacks}
             rackMiners={rackMiners}
             editMode={editMode}
-            selectedPoolId={selectedPoolId}
-            estimatedReward={`${formatAtomic(
-              estimatedReward,
-              selectedPool.decimals,
-            )} ${selectedPool.symbol}`}
+            poolAllocations={poolAllocations}
+            effectivePower={effectivePower}
             energySeconds={energySeconds}
             batteryCount={batteryCount}
             rackInventoryCount={rackInventoryCount}
@@ -1015,9 +1110,9 @@ export function ArcadiaGame() {
 
         {activeView === "pools" && (
           <PoolsView
-            selectedPoolId={selectedPoolId}
+            allocations={poolAllocations}
             installedPower={effectivePower}
-            onChoosePool={choosePool}
+            onApplyAllocations={applyPoolAllocations}
           />
         )}
 
@@ -1050,6 +1145,8 @@ export function ArcadiaGame() {
             }}
           />
         )}
+
+        {activeView === "games" && <GamesView />}
       </section>
 
       <nav className="mobile-nav" aria-label="Navegação móvel">
@@ -1065,6 +1162,14 @@ export function ArcadiaGame() {
           </button>
         ))}
       </nav>
+
+      <MiningStatusDock
+        installedPower={effectivePower}
+        allocations={poolAllocations}
+        secondsLeft={secondsLeft}
+        blockSeconds={selectedPool.blockSeconds}
+        onOpenPools={() => setActiveView("pools")}
+      />
 
       {rackOpen && activeRack && (
         <RackManager
@@ -1107,8 +1212,8 @@ function MiningRoom({
   roomRacks,
   rackMiners,
   editMode,
-  selectedPoolId,
-  estimatedReward,
+  poolAllocations,
+  effectivePower,
   energySeconds,
   batteryCount,
   rackInventoryCount,
@@ -1128,8 +1233,8 @@ function MiningRoom({
   roomRacks: RackInstance[];
   rackMiners: Record<string, InstalledMiner[]>;
   editMode: boolean;
-  selectedPoolId: PoolId;
-  estimatedReward: string;
+  poolAllocations: PoolAllocations;
+  effectivePower: number;
   energySeconds: number;
   batteryCount: number;
   rackInventoryCount: number;
@@ -1145,9 +1250,6 @@ function MiningRoom({
   onClaimEnergy: () => void;
   onUseBattery: () => void;
 }) {
-  const selectedPool =
-    pools.find((pool) => pool.id === selectedPoolId) ?? pools[0];
-
   return (
     <div className="mine-grid">
       <section className="room-card">
@@ -1245,8 +1347,8 @@ function MiningRoom({
                       src={miner.asset}
                       alt={miner.alt}
                       style={{
-                        left: `${29 + column * 23.5}%`,
-                        top: `${row * 23.5 + 3}%`,
+                        left: `${31 + column * 21.5}%`,
+                        top: `${17 + row * 22.5}%`,
                       }}
                     />
                   );
@@ -1287,26 +1389,58 @@ function MiningRoom({
           <i />
         </div>
 
-        <div className="current-pool-card">
-          <div className="pool-orbit">
-            <img src={selectedPool.asset} alt="" />
+        <div className="allocation-summary-card">
+          <div className="allocation-summary-heading">
+            <span>DISTRIBUIÇÃO DE PODER</span>
+            <strong>{energySeconds > 0 ? "ATIVA" : "PAUSADA"}</strong>
           </div>
-          <div>
-            <small>MINERANDO AGORA</small>
-            <strong>{selectedPool.name}</strong>
-            <span>{energySeconds > 0 ? "100% do poder" : "pausado sem energia"}</span>
+          <div className="allocation-summary-list">
+            {pools.map((pool) => {
+              const allocation = poolAllocations[pool.id];
+              return (
+                <div key={pool.id}>
+                  <img src={pool.asset} alt="" />
+                  <span>{pool.symbol}</span>
+                  <b>{allocation}%</b>
+                  <small>
+                    {formatPower(
+                      Math.floor((effectivePower * allocation) / 100),
+                    )}
+                  </small>
+                </div>
+              );
+            })}
           </div>
           <button type="button" onClick={onOpenPools}>
-            TROCAR
+            AJUSTAR DISTRIBUIÇÃO
           </button>
         </div>
 
-        <div className="reward-box">
+        <div className="reward-box multi-reward-box">
           <span>ESTIMATIVA POR BLOCO · 10 MIN</span>
-          <strong>{estimatedReward}</strong>
+          <div className="reward-split-list">
+            {pools.map((pool) => {
+              const allocation = poolAllocations[pool.id];
+              const allocatedPower = Math.floor(
+                (effectivePower * allocation) / 100,
+              );
+              return (
+                <div key={pool.id}>
+                  <img src={pool.asset} alt="" />
+                  <strong>
+                    {formatAtomic(
+                      calculateEstimatedReward(pool, allocatedPower),
+                      pool.decimals,
+                    )}{" "}
+                    {pool.symbol}
+                  </strong>
+                  <small>{allocation}% do poder</small>
+                </div>
+              );
+            })}
+          </div>
           <small>
-            Estimativa proporcional ao poder da rede. Recompensas desta versão
-            são virtuais e não possuem saque.
+            Estimativas proporcionais e virtuais, sem saque nesta fase.
           </small>
         </div>
 
@@ -1421,48 +1555,291 @@ function EnergyCard({
   );
 }
 
-function PoolsView({
-  selectedPoolId,
+function MiningStatusDock({
   installedPower,
-  onChoosePool,
+  allocations,
+  secondsLeft,
+  blockSeconds,
+  onOpenPools,
 }: {
-  selectedPoolId: PoolId;
   installedPower: number;
-  onChoosePool: (poolId: PoolId) => void;
+  allocations: PoolAllocations;
+  secondsLeft: number;
+  blockSeconds: number;
+  onOpenPools: () => void;
 }) {
+  const activePools = pools.filter((pool) => allocations[pool.id] > 0);
+  const totalPoolsPower = activePools.reduce(
+    (total, pool) => total + pool.networkPowerGh,
+    0,
+  );
+
+  return (
+    <aside className="mining-status-dock" aria-label="Status da mineração">
+      <div className="mining-dock-title">
+        <span>MINERAÇÃO</span>
+        <i className="online-dot" />
+      </div>
+      <dl>
+        <div>
+          <dt>
+            <b>H</b>
+            <span>
+              <strong>{formatPower(installedPower)}</strong>
+              <small>Seu poder ativo</small>
+            </span>
+          </dt>
+        </div>
+        <div>
+          <dt>
+            <b>◎</b>
+            <span>
+              <strong>{formatPower(totalPoolsPower)}</strong>
+              <small>Poder das pools ativas</small>
+            </span>
+          </dt>
+        </div>
+        <div>
+          <dt>
+            <b>▱</b>
+            <span>
+              <strong>
+                {activePools.length}/{pools.length}
+              </strong>
+              <small>Suas pools</small>
+            </span>
+          </dt>
+        </div>
+        <div className="next-block-row">
+          <dt>
+            <b>⌛</b>
+            <span>
+              <strong>{formatTimer(secondsLeft)}</strong>
+              <small>Próximo bloco</small>
+            </span>
+          </dt>
+        </div>
+      </dl>
+      <div className="dock-progress">
+        <i
+          style={{
+            width: `${((blockSeconds - secondsLeft) / blockSeconds) * 100}%`,
+          }}
+        />
+      </div>
+      <button type="button" onClick={onOpenPools}>
+        VER E DIVIDIR PODER
+      </button>
+    </aside>
+  );
+}
+
+function GamesView() {
+  const games = [
+    {
+      id: "packet-catch",
+      name: "Packet Catch",
+      glyph: "↓",
+      description:
+        "Capture pacotes válidos e evite dados corrompidos em partidas rápidas.",
+      reward: "100–220 GH/s temporários",
+      secondary: "chance baixa de bateria",
+      duration: "60–90 segundos",
+      color: "#36d8f2",
+    },
+    {
+      id: "hash-match",
+      name: "Hash Match",
+      glyph: "◇",
+      description:
+        "Encontre pares de chips com memória, velocidade e poucos erros.",
+      reward: "140–280 GH/s temporários",
+      secondary: "fragmentos CMA limitados",
+      duration: "2–3 minutos",
+      color: "#a9ff3f",
+    },
+    {
+      id: "circuit-rush",
+      name: "Circuit Rush",
+      glyph: "»",
+      description:
+        "Guie um drone por circuitos e desvie de obstáculos eletrônicos.",
+      reward: "180–350 GH/s temporários",
+      secondary: "chance baixa de bateria",
+      duration: "90–120 segundos",
+      color: "#ffb33b",
+    },
+  ];
+
+  return (
+    <section className="games-view">
+      <div className="games-hero">
+        <div>
+          <span className="eyebrow">FASE DE PROJETO · RECOMPENSAS DESATIVADAS</span>
+          <h2>Arcade de mineração</h2>
+          <p>
+            Três minigames originais foram definidos para conceder poder
+            temporário. CMA e baterias terão limites diários e validação no
+            servidor antes de serem ativados.
+          </p>
+        </div>
+        <div className="games-balance-seal">
+          <strong>0</strong>
+          <span>RECOMPENSAS EMITIDAS</span>
+          <small>protótipo seguro</small>
+        </div>
+      </div>
+
+      <div className="games-grid">
+        {games.map((game, index) => (
+          <article
+            className="game-prototype-card"
+            style={{ "--game-color": game.color } as React.CSSProperties}
+            key={game.id}
+          >
+            <div className="game-prototype-art">
+              <span>{game.glyph}</span>
+              <div>
+                {Array.from({ length: 12 }, (_, cell) => (
+                  <i key={cell} className={(cell + index) % 4 === 0 ? "lit" : ""} />
+                ))}
+              </div>
+              <b>EM PROJETO</b>
+            </div>
+            <div className="game-prototype-info">
+              <span>MINIGAME {String(index + 1).padStart(2, "0")}</span>
+              <h3>{game.name}</h3>
+              <p>{game.description}</p>
+              <dl>
+                <div>
+                  <dt>Duração</dt>
+                  <dd>{game.duration}</dd>
+                </div>
+                <div>
+                  <dt>Poder previsto</dt>
+                  <dd>{game.reward}</dd>
+                </div>
+                <div>
+                  <dt>Extra previsto</dt>
+                  <dd>{game.secondary}</dd>
+                </div>
+              </dl>
+              <button type="button" disabled>
+                PROTÓTIPO BLOQUEADO
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="games-safety-roadmap">
+        <div>
+          <span>01</span>
+          <strong>Jogabilidade</strong>
+          <small>Construir e testar diversão sem recompensas.</small>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Servidor e antifraude</strong>
+          <small>Sessões assinadas, limites e pontuação validada.</small>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Economia controlada</strong>
+          <small>Ativar poder, bateria e CMA com teto diário.</small>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PoolsView({
+  allocations,
+  installedPower,
+  onApplyAllocations,
+}: {
+  allocations: PoolAllocations;
+  installedPower: number;
+  onApplyAllocations: (allocations: PoolAllocations) => void;
+}) {
+  const [draft, setDraft] = useState<PoolAllocations>(allocations);
+  const totalAllocation = pools.reduce(
+    (total, pool) => total + draft[pool.id],
+    0,
+  );
+
+  function setAllocation(poolId: PoolId, value: number) {
+    setDraft((current) => ({
+      ...current,
+      [poolId]: Math.min(100, Math.max(0, Math.round(value))),
+    }));
+  }
+
   return (
     <section className="pools-view">
       <div className="section-intro">
         <div>
-          <span className="eyebrow">3 POOLS · BLOCOS DE 10 MINUTOS</span>
-          <h2>Escolha uma única pool</h2>
+          <span className="eyebrow">MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS</span>
+          <h2>Distribua seu poder</h2>
           <p>
-            Nesta fase, 100% do seu poder fica em uma pool por vez. A recompensa
-            é proporcional ao seu poder comparado ao poder total da rede.
+            Escolha quanto do seu poder vai para CMA, Bitcoin e Dogecoin. A soma
+            precisa fechar em 100% antes de aplicar.
           </p>
         </div>
-        <div className="cma-anchor-card">
-          <img src={assetsManifest.cmaCoin.path} alt="" />
+        <div
+          className={`allocation-total ${
+            totalAllocation === 100 ? "valid" : "invalid"
+          }`}
+        >
+          <small>TOTAL DISTRIBUÍDO</small>
+          <strong>{totalAllocation}%</strong>
           <span>
-            <small>ÂNCORA CMA</small>
-            <strong>1 CMA = US$ 1</strong>
-            <em>unidade contábil interna</em>
+            {totalAllocation === 100
+              ? "PRONTO PARA APLICAR"
+              : totalAllocation < 100
+                ? `FALTAM ${100 - totalAllocation}%`
+                : `EXCEDEU ${totalAllocation - 100}%`}
           </span>
         </div>
       </div>
 
+      <div className="allocation-presets">
+        <span>DISTRIBUIÇÕES RÁPIDAS</span>
+        <button
+          type="button"
+          onClick={() => setDraft({ cma: 100, btc: 0, doge: 0 })}
+        >
+          100% CMA
+        </button>
+        <button
+          type="button"
+          onClick={() => setDraft({ cma: 50, btc: 25, doge: 25 })}
+        >
+          50 / 25 / 25
+        </button>
+        <button
+          type="button"
+          onClick={() => setDraft({ cma: 34, btc: 33, doge: 33 })}
+        >
+          DIVISÃO IGUAL
+        </button>
+      </div>
+
       <div className="pool-grid">
         {pools.map((pool) => {
-          const selected = pool.id === selectedPoolId;
-          const estimate = calculateEstimatedReward(pool, installedPower);
+          const allocation = draft[pool.id];
+          const allocatedPower = Math.floor(
+            (installedPower * allocation) / 100,
+          );
+          const estimate = calculateEstimatedReward(pool, allocatedPower);
           const dailyEstimate = calculateDailyEstimatedReward(
             pool,
-            installedPower,
+            allocatedPower,
           );
 
           return (
             <article
-              className={`pool-card ${selected ? "selected" : ""}`}
+              className={`pool-card ${allocation > 0 ? "selected" : ""}`}
               key={pool.id}
               style={{ "--pool-color": pool.color } as React.CSSProperties}
             >
@@ -1471,7 +1848,7 @@ function PoolsView({
                   <img src={pool.asset} alt="" />
                 </div>
                 <span className="pool-state">
-                  {selected ? "ATIVA" : "DISPONÍVEL"}
+                  {allocation > 0 ? `${allocation}% ALOCADO` : "SEM PODER"}
                 </span>
               </div>
               <span className="pool-code">{pool.symbol} / POOL</span>
@@ -1483,8 +1860,8 @@ function PoolsView({
                   <dd>10 min</dd>
                 </div>
                 <div>
-                  <dt>Seu poder</dt>
-                  <dd>{formatPower(installedPower)}</dd>
+                  <dt>Poder alocado</dt>
+                  <dd>{formatPower(allocatedPower)}</dd>
                 </div>
                 <div>
                   <dt>Por bloco</dt>
@@ -1499,16 +1876,76 @@ function PoolsView({
                   </dd>
                 </div>
               </dl>
-              <button
-                type="button"
-                disabled={selected}
-                onClick={() => onChoosePool(pool.id)}
-              >
-                {selected ? "MINERANDO AGORA" : `MINERAR ${pool.symbol}`}
-              </button>
+              <div className="pool-allocation-control">
+                <label htmlFor={`allocation-${pool.id}`}>
+                  <span>ALOCAÇÃO</span>
+                  <strong>{allocation}%</strong>
+                </label>
+                <input
+                  id={`allocation-${pool.id}`}
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={allocation}
+                  onChange={(event) =>
+                    setAllocation(pool.id, Number(event.target.value))
+                  }
+                  style={
+                    {
+                      "--allocation": `${allocation}%`,
+                      "--pool-color": pool.color,
+                    } as React.CSSProperties
+                  }
+                />
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setAllocation(pool.id, allocation - 1)}
+                    disabled={allocation === 0}
+                    aria-label={`Diminuir alocação de ${pool.symbol}`}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={allocation}
+                    onChange={(event) =>
+                      setAllocation(pool.id, Number(event.target.value))
+                    }
+                    aria-label={`Percentual alocado em ${pool.symbol}`}
+                  />
+                  <span>%</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllocation(pool.id, allocation + 1)}
+                    disabled={allocation === 100}
+                    aria-label={`Aumentar alocação de ${pool.symbol}`}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </article>
           );
         })}
+      </div>
+
+      <div className="allocation-apply-bar">
+        <div>
+          <span>PODER TOTAL</span>
+          <strong>{formatPower(installedPower)}</strong>
+          <small>Distribuído entre as três pools</small>
+        </div>
+        <button
+          type="button"
+          disabled={totalAllocation !== 100}
+          onClick={() => onApplyAllocations(draft)}
+        >
+          APLICAR DISTRIBUIÇÃO
+        </button>
       </div>
 
       <div className="pool-rule-note">
@@ -1997,8 +2434,8 @@ function RackManager({
                     className={`preview-miner corrected size-${miner.slotSize}`}
                     key={placement.instanceId}
                     style={{
-                      left: `${29 + column * 23.5}%`,
-                      top: `${row * 23.5 + 3}%`,
+                      left: `${31 + column * 21.5}%`,
+                      top: `${17 + row * 22.5}%`,
                     }}
                     onClick={() => onRemove(placement.instanceId)}
                     title={`Retirar ${miner.name}`}

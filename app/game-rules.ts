@@ -6,8 +6,8 @@ export const RACK_CAPACITY = RACK_COLUMNS * RACK_ROWS;
 export const ROOM_RACK_CAPACITY = 12;
 export const BLOCK_INTERVAL_SECONDS = 600;
 export const BLOCKS_PER_DAY = 86_400 / BLOCK_INTERVAL_SECONDS;
-export const RACK_PRICE_CMA = 5;
-export const BATTERY_PRICE_CMA = 0.5;
+export const RACK_PRICE_CMA = 0.35;
+export const BATTERY_PRICE_CMA = 0.05;
 export const BATTERY_HOURS = 12;
 export const ENERGY_CLAIM_HOURS = 12;
 export const ENERGY_CLAIM_COOLDOWN_HOURS = 12;
@@ -63,7 +63,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 1,
     powerGh: 100,
     rarity: "common",
-    priceCma: 3,
+    priceCma: 0.6,
   },
   {
     id: "amber-core",
@@ -74,7 +74,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 1,
     powerGh: 260,
     rarity: "uncommon",
-    priceCma: 7.5,
+    priceCma: 1.5,
   },
   {
     id: "dual-nova",
@@ -85,7 +85,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 2,
     powerGh: 1250,
     rarity: "rare",
-    priceCma: 30,
+    priceCma: 7.2,
   },
   {
     id: "cryo-twin",
@@ -96,7 +96,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 2,
     powerGh: 2800,
     rarity: "rare",
-    priceCma: 62,
+    priceCma: 16,
   },
   {
     id: "magenta-flux",
@@ -107,7 +107,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 2,
     powerGh: 6200,
     rarity: "epic",
-    priceCma: 128,
+    priceCma: 35,
   },
   {
     id: "violet-bit",
@@ -118,7 +118,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 1,
     powerGh: 620,
     rarity: "uncommon",
-    priceCma: 16,
+    priceCma: 3.6,
   },
   {
     id: "helix-gold",
@@ -129,7 +129,7 @@ export const miners: MinerDefinition[] = [
     slotSize: 2,
     powerGh: 14500,
     rarity: "legendary",
-    priceCma: 280,
+    priceCma: 84,
   },
 ];
 
@@ -142,7 +142,7 @@ export const pools: MiningPool[] = [
     decimals: 6,
     blockSeconds: BLOCK_INTERVAL_SECONDS,
     rewardAtomic: 8_000_000n,
-    networkPowerGh: 15_000_000,
+    networkPowerGh: 60_000_000,
     color: "#a9ff3f",
     tagline: "A moeda central da economia de Arcadia",
   },

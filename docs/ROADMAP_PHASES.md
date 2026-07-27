@@ -1,0 +1,108 @@
+# Crypto Miner Arcadia — roadmap por fases
+
+Este roadmap reorganiza os documentos do projeto em entregas pequenas,
+verificáveis e com menor risco econômico.
+
+## Fase 0 — regras do produto e economia
+
+Status: concluída.
+
+- três pools iniciais: CMA, Bitcoin e Dogecoin;
+- blocos simulados de 10 minutos;
+- economia virtual sem saque ou depósito;
+- racks com oito slots e salas com 12 posições gratuitas;
+- energia em ciclos de 12 horas;
+- sem pacotes, passe de batalha ou marketplace nesta etapa.
+
+Critério de saída: regras centrais documentadas e testáveis.
+
+## Fase 1 — fundação jogável local
+
+Status: concluída.
+
+- sala principal, inventário e loja;
+- compra e instalação de rack;
+- instalação, remoção e troca de mineradores;
+- mineradores de uma e duas fans respeitando um ou dois slots;
+- energia gratuita, baterias e segunda sala;
+- estado persistido no navegador.
+
+Critério de saída: fluxo completo de comprar, instalar, energizar e minerar.
+
+## Fase 2 — multi-mineração e clareza de interface
+
+Status: concluída nesta atualização.
+
+- poder dividido em percentuais entre CMA, BTC e DOGE;
+- validação obrigatória de 100%;
+- cálculo independente por pool;
+- carteira com moeda favorita fixável no topo;
+- painel compacto de mineração e próximo bloco no canto;
+- preços recalibrados e textos essenciais maiores;
+- mineradores alinhados às prateleiras dos racks;
+- conceito visual dos três minigames.
+
+Critério de saída: distribuição, saldo e status compreensíveis sem depender de
+explicações externas.
+
+## Fase 3 — servidor autoritativo
+
+Status: próxima prioridade.
+
+- cadastro, login e recuperação de conta;
+- inventário, energia, compras e alocações salvos no servidor;
+- ledger imutável para todo crédito e débito;
+- fechamento de blocos no servidor;
+- idempotência para impedir recompensa ou compra duplicada;
+- painel administrativo e trilha de auditoria.
+
+Critério de saída: o navegador deixa de ser a fonte da verdade.
+
+## Fase 4 — minigames
+
+Status: projetada, ainda sem recompensas.
+
+Ordem de execução:
+
+1. Packet Catch;
+2. Hash Match;
+3. Circuit Rush.
+
+Cada jogo passa por três portões:
+
+- diversão e dificuldade testadas sem recompensa;
+- sessão assinada e pontuação validada no servidor;
+- poder temporário com limite diário.
+
+Baterias e fragmentos de CMA entram apenas depois de medir abuso, retenção e
+emissão por jogador.
+
+Critério de saída: nenhuma pontuação ou prêmio pode ser criado apenas pelo
+cliente.
+
+## Fase 5 — beta econômico
+
+Status: futura.
+
+- missões diárias e progressão de liga;
+- dificuldade dinâmica e orçamento de emissão;
+- limites por conta, dispositivo e comportamento;
+- telemetria de fontes, sumidouros, concentração e tempo de progressão;
+- testes controlados de preço, recompensa e onboarding;
+- alertas de inflação e fraude.
+
+Critério de saída: economia estável em uma temporada fechada.
+
+## Fase 6 — recursos financeiros reais
+
+Status: bloqueada até decisão formal.
+
+- análise jurídica e tributária;
+- política de KYC/AML quando aplicável;
+- custódia, reservas, limites e segurança;
+- termos de uso e comunicação de risco;
+- auditoria independente;
+- decisão explícita de ativar ou não depósitos e saques.
+
+Critério de saída: aprovação jurídica, operacional e financeira. Nenhuma
+promessa de ROI deve aparecer antes disso.

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Compre equipamentos, instale racks em posições gratuitas e mantenha sua mineração virtual energizada.",
+    "Monte sua sala, divida o poder entre CMA, Bitcoin e Dogecoin e mantenha sua mineração virtual energizada.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Compre, instale e energize: 12 posições gratuitas de rack por sala.",
+      "Divida, mine e evolua: CMA, Bitcoin e Dogecoin em blocos de 10 minutos.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "/og.png",
-        width: 1760,
-        height: 926,
-        alt: "Crypto Miner Arcadia — compre, instale e energize",
+        url: "/og-multimining.png",
+        width: 1727,
+        height: 911,
+        alt: "Crypto Miner Arcadia — divida, mine e evolua",
       },
     ],
   },
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Compre, instale e energize: 12 posições gratuitas de rack por sala.",
-    images: ["/og.png"],
+      "Divida, mine e evolua: CMA, Bitcoin e Dogecoin em blocos de 10 minutos.",
+    images: ["/og-multimining.png"],
   },
 };
 

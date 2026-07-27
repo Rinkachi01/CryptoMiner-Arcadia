@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BATTERY_HOURS,
+  BATTERY_PRICE_CMA,
   BLOCK_INTERVAL_SECONDS,
   ENERGY_CLAIM_COOLDOWN_HOURS,
   ENERGY_CLAIM_HOURS,
   MAX_ENERGY_HOURS,
+  RACK_PRICE_CMA,
   ROOM_RACK_CAPACITY,
   calculateVirtualPaybackDays,
   canInstallAt,
@@ -59,9 +61,12 @@ test("energia trabalha em ciclos de doze horas", () => {
   assert.equal(MAX_ENERGY_HOURS, 96);
 });
 
-test("catálogo mantém progressão virtual conservadora", () => {
+test("catálogo mantém preços acessíveis e progressão virtual conservadora", () => {
   const paybackDays = miners.map(calculateVirtualPaybackDays);
   assert.equal(paybackDays.every((days) => days >= 240), true);
   assert.equal(paybackDays.every((days) => days <= 400), true);
+  assert.equal(Math.max(...miners.map((miner) => miner.priceCma)) <= 84, true);
+  assert.equal(RACK_PRICE_CMA, 0.35);
+  assert.equal(BATTERY_PRICE_CMA, 0.05);
   assert.ok(miners.at(-1).powerGh / miners.at(-1).slotSize > miners[0].powerGh);
 });
