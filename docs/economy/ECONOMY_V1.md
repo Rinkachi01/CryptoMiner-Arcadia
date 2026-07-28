@@ -210,6 +210,25 @@ recompensa continuam sendo recalculados no servidor.
   parâmetros;
 - nenhum controle permite criar CMA ou editar diretamente o saldo de uma conta.
 
+### Alertas, relatório e laboratório
+
+- emissão de poder, revisões abertas, caixas em 24 horas e concentração de
+  mineradores possuem limites independentes;
+- alcançar um limite gera atenção e superar 125% do limite gera estado crítico;
+- alertas não pausam o jogo automaticamente; a decisão continua sendo do
+  proprietário;
+- o relatório da temporada reúne 30 dias de minigames, ledger, inventário e
+  antifraude em CSV;
+- a exportação exige a mesma autorização exclusiva da Central do Proprietário;
+- o simulador aceita percentuais de preço de mineradores, preço de caixas,
+  dificuldade da rede e poder dos minigames;
+- o cenário base representa os valores atuais e projeta 303 dias de progressão
+  virtual;
+- nenhuma simulação grava configurações, altera preços ou modifica o estado de
+  uma conta;
+- projeções internas não podem ser apresentadas ao jogador como ROI, promessa
+  financeira ou garantia de retorno.
+
 ## Referências analisadas
 
 - RollerCoin, Multi Mining:

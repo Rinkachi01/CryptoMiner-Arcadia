@@ -3,10 +3,13 @@ import {
   claimOrVerifyAdminOwner,
   ensureAdminSchema,
   readAdminRuntimeSettings,
+  updateAdminAlertThreshold,
   updateAdminRuntimeSetting,
   writeAdminAudit,
   type AdminSettingKey,
+  type AdminThresholdKey,
 } from "../../admin-settings";
+import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getMiner } from "../../game-rules";
 
@@ -77,6 +80,16 @@ const adminSettingKeys: AdminSettingKey[] = [
   "dailyBatteryEnabled",
   "minigamePowerEnabled",
 ];
+
+const adminThresholdBounds: Record<
+  AdminThresholdKey,
+  { maximum: number; minimum: number }
+> = {
+  crateAlertCount: { minimum: 1, maximum: 1_000 },
+  minerConcentrationAlertPercent: { minimum: 5, maximum: 100 },
+  openReviewAlertCount: { minimum: 1, maximum: 500 },
+  powerAlertGh: { minimum: 100, maximum: 100_000 },
+};
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -249,6 +262,7 @@ async function readAdminOverview(
   let batteriesInInventory = 0;
   let installedRacks = 0;
   let playersWithEnergy = 0;
+  let totalMiners = 0;
   for (const row of stateRows.results) {
     try {
       const state = JSON.parse(row.state_json) as {
@@ -265,6 +279,7 @@ async function readAdminOverview(
         ...(Array.isArray(state.minerInventory) ? state.minerInventory : []),
         ...Object.values(state.rackMiners ?? {}).flat(),
       ];
+      totalMiners += allMiners.length;
       for (const unit of allMiners) {
         if (!unit.minerId) continue;
         minerCounts.set(
@@ -276,6 +291,9 @@ async function readAdminOverview(
       // A malformed legacy state is ignored in aggregate inventory telemetry.
     }
   }
+  const topMinerCount = Math.max(0, ...minerCounts.values());
+  const minerConcentrationPercent =
+    totalMiners > 0 ? Math.round((topMinerCount / totalMiners) * 100) : 0;
 
   return {
     metrics: {
@@ -336,7 +354,9 @@ async function readAdminOverview(
     inventory: {
       batteriesInInventory,
       installedRacks,
+      minerConcentrationPercent,
       playersWithEnergy,
+      totalMiners,
       topMiners: [...minerCounts.entries()]
         .map(([minerId, count]) => ({
           count,
@@ -362,14 +382,26 @@ export async function GET() {
   }
   await ensureAdminSchema(context.db);
   const now = Date.now();
+  const settings = await readAdminRuntimeSettings(context.db);
+  const overview = await readAdminOverview(context.db, now);
   return json({
     owner: {
       claimedAt: context.owner?.created_at ?? now,
       displayName: context.user.displayName,
       email: context.user.email,
     },
-    settings: await readAdminRuntimeSettings(context.db),
-    ...(await readAdminOverview(context.db, now)),
+    alerts: evaluateAdminAlerts(
+      {
+        crateOpens24h: overview.metrics.crateOpens24h,
+        minerConcentrationPercent:
+          overview.inventory.minerConcentrationPercent,
+        openReviews: overview.metrics.openReviews,
+        powerGranted24h: overview.metrics.powerGranted24h,
+      },
+      settings,
+    ),
+    settings,
+    ...overview,
     serverTime: now,
   });
 }
@@ -388,6 +420,7 @@ export async function POST(request: Request) {
         resolution?: unknown;
         sessionId?: unknown;
         setting?: unknown;
+        value?: unknown;
       }
     | null;
   const now = Date.now();
@@ -416,6 +449,44 @@ export async function POST(request: Request) {
       message: body.enabled
         ? "Operação reativada com sucesso."
         : "Operação pausada com segurança.",
+      settings,
+    });
+  }
+
+  if (
+    body?.action === "update-threshold" &&
+    typeof body.setting === "string" &&
+    Object.hasOwn(adminThresholdBounds, body.setting) &&
+    typeof body.value === "number" &&
+    Number.isFinite(body.value)
+  ) {
+    const threshold = body.setting as AdminThresholdKey;
+    const bounds = adminThresholdBounds[threshold];
+    const value = Math.floor(body.value);
+    if (value < bounds.minimum || value > bounds.maximum) {
+      return json(
+        {
+          error: `Use um valor entre ${bounds.minimum} e ${bounds.maximum}.`,
+        },
+        400,
+      );
+    }
+    const settings = await updateAdminAlertThreshold(
+      context.db,
+      threshold,
+      value,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "alert_threshold_updated",
+      { threshold, value },
+      now,
+    );
+    return json({
+      message: "Limite de alerta atualizado.",
       settings,
     });
   }

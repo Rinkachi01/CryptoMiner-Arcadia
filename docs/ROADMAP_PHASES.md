@@ -63,7 +63,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: sexta entrega concluída.
+Status: sétima entrega concluída.
 
 Ordem de execução:
 
@@ -200,11 +200,26 @@ Entregas concluídas nesta sexta etapa:
 - toda mudança de controle registrada em trilha de auditoria;
 - pausas não removem inventário, saldo ou progresso já existente.
 
+Entregas concluídas nesta sétima etapa:
+
+- quatro alertas automáticos para emissão de poder, fila antifraude, volume de
+  caixas e concentração de mineradores;
+- limites ajustáveis pelo proprietário e persistidos no servidor;
+- faixas estável, atenção e crítica calculadas sem pausar o jogo
+  automaticamente;
+- relatório CSV protegido com controles, minigames, movimento CMA, inventário e
+  revisões dos últimos 30 dias;
+- simulador de preços, dificuldade da rede e poder temporário;
+- projeção de progressão virtual, orçamento diário e índice de sumidouro;
+- comparação de preços projetados para mineradores e Caixas Arcadia;
+- laboratório isolado que nunca aplica o cenário simulado ao estado real;
+- aviso explícito de que a projeção não representa retorno financeiro.
+
 Próxima entrega:
 
-- alertas automáticos por limites configuráveis de emissão e concentração;
-- exportação de relatórios da temporada fechada;
-- simulador de rebalanceamento antes de alterar preços ou probabilidades;
+- painel de temporadas com data de início, encerramento e metas;
+- snapshots econômicos para comparar períodos sem alterar o histórico;
+- ranking competitivo sem prêmio financeiro;
 - teste fechado dos controles administrativos e da economia completa.
 
 Critério de saída: economia estável em uma temporada fechada.

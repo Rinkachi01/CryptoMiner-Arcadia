@@ -5,9 +5,17 @@ import Link from "next/link";
 import type {
   AdminRuntimeSettings,
   AdminSettingKey,
+  AdminThresholdKey,
 } from "./admin-settings";
+import type { AdminAlert } from "./admin-alert-rules";
+import {
+  DEFAULT_SIMULATION_INPUT,
+  simulateEconomy,
+  type EconomySimulationInput,
+} from "./economy-simulator";
 
 type AdminOverview = {
+  alerts: AdminAlert[];
   audit: Array<{
     action: string;
     createdAt: number;
@@ -22,7 +30,9 @@ type AdminOverview = {
   inventory: {
     batteriesInInventory: number;
     installedRacks: number;
+    minerConcentrationPercent: number;
     playersWithEnergy: number;
+    totalMiners: number;
     topMiners: Array<{
       count: number;
       minerId: string;
@@ -131,6 +141,75 @@ const controlDefinitions: Array<{
   },
 ];
 
+const thresholdDefinitions: Array<{
+  key: AdminThresholdKey;
+  label: string;
+  maximum: number;
+  minimum: number;
+  suffix: string;
+}> = [
+  {
+    key: "powerAlertGh",
+    label: "Poder em 24h",
+    minimum: 100,
+    maximum: 100_000,
+    suffix: "GH/s",
+  },
+  {
+    key: "openReviewAlertCount",
+    label: "Revisões abertas",
+    minimum: 1,
+    maximum: 500,
+    suffix: "sessões",
+  },
+  {
+    key: "crateAlertCount",
+    label: "Caixas em 24h",
+    minimum: 1,
+    maximum: 1_000,
+    suffix: "aberturas",
+  },
+  {
+    key: "minerConcentrationAlertPercent",
+    label: "Concentração",
+    minimum: 5,
+    maximum: 100,
+    suffix: "%",
+  },
+];
+
+const simulatorControls: Array<{
+  key: keyof EconomySimulationInput;
+  label: string;
+  maximum: number;
+  minimum: number;
+}> = [
+  {
+    key: "minerPricePercent",
+    label: "Preço dos mineradores",
+    minimum: 50,
+    maximum: 200,
+  },
+  {
+    key: "cratePricePercent",
+    label: "Preço das caixas",
+    minimum: 50,
+    maximum: 200,
+  },
+  {
+    key: "networkDifficultyPercent",
+    label: "Dificuldade da rede",
+    minimum: 60,
+    maximum: 240,
+  },
+  {
+    key: "minigamePowerPercent",
+    label: "Poder dos minigames",
+    minimum: 0,
+    maximum: 150,
+  },
+];
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("pt-BR").format(Math.max(0, value));
 }
@@ -166,6 +245,11 @@ export function AdminDashboard({
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [thresholdDrafts, setThresholdDrafts] = useState<
+    Partial<Record<AdminThresholdKey, number>>
+  >({});
+  const [simulationInput, setSimulationInput] =
+    useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
 
   const loadOverview = useCallback(async () => {
     setError("");
@@ -214,6 +298,10 @@ export function AdminDashboard({
   const maxGamePlays = useMemo(
     () => Math.max(1, ...(overview?.games.map((game) => game.plays) ?? [1])),
     [overview?.games],
+  );
+  const simulation = useMemo(
+    () => simulateEconomy(simulationInput),
+    [simulationInput],
   );
 
   async function runAdminAction(
@@ -284,6 +372,9 @@ export function AdminDashboard({
     (total, entry) => total + Math.min(0, entry.cmaDelta),
     0,
   );
+  const activeAlertCount = overview.alerts.filter(
+    (alert) => alert.severity !== "stable",
+  ).length;
 
   return (
     <main className="admin-shell">
@@ -306,6 +397,9 @@ export function AdminDashboard({
           <button type="button" onClick={() => void loadOverview()}>
             ATUALIZAR
           </button>
+          <a href="/api/admin/export" download>
+            EXPORTAR CSV
+          </a>
           <Link href="/">VOLTAR AO JOGO</Link>
           <a href={signOutPath}>SAIR</a>
         </nav>
@@ -369,6 +463,221 @@ export function AdminDashboard({
 
       <section className="admin-layout">
         <div className="admin-main-column">
+          <section className="admin-panel admin-alerts-panel">
+            <div className="admin-panel-heading">
+              <div>
+                <span>MONITORAMENTO AUTOMÁTICO</span>
+                <h2>Alertas econômicos</h2>
+              </div>
+              <small>
+                {activeAlertCount === 0
+                  ? "TODOS ESTÁVEIS"
+                  : `${activeAlertCount} EXIGEM ATENÇÃO`}
+              </small>
+            </div>
+            <div className="admin-alert-grid">
+              {thresholdDefinitions.map((definition) => {
+                const alert = overview.alerts.find(
+                  (item) =>
+                    (definition.key === "powerAlertGh" &&
+                      item.id === "power-emission") ||
+                    (definition.key === "openReviewAlertCount" &&
+                      item.id === "open-reviews") ||
+                    (definition.key === "crateAlertCount" &&
+                      item.id === "crate-volume") ||
+                    (definition.key === "minerConcentrationAlertPercent" &&
+                      item.id === "miner-concentration"),
+                );
+                if (!alert) return null;
+                const draftValue =
+                  thresholdDrafts[definition.key] ??
+                  overview.settings[definition.key];
+                const progress = Math.min(
+                  100,
+                  Math.round((alert.current / Math.max(1, alert.threshold)) * 100),
+                );
+                return (
+                  <article className={alert.severity} key={alert.id}>
+                    <div className="admin-alert-status">
+                      <i />
+                      <span>
+                        {alert.severity === "stable"
+                          ? "ESTÁVEL"
+                          : alert.severity === "critical"
+                            ? "CRÍTICO"
+                            : "ATENÇÃO"}
+                      </span>
+                    </div>
+                    <h3>{alert.label}</h3>
+                    <p>{alert.message}</p>
+                    <div className="admin-alert-value">
+                      <strong>{formatNumber(alert.current)}</strong>
+                      <span>
+                        / {formatNumber(alert.threshold)} {alert.unit}
+                      </span>
+                    </div>
+                    <div className="admin-alert-progress">
+                      <i style={{ width: `${progress}%` }} />
+                    </div>
+                    <label>
+                      <span>NOVO LIMITE · {definition.suffix}</span>
+                      <div>
+                        <input
+                          aria-label={`Novo limite de ${definition.label}`}
+                          max={definition.maximum}
+                          min={definition.minimum}
+                          type="number"
+                          value={draftValue}
+                          onChange={(event) =>
+                            setThresholdDrafts((current) => ({
+                              ...current,
+                              [definition.key]: Number(event.target.value),
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={Boolean(busyAction)}
+                          onClick={() =>
+                            void runAdminAction(
+                              `threshold-${definition.key}`,
+                              {
+                                action: "update-threshold",
+                                setting: definition.key,
+                                value: draftValue,
+                              },
+                            )
+                          }
+                        >
+                          SALVAR
+                        </button>
+                      </div>
+                    </label>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="admin-panel admin-simulator-panel">
+            <div className="admin-panel-heading">
+              <div>
+                <span>LABORATÓRIO ECONÔMICO</span>
+                <h2>Simulador de rebalanceamento</h2>
+              </div>
+              <small>NÃO APLICA MUDANÇAS</small>
+            </div>
+            <div className="admin-simulator-layout">
+              <div className="admin-simulator-controls">
+                <div className="admin-simulator-note">
+                  <b>SIMULAÇÃO ISOLADA</b>
+                  <p>
+                    Ajuste os percentuais para prever progressão, emissão e
+                    preços. Nenhum resultado é salvo no jogo.
+                  </p>
+                </div>
+                {simulatorControls.map((control) => (
+                  <label key={control.key}>
+                    <span>
+                      {control.label}
+                      <strong>{simulationInput[control.key]}%</strong>
+                    </span>
+                    <input
+                      aria-label={control.label}
+                      max={control.maximum}
+                      min={control.minimum}
+                      type="range"
+                      value={simulationInput[control.key]}
+                      onChange={(event) =>
+                        setSimulationInput((current) => ({
+                          ...current,
+                          [control.key]: Number(event.target.value),
+                        }))
+                      }
+                    />
+                    <small>
+                      {control.minimum}% <i /> BASE 100% <i /> {control.maximum}%
+                    </small>
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSimulationInput({ ...DEFAULT_SIMULATION_INPUT })
+                  }
+                >
+                  RESTAURAR CENÁRIO BASE
+                </button>
+              </div>
+              <div className="admin-simulation-result">
+                <div className={`admin-simulation-status ${simulation.status}`}>
+                  <span>LEITURA DO CENÁRIO</span>
+                  <strong>
+                    {simulation.status === "stable"
+                      ? "FAIXA CONTROLADA"
+                      : simulation.status === "critical"
+                        ? "PROGRESSÃO RÁPIDA DEMAIS"
+                        : simulation.status === "attention"
+                          ? "EXIGE ATENÇÃO"
+                          : "PROGRESSÃO MUITO LENTA"}
+                  </strong>
+                  <p>
+                    Projeção virtual para comparação interna. Não representa
+                    retorno financeiro nem promessa de ganho.
+                  </p>
+                </div>
+                <div className="admin-simulation-metrics">
+                  <article>
+                    <span>PROGRESSÃO ESTIMADA</span>
+                    <strong>{simulation.progressionDays} dias</strong>
+                    <small>referência atual: 303 dias</small>
+                  </article>
+                  <article>
+                    <span>ORÇAMENTO DE PODER</span>
+                    <strong>
+                      {formatNumber(simulation.dailyPowerBudgetGh)} GH/s
+                    </strong>
+                    <small>por conta e ciclo UTC</small>
+                  </article>
+                  <article>
+                    <span>ÍNDICE DE SUMIDOURO</span>
+                    <strong>{simulation.sinkIndex}</strong>
+                    <small>base atual: 100</small>
+                  </article>
+                  <article>
+                    <span>REDE SIMULADA</span>
+                    <strong>
+                      {simulation.normalized.networkDifficultyPercent}%
+                    </strong>
+                    <small>não altera blocos existentes</small>
+                  </article>
+                </div>
+                <div className="admin-simulation-prices">
+                  <section>
+                    <span>MINERADORES PROJETADOS</span>
+                    {simulation.adjustedMiners
+                      .filter((_, index) => [0, 4, 6].includes(index))
+                      .map((miner) => (
+                        <div key={miner.id}>
+                          <strong>{miner.name}</strong>
+                          <b>{formatCma(miner.priceCma)}</b>
+                        </div>
+                      ))}
+                  </section>
+                  <section>
+                    <span>CAIXAS PROJETADAS</span>
+                    {simulation.adjustedCrates.map((crate) => (
+                      <div key={crate.id}>
+                        <strong>{crate.name}</strong>
+                        <b>{formatCma(crate.priceCma)}</b>
+                      </div>
+                    ))}
+                  </section>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section className="admin-panel">
             <div className="admin-panel-heading">
               <div>
@@ -576,6 +885,16 @@ export function AdminDashboard({
               <div>
                 <span>RACKS INSTALADOS</span>
                 <strong>{formatNumber(overview.inventory.installedRacks)}</strong>
+              </div>
+              <div>
+                <span>MINERADORES</span>
+                <strong>{formatNumber(overview.inventory.totalMiners)}</strong>
+              </div>
+              <div>
+                <span>MAIOR CONCENTRAÇÃO</span>
+                <strong>
+                  {overview.inventory.minerConcentrationPercent}%
+                </strong>
               </div>
             </div>
             <div className="admin-miner-ranking">

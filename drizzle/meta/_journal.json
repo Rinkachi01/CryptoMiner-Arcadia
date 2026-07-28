@@ -43,6 +43,13 @@
       "when": 1785224972994,
       "tag": "0005_sweet_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785226349423,
+      "tag": "0006_fast_kitty_pryde",
+      "breakpoints": true
     }
   ]
 }

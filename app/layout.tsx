@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Minere, jogue e acompanhe a economia pela nova Central do Proprietário protegida pelo servidor.",
+    "Monitore alertas, exporte a temporada e simule o balanceamento no Laboratório Econômico do Arcadia.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Central do Proprietário com métricas econômicas, revisão antifraude e controles de emergência.",
+      "Laboratório Econômico com alertas automáticos, relatório da temporada e simulação segura.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Central do Proprietário com três controles econômicos seguros",
+        alt: "Crypto Miner Arcadia — Laboratório Econômico com quatro alertas e quatro controles de simulação",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Central do Proprietário, telemetria econômica e controles seguros.",
+      "Alertas econômicos, relatório CSV e simulação sem alterar o jogo.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],

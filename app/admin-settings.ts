@@ -1,7 +1,11 @@
 export type AdminRuntimeSettings = {
+  crateAlertCount: number;
   cratesEnabled: boolean;
   dailyBatteryEnabled: boolean;
+  minerConcentrationAlertPercent: number;
   minigamePowerEnabled: boolean;
+  openReviewAlertCount: number;
+  powerAlertGh: number;
   updatedAt: number;
   updatedBy: string | null;
 };
@@ -11,10 +15,20 @@ export type AdminSettingKey =
   | "dailyBatteryEnabled"
   | "minigamePowerEnabled";
 
+export type AdminThresholdKey =
+  | "crateAlertCount"
+  | "minerConcentrationAlertPercent"
+  | "openReviewAlertCount"
+  | "powerAlertGh";
+
 type SettingsRow = {
+  crate_alert_count: number;
   crates_enabled: number;
   daily_battery_enabled: number;
+  miner_concentration_alert_percent: number;
   minigame_power_enabled: number;
+  open_review_alert_count: number;
+  power_alert_gh: number;
   updated_at: number;
   updated_by: string | null;
 };
@@ -26,9 +40,13 @@ type OwnerRow = {
 };
 
 const DEFAULT_SETTINGS: AdminRuntimeSettings = {
+  crateAlertCount: 20,
   cratesEnabled: true,
   dailyBatteryEnabled: true,
+  minerConcentrationAlertPercent: 45,
   minigamePowerEnabled: true,
+  openReviewAlertCount: 3,
+  powerAlertGh: 4_000,
   updatedAt: 0,
   updatedBy: null,
 };
@@ -41,6 +59,10 @@ export async function ensureRuntimeSettingsSchema(db: D1Database) {
         crates_enabled INTEGER DEFAULT 1 NOT NULL,
         minigame_power_enabled INTEGER DEFAULT 1 NOT NULL,
         daily_battery_enabled INTEGER DEFAULT 1 NOT NULL,
+        power_alert_gh INTEGER DEFAULT 4000 NOT NULL,
+        open_review_alert_count INTEGER DEFAULT 3 NOT NULL,
+        crate_alert_count INTEGER DEFAULT 20 NOT NULL,
+        miner_concentration_alert_percent INTEGER DEFAULT 45 NOT NULL,
         updated_at INTEGER DEFAULT 0 NOT NULL,
         updated_by TEXT
       )`,
@@ -50,8 +72,9 @@ export async function ensureRuntimeSettingsSchema(db: D1Database) {
     .prepare(
       `INSERT OR IGNORE INTO admin_runtime_settings (
         singleton_id, crates_enabled, minigame_power_enabled,
-        daily_battery_enabled, updated_at
-      ) VALUES (1, 1, 1, 1, 0)`,
+        daily_battery_enabled, power_alert_gh, open_review_alert_count,
+        crate_alert_count, miner_concentration_alert_percent, updated_at
+      ) VALUES (1, 1, 1, 1, 4000, 3, 20, 45, 0)`,
     )
     .run();
 }
@@ -129,17 +152,42 @@ export async function readAdminRuntimeSettings(
   await ensureRuntimeSettingsSchema(db);
   const row = await db
     .prepare(
-      `SELECT crates_enabled, minigame_power_enabled,
-              daily_battery_enabled, updated_at, updated_by
+      `SELECT crates_enabled, minigame_power_enabled, daily_battery_enabled,
+              power_alert_gh, open_review_alert_count, crate_alert_count,
+              miner_concentration_alert_percent, updated_at, updated_by
        FROM admin_runtime_settings
        WHERE singleton_id = 1`,
     )
     .first<SettingsRow>();
   if (!row) return DEFAULT_SETTINGS;
   return {
+    crateAlertCount: Math.max(
+      1,
+      Number(row.crate_alert_count ?? DEFAULT_SETTINGS.crateAlertCount),
+    ),
     cratesEnabled: row.crates_enabled === 1,
     dailyBatteryEnabled: row.daily_battery_enabled === 1,
+    minerConcentrationAlertPercent: Math.min(
+      100,
+      Math.max(
+        1,
+        Number(
+          row.miner_concentration_alert_percent ??
+            DEFAULT_SETTINGS.minerConcentrationAlertPercent,
+        ),
+      ),
+    ),
     minigamePowerEnabled: row.minigame_power_enabled === 1,
+    openReviewAlertCount: Math.max(
+      1,
+      Number(
+        row.open_review_alert_count ?? DEFAULT_SETTINGS.openReviewAlertCount,
+      ),
+    ),
+    powerAlertGh: Math.max(
+      1,
+      Number(row.power_alert_gh ?? DEFAULT_SETTINGS.powerAlertGh),
+    ),
     updatedAt: Number(row.updated_at ?? 0),
     updatedBy: row.updated_by,
   };
@@ -166,6 +214,32 @@ export async function updateAdminRuntimeSetting(
        WHERE singleton_id = 1`,
     )
     .bind(enabled ? 1 : 0, now, actorAccountId)
+    .run();
+  return readAdminRuntimeSettings(db);
+}
+
+export async function updateAdminAlertThreshold(
+  db: D1Database,
+  threshold: AdminThresholdKey,
+  value: number,
+  actorAccountId: string,
+  now: number,
+) {
+  await ensureRuntimeSettingsSchema(db);
+  const columnByThreshold: Record<AdminThresholdKey, string> = {
+    crateAlertCount: "crate_alert_count",
+    minerConcentrationAlertPercent: "miner_concentration_alert_percent",
+    openReviewAlertCount: "open_review_alert_count",
+    powerAlertGh: "power_alert_gh",
+  };
+  const column = columnByThreshold[threshold];
+  await db
+    .prepare(
+      `UPDATE admin_runtime_settings
+       SET ${column} = ?, updated_at = ?, updated_by = ?
+       WHERE singleton_id = 1`,
+    )
+    .bind(Math.floor(value), now, actorAccountId)
     .run();
   return readAdminRuntimeSettings(db);
 }

@@ -167,6 +167,14 @@ export const adminRuntimeSettings = sqliteTable("admin_runtime_settings", {
   cratesEnabled: integer("crates_enabled").notNull().default(1),
   minigamePowerEnabled: integer("minigame_power_enabled").notNull().default(1),
   dailyBatteryEnabled: integer("daily_battery_enabled").notNull().default(1),
+  powerAlertGh: integer("power_alert_gh").notNull().default(4_000),
+  openReviewAlertCount: integer("open_review_alert_count").notNull().default(3),
+  crateAlertCount: integer("crate_alert_count").notNull().default(20),
+  minerConcentrationAlertPercent: integer(
+    "miner_concentration_alert_percent",
+  )
+    .notNull()
+    .default(45),
   updatedAt: integer("updated_at").notNull().default(0),
   updatedBy: text("updated_by"),
 });
