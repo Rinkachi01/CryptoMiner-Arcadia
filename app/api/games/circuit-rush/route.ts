@@ -1,17 +1,16 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {
-  HASH_MATCH_DAILY_LIMIT,
-  HASH_MATCH_HOURLY_LIMIT,
-  HASH_MATCH_POWER_DURATION_HOURS,
-  createHashMatchProof,
+  CIRCUIT_RUSH_DAILY_LIMIT,
+  CIRCUIT_RUSH_HOURLY_LIMIT,
+  CIRCUIT_RUSH_POWER_DURATION_HOURS,
+  circuitRushDurationMs,
+  circuitRushRewardPower,
+  createCircuitSteps,
   gameCooldownSeconds,
-  hashMatchDurationMs,
-  hashMatchPairCount,
-  hashMatchRewardPower,
-  revealHashCard,
-  type HashMatchProof,
-} from "../../../hash-match-rules";
+  validateCircuitRush,
+  type CircuitEvent,
+} from "../../../circuit-rush-rules";
 import { MAX_GAME_DIFFICULTY } from "../../../packet-catch-rules";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +18,11 @@ export const dynamic = "force-dynamic";
 type SessionRow = {
   id: string;
   nonce: string;
+  seed: string;
   status: string;
   started_at: number;
   expires_at: number;
   difficulty: number;
-  proof_json: string;
 };
 
 type ProgressRow = {
@@ -107,10 +106,6 @@ async function ensureSchema(db: D1Database) {
       CREATE UNIQUE INDEX IF NOT EXISTS temporary_power_source_unique
       ON temporary_power_grants (source_session_id)
     `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS temporary_power_account_expiry_idx
-      ON temporary_power_grants (account_id, expires_at)
-    `),
   ]);
 }
 
@@ -125,24 +120,20 @@ async function context() {
   };
 }
 
-async function progress(
-  db: D1Database,
-  accountId: string,
-  now: number,
-) {
+async function progress(db: D1Database, accountId: string, now: number) {
   await db
     .prepare(
       `INSERT OR IGNORE INTO game_progress (
         account_id, game_id, level, win_streak, next_play_at,
         total_plays, total_wins, updated_at
-      ) VALUES (?, 'hash-match', 1, 0, 0, 0, 0, ?)`,
+      ) VALUES (?, 'circuit-rush', 1, 0, 0, 0, 0, ?)`,
     )
     .bind(accountId, now)
     .run();
   return db
     .prepare(
       `SELECT level, next_play_at FROM game_progress
-       WHERE account_id = ? AND game_id = 'hash-match'`,
+       WHERE account_id = ? AND game_id = 'circuit-rush'`,
     )
     .bind(accountId)
     .first<ProgressRow>();
@@ -155,18 +146,18 @@ async function usage(db: D1Database, accountId: string, now: number) {
          SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS hour_count,
          SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS day_count
        FROM game_sessions
-       WHERE account_id = ? AND game_id = 'hash-match'`,
+       WHERE account_id = ? AND game_id = 'circuit-rush'`,
     )
     .bind(now - 60 * 60 * 1000, now - 24 * 60 * 60 * 1000, accountId)
     .first<{ hour_count: number | null; day_count: number | null }>();
   return {
     hourRemaining: Math.max(
       0,
-      HASH_MATCH_HOURLY_LIMIT - Number(row?.hour_count ?? 0),
+      CIRCUIT_RUSH_HOURLY_LIMIT - Number(row?.hour_count ?? 0),
     ),
     dayRemaining: Math.max(
       0,
-      HASH_MATCH_DAILY_LIMIT - Number(row?.day_count ?? 0),
+      CIRCUIT_RUSH_DAILY_LIMIT - Number(row?.day_count ?? 0),
     ),
   };
 }
@@ -208,16 +199,13 @@ export async function POST(request: Request) {
         action?: unknown;
         sessionId?: unknown;
         nonce?: unknown;
-        cardId?: unknown;
+        outcome?: unknown;
+        events?: unknown;
+        durationMs?: unknown;
       }
     | null;
-  if (
-    !body ||
-    (body.action !== "start" &&
-      body.action !== "flip" &&
-      body.action !== "timeout")
-  ) {
-    return json({ error: "Ação de memória inválida." }, 400);
+  if (!body || (body.action !== "start" && body.action !== "finish")) {
+    return json({ error: "Ação de circuito inválida." }, 400);
   }
 
   const now = Date.now();
@@ -225,8 +213,8 @@ export async function POST(request: Request) {
     await current.db
       .prepare(
         `UPDATE game_sessions
-         SET status = 'expired', review_reason = 'Tempo do tabuleiro encerrado.'
-         WHERE account_id = ? AND game_id = 'hash-match'
+         SET status = 'expired', review_reason = 'Tempo do circuito encerrado.'
+         WHERE account_id = ? AND game_id = 'circuit-rush'
            AND status = 'active' AND expires_at <= ?`,
       )
       .bind(current.accountId, now)
@@ -234,20 +222,18 @@ export async function POST(request: Request) {
     const active = await current.db
       .prepare(
         `SELECT id FROM game_sessions
-         WHERE account_id = ? AND game_id = 'hash-match'
+         WHERE account_id = ? AND game_id = 'circuit-rush'
            AND status = 'active' AND expires_at > ?`,
       )
       .bind(current.accountId, now)
       .first<{ id: string }>();
-    if (active) {
-      return json({ error: "Já existe um tabuleiro ativo." }, 409);
-    }
+    if (active) return json({ error: "Já existe uma corrida ativa." }, 409);
 
     const gameProgress = await progress(current.db, current.accountId, now);
     if (gameProgress && gameProgress.next_play_at > now) {
       return json(
         {
-          error: "O Hash Match ainda está em recarga.",
+          error: "O Circuit Rush ainda está em recarga.",
           difficulty: gameProgress.level,
           nextPlayAt: gameProgress.next_play_at,
         },
@@ -256,22 +242,25 @@ export async function POST(request: Request) {
     }
     const limits = await usage(current.db, current.accountId, now);
     if (limits.hourRemaining === 0 || limits.dayRemaining === 0) {
-      return json({ error: "Limite seguro do Hash Match alcançado.", limits }, 429);
+      return json(
+        { error: "Limite seguro do Circuit Rush alcançado.", limits },
+        429,
+      );
     }
 
     const difficulty = gameProgress?.level ?? 1;
-    const durationMs = hashMatchDurationMs(difficulty);
+    const durationMs = circuitRushDurationMs(difficulty);
     const seed = crypto.randomUUID();
-    const proof = createHashMatchProof(seed, difficulty);
     const sessionId = crypto.randomUUID();
     const nonce = crypto.randomUUID();
+    const steps = createCircuitSteps(seed, difficulty);
     await current.db.batch([
       current.db
         .prepare(
           `INSERT INTO game_sessions (
             id, account_id, game_id, nonce, seed, status,
             started_at, expires_at, proof_json, difficulty
-          ) VALUES (?, ?, 'hash-match', ?, ?, 'active', ?, ?, ?, ?)`,
+          ) VALUES (?, ?, 'circuit-rush', ?, ?, 'active', ?, ?, ?, ?)`,
         )
         .bind(
           sessionId,
@@ -279,25 +268,24 @@ export async function POST(request: Request) {
           nonce,
           seed,
           now,
-          now + durationMs + 25_000,
-          JSON.stringify(proof),
+          now + durationMs + 20_000,
+          JSON.stringify({ stepCount: steps.length }),
           difficulty,
         ),
       current.db
         .prepare(
           `UPDATE game_progress
            SET total_plays = total_plays + 1, updated_at = ?
-           WHERE account_id = ? AND game_id = 'hash-match'`,
+           WHERE account_id = ? AND game_id = 'circuit-rush'`,
         )
         .bind(now, current.accountId),
     ]);
-
     return json({
       sessionId,
       nonce,
       difficulty,
       durationMs,
-      cards: proof.deck.map((card) => ({ id: card.id })),
+      steps,
       limits: {
         hourRemaining: limits.hourRemaining - 1,
         dayRemaining: limits.dayRemaining - 1,
@@ -307,15 +295,21 @@ export async function POST(request: Request) {
 
   if (
     typeof body.sessionId !== "string" ||
-    typeof body.nonce !== "string"
+    typeof body.nonce !== "string" ||
+    !Array.isArray(body.events) ||
+    body.events.length > 20 ||
+    !Number.isInteger(body.durationMs) ||
+    (body.outcome !== "complete" &&
+      body.outcome !== "failed" &&
+      body.outcome !== "timeout")
   ) {
-    return json({ error: "Sessão de memória inválida." }, 400);
+    return json({ error: "Resultado de circuito inválido." }, 400);
   }
   const session = await current.db
     .prepare(
-      `SELECT id, nonce, status, started_at, expires_at, difficulty, proof_json
+      `SELECT id, nonce, seed, status, started_at, expires_at, difficulty
        FROM game_sessions
-       WHERE id = ? AND account_id = ? AND game_id = 'hash-match'`,
+       WHERE id = ? AND account_id = ? AND game_id = 'circuit-rush'`,
     )
     .bind(body.sessionId, current.accountId)
     .first<SessionRow>();
@@ -325,130 +319,90 @@ export async function POST(request: Request) {
     session.nonce !== body.nonce ||
     now > session.expires_at
   ) {
-    return json({ error: "Tabuleiro expirado ou já encerrado." }, 409);
+    return json({ error: "Corrida expirada ou já encerrada." }, 409);
   }
 
-  if (body.action === "timeout") {
-    const durationMs = hashMatchDurationMs(session.difficulty);
-    if (now - session.started_at < durationMs - 1_500) {
-      return json({ error: "O tabuleiro ainda possui tempo." }, 400);
-    }
+  const durationLimit = circuitRushDurationMs(session.difficulty);
+  const durationMs = Number(body.durationMs);
+  if (durationMs < 0 || durationMs > durationLimit + 1_500) {
+    return json({ error: "Duração de corrida inválida." }, 400);
+  }
+  const events = body.events as CircuitEvent[];
+  const result = validateCircuitRush(session.seed, session.difficulty, events);
+  if (!result.valid) return json({ error: result.reason }, 400);
+  if (result.lastEventAt > durationMs + 250) {
+    return json({ error: "O relógio não corresponde aos cliques enviados." }, 400);
+  }
+  const verifiedDurationMs = Math.max(
+    durationMs,
+    Math.min(durationLimit, now - session.started_at),
+  );
+
+  const timedOut = body.outcome === "timeout";
+  if (timedOut && now - session.started_at < durationLimit - 1_500) {
+    return json({ error: "A corrida ainda possui tempo." }, 400);
+  }
+  const completed = body.outcome === "complete" && result.completed;
+  const failed =
+    (body.outcome === "failed" && result.failed) ||
+    (timedOut && !result.completed);
+  if (!completed && !failed) {
+    return json({ error: "O resultado não corresponde à rota enviada." }, 400);
+  }
+
+  if (failed) {
     const nextPlayAt = now + 45_000;
-    await current.db.batch([
-      current.db
-        .prepare(
-          `UPDATE game_sessions
-           SET status = 'failed', completed_at = ?, duration_ms = ?,
-               score = 0, reward_power_gh = 0,
-               review_reason = 'Tempo esgotado.'
-           WHERE id = ? AND status = 'active'`,
-        )
-        .bind(now, durationMs, session.id),
-      current.db
-        .prepare(
-          `UPDATE game_progress
-           SET win_streak = 0, next_play_at = ?, updated_at = ?
-           WHERE account_id = ? AND game_id = 'hash-match'`,
-        )
-        .bind(nextPlayAt, now, current.accountId),
-    ]);
+    const update = await current.db
+      .prepare(
+        `UPDATE game_sessions
+         SET status = 'failed', completed_at = ?, duration_ms = ?,
+             score = ?, reward_power_gh = 0, review_reason = ?
+         WHERE id = ? AND status = 'active'`,
+      )
+      .bind(
+        now,
+        verifiedDurationMs,
+        result.hits,
+        timedOut ? "Tempo esgotado." : "Circuito vermelho atingido.",
+        session.id,
+      )
+      .run();
+    if ((update.meta.changes ?? 0) !== 1) {
+      return json({ error: "Resultado já processado." }, 409);
+    }
+    await current.db
+      .prepare(
+        `UPDATE game_progress
+         SET win_streak = 0, next_play_at = ?, updated_at = ?
+         WHERE account_id = ? AND game_id = 'circuit-rush'`,
+      )
+      .bind(nextPlayAt, now, current.accountId)
+      .run();
     return json({
-      outcome: "timeout",
+      outcome: timedOut ? "timeout" : "failed",
       rewardPowerGh: 0,
+      nextDifficulty: session.difficulty,
       nextPlayAt,
-      message: "Tempo esgotado. O tabuleiro não concedeu poder.",
+      limits: await usage(current.db, current.accountId, now),
+      message: timedOut
+        ? "Tempo esgotado. Nenhum poder foi concedido."
+        : "Bloqueio atingido. Nenhum poder foi concedido.",
     });
   }
 
-  if (typeof body.cardId !== "string") {
-    return json({ error: "Carta inválida." }, 400);
-  }
-  const proof = JSON.parse(session.proof_json) as HashMatchProof;
-  const originalProofJson = session.proof_json;
-  if (
-    now - proof.lastFlipAt < 90 ||
-    proof.matchedCardIds.includes(body.cardId) ||
-    proof.openCardId === body.cardId
-  ) {
-    return json({ error: "Virada de carta recusada." }, 400);
-  }
-  const revealed = revealHashCard(proof, body.cardId);
-  if (!revealed) return json({ error: "Carta não pertence ao tabuleiro." }, 400);
-  proof.lastFlipAt = now;
-
-  if (!proof.openCardId) {
-    proof.openCardId = body.cardId;
-    const update = await current.db
-      .prepare(
-        `UPDATE game_sessions SET proof_json = ?
-         WHERE id = ? AND status = 'active' AND proof_json = ?`,
-      )
-      .bind(JSON.stringify(proof), session.id, originalProofJson)
-      .run();
-    if ((update.meta.changes ?? 0) !== 1) {
-      return json({ error: "Outra carta foi processada primeiro." }, 409);
-    }
-    return json({
-      reveals: [revealed],
-      matched: false,
-      completed: false,
-      moves: proof.moves,
-    });
-  }
-
-  const firstReveal = revealHashCard(proof, proof.openCardId);
-  if (!firstReveal) return json({ error: "Estado do tabuleiro inválido." }, 500);
-  const isMatch = firstReveal.coinId === revealed.coinId;
-  proof.moves += 1;
-  if (isMatch) {
-    proof.matchedCardIds.push(firstReveal.cardId, revealed.cardId);
-  }
-  proof.openCardId = null;
-  const completed = proof.matchedCardIds.length === proof.deck.length;
-
-  if (!completed) {
-    const update = await current.db
-      .prepare(
-        `UPDATE game_sessions SET proof_json = ?
-         WHERE id = ? AND status = 'active' AND proof_json = ?`,
-      )
-      .bind(JSON.stringify(proof), session.id, originalProofJson)
-      .run();
-    if ((update.meta.changes ?? 0) !== 1) {
-      return json({ error: "Outra carta foi processada primeiro." }, 409);
-    }
-    return json({
-      reveals: [firstReveal, revealed],
-      matched: isMatch,
-      matchedCardIds: isMatch ? [firstReveal.cardId, revealed.cardId] : [],
-      completed: false,
-      moves: proof.moves,
-    });
-  }
-
-  const pairs = hashMatchPairCount(session.difficulty);
-  const score = Math.max(0, pairs * 100 - Math.max(0, proof.moves - pairs) * 15);
-  const rewardPowerGh = hashMatchRewardPower(
+  const rewardPowerGh = circuitRushRewardPower(
     session.difficulty,
-    pairs,
-    proof.moves,
+    result.hits,
+    verifiedDurationMs,
   );
   const update = await current.db
     .prepare(
       `UPDATE game_sessions
        SET status = 'completed', completed_at = ?, duration_ms = ?,
-           score = ?, reward_power_gh = ?, proof_json = ?
-       WHERE id = ? AND status = 'active' AND proof_json = ?`,
+           score = ?, reward_power_gh = ?
+       WHERE id = ? AND status = 'active'`,
     )
-    .bind(
-      now,
-      now - session.started_at,
-      score,
-      rewardPowerGh,
-      JSON.stringify(proof),
-      session.id,
-      originalProofJson,
-    )
+    .bind(now, verifiedDurationMs, result.hits, rewardPowerGh, session.id)
     .run();
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Conclusão já processada." }, 409);
@@ -457,7 +411,7 @@ export async function POST(request: Request) {
   const wins = await current.db
     .prepare(
       `SELECT COUNT(*) AS total FROM game_sessions
-       WHERE account_id = ? AND game_id = 'hash-match'
+       WHERE account_id = ? AND game_id = 'circuit-rush'
          AND status = 'completed' AND completed_at >= ?`,
     )
     .bind(current.accountId, now - 24 * 60 * 60 * 1000)
@@ -472,14 +426,14 @@ export async function POST(request: Request) {
     session.difficulty + 1,
   );
   const powerExpiresAt =
-    now + HASH_MATCH_POWER_DURATION_HOURS * 60 * 60 * 1000;
+    now + CIRCUIT_RUSH_POWER_DURATION_HOURS * 60 * 60 * 1000;
   await current.db.batch([
     current.db
       .prepare(
         `UPDATE game_progress
          SET level = ?, win_streak = win_streak + 1,
              next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
-         WHERE account_id = ? AND game_id = 'hash-match'`,
+         WHERE account_id = ? AND game_id = 'circuit-rush'`,
       )
       .bind(nextDifficulty, nextPlayAt, now, current.accountId),
     current.db
@@ -499,24 +453,19 @@ export async function POST(request: Request) {
         now,
       ),
   ]);
-
   return json({
-    reveals: [firstReveal, revealed],
-    matched: true,
-    matchedCardIds: [firstReveal.cardId, revealed.cardId],
-    completed: true,
-    score,
-    moves: proof.moves,
+    outcome: "completed",
+    hits: result.hits,
     rewardPowerGh,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
       current.accountId,
       now,
     ),
-    difficulty: session.difficulty,
     nextDifficulty,
     nextPlayAt,
     cooldownSeconds,
-    message: `Hash Match nível ${session.difficulty} concluído.`,
+    limits: await usage(current.db, current.accountId, now),
+    message: `Circuit Rush nível ${session.difficulty} concluído.`,
   });
 }

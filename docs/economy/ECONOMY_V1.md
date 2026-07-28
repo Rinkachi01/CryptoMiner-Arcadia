@@ -35,9 +35,9 @@ estado inicial da rede.
 |---|---:|---:|---:|---:|
 | Byte Spark | 1 | 1 | 100 GH/s | 0,60 CMA |
 | Amber Core | 1 | 1 | 260 GH/s | 1,50 CMA |
-| Violet Bit | 1 | 1 | 620 GH/s | 3,60 CMA |
 | Dual Nova | 2 | 2 | 1.250 GH/s | 7,20 CMA |
 | Cryo Twin | 2 | 2 | 2.800 GH/s | 16 CMA |
+| Violet Bit | 1 | 1 | 4.500 GH/s | 26 CMA |
 | Magenta Flux | 2 | 2 | 6.200 GH/s | 35 CMA |
 | Helix Gold | 2 | 2 | 14.500 GH/s | 84 CMA |
 
@@ -117,10 +117,20 @@ Calibração do Hash Match:
 - limite de 6 partidas por hora e 18 por janela de 24 horas;
 - cartas e combinações ficam guardadas no servidor.
 
-Nos dois jogos, o poder dura 6 horas e ainda depende de energia para participar
+Calibração do Circuit Rush:
+
+- sete pulsos no nível inicial e até treze nos níveis avançados;
+- duração de 29 segundos no nível inicial e 18,2 segundos no nível máximo;
+- dois bloqueios no início e até seis nos níveis mais altos;
+- tocar um bloqueio encerra a corrida sem recompensa;
+- máximo de 300 GH/s por vitória;
+- limite de 6 partidas por hora e 18 por janela de 24 horas;
+- ordem, tempo e cliques são conferidos pelo servidor.
+
+Nos três jogos, o poder dura 6 horas e ainda depende de energia para participar
 dos blocos. CMA e baterias continuam desativados como prêmio. Recarga, limites
 e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
-pontuação, abandono, bombas, excesso de jogadas e abuso.
+pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 
 ## Referências analisadas
 

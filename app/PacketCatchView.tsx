@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
 import { HashMatchView } from "./HashMatchView";
 import {
@@ -36,6 +37,9 @@ export function PacketCatchView({
   temporaryPowerGh: number;
   onRefreshAccount: () => Promise<boolean>;
 }) {
+  const [activeGame, setActiveGame] = useState<
+    "packet" | "hash" | "circuit"
+  >("packet");
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<GameSession | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -254,7 +258,48 @@ export function PacketCatchView({
         </div>
       </div>
 
-      <div className="packet-catch-shell">
+      <div className="games-hub-body">
+        <nav className="game-selector-list" aria-label="Lista de minigames">
+          <button
+            type="button"
+            className={activeGame === "packet" ? "active packet" : "packet"}
+            onClick={() => setActiveGame("packet")}
+            aria-pressed={activeGame === "packet"}
+          >
+            <span>01</span>
+            <strong>Packet Catch</strong>
+            <small>Capture moedas e evite bombas</small>
+            <b>ONLINE</b>
+          </button>
+          <button
+            type="button"
+            className={activeGame === "hash" ? "active hash" : "hash"}
+            onClick={() => setActiveGame("hash")}
+            aria-pressed={activeGame === "hash"}
+          >
+            <span>02</span>
+            <strong>Hash Match</strong>
+            <small>Encontre os pares de moedas</small>
+            <b>ONLINE</b>
+          </button>
+          <button
+            type="button"
+            className={
+              activeGame === "circuit" ? "active circuit" : "circuit"
+            }
+            onClick={() => setActiveGame("circuit")}
+            aria-pressed={activeGame === "circuit"}
+          >
+            <span>03</span>
+            <strong>Circuit Rush</strong>
+            <small>Siga o pulso e evite bloqueios</small>
+            <b>NOVO</b>
+          </button>
+        </nav>
+
+        <div className="active-game-stage">
+          {activeGame === "packet" && (
+            <div className="packet-catch-shell">
         <header>
           <div>
             <span>MINIGAME 01 · CAÇA-MOEDAS</span>
@@ -302,7 +347,7 @@ export function PacketCatchView({
                     left: `${target.lane * 20 + 4}%`,
                     top: `${3 + progress * 80}%`,
                   }}
-                  onClick={() => catchTarget(target)}
+                  onPointerDown={() => catchTarget(target)}
                   key={target.id}
                   aria-label={
                     target.kind === "bomb"
@@ -389,30 +434,17 @@ export function PacketCatchView({
             </small>
           </aside>
         </div>
-      </div>
+            </div>
+          )}
 
-      <HashMatchView onRefreshAccount={onRefreshAccount} />
+          {activeGame === "hash" && (
+            <HashMatchView onRefreshAccount={onRefreshAccount} />
+          )}
 
-      <div className="games-grid upcoming single">
-        <article
-          className="game-prototype-card"
-          style={{ "--game-color": "#ffb33b" } as React.CSSProperties}
-        >
-          <div className="game-prototype-art compact">
-            <span>»</span>
-            <b>PRÓXIMA FASE</b>
-          </div>
-          <div className="game-prototype-info">
-            <span>MINIGAME 03</span>
-            <h3>Circuit Rush</h3>
-            <p>
-              Reflexo em circuitos com obstáculos, combos e níveis progressivos.
-            </p>
-            <button type="button" disabled>
-              EM DESENVOLVIMENTO
-            </button>
-          </div>
-        </article>
+          {activeGame === "circuit" && (
+            <CircuitRushView onRefreshAccount={onRefreshAccount} />
+          )}
+        </div>
       </div>
     </section>
   );

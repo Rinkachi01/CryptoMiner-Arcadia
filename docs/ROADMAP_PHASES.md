@@ -62,7 +62,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: segunda entrega concluída.
+Status: terceira entrega concluída.
 
 Ordem de execução:
 
@@ -105,12 +105,20 @@ Entregas concluídas no Hash Match:
 - recompensa reduzida quando o jogador usa jogadas extras;
 - recarga e progresso independentes do Packet Catch.
 
+Entregas concluídas no Circuit Rush:
+
+- tabuleiro de reação com dez níveis;
+- sete a treze pulsos conforme a dificuldade;
+- bloqueios vermelhos que encerram a corrida sem recompensa;
+- tempo menor e mais bloqueios nos níveis altos;
+- sequência, velocidade e resultado validados no servidor;
+- recarga e progresso independentes dos outros minigames.
+
 Próxima atualização:
 
-- telemetria de dificuldade, abandono, bombas, memória e pontuação;
+- telemetria de dificuldade, abandono, bombas, memória, circuitos e pontuação;
 - painel administrativo de revisão;
 - ajustes de recompensa com base nos dados reais;
-- primeira versão jogável do Circuit Rush;
 - nível do computador para ampliar a duração do poder temporário, somente
   depois de confirmar que a progressão não cria emissão excessiva.
 

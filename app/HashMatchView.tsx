@@ -160,7 +160,7 @@ export function HashMatchView({
   async function flipCard(cardId: string) {
     if (!session || phase !== "playing" || pending) return;
     setPending(true);
-    let unlockDelay = 190;
+    let unlockDelay = 110;
     try {
       const response = await fetch("/api/games/hash-match", {
         method: "POST",
@@ -207,7 +207,7 @@ export function HashMatchView({
         await onRefreshAccount();
         setPhase("result");
       } else if (reveals.length === 2 && !data.matched) {
-        unlockDelay = 860;
+        unlockDelay = 730;
         window.setTimeout(() => {
           const ids = new Set(reveals.map((item) => item.cardId));
           setCards((current) =>
@@ -217,7 +217,7 @@ export function HashMatchView({
                 : card,
             ),
           );
-        }, 850);
+        }, 720);
       }
     } catch (error) {
       setMessage(
@@ -271,7 +271,7 @@ export function HashMatchView({
               className={`hash-card ${card.reveal ? "revealed" : ""} ${
                 card.matched ? "matched" : ""
               }`}
-              onClick={() => flipCard(card.id)}
+              onPointerDown={() => flipCard(card.id)}
               disabled={
                 phase !== "playing" ||
                 pending ||

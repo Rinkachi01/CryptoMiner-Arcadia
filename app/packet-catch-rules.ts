@@ -55,7 +55,7 @@ function pickWeightedCoin(random: () => number) {
 
 export function packetTargetLifetime(difficulty: number) {
   const level = Math.min(MAX_GAME_DIFFICULTY, Math.max(1, difficulty));
-  return Math.max(880, 1_750 - (level - 1) * 85);
+  return Math.max(1_050, 2_200 - (level - 1) * 125);
 }
 
 export function createPacketTargets(
@@ -64,7 +64,7 @@ export function createPacketTargets(
 ): PacketTarget[] {
   const level = Math.min(MAX_GAME_DIFFICULTY, Math.max(1, difficulty));
   const random = seededRandom(`${seed}:${level}`);
-  const intervalMs = Math.max(690, 1_420 - (level - 1) * 78);
+  const intervalMs = Math.max(720, 1_500 - (level - 1) * 82);
   const lifetimeMs = packetTargetLifetime(level);
   const bombChance = Math.min(0.29, 0.08 + (level - 1) * 0.024);
   const targets: PacketTarget[] = [];

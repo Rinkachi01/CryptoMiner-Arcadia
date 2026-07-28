@@ -70,3 +70,16 @@ test("catálogo mantém preços acessíveis e progressão virtual conservadora",
   assert.equal(BATTERY_PRICE_CMA, 0.05);
   assert.ok(miners.at(-1).powerGh / miners.at(-1).slotSize > miners[0].powerGh);
 });
+
+test("Violet Bit é premium mesmo usando apenas uma fan", () => {
+  const violet = getMiner("violet-bit");
+  const cryo = getMiner("cryo-twin");
+  const magenta = getMiner("magenta-flux");
+  assert.ok(violet && cryo && magenta);
+  assert.equal(violet.fanCount, 1);
+  assert.equal(violet.slotSize, 1);
+  assert.equal(violet.powerGh > cryo.powerGh, true);
+  assert.equal(violet.priceCma > cryo.priceCma, true);
+  assert.equal(violet.powerGh < magenta.powerGh, true);
+  assert.equal(violet.priceCma < magenta.priceCma, true);
+});

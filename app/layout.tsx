@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Organize sua sala, instale mineradores e conquiste poder temporário nos minigames validados pelo servidor.",
+    "Organize racks, instale mineradores e jogue três minigames validados pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Coin Arcade online: sobreviva à chuva de moedas no Packet Catch e encontre pares no Hash Match.",
+      "Três minigames online: Packet Catch, Hash Match e Circuit Rush com progressão autoritativa.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "/og-coin-arcade.png",
+        url: "/og-arcade-v3.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Coin Arcade online",
+        alt: "Crypto Miner Arcadia — três minigames online",
       },
     ],
   },
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Coin Arcade online: Packet Catch e Hash Match com progressão de dificuldade.",
-    images: ["/og-coin-arcade.png"],
+      "Packet Catch, Hash Match e Circuit Rush com dificuldade progressiva.",
+    images: ["/og-arcade-v3.png"],
   },
 };
 

@@ -3435,6 +3435,461 @@ img {
   }
 }
 
+/* Fase 4.3: editor estável, lista de jogos e Circuit Rush. */
+.modal-backdrop {
+  z-index: 1000;
+  align-items: center;
+  justify-items: center;
+  background: rgba(2, 5, 9, 0.74);
+  backdrop-filter: none;
+  overscroll-behavior: contain;
+}
+
+.rack-modal {
+  position: relative;
+  isolation: isolate;
+  width: min(1120px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  border-color: #526170;
+  background: #0d141d;
+  clip-path: none;
+}
+
+.rack-modal > header,
+.rack-modal > footer {
+  background: #111a24;
+  backdrop-filter: none;
+}
+
+.rack-manager-layout {
+  background: #0d141d;
+}
+
+.rack-inventory,
+.rack-preview-panel {
+  background-color: #0d141d;
+}
+
+.rack-slot-editor > button,
+.rack-miner-card,
+.rack-miner-art {
+  touch-action: manipulation;
+}
+
+.games-hub-body {
+  display: grid;
+  align-items: start;
+  padding: 22px;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.game-selector-list {
+  position: sticky;
+  top: 126px;
+  display: grid;
+  gap: 9px;
+}
+
+.game-selector-list button {
+  position: relative;
+  display: grid;
+  min-height: 102px;
+  align-content: center;
+  gap: 5px;
+  padding: 14px 44px 14px 52px;
+  border: 1px solid #34414e;
+  background: #0b1219;
+  color: #8694a2;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.game-selector-list button::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: #495765;
+  content: "";
+}
+
+.game-selector-list button.packet::before {
+  background: var(--cyan);
+}
+
+.game-selector-list button.hash::before {
+  background: var(--lime);
+}
+
+.game-selector-list button.circuit::before {
+  background: var(--amber);
+}
+
+.game-selector-list button > span {
+  position: absolute;
+  top: 16px;
+  left: 15px;
+  color: #667584;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.game-selector-list button > strong {
+  color: #eef5ef;
+  font-family: var(--font-display);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.game-selector-list button > small {
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.game-selector-list button > b {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  color: #71808e;
+  font-size: 6px;
+}
+
+.game-selector-list button.active {
+  border-color: var(--lime);
+  background:
+    linear-gradient(105deg, rgba(169, 255, 63, 0.1), transparent 58%),
+    #111a22;
+  box-shadow: inset 0 0 24px rgba(169, 255, 63, 0.035);
+}
+
+.game-selector-list button.active > b {
+  color: var(--lime);
+}
+
+.active-game-stage {
+  min-width: 0;
+}
+
+.active-game-stage .hash-match-shell,
+.active-game-stage .circuit-rush-shell {
+  margin-top: 0;
+}
+
+.falling-target {
+  z-index: 7;
+  width: clamp(68px, 10%, 86px);
+  min-width: 68px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.falling-target img,
+.falling-target b,
+.falling-target .bomb-sprite {
+  pointer-events: none;
+}
+
+.hash-card {
+  min-width: 72px;
+  touch-action: manipulation;
+}
+
+.circuit-rush-shell {
+  overflow: hidden;
+  border: 1px solid #5a4931;
+  background: #110e09;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+.circuit-rush-shell > header {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #4a3b29;
+  background:
+    linear-gradient(90deg, rgba(255, 179, 59, 0.09), transparent 45%),
+    #1a1510;
+}
+
+.circuit-rush-shell > header > div:first-child > span,
+.circuit-rush-layout > aside > span {
+  color: var(--amber);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.circuit-rush-shell > header h3 {
+  margin: 4px 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  text-transform: uppercase;
+}
+
+.circuit-rush-shell > header p {
+  margin: 0;
+  color: #91877b;
+  font-size: 8px;
+}
+
+.circuit-rush-layout {
+  display: grid;
+  min-height: 480px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+}
+
+.circuit-board {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-content: center;
+  gap: clamp(10px, 1.5vw, 18px);
+  min-height: 480px;
+  padding: 34px;
+  border-right: 1px solid #493a28;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 179, 59, 0.08), transparent 38%),
+    linear-gradient(rgba(255, 179, 59, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 179, 59, 0.035) 1px, transparent 1px),
+    #100d09;
+  background-size: auto, 32px 32px, 32px 32px, auto;
+  grid-template-columns: repeat(4, minmax(68px, 94px));
+}
+
+.circuit-board > button {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid #3f3c36;
+  background: #141411;
+  color: #5f625c;
+  cursor: default;
+}
+
+.circuit-board > button i {
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid #4b504a;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 5px #10130f;
+}
+
+.circuit-board > button span {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-size: 6px;
+}
+
+.circuit-board > button.target {
+  border-color: var(--lime);
+  background: rgba(169, 255, 63, 0.11);
+  cursor: pointer;
+  box-shadow:
+    0 0 22px rgba(169, 255, 63, 0.24),
+    inset 0 0 20px rgba(169, 255, 63, 0.08);
+  touch-action: manipulation;
+}
+
+.circuit-board > button.target i {
+  border-color: var(--lime);
+  background: var(--lime);
+  box-shadow: 0 0 18px var(--lime);
+  animation: circuit-pulse 700ms ease-in-out infinite alternate;
+}
+
+.circuit-board > button.decoy {
+  border-color: rgba(255, 95, 100, 0.58);
+  background: rgba(255, 95, 100, 0.07);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.circuit-board > button.decoy i {
+  border-color: var(--danger);
+  background: rgba(255, 95, 100, 0.23);
+  box-shadow: 0 0 12px rgba(255, 95, 100, 0.45);
+}
+
+.circuit-board > button:disabled {
+  opacity: 1;
+}
+
+@keyframes circuit-pulse {
+  from {
+    transform: scale(0.78);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+.circuit-board-cover {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 30px;
+  background:
+    radial-gradient(circle, rgba(255, 179, 59, 0.11), transparent 38%),
+    rgba(12, 9, 6, 0.91);
+  text-align: center;
+}
+
+.circuit-board-cover > span {
+  color: var(--amber);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.circuit-board-cover > strong {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 40px);
+  text-transform: uppercase;
+}
+
+.circuit-board-cover p {
+  max-width: 430px;
+  margin: 0;
+  color: #a69a8c;
+  font-size: 10px;
+}
+
+.circuit-board-cover button {
+  min-width: 220px;
+  margin-top: 7px;
+  padding: 13px 18px;
+  border: 1px solid var(--amber);
+  background: var(--amber);
+  color: #120d05;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 10px;
+}
+
+.circuit-board-cover button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.circuit-rush-layout > aside {
+  padding: 24px 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 179, 59, 0.055), transparent 46%),
+    #17120d;
+}
+
+.circuit-rush-layout > aside h4 {
+  margin: 9px 0 16px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  text-transform: uppercase;
+}
+
+.circuit-rush-layout > aside ul {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.circuit-rush-layout > aside li {
+  padding: 9px 10px;
+  border: 1px solid #403426;
+  background: #100c08;
+  color: #c0b5a8;
+  font-size: 9px;
+}
+
+.circuit-rush-layout > aside > small {
+  display: block;
+  margin-top: 12px;
+  color: #857b70;
+  font-size: 8px;
+}
+
+@media (max-width: 1080px) {
+  .games-hub-body {
+    grid-template-columns: 1fr;
+  }
+
+  .game-selector-list {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .modal-backdrop {
+    padding: 0;
+  }
+
+  .rack-modal {
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .circuit-rush-shell > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .circuit-rush-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .circuit-board {
+    min-height: 430px;
+    border-right: 0;
+    border-bottom: 1px solid #493a28;
+    grid-template-columns: repeat(4, minmax(56px, 84px));
+  }
+}
+
+@media (max-width: 620px) {
+  .games-hub-body {
+    padding: 12px;
+  }
+
+  .game-selector-list {
+    grid-template-columns: 1fr;
+  }
+
+  .game-selector-list button {
+    min-height: 76px;
+  }
+
+  .falling-target {
+    width: 62px;
+    min-width: 62px;
+  }
+
+  .hash-card {
+    min-width: 0;
+  }
+
+  .circuit-board {
+    gap: 8px;
+    min-height: 390px;
+    padding: 18px 10px;
+    grid-template-columns: repeat(4, minmax(48px, 1fr));
+  }
+}
+
 /* Arcade v2: moedas reais do acervo, bomba fatal e jogo da memória. */
 .falling-target {
   position: absolute;
@@ -5873,5 +6328,28 @@ img {
     justify-content: center;
     padding-inline: 5px;
     font-size: 6px;
+  }
+}
+
+/* Mantém a área de toque das moedas acima das regras antigas do arcade. */
+.active-game-stage .falling-target {
+  z-index: 7;
+  width: clamp(68px, 10%, 86px);
+  min-width: 68px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.active-game-stage .falling-target img,
+.active-game-stage .falling-target b,
+.active-game-stage .falling-target .bomb-sprite {
+  pointer-events: none;
+}
+
+@media (max-width: 620px) {
+  .active-game-stage .falling-target {
+    width: 62px;
+    min-width: 62px;
   }
 }

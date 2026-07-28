@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { assetsManifest } from "./assets.manifest";
 import { PacketCatchView } from "./PacketCatchView";
 import {
@@ -758,7 +759,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               {activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
-                <>ARCADE ARCADIA <i /> 2 MINIGAMES ONLINE</>
+                <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
               ) : (
                 <>
                   {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
@@ -1876,7 +1877,8 @@ function ShopView({
           <h2>Monte sua operação</h2>
           <p>
             Compre equipamentos aqui. As 12 posições de cada sala são gratuitas:
-            você paga apenas pelo rack que será instalado.
+            você paga apenas pelo rack que será instalado. Fans definem espaço,
+            enquanto potência, raridade e preço são atributos independentes.
           </p>
         </div>
         <div className="shop-wallet">
@@ -2109,11 +2111,19 @@ function RackManager({
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const usedSlots = getUsedSlotCount(installed);
 
-  return (
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return createPortal(
     <div
       className="modal-backdrop"
       role="presentation"
-      onMouseDown={(event) => {
+      onClick={(event) => {
         if (event.currentTarget === event.target) onClose();
       }}
     >
@@ -2348,14 +2358,15 @@ function RackManager({
         <footer>
           <p>
             <span>✓</span>
-            Encaixes salvos automaticamente neste dispositivo
+            Encaixes salvos automaticamente na sua conta
           </p>
           <button type="button" onClick={onClose}>
             CONCLUIR
           </button>
         </footer>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
