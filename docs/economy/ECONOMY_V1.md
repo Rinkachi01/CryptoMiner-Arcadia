@@ -62,6 +62,18 @@ Antes de ativar qualquer recompensa resgatável, o servidor deverá aplicar
 orçamento diário de emissão, limites por conta, telemetria antifraude e
 controle de reserva.
 
+## Autoridade e liquidação
+
+- toda ação econômica é validada no servidor;
+- compras usam identificadores idempotentes para não serem cobradas duas vezes;
+- o estado possui versão para detectar concorrência entre sessões;
+- blocos são liquidados pelo relógio do servidor, nunca pelo cronômetro visual;
+- inventário, energia, salas, racks, mineradores, saldos e alocações ficam em
+  armazenamento persistente por conta;
+- cada ação gera uma entrada de auditoria;
+- a importação do estado antigo do navegador acontece apenas na criação da
+  conta e aplica limites de saldo, energia, baterias e equipamentos.
+
 ## Energia
 
 - oito células de 12 horas;

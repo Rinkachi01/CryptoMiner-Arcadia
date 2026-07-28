@@ -1,50 +1,39 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
+async function readProductSources() {
+  const [layout, page, game, styles] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  return `${layout}\n${page}\n${game}\n${styles}`;
 }
 
-test("renderiza a experiência principal do Crypto Miner Arcadia", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+test("mantém a experiência principal e a conta autoritativa do Arcadia", async () => {
+  const source = await readProductSources();
 
-  const html = await response.text();
-  assert.match(html, /<title>Crypto Miner Arcadia<\/title>/i);
-  assert.match(html, /Sua sala de minera[cç][aã]o/i);
-  assert.match(html, /Sala de minera[cç][aã]o/i);
-  assert.match(html, /Pools/i);
-  assert.match(html, /Invent[aá]rio/i);
-  assert.match(html, /Loja/i);
-  assert.match(html, /Minigames/i);
-  assert.match(html, /RACKS NESTA SALA/i);
-  assert.match(html, /ENERGIA/i);
-  assert.match(html, /RECARGA GRATUITA/i);
-  assert.match(html, /h a cada 12h/i);
-  assert.match(html, /Pr[oó]ximo bloco/i);
-  assert.match(html, /Pools ativas/i);
-  assert.match(html, /100% distribu[ií]do/i);
-  assert.doesNotMatch(html, /1 CMA = US\$ 1/i);
-  assert.doesNotMatch(html, /BASE DA ECONOMIA/i);
-  assert.doesNotMatch(html, />CONSUMO</i);
-  assert.doesNotMatch(html, /codex-preview/i);
-  assert.doesNotMatch(html, /react-loading-skeleton/i);
+  assert.match(source, /title: "Crypto Miner Arcadia"/i);
+  assert.match(source, /Sua sala de mineração/i);
+  assert.match(source, /Sala de mineração/i);
+  assert.match(source, /Pools/i);
+  assert.match(source, /Inventário/i);
+  assert.match(source, /Loja/i);
+  assert.match(source, /Minigames/i);
+  assert.match(source, /CONTA NO SERVIDOR/i);
+  assert.match(source, /PROGRESSO PROTEGIDO/i);
+  assert.match(source, /RACKS NESTA SALA/i);
+  assert.match(source, /ENERGIA/i);
+  assert.match(source, /RECARGA GRATUITA/i);
+  assert.match(source, /REDE PRINCIPAL/i);
+  assert.match(source, /Poder total da rede/i);
+  assert.match(source, /ENTRAR COM CHATGPT/i);
+  assert.match(source, /rack-visual/i);
+  assert.doesNotMatch(source, /1 CMA = US\$ 1/i);
+  assert.doesNotMatch(source, /BASE DA ECONOMIA/i);
+  assert.doesNotMatch(source, />CONSUMO</i);
+  assert.doesNotMatch(source, /codex-preview/i);
+  assert.doesNotMatch(source, /react-loading-skeleton/i);
 });

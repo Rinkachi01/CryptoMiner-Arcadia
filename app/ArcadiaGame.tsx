@@ -7,6 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
+  BLOCK_INTERVAL_SECONDS,
   ENERGY_CLAIM_COOLDOWN_HOURS,
   ENERGY_CLAIM_HOURS,
   MAX_ENERGY_HOURS,
@@ -16,9 +17,7 @@ import {
   ROOM_RACK_CAPACITY,
   calculateDailyEstimatedReward,
   calculateEstimatedReward,
-  canInstallAt,
   defaultInstalledMiners,
-  findNextAvailableSlot,
   formatAtomic,
   getInstalledPower,
   getMiner,
@@ -28,23 +27,18 @@ import {
   type InstalledMiner,
   type PoolId,
 } from "./game-rules";
+import type {
+  GameActionName,
+  MinerUnit,
+  PoolAllocations,
+  PublicGameState,
+  RackInstance,
+  RoomId,
+  WalletSymbol,
+} from "./game-server";
 
 type ViewId = "mine" | "pools" | "inventory" | "shop" | "games";
-type RoomId = "room-1" | "room-2";
 type ShopCategory = "miners" | "racks" | "energy";
-type WalletSymbol = "CMA" | "BTC" | "DOGE";
-type PoolAllocations = Record<PoolId, number>;
-
-type MinerUnit = {
-  instanceId: string;
-  minerId: string;
-};
-
-type RackInstance = {
-  id: string;
-  roomId: RoomId;
-  positionIndex: number;
-};
 
 type RoomDefinition = {
   id: RoomId;
@@ -63,20 +57,21 @@ type RackPosition = {
   zIndex: number;
 };
 
-type SavedGameState = {
-  selectedPoolId: PoolId;
-  poolAllocations: PoolAllocations;
-  displayedBalanceSymbol: WalletSymbol;
-  cmaBalance: number;
-  batteryCount: number;
-  energyExpiresAt: number;
-  lastEnergyClaimAt: number;
-  activeRoomId: RoomId;
-  ownedRoomIds: RoomId[];
-  rackInventoryCount: number;
-  minerInventory: MinerUnit[];
-  racks: RackInstance[];
-  rackMiners: Record<string, InstalledMiner[]>;
+type ArcadiaGameProps = {
+  user: {
+    displayName: string;
+    email: string;
+  };
+  signOutPath: string;
+};
+
+type GameApiResponse = {
+  state: PublicGameState;
+  version: number;
+  serverTime: number;
+  nextBlockAt: number;
+  message: string;
+  error?: string;
 };
 
 const navigation: Array<{
@@ -200,224 +195,7 @@ function formatEnergy(totalSeconds: number) {
     .padStart(2, "0")}m`;
 }
 
-function createInstanceId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function isPoolId(value: unknown): value is PoolId {
-  return pools.some((pool) => pool.id === value);
-}
-
-function isWalletSymbol(value: unknown): value is WalletSymbol {
-  return value === "CMA" || value === "BTC" || value === "DOGE";
-}
-
-function isPoolAllocations(value: unknown): value is PoolAllocations {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<PoolAllocations>;
-  const values = pools.map((pool) => candidate[pool.id]);
-  return (
-    values.every(
-      (allocation) =>
-        typeof allocation === "number" &&
-        Number.isInteger(allocation) &&
-        allocation >= 0 &&
-        allocation <= 100,
-    ) && values.reduce((total, allocation) => total + (allocation ?? 0), 0) === 100
-  );
-}
-
-function isRoomId(value: unknown): value is RoomId {
-  return roomDefinitions.some((room) => room.id === value);
-}
-
-function isRackInstanceArray(value: unknown): value is RackInstance[] {
-  if (!Array.isArray(value)) return false;
-  return value.every((rack) => {
-    if (!rack || typeof rack !== "object") return false;
-    const candidate = rack as Partial<RackInstance>;
-    return (
-      typeof candidate.id === "string" &&
-      isRoomId(candidate.roomId) &&
-      typeof candidate.positionIndex === "number" &&
-      candidate.positionIndex >= 0 &&
-      candidate.positionIndex < ROOM_RACK_CAPACITY
-    );
-  });
-}
-
-function isRackMinerMap(
-  value: unknown,
-): value is Record<string, InstalledMiner[]> {
-  if (!value || typeof value !== "object") return false;
-  return Object.values(value).every((placements) => {
-    if (!Array.isArray(placements)) return false;
-    return placements.every((placement) => {
-      if (!placement || typeof placement !== "object") return false;
-      const candidate = placement as Partial<InstalledMiner>;
-      return (
-        typeof candidate.instanceId === "string" &&
-        typeof candidate.minerId === "string" &&
-        Boolean(getMiner(candidate.minerId)) &&
-        typeof candidate.slotIndex === "number" &&
-        candidate.slotIndex >= 0 &&
-        candidate.slotIndex < RACK_CAPACITY
-      );
-    });
-  });
-}
-
-function isMinerInventory(value: unknown): value is MinerUnit[] {
-  if (!Array.isArray(value)) return false;
-  return value.every((unit) => {
-    if (!unit || typeof unit !== "object") return false;
-    const candidate = unit as Partial<MinerUnit>;
-    return (
-      typeof candidate.instanceId === "string" &&
-      typeof candidate.minerId === "string" &&
-      Boolean(getMiner(candidate.minerId))
-    );
-  });
-}
-
-function isSavedGameState(value: unknown): value is SavedGameState {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<SavedGameState>;
-  return (
-    isPoolId(candidate.selectedPoolId) &&
-    isPoolAllocations(candidate.poolAllocations) &&
-    isWalletSymbol(candidate.displayedBalanceSymbol) &&
-    typeof candidate.cmaBalance === "number" &&
-    typeof candidate.batteryCount === "number" &&
-    typeof candidate.energyExpiresAt === "number" &&
-    typeof candidate.lastEnergyClaimAt === "number" &&
-    isRoomId(candidate.activeRoomId) &&
-    Array.isArray(candidate.ownedRoomIds) &&
-    candidate.ownedRoomIds.every(isRoomId) &&
-    typeof candidate.rackInventoryCount === "number" &&
-    isMinerInventory(candidate.minerInventory) &&
-    isRackInstanceArray(candidate.racks) &&
-    isRackMinerMap(candidate.rackMiners)
-  );
-}
-
-function migrateLegacyState(value: unknown, now: number): SavedGameState | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as {
-    selectedPoolId?: unknown;
-    cmaBalance?: unknown;
-    batteryCount?: unknown;
-    energyHours?: unknown;
-    activeRoomId?: unknown;
-    ownedRoomIds?: unknown;
-    racks?: unknown;
-    rackMiners?: unknown;
-  };
-
-  if (
-    !isPoolId(candidate.selectedPoolId) ||
-    typeof candidate.cmaBalance !== "number" ||
-    typeof candidate.batteryCount !== "number" ||
-    typeof candidate.energyHours !== "number" ||
-    !isRoomId(candidate.activeRoomId) ||
-    !Array.isArray(candidate.ownedRoomIds) ||
-    !candidate.ownedRoomIds.every(isRoomId) ||
-    !isRackInstanceArray(candidate.racks) ||
-    !candidate.rackMiners ||
-    typeof candidate.rackMiners !== "object"
-  ) {
-    return null;
-  }
-
-  const migratedRackMiners: Record<string, InstalledMiner[]> = {};
-  const installedModelIds = new Set<string>();
-
-  for (const [rackId, placements] of Object.entries(candidate.rackMiners)) {
-    if (!Array.isArray(placements)) continue;
-    migratedRackMiners[rackId] = placements.flatMap((placement, index) => {
-      if (!placement || typeof placement !== "object") return [];
-      const legacy = placement as { minerId?: unknown; slotIndex?: unknown };
-      if (
-        typeof legacy.minerId !== "string" ||
-        !getMiner(legacy.minerId) ||
-        typeof legacy.slotIndex !== "number"
-      ) {
-        return [];
-      }
-      installedModelIds.add(legacy.minerId);
-      return [
-        {
-          instanceId: `legacy-${rackId}-${legacy.minerId}-${index}`,
-          minerId: legacy.minerId,
-          slotIndex: legacy.slotIndex,
-        },
-      ];
-    });
-  }
-
-  return {
-    selectedPoolId: candidate.selectedPoolId,
-    poolAllocations: {
-      cma: candidate.selectedPoolId === "cma" ? 100 : 0,
-      btc: candidate.selectedPoolId === "btc" ? 100 : 0,
-      doge: candidate.selectedPoolId === "doge" ? 100 : 0,
-    },
-    displayedBalanceSymbol: "CMA",
-    cmaBalance: candidate.cmaBalance,
-    batteryCount: candidate.batteryCount,
-    energyExpiresAt:
-      now + Math.max(0, candidate.energyHours) * MS_PER_HOUR,
-    lastEnergyClaimAt: 0,
-    activeRoomId: candidate.activeRoomId,
-    ownedRoomIds: candidate.ownedRoomIds,
-    rackInventoryCount: 0,
-    minerInventory: miners
-      .filter((miner) => !installedModelIds.has(miner.id))
-      .map((miner) => ({
-        instanceId: `legacy-inventory-${miner.id}`,
-        minerId: miner.id,
-      })),
-    racks: candidate.racks,
-    rackMiners: migratedRackMiners,
-  };
-}
-
-function migrateV3State(value: unknown): SavedGameState | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as Omit<
-    SavedGameState,
-    "poolAllocations" | "displayedBalanceSymbol"
-  >;
-
-  if (
-    !isPoolId(candidate.selectedPoolId) ||
-    typeof candidate.cmaBalance !== "number" ||
-    typeof candidate.batteryCount !== "number" ||
-    typeof candidate.energyExpiresAt !== "number" ||
-    typeof candidate.lastEnergyClaimAt !== "number" ||
-    !isRoomId(candidate.activeRoomId) ||
-    !Array.isArray(candidate.ownedRoomIds) ||
-    !candidate.ownedRoomIds.every(isRoomId) ||
-    typeof candidate.rackInventoryCount !== "number" ||
-    !isMinerInventory(candidate.minerInventory) ||
-    !isRackInstanceArray(candidate.racks) ||
-    !isRackMinerMap(candidate.rackMiners)
-  ) {
-    return null;
-  }
-
-  return {
-    ...candidate,
-    poolAllocations: {
-      cma: candidate.selectedPoolId === "cma" ? 100 : 0,
-      btc: candidate.selectedPoolId === "btc" ? 100 : 0,
-      doge: candidate.selectedPoolId === "doge" ? 100 : 0,
-    },
-    displayedBalanceSymbol: "CMA",
-  };
-}
-
-export function ArcadiaGame() {
+export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [activeView, setActiveView] = useState<ViewId>("mine");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
@@ -428,9 +206,12 @@ export function ArcadiaGame() {
   const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
     useState<WalletSymbol>("CMA");
   const [cmaBalance, setCmaBalance] = useState(86.4);
+  const [btcBalanceAtomic, setBtcBalanceAtomic] = useState(1284);
+  const [dogeBalanceAtomic, setDogeBalanceAtomic] = useState(642_000_000);
   const [batteryCount, setBatteryCount] = useState(2);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
   const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
+  const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [clockNow, setClockNow] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
@@ -446,6 +227,11 @@ export function ArcadiaGame() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [serverVersion, setServerVersion] = useState(0);
+  const [serverStatus, setServerStatus] = useState<
+    "connecting" | "online" | "error"
+  >("connecting");
+  const [actionPending, setActionPending] = useState(false);
   const [toast, setToast] = useState("");
 
   const selectedPool =
@@ -453,7 +239,12 @@ export function ArcadiaGame() {
   const activeRoom =
     roomDefinitions.find((room) => room.id === activeRoomId) ??
     roomDefinitions[0];
-  const [secondsLeft, setSecondsLeft] = useState(selectedPool.blockSeconds);
+  const [blockDeadline, setBlockDeadline] = useState(0);
+  const playerInitial =
+    user.displayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M";
+  const secondsLeft = hydrated
+    ? Math.max(0, Math.ceil((blockDeadline - clockNow) / 1000))
+    : selectedPool.blockSeconds;
 
   const allInstalled = useMemo(
     () => Object.values(rackMiners).flat(),
@@ -486,108 +277,150 @@ export function ArcadiaGame() {
     racks.find((rack) => rack.id === activeRackId) ?? currentRoomRacks[0];
   const activeRackMiners = activeRack ? rackMiners[activeRack.id] ?? [] : [];
 
-  useEffect(() => {
-    const loadSavedState = window.setTimeout(() => {
-      const now = Date.now();
-      try {
-        const currentSaved =
-          window.localStorage.getItem("arcadia-game-state-v4");
-        const previousSaved =
-          window.localStorage.getItem("arcadia-game-state-v3");
-        const legacySaved =
-          window.localStorage.getItem("arcadia-game-state-v2");
-        let restored: SavedGameState | null = null;
+  function applyServerSnapshot(snapshot: GameApiResponse) {
+    const state = snapshot.state;
+    setSelectedPoolId(state.selectedPoolId);
+    setPoolAllocations(state.poolAllocations);
+    setDisplayedBalanceSymbol(state.displayedBalanceSymbol);
+    setCmaBalance(state.cmaBalance);
+    setBtcBalanceAtomic(state.btcBalanceAtomic);
+    setDogeBalanceAtomic(state.dogeBalanceAtomic);
+    setBatteryCount(state.batteryCount);
+    setEnergyExpiresAt(state.energyExpiresAt);
+    setLastEnergyClaimAt(state.lastEnergyClaimAt);
+    setLastSettledBlock(state.lastSettledBlock);
+    setActiveRoomId(state.activeRoomId);
+    setOwnedRoomIds(state.ownedRoomIds);
+    setRackInventoryCount(state.rackInventoryCount);
+    setMinerInventory(state.minerInventory);
+    setRacks(state.racks);
+    setRackMiners(state.rackMiners);
+    setActiveRackId((current) =>
+      state.racks.some((rack) => rack.id === current)
+        ? current
+        : (state.racks[0]?.id ?? "rack-01"),
+    );
+    setServerVersion(snapshot.version);
+    setClockNow(snapshot.serverTime);
+    setBlockDeadline(snapshot.nextBlockAt);
+    setServerStatus("online");
+    setHydrated(true);
+  }
 
-        if (currentSaved) {
-          const parsed: unknown = JSON.parse(currentSaved);
-          if (isSavedGameState(parsed)) restored = parsed;
-        } else if (previousSaved) {
-          restored = migrateV3State(JSON.parse(previousSaved));
-        } else if (legacySaved) {
-          restored = migrateLegacyState(JSON.parse(legacySaved), now);
-        }
-
-        if (restored) {
-            setSelectedPoolId(restored.selectedPoolId);
-            setPoolAllocations(restored.poolAllocations);
-            setDisplayedBalanceSymbol(restored.displayedBalanceSymbol);
-            setCmaBalance(restored.cmaBalance);
-            setBatteryCount(restored.batteryCount);
-            setEnergyExpiresAt(restored.energyExpiresAt);
-            setLastEnergyClaimAt(restored.lastEnergyClaimAt);
-            setActiveRoomId(restored.activeRoomId);
-            setOwnedRoomIds(restored.ownedRoomIds);
-            setRackInventoryCount(restored.rackInventoryCount);
-            setMinerInventory(restored.minerInventory);
-            setRacks(restored.racks);
-            setRackMiners(restored.rackMiners);
-            setActiveRackId(restored.racks[0]?.id ?? "rack-01");
-            const pool = pools.find(
-              (item) => item.id === restored.selectedPoolId,
-            );
-            if (pool) setSecondsLeft(pool.blockSeconds);
-        } else {
-          setEnergyExpiresAt(now + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
-        }
-      } catch {
-        // O estado inicial seguro continua ativo se o armazenamento falhar.
-        setEnergyExpiresAt(now + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
-      } finally {
-        setClockNow(now);
-        setHydrated(true);
+  async function performGameAction(
+    action: GameActionName,
+    payload: Record<string, unknown> = {},
+  ) {
+    if (serverStatus !== "online" || actionPending) {
+      if (serverStatus !== "online") {
+        setToast("Aguarde a conexão segura com o servidor.");
       }
-    }, 0);
+      return null;
+    }
 
-    return () => window.clearTimeout(loadSavedState);
+    setActionPending(true);
+    try {
+      const response = await fetch("/api/game", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          payload,
+          expectedVersion: serverVersion,
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+      const result = (await response.json()) as GameApiResponse;
+      if (result.state) applyServerSnapshot(result);
+      setToast(result.error ?? result.message);
+      return response.ok ? result : null;
+    } catch {
+      setServerStatus("error");
+      setToast("A conexão com o servidor foi interrompida. Nenhuma ação local foi aplicada.");
+      return null;
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      let bootstrapState: unknown;
+      for (const key of [
+        "arcadia-game-state-v4",
+        "arcadia-game-state-v3",
+        "arcadia-game-state-v2",
+      ]) {
+        const saved = window.localStorage.getItem(key);
+        if (!saved) continue;
+        try {
+          bootstrapState = JSON.parse(saved);
+          break;
+        } catch {
+          // Tenta a próxima versão local disponível.
+        }
+      }
+
+      try {
+        const response = await fetch("/api/game", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "bootstrap",
+            bootstrapState,
+          }),
+          signal: controller.signal,
+        });
+        const result = (await response.json()) as GameApiResponse;
+        if (!response.ok || !result.state) {
+          throw new Error(result.error ?? "Servidor indisponível.");
+        }
+        applyServerSnapshot(result);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setClockNow(Date.now());
+        setEnergyExpiresAt(Date.now() + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
+        setHydrated(true);
+        setServerStatus("error");
+        setToast(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar a conta.",
+        );
+      }
+    })();
+
+    return () => controller.abort();
+    // A inicialização autoritativa acontece uma única vez por sessão.
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    const savedState: SavedGameState = {
-      selectedPoolId,
-      poolAllocations,
-      displayedBalanceSymbol,
-      cmaBalance,
-      batteryCount,
-      energyExpiresAt,
-      lastEnergyClaimAt,
-      activeRoomId,
-      ownedRoomIds,
-      rackInventoryCount,
-      minerInventory,
-      racks,
-      rackMiners,
-    };
-    window.localStorage.setItem(
-      "arcadia-game-state-v4",
-      JSON.stringify(savedState),
-    );
-  }, [
-    activeRoomId,
-    batteryCount,
-    cmaBalance,
-    displayedBalanceSymbol,
-    energyExpiresAt,
-    hydrated,
-    lastEnergyClaimAt,
-    minerInventory,
-    ownedRoomIds,
-    poolAllocations,
-    rackInventoryCount,
-    rackMiners,
-    racks,
-    selectedPoolId,
-  ]);
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSecondsLeft((current) =>
-        current <= 1 ? selectedPool.blockSeconds : current - 1,
-      );
-      setClockNow(Date.now());
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [selectedPool.blockSeconds]);
+    if (
+      !hydrated ||
+      serverStatus !== "online" ||
+      blockDeadline <= Date.now()
+    ) {
+      return;
+    }
+    const delay = Math.max(1000, blockDeadline - Date.now() + 350);
+    const timer = window.setTimeout(() => {
+      void fetch("/api/game", { cache: "no-store" })
+        .then(async (response) => {
+          const result = (await response.json()) as GameApiResponse;
+          if (response.ok && result.state) applyServerSnapshot(result);
+        })
+        .catch(() => setServerStatus("error"));
+    }, delay);
+    return () => window.clearTimeout(timer);
+    // O prazo do bloco é fornecido pelo servidor e agenda uma única sincronização.
+  }, [blockDeadline, hydrated, serverStatus]);
 
   useEffect(() => {
     if (!toast) return;
@@ -602,92 +435,34 @@ export function ArcadiaGame() {
     };
   }, [rackOpen, roomsOpen]);
 
-  function installMiner(instanceId: string, requestedSlot?: number) {
+  async function installMiner(instanceId: string, requestedSlot?: number) {
     if (!activeRack) return;
-    const unit = minerInventory.find(
-      (item) => item.instanceId === instanceId,
-    );
-    const miner = unit ? getMiner(unit.minerId) : undefined;
-    if (!miner) return;
-
-    const current = rackMiners[activeRack.id] ?? [];
-    const slotIndex =
-      requestedSlot ?? findNextAvailableSlot(current, miner);
-
-    if (
-      slotIndex === null ||
-      slotIndex === undefined ||
-      !canInstallAt(current, miner, slotIndex)
-    ) {
-      setToast(
-        miner.slotSize === 2
-          ? "Esse minerador precisa de dois slots livres na mesma prateleira."
-          : "Esse slot não está disponível.",
-      );
-      return;
-    }
-
-    setRackMiners((state) => ({
-      ...state,
-      [activeRack.id]: [
-        ...current,
-        { instanceId, minerId: miner.id, slotIndex },
-      ],
-    }));
-    setMinerInventory((items) =>
-      items.filter((item) => item.instanceId !== instanceId),
-    );
-    setToast(
-      `${miner.name} instalado no${
-        miner.slotSize === 1 ? ` slot ${slotIndex + 1}` : "s dois slots"
-      }.`,
-    );
+    await performGameAction("install_miner", {
+      rackId: activeRack.id,
+      instanceId,
+      ...(requestedSlot === undefined ? {} : { slotIndex: requestedSlot }),
+    });
   }
 
-  function removeMiner(instanceId: string) {
+  async function removeMiner(instanceId: string) {
     if (!activeRack) return;
-    const placement = activeRackMiners.find(
-      (item) => item.instanceId === instanceId,
-    );
-    if (!placement) return;
-    const miner = getMiner(placement.minerId);
-    setRackMiners((state) => ({
-      ...state,
-      [activeRack.id]: (state[activeRack.id] ?? []).filter(
-        (item) => item.instanceId !== instanceId,
-      ),
-    }));
-    setMinerInventory((items) => [
-      ...items,
-      { instanceId, minerId: placement.minerId },
-    ]);
-    setToast(`${miner?.name ?? "Minerador"} voltou para o inventário.`);
+    await performGameAction("remove_miner", {
+      rackId: activeRack.id,
+      instanceId,
+    });
   }
 
-  function removeAllMiners() {
+  async function removeAllMiners() {
     if (!activeRack || activeRackMiners.length === 0) return;
-    setMinerInventory((items) => [
-      ...items,
-      ...activeRackMiners.map(({ instanceId, minerId }) => ({
-        instanceId,
-        minerId,
-      })),
-    ]);
-    setRackMiners((state) => ({ ...state, [activeRack.id]: [] }));
-    setToast("Todos os mineradores desse rack voltaram para o inventário.");
+    await performGameAction("remove_all_miners", {
+      rackId: activeRack.id,
+    });
   }
 
-  function applyPoolAllocations(next: PoolAllocations) {
-    if (!isPoolAllocations(next)) {
-      setToast("A distribuição das pools precisa somar exatamente 100%.");
-      return;
-    }
-    const primaryPool = pools.reduce((largest, pool) =>
-      next[pool.id] > next[largest.id] ? pool : largest,
-    );
-    setPoolAllocations(next);
-    setSelectedPoolId(primaryPool.id);
-    setToast("Distribuição de poder atualizada nas três pools.");
+  async function applyPoolAllocations(next: PoolAllocations) {
+    await performGameAction("apply_allocations", {
+      allocations: next,
+    });
   }
 
   function openRack(rackId: string) {
@@ -716,167 +491,72 @@ export function ArcadiaGame() {
     setWalletOpen(false);
   }
 
-  function placeRack(positionIndex: number) {
+  async function placeRack(positionIndex: number) {
     if (!ownedRoomIds.includes(activeRoomId)) return;
-    if (currentRoomRacks.length >= ROOM_RACK_CAPACITY) {
-      setToast("Essa sala já atingiu o limite de 12 racks.");
-      return;
-    }
-    if (currentRoomRacks.some((rack) => rack.positionIndex === positionIndex)) {
-      return;
-    }
     if (rackInventoryCount <= 0) {
       openStore("racks");
       setToast("Compre um rack na loja antes de instalar.");
       return;
     }
-
-    const rackId = createInstanceId("rack");
-    const rack: RackInstance = {
-      id: rackId,
+    const result = await performGameAction("place_rack", {
       roomId: activeRoomId,
       positionIndex,
-    };
-    setRackInventoryCount((count) => Math.max(0, count - 1));
-    setRacks((items) => [...items, rack]);
-    setRackMiners((items) => ({ ...items, [rackId]: [] }));
-    setActiveRackId(rackId);
-    setToast(
-      `Rack ${currentRoomRacks.length + 1} instalado na ${activeRoom.label}.`,
+    });
+    const rack = result?.state.racks.find(
+      (item) =>
+        item.roomId === activeRoomId &&
+        item.positionIndex === positionIndex,
     );
-    window.setTimeout(() => setRackOpen(true), 100);
+    if (rack) {
+      setActiveRackId(rack.id);
+      window.setTimeout(() => setRackOpen(true), 100);
+    }
   }
 
-  function chooseRoom(roomId: RoomId) {
+  async function chooseRoom(roomId: RoomId) {
     if (!ownedRoomIds.includes(roomId)) {
       setRoomsOpen(true);
       return;
     }
-    setActiveRoomId(roomId);
-    setEditMode(false);
-    setRoomsOpen(false);
-    const rack = racks.find((item) => item.roomId === roomId);
-    if (rack) setActiveRackId(rack.id);
+    const result = await performGameAction("set_active_room", { roomId });
+    if (result) {
+      setEditMode(false);
+      setRoomsOpen(false);
+      const rack = result.state.racks.find((item) => item.roomId === roomId);
+      if (rack) setActiveRackId(rack.id);
+    }
   }
 
-  function buyRoom(room: RoomDefinition) {
+  async function buyRoom(room: RoomDefinition) {
     if (ownedRoomIds.includes(room.id)) {
-      chooseRoom(room.id);
+      await chooseRoom(room.id);
       return;
     }
-    if (cmaBalance < room.priceCma) {
-      setToast("Saldo CMA insuficiente para comprar essa sala.");
-      return;
+    const result = await performGameAction("buy_room", { roomId: room.id });
+    if (result) {
+      setEditMode(true);
+      setRoomsOpen(false);
     }
-    setCmaBalance((balance) => balance - room.priceCma);
-    setOwnedRoomIds((rooms) => [...rooms, room.id]);
-    setActiveRoomId(room.id);
-    setEditMode(true);
-    setRoomsOpen(false);
-    setToast(`${room.name} desbloqueado. As 12 posições já estão disponíveis.`);
   }
 
-  function buyMiners(minerId: string, quantity: number) {
-    const miner = getMiner(minerId);
-    if (!miner || quantity < 1) return;
-    const total = miner.priceCma * quantity;
-    if (cmaBalance < total) {
-      setToast("Saldo CMA insuficiente para essa compra.");
-      return;
-    }
-    setCmaBalance((balance) => balance - total);
-    setMinerInventory((items) => [
-      ...items,
-      ...Array.from({ length: quantity }, (_, index) => ({
-        instanceId: createInstanceId(`${miner.id}-${index}`),
-        minerId: miner.id,
-      })),
-    ]);
-    setToast(
-      `${quantity}x ${miner.name} ${
-        quantity === 1 ? "adicionado" : "adicionados"
-      } ao inventário.`,
-    );
+  async function buyMiners(minerId: string, quantity: number) {
+    await performGameAction("buy_miners", { minerId, quantity });
   }
 
-  function buyRacks(quantity: number) {
-    if (quantity < 1) return;
-    const total = RACK_PRICE_CMA * quantity;
-    if (cmaBalance < total) {
-      setToast("Saldo CMA insuficiente para comprar esses racks.");
-      return;
-    }
-    setCmaBalance((balance) => balance - total);
-    setRackInventoryCount((count) => count + quantity);
-    setToast(
-      `${quantity} rack${quantity === 1 ? "" : "s"} enviado${
-        quantity === 1 ? "" : "s"
-      } ao inventário.`,
-    );
+  async function buyRacks(quantity: number) {
+    await performGameAction("buy_racks", { quantity });
   }
 
-  function buyBatteries(quantity: number) {
-    if (quantity < 1) return;
-    const total = BATTERY_PRICE_CMA * quantity;
-    if (cmaBalance < total) {
-      setToast("Saldo CMA insuficiente para comprar essas baterias.");
-      return;
-    }
-    setCmaBalance((balance) => balance - total);
-    setBatteryCount((count) => count + quantity);
-    setToast(
-      `${quantity} bateria${quantity === 1 ? "" : "s"} adicionada${
-        quantity === 1 ? "" : "s"
-      } ao inventário.`,
-    );
+  async function buyBatteries(quantity: number) {
+    await performGameAction("buy_batteries", { quantity });
   }
 
-  function extendEnergy(hours: number) {
-    const now = Date.now();
-    setClockNow(now);
-    setEnergyExpiresAt((current) => {
-      const remaining = Math.max(0, current - now);
-      return (
-        now +
-        Math.min(
-          MAX_ENERGY_HOURS * MS_PER_HOUR,
-          remaining + hours * MS_PER_HOUR,
-        )
-      );
-    });
+  async function useBattery() {
+    await performGameAction("use_battery");
   }
 
-  function useBattery() {
-    if (batteryCount <= 0) {
-      setToast("Você não possui baterias. Compre uma ou ganhe em minigames.");
-      return;
-    }
-    if (energySeconds >= MAX_ENERGY_HOURS * 3600) {
-      setToast("As oito células de energia já estão carregadas.");
-      return;
-    }
-    setBatteryCount((count) => count - 1);
-    extendEnergy(BATTERY_HOURS);
-    setToast(`Bateria utilizada: +${BATTERY_HOURS} horas de energia.`);
-  }
-
-  function claimEnergy() {
-    if (!canClaimEnergy) {
-      setToast(
-        `Próxima recarga gratuita em ${formatTimer(
-          energyClaimCooldownSeconds,
-        )}.`,
-      );
-      return;
-    }
-    if (energySeconds >= MAX_ENERGY_HOURS * 3600) {
-      setToast("Use parte da energia antes de fazer um novo resgate.");
-      return;
-    }
-    const now = Date.now();
-    setLastEnergyClaimAt(now);
-    extendEnergy(ENERGY_CLAIM_HOURS);
-    setToast(`Recarga gratuita resgatada: +${ENERGY_CLAIM_HOURS} horas.`);
+  async function claimEnergy() {
+    await performGameAction("claim_energy");
   }
 
   const balances: Array<{
@@ -893,13 +573,16 @@ export function ArcadiaGame() {
     },
     {
       symbol: "BTC",
-      value: "0.00001284",
+      value: (btcBalanceAtomic / 100_000_000).toFixed(8),
       asset: assetsManifest.bitcoin.path,
       alt: assetsManifest.bitcoin.alt,
     },
     {
       symbol: "DOGE",
-      value: "6.42",
+      value: (dogeBalanceAtomic / 100_000_000).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      }),
       asset: assetsManifest.dogecoin.path,
       alt: assetsManifest.dogecoin.alt,
     },
@@ -910,7 +593,10 @@ export function ArcadiaGame() {
     ) ?? balances[0];
 
   return (
-    <main className="arcadia-shell">
+    <main
+      className={`arcadia-shell ${actionPending ? "server-action-pending" : ""}`}
+      data-server-status={serverStatus}
+    >
       <header className="topbar">
         <button
           className="brand"
@@ -965,7 +651,9 @@ export function ArcadiaGame() {
                   }`}
                   key={balance.symbol}
                   onClick={() => {
-                    setDisplayedBalanceSymbol(balance.symbol);
+                    void performGameAction("set_wallet_symbol", {
+                      symbol: balance.symbol,
+                    });
                     setWalletOpen(false);
                   }}
                 >
@@ -983,19 +671,35 @@ export function ArcadiaGame() {
           )}
         </div>
 
-        <button className="player-chip" type="button" aria-label="Perfil">
-          <span>07</span>
-          <strong>M</strong>
-        </button>
+        <div className="account-control">
+          <span>
+            <small>
+              {serverStatus === "online" ? "CONTA PROTEGIDA" : "CONECTANDO"}
+            </small>
+            <strong>{user.displayName}</strong>
+          </span>
+          <a href={signOutPath}>SAIR</a>
+          <b>{playerInitial}</b>
+        </div>
       </header>
+
+      <div className={`server-status-strip ${serverStatus}`}>
+        <span className="online-dot" />
+        {serverStatus === "online"
+          ? `PROGRESSO PROTEGIDO · VERSÃO ${serverVersion}`
+          : serverStatus === "connecting"
+            ? "CARREGANDO SUA CONTA SEGURA"
+            : "SERVIDOR INDISPONÍVEL · AÇÕES BLOQUEADAS"}
+        <small>BLOCO SINCRONIZADO #{lastSettledBlock}</small>
+      </div>
 
       <aside className="sidebar" aria-label="Navegação principal">
         <div className="player-card">
-          <div className="avatar-frame">M</div>
+          <div className="avatar-frame">{playerInitial}</div>
           <div>
             <span>OPERADOR</span>
-            <strong>MATEUS</strong>
-            <small>NÍVEL 07</small>
+            <strong>{user.displayName}</strong>
+            <small>CONTA NO SERVIDOR</small>
           </div>
         </div>
 
@@ -1073,13 +777,10 @@ export function ArcadiaGame() {
           <article>
             <span className="metric-icon pool">P</span>
             <div>
-              <small>POOLS ATIVAS</small>
-              <strong>
-                {pools.filter((pool) => poolAllocations[pool.id] > 0).length} /{" "}
-                {pools.length}
-              </strong>
+              <small>REDE PRINCIPAL</small>
+              <strong>{selectedPool.symbol}</strong>
             </div>
-            <em>100% DISTRIBUÍDO</em>
+            <em>{formatPower(selectedPool.networkPowerGh)} NA REDE</em>
           </article>
         </div>
 
@@ -1091,6 +792,7 @@ export function ArcadiaGame() {
             editMode={editMode}
             poolAllocations={poolAllocations}
             effectivePower={effectivePower}
+            secondsLeft={secondsLeft}
             energySeconds={energySeconds}
             batteryCount={batteryCount}
             rackInventoryCount={rackInventoryCount}
@@ -1163,14 +865,6 @@ export function ArcadiaGame() {
         ))}
       </nav>
 
-      <MiningStatusDock
-        installedPower={effectivePower}
-        allocations={poolAllocations}
-        secondsLeft={secondsLeft}
-        blockSeconds={selectedPool.blockSeconds}
-        onOpenPools={() => setActiveView("pools")}
-      />
-
       {rackOpen && activeRack && (
         <RackManager
           rackLabel={`RACK ${String(
@@ -1214,6 +908,7 @@ function MiningRoom({
   editMode,
   poolAllocations,
   effectivePower,
+  secondsLeft,
   energySeconds,
   batteryCount,
   rackInventoryCount,
@@ -1235,6 +930,7 @@ function MiningRoom({
   editMode: boolean;
   poolAllocations: PoolAllocations;
   effectivePower: number;
+  secondsLeft: number;
   energySeconds: number;
   batteryCount: number;
   rackInventoryCount: number;
@@ -1263,17 +959,17 @@ function MiningRoom({
               className={!editMode ? "selected" : ""}
               onClick={() => onSetEditMode(false)}
             >
-              VISÃO
+              <span>●</span> SALA
             </button>
             <button
               type="button"
               className={editMode ? "selected edit-active" : ""}
               onClick={() => onSetEditMode(true)}
             >
-              EDITAR · {roomRacks.length}/{ROOM_RACK_CAPACITY}
+              <span>+</span> ORGANIZAR · {roomRacks.length}/{ROOM_RACK_CAPACITY}
             </button>
             <button type="button" onClick={onOpenRooms}>
-              SALAS · {ownedRooms}/2
+              <span>▣</span> TROCAR SALA · {ownedRooms}/2
             </button>
           </div>
         </div>
@@ -1329,30 +1025,32 @@ function MiningRoom({
                 style={style}
                 key={rack.id}
               >
-                <img
-                  className="rack-frame"
-                  src={assetsManifest.rackBasic.path}
-                  alt=""
-                />
-                {installed.map((placement) => {
-                  const miner = getMiner(placement.minerId);
-                  if (!miner) return null;
-                  const row = Math.floor(placement.slotIndex / RACK_COLUMNS);
-                  const column = placement.slotIndex % RACK_COLUMNS;
+                <span className="rack-visual">
+                  <img
+                    className="rack-frame"
+                    src={assetsManifest.rackBasic.path}
+                    alt=""
+                  />
+                  {installed.map((placement) => {
+                    const miner = getMiner(placement.minerId);
+                    if (!miner) return null;
+                    const row = Math.floor(placement.slotIndex / RACK_COLUMNS);
+                    const column = placement.slotIndex % RACK_COLUMNS;
 
-                  return (
-                    <img
-                      className={`rack-miner size-${miner.slotSize}`}
-                      key={placement.instanceId}
-                      src={miner.asset}
-                      alt={miner.alt}
-                      style={{
-                        left: `${31 + column * 21.5}%`,
-                        top: `${17 + row * 22.5}%`,
-                      }}
-                    />
-                  );
-                })}
+                    return (
+                      <img
+                        className={`rack-miner size-${miner.slotSize}`}
+                        key={placement.instanceId}
+                        src={miner.asset}
+                        alt={miner.alt}
+                        style={{
+                          left: `${30.5 + column * 22}%`,
+                          top: `${17 + row * 22.5}%`,
+                        }}
+                      />
+                    );
+                  })}
+                </span>
                 <span className="rack-click-label">
                   <b>RACK · {getUsedSlotCount(installed)}/8</b>
                   CLIQUE PARA GERENCIAR
@@ -1415,6 +1113,13 @@ function MiningRoom({
             AJUSTAR DISTRIBUIÇÃO
           </button>
         </div>
+
+        <MiningStatusPanel
+          installedPower={effectivePower}
+          allocations={poolAllocations}
+          secondsLeft={secondsLeft}
+          onOpenPools={onOpenPools}
+        />
 
         <div className="reward-box multi-reward-box">
           <span>ESTIMATIVA POR BLOCO · 10 MIN</span>
@@ -1555,82 +1260,70 @@ function EnergyCard({
   );
 }
 
-function MiningStatusDock({
+function MiningStatusPanel({
   installedPower,
   allocations,
   secondsLeft,
-  blockSeconds,
   onOpenPools,
 }: {
   installedPower: number;
   allocations: PoolAllocations;
   secondsLeft: number;
-  blockSeconds: number;
   onOpenPools: () => void;
 }) {
   const activePools = pools.filter((pool) => allocations[pool.id] > 0);
-  const totalPoolsPower = activePools.reduce(
-    (total, pool) => total + pool.networkPowerGh,
-    0,
-  );
 
   return (
-    <aside className="mining-status-dock" aria-label="Status da mineração">
-      <div className="mining-dock-title">
-        <span>MINERAÇÃO</span>
+    <section className="mining-status-panel" aria-label="Status da mineração">
+      <div className="mining-status-heading">
+        <span>REDE EM MINERAÇÃO</span>
         <i className="online-dot" />
       </div>
-      <dl>
-        <div>
-          <dt>
-            <b>H</b>
-            <span>
-              <strong>{formatPower(installedPower)}</strong>
-              <small>Seu poder ativo</small>
-            </span>
-          </dt>
-        </div>
-        <div>
-          <dt>
-            <b>◎</b>
-            <span>
-              <strong>{formatPower(totalPoolsPower)}</strong>
-              <small>Poder das pools ativas</small>
-            </span>
-          </dt>
-        </div>
-        <div>
-          <dt>
-            <b>▱</b>
-            <span>
-              <strong>
-                {activePools.length}/{pools.length}
-              </strong>
-              <small>Suas pools</small>
-            </span>
-          </dt>
-        </div>
-        <div className="next-block-row">
-          <dt>
-            <b>⌛</b>
-            <span>
-              <strong>{formatTimer(secondsLeft)}</strong>
-              <small>Próximo bloco</small>
-            </span>
-          </dt>
-        </div>
-      </dl>
-      <div className="dock-progress">
-        <i
-          style={{
-            width: `${((blockSeconds - secondsLeft) / blockSeconds) * 100}%`,
-          }}
-        />
+
+      <div className="mining-pool-status-list">
+        {activePools.map((pool) => {
+          const allocation = allocations[pool.id];
+          const allocatedPower = Math.floor(
+            (installedPower * allocation) / 100,
+          );
+          return (
+            <article
+              key={pool.id}
+              style={{ "--pool-color": pool.color } as React.CSSProperties}
+            >
+              <img src={pool.asset} alt="" />
+              <span>
+                <small>{pool.symbol} · {allocation}% DO SEU PODER</small>
+                <strong>{formatPower(pool.networkPowerGh)}</strong>
+                <em>Poder total da rede {pool.symbol}</em>
+              </span>
+              <b>{formatPower(allocatedPower)}</b>
+            </article>
+          );
+        })}
       </div>
-      <button type="button" onClick={onOpenPools}>
-        VER E DIVIDIR PODER
-      </button>
-    </aside>
+
+      <div className="mining-block-status">
+        <span>
+          <small>PRÓXIMO BLOCO</small>
+          <strong>{formatTimer(secondsLeft)}</strong>
+        </span>
+        <div>
+          <i
+            style={{
+              width: `${
+                ((BLOCK_INTERVAL_SECONDS - secondsLeft) /
+                  BLOCK_INTERVAL_SECONDS) *
+                100
+              }%`,
+            }}
+          />
+        </div>
+        <button type="button" onClick={onOpenPools}>
+          GERENCIAR POOLS
+        </button>
+      </div>
+    </section>
   );
 }
 

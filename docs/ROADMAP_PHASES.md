@@ -47,20 +47,22 @@ explicações externas.
 
 ## Fase 3 — servidor autoritativo
 
-Status: próxima prioridade.
+Status: concluída nesta atualização.
 
-- cadastro, login e recuperação de conta;
+- entrada e saída com conta ChatGPT;
 - inventário, energia, compras e alocações salvos no servidor;
 - ledger imutável para todo crédito e débito;
 - fechamento de blocos no servidor;
 - idempotência para impedir recompensa ou compra duplicada;
-- painel administrativo e trilha de auditoria.
+- migração local única, validada e limitada;
+- versão de estado para detectar sessões desatualizadas;
+- trilha de auditoria por conta.
 
 Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: projetada, ainda sem recompensas.
+Status: próxima prioridade; projetada, ainda sem recompensas.
 
 Ordem de execução:
 
@@ -79,6 +81,17 @@ emissão por jogador.
 
 Critério de saída: nenhuma pontuação ou prêmio pode ser criado apenas pelo
 cliente.
+
+Entregas técnicas da próxima atualização:
+
+- primeira versão jogável do Packet Catch;
+- sessão de partida criada e encerrada pelo servidor;
+- nonce de uso único e prazo curto;
+- pontuação validada com regras reproduzíveis;
+- limite de partidas por hora e por dia;
+- poder temporário salvo com início e expiração;
+- painel administrativo mínimo para revisar partidas suspeitas;
+- recompensas de bateria e CMA continuam desativadas nessa primeira entrega.
 
 ## Fase 5 — beta econômico
 
