@@ -222,6 +222,27 @@ Próxima entrega:
 - ranking competitivo sem prêmio financeiro;
 - teste fechado dos controles administrativos e da economia completa.
 
+Entregas concluídas na oitava e nona etapas:
+
+- painel de temporadas com início, encerramento e metas operacionais;
+- snapshots econômicos preservados para comparação entre ciclos;
+- ranking competitivo calculado pelo servidor e sem prêmio financeiro;
+- três escalas de leitura compartilhadas entre o jogo e o painel do proprietário;
+- Arcade reorganizado para abrir diretamente na lista de minigames;
+- Central do Operador separada em visão geral, temporada, missões e histórico;
+- histórico pessoal de 30 dias com mineração, partidas, compras, energia e
+  equipamentos;
+- totais pessoais de CMA recebido e utilizado, poder temporário e desempenho do
+  Arcade;
+- linha do tempo filtrável construída a partir do ledger e das sessões
+  autoritativas, sem permitir alterações pelo navegador.
+
+Próxima entrega segura:
+
+- onboarding guiado para novos operadores;
+- notificações pessoais sobre energia, bloco, missão e temporada;
+- checklist e coleta de feedback para o beta fechado.
+
 Critério de saída: economia estável em uma temporada fechada.
 
 ## Fase 6 — recursos financeiros reais

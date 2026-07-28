@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { ActivityPanel } from "./ActivityPanel";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import { SeasonPanel } from "./SeasonPanel";
 
-type CareerTab = "overview" | "season" | "missions";
+type CareerTab = "overview" | "season" | "missions" | "activity";
 
 const tabs: Array<{
   id: CareerTab;
@@ -25,6 +26,11 @@ const tabs: Array<{
     id: "missions",
     label: "Missões e carreira",
     description: "Bateria, liga e conquistas",
+  },
+  {
+    id: "activity",
+    label: "Meu histórico",
+    description: "Partidas, compras e energia",
   },
 ];
 
@@ -54,7 +60,7 @@ export function CareerView({
           </p>
         </div>
         <aside>
-          <strong>3</strong>
+          <strong>4</strong>
           <span>ÁREAS ORGANIZADAS</span>
           <small>Sem prêmio financeiro ou saque</small>
         </aside>
@@ -81,6 +87,8 @@ export function CareerView({
       <div className="career-content">
         {activeTab === "season" ? (
           <SeasonPanel refreshKey={refreshKey} />
+        ) : activeTab === "activity" ? (
+          <ActivityPanel refreshKey={refreshKey} />
         ) : (
           <OperatorProgressPanel
             refreshKey={refreshKey}

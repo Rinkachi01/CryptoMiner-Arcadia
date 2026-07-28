@@ -19,9 +19,11 @@ test("Arcade mostra os jogos sem carregar carreira e temporada antes deles", () 
   assert.match(career, /Missões e carreira/);
 });
 
-test("Central do Operador separa visão geral, temporada e missões", () => {
+test("Central do Operador separa visão geral, temporada, missões e histórico", () => {
   assert.match(game, /Central do operador/);
   assert.match(game, /<CareerView/);
+  assert.match(career, /Meu histórico/);
+  assert.match(career, /ActivityPanel/);
   assert.match(progress, /show-\$\{section\}/);
   assert.match(styles, /show-overview \.daily-mission-panel/);
   assert.match(styles, /show-missions \.operator-level-card/);

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Interface acessível, Arcade organizado e uma Central do Operador separada no Crypto Miner Arcadia.",
+    "Mineração virtual com conta protegida e um novo histórico pessoal auditável no Crypto Miner Arcadia.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Minigames em primeiro plano, textos maiores e carreira organizada em uma área própria.",
+      "Seu histórico de mineração, partidas, compras e energia em uma linha do tempo protegida pelo servidor.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — interface pixel art mais clara com três minigames, Central do Operador e controle A+",
+        alt: "Crypto Miner Arcadia — central pessoal com histórico de mineração e atividades verificadas pelo servidor",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Interface mais clara, Arcade direto e Central do Operador com abas.",
+      "Histórico pessoal de mineração e atividades verificadas pelo servidor.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],
