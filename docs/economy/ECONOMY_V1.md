@@ -132,6 +132,18 @@ dos blocos. CMA e baterias continuam desativados como prêmio. Recarga, limites
 e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
 pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 
+### Orçamento global de poder temporário
+
+- cada conta pode receber no máximo 5.000 GH/s de poder temporário por dia UTC;
+- os três minigames compartilham o mesmo orçamento;
+- o servidor reserva cada recompensa com controle de concorrência;
+- se uma vitória ultrapassar o saldo restante, apenas a parcela disponível é
+  concedida;
+- pontuação, nível, liga e conquistas continuam avançando mesmo quando o
+  orçamento diário já foi consumido;
+- o painel do Arcade mostra uso, saldo restante e horário de reinício;
+- esse teto limita inflação de poder sem criar CMA ou baterias.
+
 ## Progressão do operador e telemetria
 
 - cada partida concede 18 XP de atividade;

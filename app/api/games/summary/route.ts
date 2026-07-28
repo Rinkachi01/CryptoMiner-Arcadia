@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import { readDailyGamePowerBudget } from "../../../game-emission-budget";
 import { calculateOperatorProgress } from "../../../operator-progress-rules";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,7 @@ export async function GET() {
   const now = Date.now();
   const accountId = await accountIdFor(user.email);
   await ensureSchema(db);
+  const emissionBudget = await readDailyGamePowerBudget(db, accountId, now);
   await db.batch(
     gameIds.map((gameId) =>
       db.prepare(
@@ -149,7 +151,7 @@ export async function GET() {
     (sum, row) => sum + Number(row.wins_today),
     0,
   );
-  const powerToday = [...todayRows.values()].reduce(
+  const rollingPower24h = [...todayRows.values()].reduce(
     (sum, row) => sum + Number(row.power_today),
     0,
   );
@@ -173,8 +175,18 @@ export async function GET() {
       totalWins,
       playsToday,
       winsToday,
-      powerToday,
+      powerToday: emissionBudget.usedPowerGh,
       flaggedSessions: Number(flaggedRow?.total ?? 0),
+    },
+    emission: {
+      ...emissionBudget,
+      rollingPower24h,
+      status:
+        emissionBudget.usagePercent >= 100
+          ? "limited"
+          : emissionBudget.usagePercent >= 75
+            ? "attention"
+            : "stable",
     },
     games: gameIds.map((gameId) => {
       const progress = progressRows.find((row) => row.game_id === gameId);

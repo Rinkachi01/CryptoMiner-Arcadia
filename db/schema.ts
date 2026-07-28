@@ -111,3 +111,19 @@ export const temporaryPowerGrants = sqliteTable(
     ),
   ],
 );
+
+export const gameEmissionBudgets = sqliteTable(
+  "game_emission_budgets",
+  {
+    accountId: text("account_id").notNull(),
+    windowKey: text("window_key").notNull(),
+    grantedPowerGh: integer("granted_power_gh").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("game_emission_budgets_account_window_unique").on(
+      table.accountId,
+      table.windowKey,
+    ),
+  ],
+);

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import { reserveDailyGamePower } from "../../../game-emission-budget";
 import {
   CIRCUIT_RUSH_DAILY_LIMIT,
   CIRCUIT_RUSH_HOURLY_LIMIT,
@@ -390,7 +391,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const rewardPowerGh = circuitRushRewardPower(
+  const requestedRewardPowerGh = circuitRushRewardPower(
     session.difficulty,
     result.hits,
     verifiedDurationMs,
@@ -402,11 +403,26 @@ export async function POST(request: Request) {
            score = ?, reward_power_gh = ?
        WHERE id = ? AND status = 'active'`,
     )
-    .bind(now, verifiedDurationMs, result.hits, rewardPowerGh, session.id)
+    .bind(now, verifiedDurationMs, result.hits, 0, session.id)
     .run();
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Conclusão já processada." }, 409);
   }
+  const emissionBudget = await reserveDailyGamePower(
+    current.db,
+    current.accountId,
+    requestedRewardPowerGh,
+    now,
+  );
+  const rewardPowerGh = emissionBudget.awardedPowerGh;
+  await current.db
+    .prepare(
+      `UPDATE game_sessions
+       SET reward_power_gh = ?
+       WHERE id = ? AND status = 'completed'`,
+    )
+    .bind(rewardPowerGh, session.id)
+    .run();
 
   const wins = await current.db
     .prepare(
@@ -427,16 +443,17 @@ export async function POST(request: Request) {
   );
   const powerExpiresAt =
     now + CIRCUIT_RUSH_POWER_DURATION_HOURS * 60 * 60 * 1000;
-  await current.db.batch([
-    current.db
-      .prepare(
-        `UPDATE game_progress
-         SET level = ?, win_streak = win_streak + 1,
-             next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
-         WHERE account_id = ? AND game_id = 'circuit-rush'`,
-      )
-      .bind(nextDifficulty, nextPlayAt, now, current.accountId),
-    current.db
+  await current.db
+    .prepare(
+      `UPDATE game_progress
+       SET level = ?, win_streak = win_streak + 1,
+           next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
+       WHERE account_id = ? AND game_id = 'circuit-rush'`,
+    )
+    .bind(nextDifficulty, nextPlayAt, now, current.accountId)
+    .run();
+  if (rewardPowerGh > 0) {
+    await current.db
       .prepare(
         `INSERT INTO temporary_power_grants (
           id, account_id, source_session_id, power_gh,
@@ -451,12 +468,14 @@ export async function POST(request: Request) {
         now,
         powerExpiresAt,
         now,
-      ),
-  ]);
+      )
+      .run();
+  }
   return json({
     outcome: "completed",
     hits: result.hits,
     rewardPowerGh,
+    emissionBudget,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
       current.accountId,
@@ -466,6 +485,8 @@ export async function POST(request: Request) {
     nextPlayAt,
     cooldownSeconds,
     limits: await usage(current.db, current.accountId, now),
-    message: `Circuit Rush nível ${session.difficulty} concluído.`,
+    message: emissionBudget.limited
+      ? `Circuit Rush nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
+      : `Circuit Rush nível ${session.difficulty} concluído.`,
   });
 }

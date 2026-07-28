@@ -6802,3 +6802,122 @@ img {
     padding: 24px;
   }
 }
+
+/* Fase 5.3: orçamento diário e saúde da emissão de poder temporário. */
+.economy-guard-panel {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border: 1px solid #294457;
+  background:
+    linear-gradient(110deg, rgba(45, 218, 255, 0.07), transparent 48%),
+    #09121a;
+}
+
+.economy-guard-panel.attention {
+  border-color: rgba(255, 189, 61, 0.55);
+}
+
+.economy-guard-panel.limited {
+  border-color: rgba(255, 90, 90, 0.62);
+}
+
+.economy-guard-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.economy-guard-heading span {
+  display: block;
+  color: #69dff5;
+  font-size: 0.66rem;
+  letter-spacing: 0.15em;
+}
+
+.economy-guard-heading strong {
+  display: block;
+  margin-top: 6px;
+  color: #edfbff;
+  font-size: 0.92rem;
+}
+
+.economy-guard-heading > b {
+  color: var(--lime);
+  font: 700 0.7rem/1 var(--font-mono);
+}
+
+.economy-guard-panel.attention .economy-guard-heading > b {
+  color: #ffbd3d;
+}
+
+.economy-guard-panel.limited .economy-guard-heading > b {
+  color: #ff6a6a;
+}
+
+.economy-guard-panel > i {
+  display: block;
+  height: 8px;
+  margin: 14px 0;
+  overflow: hidden;
+  background: #192735;
+}
+
+.economy-guard-panel > i em {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #14c9e8, var(--lime));
+  transition: width 220ms ease;
+}
+
+.economy-guard-panel.attention > i em {
+  background: linear-gradient(90deg, #14c9e8, #ffbd3d);
+}
+
+.economy-guard-panel.limited > i em {
+  background: linear-gradient(90deg, #ffbd3d, #ff5656);
+}
+
+.economy-guard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: #263747;
+}
+
+.economy-guard-metrics article {
+  min-width: 0;
+  padding: 12px;
+  background: #0c1721;
+}
+
+.economy-guard-metrics span {
+  display: block;
+  color: #8499ab;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+}
+
+.economy-guard-metrics strong {
+  display: block;
+  margin-top: 6px;
+  color: #e8f2f7;
+  font-size: 0.8rem;
+}
+
+.economy-guard-panel > p {
+  margin: 13px 0 0;
+  color: #8fa2b3;
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .economy-guard-heading {
+    flex-direction: column;
+  }
+
+  .economy-guard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

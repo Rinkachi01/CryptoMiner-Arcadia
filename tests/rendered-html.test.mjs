@@ -65,6 +65,9 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /MISSÕES DE TELEMETRIA/i);
   assert.match(source, /LIGA DO OPERADOR/i);
   assert.match(source, /CONQUISTAS DE CARREIRA/i);
+  assert.match(source, /CONTROLE DE EMISSÃO/i);
+  assert.match(source, /ECONOMIA ESTÁVEL/i);
+  assert.match(source, /ORÇAMENTO RESTANTE/i);
   assert.match(source, /SISTEMA DE RECUPERAÇÃO/i);
   assert.doesNotMatch(source, /createPortal/i);
   assert.doesNotMatch(source, /1 CMA = US\$ 1/i);

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import { reserveDailyGamePower } from "../../../game-emission-budget";
 import {
   HASH_MATCH_DAILY_LIMIT,
   HASH_MATCH_HOURLY_LIMIT,
@@ -428,7 +429,7 @@ export async function POST(request: Request) {
 
   const pairs = hashMatchPairCount(session.difficulty);
   const score = Math.max(0, pairs * 100 - Math.max(0, proof.moves - pairs) * 15);
-  const rewardPowerGh = hashMatchRewardPower(
+  const requestedRewardPowerGh = hashMatchRewardPower(
     session.difficulty,
     pairs,
     proof.moves,
@@ -444,7 +445,7 @@ export async function POST(request: Request) {
       now,
       now - session.started_at,
       score,
-      rewardPowerGh,
+      0,
       JSON.stringify(proof),
       session.id,
       originalProofJson,
@@ -453,6 +454,21 @@ export async function POST(request: Request) {
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Conclusão já processada." }, 409);
   }
+  const emissionBudget = await reserveDailyGamePower(
+    current.db,
+    current.accountId,
+    requestedRewardPowerGh,
+    now,
+  );
+  const rewardPowerGh = emissionBudget.awardedPowerGh;
+  await current.db
+    .prepare(
+      `UPDATE game_sessions
+       SET reward_power_gh = ?
+       WHERE id = ? AND status = 'completed'`,
+    )
+    .bind(rewardPowerGh, session.id)
+    .run();
 
   const wins = await current.db
     .prepare(
@@ -473,16 +489,17 @@ export async function POST(request: Request) {
   );
   const powerExpiresAt =
     now + HASH_MATCH_POWER_DURATION_HOURS * 60 * 60 * 1000;
-  await current.db.batch([
-    current.db
-      .prepare(
-        `UPDATE game_progress
-         SET level = ?, win_streak = win_streak + 1,
-             next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
-         WHERE account_id = ? AND game_id = 'hash-match'`,
-      )
-      .bind(nextDifficulty, nextPlayAt, now, current.accountId),
-    current.db
+  await current.db
+    .prepare(
+      `UPDATE game_progress
+       SET level = ?, win_streak = win_streak + 1,
+           next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
+       WHERE account_id = ? AND game_id = 'hash-match'`,
+    )
+    .bind(nextDifficulty, nextPlayAt, now, current.accountId)
+    .run();
+  if (rewardPowerGh > 0) {
+    await current.db
       .prepare(
         `INSERT INTO temporary_power_grants (
           id, account_id, source_session_id, power_gh,
@@ -497,8 +514,9 @@ export async function POST(request: Request) {
         now,
         powerExpiresAt,
         now,
-      ),
-  ]);
+      )
+      .run();
+  }
 
   return json({
     reveals: [firstReveal, revealed],
@@ -508,6 +526,7 @@ export async function POST(request: Request) {
     score,
     moves: proof.moves,
     rewardPowerGh,
+    emissionBudget,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
       current.accountId,
@@ -517,6 +536,8 @@ export async function POST(request: Request) {
     nextDifficulty,
     nextPlayAt,
     cooldownSeconds,
-    message: `Hash Match nível ${session.difficulty} concluído.`,
+    message: emissionBudget.limited
+      ? `Hash Match nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
+      : `Hash Match nível ${session.difficulty} concluído.`,
   });
 }

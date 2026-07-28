@@ -1,6 +1,10 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {
+  readDailyGamePowerBudget,
+  reserveDailyGamePower,
+} from "../../../game-emission-budget";
+import {
   MAX_GAME_DIFFICULTY,
   PACKET_CATCH_DAILY_LIMIT,
   PACKET_CATCH_DURATION_MS,
@@ -412,7 +416,7 @@ export async function POST(request: Request) {
   }
 
   const survived = !scoreResult.bombHit;
-  const rewardPowerGh = packetCatchRewardPower(
+  const requestedRewardPowerGh = packetCatchRewardPower(
     scoreResult.score,
     session.difficulty,
     scoreResult.bombHit,
@@ -429,7 +433,7 @@ export async function POST(request: Request) {
       now,
       durationMs,
       survived ? scoreResult.score : 0,
-      rewardPowerGh,
+      0,
       JSON.stringify({
         events,
         coinHits: scoreResult.coinHits,
@@ -440,6 +444,25 @@ export async function POST(request: Request) {
     .run();
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Esta partida já foi processada." }, 409);
+  }
+  const emissionBudget = survived
+    ? await reserveDailyGamePower(
+        current.db,
+        current.accountId,
+        requestedRewardPowerGh,
+        now,
+      )
+    : await readDailyGamePowerBudget(current.db, current.accountId, now);
+  const rewardPowerGh = emissionBudget.awardedPowerGh;
+  if (survived) {
+    await current.db
+      .prepare(
+        `UPDATE game_sessions
+         SET reward_power_gh = ?
+         WHERE id = ? AND status = 'completed'`,
+      )
+      .bind(rewardPowerGh, session.id)
+      .run();
   }
 
   const wins = await current.db
@@ -503,6 +526,7 @@ export async function POST(request: Request) {
     score: survived ? scoreResult.score : 0,
     coinHits: survived ? scoreResult.coinHits : 0,
     rewardPowerGh,
+    emissionBudget,
     powerExpiresAt: rewardPowerGh > 0 ? powerExpiresAt : null,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
@@ -515,7 +539,9 @@ export async function POST(request: Request) {
     nextPlayAt,
     cooldownSeconds,
     message: survived
-      ? `Nível ${session.difficulty} concluído. A próxima rodada será mais difícil.`
+      ? emissionBudget.limited
+        ? `Nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
+        : `Nível ${session.difficulty} concluído. A próxima rodada será mais difícil.`
       : "Bomba atingida: partida encerrada sem pontos e sem poder.",
   });
 }

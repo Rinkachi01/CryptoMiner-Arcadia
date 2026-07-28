@@ -145,7 +145,7 @@ improvisada.
 
 ## Fase 5 — beta econômico
 
-Status: segunda entrega concluída.
+Status: terceira entrega concluída.
 
 - nível do operador e progressão por experiência;
 - liga do operador com doze divisões, de Recruta a Diamante;
@@ -154,6 +154,10 @@ Status: segunda entrega concluída.
 - painel de desempenho separado por minigame;
 - dados de vitórias, tentativas, sequência e taxa de conclusão;
 - proteção visual para que uma falha isolada nunca apague a interface inteira;
+- orçamento global de 5.000 GH/s temporários por conta e dia;
+- reserva concorrente de emissão para impedir que partidas simultâneas
+  ultrapassem o orçamento;
+- painel de saúde econômica com uso, saldo restante e reinício do ciclo;
 - recompensas de liga e missões diárias continuam futuras;
 - dificuldade dinâmica e orçamento de emissão;
 - limites por conta, dispositivo e comportamento;
