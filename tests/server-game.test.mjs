@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   applyGameAction,
@@ -78,4 +79,17 @@ test("migração local é limitada antes de entrar no servidor", () => {
     migrated.energyExpiresAt <= now + 96 * 60 * 60 * 1000,
     true,
   );
+});
+
+test("liquidação de blocos protege contra chamadas concorrentes", async () => {
+  const source = await readFile(
+    new URL("../app/api/game/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /WHERE account_id = \? AND version = \?/i,
+  );
+  assert.match(source, /INSERT OR IGNORE INTO ledger_entries/i);
+  assert.match(source, /updateResult\.meta\.changes/i);
 });

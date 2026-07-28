@@ -132,6 +132,18 @@ dos blocos. CMA e baterias continuam desativados como prêmio. Recarga, limites
 e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
 pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 
+## Progressão do operador e telemetria
+
+- cada partida concede 18 XP de atividade;
+- cada vitória adiciona 120 XP;
+- a experiência necessária cresce a cada nível;
+- nível, taxa de vitória, sequência e missões são calculados a partir dos
+  registros autoritativos do servidor;
+- missões de 24 horas servem inicialmente para medir comportamento e não
+  concedem CMA, baterias ou poder;
+- recompensas de missão só poderão ser ativadas depois de existir um orçamento
+  diário de emissão e dados suficientes de abuso e retenção.
+
 ## Referências analisadas
 
 - RollerCoin, Multi Mining:

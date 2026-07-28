@@ -3,7 +3,16 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function readProductSources() {
-  const [layout, page, game, packetCatch, hashMatch, circuitRush, styles] =
+  const [
+    layout,
+    page,
+    game,
+    packetCatch,
+    hashMatch,
+    circuitRush,
+    operatorProgress,
+    styles,
+  ] =
     await Promise.all([
       readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
@@ -11,9 +20,13 @@ async function readProductSources() {
       readFile(new URL("../app/PacketCatchView.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/HashMatchView.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/CircuitRushView.tsx", import.meta.url), "utf8"),
+      readFile(
+        new URL("../app/OperatorProgressPanel.tsx", import.meta.url),
+        "utf8",
+      ),
       readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     ]);
-  return `${layout}\n${page}\n${game}\n${packetCatch}\n${hashMatch}\n${circuitRush}\n${styles}`;
+  return `${layout}\n${page}\n${game}\n${packetCatch}\n${hashMatch}\n${circuitRush}\n${operatorProgress}\n${styles}`;
 }
 
 test("mantém a experiência principal e a conta autoritativa do Arcadia", async () => {
@@ -42,7 +55,10 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /Poder total da rede/i);
   assert.match(source, /ENTRAR COM CHATGPT/i);
   assert.match(source, /rack-visual/i);
-  assert.match(source, /createPortal/i);
+  assert.match(source, /rack-inline-panel/i);
+  assert.match(source, /NÍVEL DO OPERADOR/i);
+  assert.match(source, /MISSÕES DE TELEMETRIA/i);
+  assert.doesNotMatch(source, /createPortal/i);
   assert.doesNotMatch(source, /1 CMA = US\$ 1/i);
   assert.doesNotMatch(source, /BASE DA ECONOMIA/i);
   assert.doesNotMatch(source, />CONSUMO</i);

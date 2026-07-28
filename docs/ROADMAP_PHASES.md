@@ -40,6 +40,7 @@ Status: concluída nesta atualização.
 - painel compacto de mineração e próximo bloco no canto;
 - preços recalibrados e textos essenciais maiores;
 - mineradores alinhados às prateleiras dos racks;
+- gerenciamento do rack em tela interna, sem modal ou sobreposição escura;
 - conceito visual dos três minigames.
 
 Critério de saída: distribuição, saldo e status compreensíveis sem depender de
@@ -114,11 +115,18 @@ Entregas concluídas no Circuit Rush:
 - sequência, velocidade e resultado validados no servidor;
 - recarga e progresso independentes dos outros minigames.
 
+Entregas de telemetria concluídas:
+
+- painel pessoal com tentativas, vitórias, sequência e taxa de vitória;
+- nível global do operador calculado no servidor;
+- missões de telemetria de 24 horas sem recompensa econômica;
+- sessões suspeitas permanecem marcadas para revisão;
+- sincronização de blocos protegida contra chamadas simultâneas.
+
 Próxima atualização:
 
-- telemetria de dificuldade, abandono, bombas, memória, circuitos e pontuação;
-- painel administrativo de revisão;
-- ajustes de recompensa com base nos dados reais;
+- painel administrativo de revisão com acesso exclusivo do proprietário;
+- ajustes de recompensa com base nos dados acumulados;
 - nível do computador para ampliar a duração do poder temporário, somente
   depois de confirmar que a progressão não cria emissão excessiva.
 
@@ -137,9 +145,13 @@ improvisada.
 
 ## Fase 5 — beta econômico
 
-Status: futura.
+Status: primeira entrega concluída.
 
-- missões diárias e progressão de liga;
+- nível do operador e progressão por experiência;
+- missões diárias de telemetria sem prêmio econômico;
+- painel de desempenho separado por minigame;
+- dados de vitórias, tentativas, sequência e taxa de conclusão;
+- missões diárias e progressão de liga com recompensas continuam futuras;
 - dificuldade dinâmica e orçamento de emissão;
 - limites por conta, dispositivo e comportamento;
 - telemetria de fontes, sumidouros, concentração e tempo de progressão;

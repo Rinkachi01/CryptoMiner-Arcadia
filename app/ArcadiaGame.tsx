@@ -3,7 +3,6 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { assetsManifest } from "./assets.manifest";
 import { PacketCatchView } from "./PacketCatchView";
 import {
@@ -458,11 +457,11 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   }, [toast]);
 
   useEffect(() => {
-    document.body.style.overflow = rackOpen || roomsOpen ? "hidden" : "";
+    document.body.style.overflow = roomsOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [rackOpen, roomsOpen]);
+  }, [roomsOpen]);
 
   async function installMiner(instanceId: string, requestedSlot?: number) {
     if (!activeRack) return;
@@ -738,7 +737,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               className={activeView === item.id ? "active" : ""}
               type="button"
               key={item.id}
-              onClick={() => setActiveView(item.id)}
+              onClick={() => {
+                setRackOpen(false);
+                setActiveView(item.id);
+              }}
             >
               <span className="nav-glyph">{item.glyph}</span>
               <span>{item.label}</span>
@@ -756,7 +758,11 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
         <div className="workspace-heading">
           <div>
             <span className="eyebrow">
-              {activeView === "shop" ? (
+              {rackOpen && activeRack ? (
+                <>
+                  CONTROLE DE RACK <i /> {activeRoom.name.toUpperCase()}
+                </>
+              ) : activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
@@ -767,11 +773,17 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               )}
             </span>
             <h1>
-              {activeView === "mine" && "Sua sala de mineração"}
-              {activeView === "pools" && "Pools de mineração"}
-              {activeView === "inventory" && "Inventário de equipamentos"}
-              {activeView === "shop" && "Loja de equipamentos"}
-              {activeView === "games" && "Central de minigames"}
+              {rackOpen && activeRack
+                ? "Gerenciar equipamentos"
+                : activeView === "mine"
+                  ? "Sua sala de mineração"
+                  : activeView === "pools"
+                    ? "Pools de mineração"
+                    : activeView === "inventory"
+                      ? "Inventário de equipamentos"
+                      : activeView === "shop"
+                        ? "Loja de equipamentos"
+                        : "Central de minigames"}
             </h1>
           </div>
         </div>
@@ -819,7 +831,24 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           </article>
         </div>
 
-        {activeView === "mine" && (
+        {rackOpen && activeRack && (
+          <RackManager
+            rackLabel={`RACK ${String(
+              currentRoomRacks.findIndex(
+                (rack) => rack.id === activeRack.id,
+              ) + 1,
+            ).padStart(2, "0")}`}
+            roomName={activeRoom.name}
+            installed={activeRackMiners}
+            minerInventory={minerInventory}
+            onInstall={installMiner}
+            onRemove={removeMiner}
+            onRemoveAll={removeAllMiners}
+            onClose={() => setRackOpen(false)}
+          />
+        )}
+
+        {!rackOpen && activeView === "mine" && (
           <MiningRoom
             activeRoom={activeRoom}
             roomRacks={currentRoomRacks}
@@ -845,7 +874,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {activeView === "pools" && (
+        {!rackOpen && activeView === "pools" && (
           <PoolsView
             allocations={poolAllocations}
             installedPower={effectivePower}
@@ -853,7 +882,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {activeView === "inventory" && (
+        {!rackOpen && activeView === "inventory" && (
           <InventoryView
             minerInventory={minerInventory}
             installedMiners={allInstalled}
@@ -864,7 +893,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {activeView === "shop" && (
+        {!rackOpen && activeView === "shop" && (
           <ShopView
             activeCategory={shopCategory}
             cmaBalance={cmaBalance}
@@ -883,7 +912,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {activeView === "games" && (
+        {!rackOpen && activeView === "games" && (
           <PacketCatchView
             temporaryPowerGh={temporaryPowerGh}
             onRefreshAccount={refreshServerState}
@@ -897,28 +926,16 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             type="button"
             key={item.id}
             className={activeView === item.id ? "active" : ""}
-            onClick={() => setActiveView(item.id)}
+            onClick={() => {
+              setRackOpen(false);
+              setActiveView(item.id);
+            }}
           >
             <span>{item.glyph}</span>
             {item.shortLabel}
           </button>
         ))}
       </nav>
-
-      {rackOpen && activeRack && (
-        <RackManager
-          rackLabel={`RACK ${String(
-            currentRoomRacks.findIndex((rack) => rack.id === activeRack.id) + 1,
-          ).padStart(2, "0")}`}
-          roomName={activeRoom.name}
-          installed={activeRackMiners}
-          minerInventory={minerInventory}
-          onInstall={installMiner}
-          onRemove={removeMiner}
-          onRemoveAll={removeAllMiners}
-          onClose={() => setRackOpen(false)}
-        />
-      )}
 
       {roomsOpen && (
         <RoomsModal
@@ -2119,18 +2136,9 @@ function RackManager({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  return createPortal(
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onClick={(event) => {
-        if (event.currentTarget === event.target) onClose();
-      }}
-    >
+  return (
       <section
-        className="rack-modal"
-        role="dialog"
-        aria-modal="true"
+        className="rack-modal rack-inline-panel"
         aria-labelledby="rack-title"
       >
         <header>
@@ -2365,8 +2373,6 @@ function RackManager({
           </button>
         </footer>
       </section>
-    </div>,
-    document.body,
   );
 }
 

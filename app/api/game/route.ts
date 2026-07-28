@@ -223,7 +223,7 @@ async function createAccount(
       : normalizeBootstrapState(bootstrapState, now);
   await db
     .prepare(
-      `INSERT INTO game_states (
+      `INSERT OR IGNORE INTO game_states (
         account_id, email, display_name, state_json, version, created_at, updated_at
       ) VALUES (?, ?, ?, ?, 1, ?, ?)`,
     )
@@ -238,7 +238,7 @@ async function createAccount(
     .run();
   await db
     .prepare(
-      `INSERT INTO ledger_entries (
+      `INSERT OR IGNORE INTO ledger_entries (
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
       ) VALUES (?, ?, 'account_initialized', ?, 1, 0, ?, ?)`,
@@ -251,15 +251,9 @@ async function createAccount(
       now,
     )
     .run();
-  return {
-    account_id: accountId,
-    email,
-    display_name: displayName,
-    state_json: JSON.stringify(state),
-    version: 1,
-    created_at: now,
-    updated_at: now,
-  } satisfies StoredRow;
+  const persisted = await readState(db, accountId);
+  if (!persisted) throw new Error("Não foi possível criar a conta.");
+  return persisted;
 }
 
 async function authenticatedContext() {
@@ -328,25 +322,30 @@ export async function GET() {
     now,
     eligibleTemporaryPowerGh,
   );
+  let responseState = settled.state;
+  let settledBlockCount = settled.settledBlocks;
   if (settled.settledBlocks > 0) {
     const nextVersion = row.version + 1;
-    await context.db.batch([
-      context.db
+    const updateResult = await context.db
+      .prepare(
+        `UPDATE game_states
+         SET state_json = ?, version = ?, display_name = ?, updated_at = ?
+         WHERE account_id = ? AND version = ?`,
+      )
+      .bind(
+        JSON.stringify(settled.state),
+        nextVersion,
+        context.user.displayName,
+        now,
+        context.accountId,
+        row.version,
+      )
+      .run();
+
+    if ((updateResult.meta.changes ?? 0) === 1) {
+      await context.db
         .prepare(
-          `UPDATE game_states
-           SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-           WHERE account_id = ?`,
-        )
-        .bind(
-          JSON.stringify(settled.state),
-          nextVersion,
-          context.user.displayName,
-          now,
-          context.accountId,
-        ),
-      context.db
-        .prepare(
-          `INSERT INTO ledger_entries (
+          `INSERT OR IGNORE INTO ledger_entries (
             id, account_id, action, idempotency_key, state_version,
             delta_cma_micros, metadata_json, created_at
           ) VALUES (?, ?, 'block_settlement', ?, ?, ?, ?, ?)`,
@@ -362,23 +361,31 @@ export async function GET() {
             rewards: settled.rewards,
           }),
           now,
-        ),
-    ]);
-    row = {
-      ...row,
-      state_json: JSON.stringify(settled.state),
-      version: nextVersion,
-      updated_at: now,
-    };
+        )
+        .run();
+      row = {
+        ...row,
+        state_json: JSON.stringify(settled.state),
+        version: nextVersion,
+        updated_at: now,
+      };
+    } else {
+      const latest = await readState(context.db, context.accountId);
+      if (latest) {
+        row = latest;
+        responseState = parseState(latest);
+        settledBlockCount = 0;
+      }
+    }
   }
 
   return json(
     responsePayload(
       row,
-      settled.state,
+      responseState,
       now,
-      settled.settledBlocks > 0
-        ? `${settled.settledBlocks} bloco(s) processado(s).`
+      settledBlockCount > 0
+        ? `${settledBlockCount} bloco(s) processado(s).`
         : "Conta sincronizada.",
       temporaryPowerGh,
     ),

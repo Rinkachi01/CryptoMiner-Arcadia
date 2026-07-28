@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
 import { HashMatchView } from "./HashMatchView";
+import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import {
   type PacketCatchEvent,
   type PacketTarget,
@@ -40,6 +41,7 @@ export function PacketCatchView({
   const [activeGame, setActiveGame] = useState<
     "packet" | "hash" | "circuit"
   >("packet");
+  const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<GameSession | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -63,6 +65,12 @@ export function PacketCatchView({
   const localStartedAt = useRef(0);
   const eventsRef = useRef<PacketCatchEvent[]>([]);
   const finishStarted = useRef(false);
+
+  const refreshArcadeAccount = useCallback(async () => {
+    const refreshed = await onRefreshAccount();
+    setSummaryRefreshKey((current) => current + 1);
+    return refreshed;
+  }, [onRefreshAccount]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1_000);
@@ -132,7 +140,7 @@ export function PacketCatchView({
         setNextPlayAt(data.nextPlayAt ?? 0);
         if (data.limits) setLimits(data.limits);
         setMessage(data.message ?? "Partida validada pelo servidor.");
-        await onRefreshAccount();
+        await refreshArcadeAccount();
         setPhase("result");
       } catch (error) {
         setMessage(
@@ -143,7 +151,7 @@ export function PacketCatchView({
         setPhase("result");
       }
     },
-    [onRefreshAccount],
+    [refreshArcadeAccount],
   );
 
   useEffect(() => {
@@ -257,6 +265,8 @@ export function PacketCatchView({
           <small>Packet Catch + Hash Match</small>
         </div>
       </div>
+
+      <OperatorProgressPanel refreshKey={summaryRefreshKey} />
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">
@@ -438,11 +448,11 @@ export function PacketCatchView({
           )}
 
           {activeGame === "hash" && (
-            <HashMatchView onRefreshAccount={onRefreshAccount} />
+            <HashMatchView onRefreshAccount={refreshArcadeAccount} />
           )}
 
           {activeGame === "circuit" && (
-            <CircuitRushView onRefreshAccount={onRefreshAccount} />
+            <CircuitRushView onRefreshAccount={refreshArcadeAccount} />
           )}
         </div>
       </div>
