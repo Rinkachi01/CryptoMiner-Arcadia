@@ -49,6 +49,14 @@ export function presentLedgerActivity(
         "O servidor iniciou seu inventário, sua carteira e sua trilha de auditoria.",
     };
   }
+  if (action === "starter_kit_granted") {
+    return {
+      category: "account",
+      title: "Kit inicial entregue",
+      description:
+        "Um rack, um Byte Spark, uma bateria e 12 horas de energia foram registrados pelo servidor.",
+    };
+  }
   if (action === "admin_test_cma_grant") {
     return {
       category: "economy",

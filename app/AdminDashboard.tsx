@@ -66,6 +66,17 @@ type AdminOverview = {
       eligibleProofs: number;
       retentionDays: number;
     };
+    onboarding: {
+      started7d: number;
+      totalStarted: number;
+      stages: Array<{
+        id: string;
+        label: string;
+        accounts: number;
+        conversionFromStart: number;
+        dropoffFromPrevious: number;
+      }>;
+    };
     preferences: {
       ask: number;
       disabled: number;
@@ -210,6 +221,7 @@ const feedbackStatusLabels: Record<string, string> = {
 };
 
 const actionLabels: Record<string, string> = {
+  starter_kit_granted: "Kits iniciais entregues",
   buy_batteries: "Baterias compradas",
   buy_miners: "Mineradores comprados",
   buy_racks: "Racks comprados",
@@ -726,6 +738,38 @@ export function AdminDashboard({
             </small>
           </article>
         </div>
+
+        <section className="admin-onboarding-funnel">
+          <header>
+            <div>
+              <span>FUNIL DO PRIMEIRO DIA · KIT V1</span>
+              <h3>Da entrega do Byte Spark ao primeiro bloco</h3>
+            </div>
+            <strong>
+              {overview.beta.onboarding.started7d} nova(s) conta(s) em 7 dias
+            </strong>
+          </header>
+          {overview.beta.onboarding.totalStarted === 0 ? (
+            <p>
+              O novo kit começou agora. As primeiras contas aparecerão aqui sem
+              misturar jogadores antigos com a experiência atual.
+            </p>
+          ) : (
+            <div className="admin-onboarding-stages">
+              {overview.beta.onboarding.stages.map((stage, index) => (
+                <article key={stage.id}>
+                  <b>{String(index + 1).padStart(2, "0")}</b>
+                  <span>{stage.label}</span>
+                  <strong>{stage.accounts}</strong>
+                  <small>{stage.conversionFromStart}% desde o início</small>
+                  {index > 0 && stage.dropoffFromPrevious > 0 && (
+                    <em>-{stage.dropoffFromPrevious} na etapa anterior</em>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <div className="admin-beta-analysis">
           {[

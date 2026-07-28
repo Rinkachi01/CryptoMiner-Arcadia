@@ -25,9 +25,17 @@ type LedgerActivityRow = {
   created_at: number;
 };
 
+type OnboardingLedgerRow = LedgerActivityRow & {
+  metadata_json: string;
+};
+
 type SessionActivityRow = {
   account_id: string;
   started_at: number;
+};
+
+type OnboardingSessionRow = {
+  account_id: string;
 };
 
 type PreferenceCountRow = {
@@ -67,6 +75,123 @@ export type RetentionCohort = {
 
 function percent(part: number, total: number) {
   return total > 0 ? Math.round((part / total) * 100) : 0;
+}
+
+function positiveBlockReward(metadataJson: string) {
+  try {
+    const metadata = JSON.parse(metadataJson) as {
+      rewards?: Record<string, unknown>;
+    };
+    return ["cma", "btc", "doge"].some(
+      (symbol) => Number(metadata.rewards?.[symbol] ?? 0) > 0,
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function buildOnboardingFunnel(
+  accounts: StateRow[],
+  ledger: OnboardingLedgerRow[],
+  sessions: OnboardingSessionRow[],
+  now: number,
+) {
+  const starterEvents = ledger.filter(
+    (row) => row.action === "starter_kit_granted",
+  );
+  const starterAccounts = new Set(
+    starterEvents.map((row) => row.account_id),
+  );
+  const actionAccounts = (action: string) =>
+    new Set(
+      ledger
+        .filter(
+          (row) =>
+            row.action === action && starterAccounts.has(row.account_id),
+        )
+        .map((row) => row.account_id),
+    );
+  const installedAccounts = actionAccounts("install_miner");
+  for (const account of accounts) {
+    if (!starterAccounts.has(account.account_id)) continue;
+    try {
+      const state = JSON.parse(account.state_json) as {
+        rackMiners?: Record<string, unknown[]>;
+      };
+      if (
+        Object.values(state.rackMiners ?? {}).some(
+          (placements) => placements.length > 0,
+        )
+      ) {
+        installedAccounts.add(account.account_id);
+      }
+    } catch {
+      // O funil ignora estados antigos malformados.
+    }
+  }
+  const poolsRecordedAccounts = actionAccounts("apply_allocations");
+  const poolsAccounts = new Set(
+    [...poolsRecordedAccounts].filter((accountId) =>
+      installedAccounts.has(accountId),
+    ),
+  );
+  const arcadeRecordedAccounts = new Set(
+    sessions
+      .filter((row) => starterAccounts.has(row.account_id))
+      .map((row) => row.account_id),
+  );
+  const arcadeAccounts = new Set(
+    [...arcadeRecordedAccounts].filter((accountId) =>
+      poolsAccounts.has(accountId),
+    ),
+  );
+  const blockRecordedAccounts = new Set(
+    ledger
+      .filter(
+        (row) =>
+          row.action === "block_settlement" &&
+          starterAccounts.has(row.account_id) &&
+          positiveBlockReward(row.metadata_json),
+      )
+      .map((row) => row.account_id),
+  );
+  const blockAccounts = new Set(
+    [...blockRecordedAccounts].filter((accountId) =>
+      arcadeAccounts.has(accountId),
+    ),
+  );
+  const counts = [
+    starterAccounts.size,
+    installedAccounts.size,
+    poolsAccounts.size,
+    arcadeAccounts.size,
+    blockAccounts.size,
+  ];
+  const labels = [
+    "Kit entregue",
+    "Minerador instalado",
+    "Pool confirmada",
+    "Arcade concluído",
+    "Primeiro bloco",
+  ];
+  return {
+    started7d: new Set(
+      starterEvents
+        .filter((row) => row.created_at >= now - COHORT_DAYS * DAY_MS)
+        .map((row) => row.account_id),
+    ).size,
+    totalStarted: starterAccounts.size,
+    stages: counts.map((accountsAtStage, index) => ({
+      id: ["kit", "miner", "pools", "arcade", "block"][index],
+      label: labels[index],
+      accounts: accountsAtStage,
+      conversionFromStart: percent(accountsAtStage, counts[0]),
+      dropoffFromPrevious:
+        index === 0
+          ? 0
+          : Math.max(0, counts[index - 1] - accountsAtStage),
+    })),
+  };
 }
 
 function behaviorComparison(
@@ -198,6 +323,8 @@ export async function readBetaObservability(
     preferenceRows,
     eligibleProofs,
     archivedProofs,
+    onboardingLedgerRows,
+    onboardingSessionRows,
   ] = await Promise.all([
     db
       .prepare(
@@ -253,6 +380,28 @@ export async function readBetaObservability(
       )
       .bind(ARCHIVED_PROOF)
       .first<CountRow>(),
+    db
+      .prepare(
+        `SELECT account_id, action, metadata_json, created_at
+         FROM ledger_entries
+         WHERE action IN (
+           'starter_kit_granted',
+           'install_miner',
+           'apply_allocations',
+           'block_settlement'
+         )
+         ORDER BY created_at DESC
+         LIMIT 50000`,
+      )
+      .all<OnboardingLedgerRow>(),
+    db
+      .prepare(
+        `SELECT DISTINCT account_id
+         FROM game_sessions
+         WHERE status IN ('completed', 'failed')
+         LIMIT 50000`,
+      )
+      .all<OnboardingSessionRow>(),
   ]);
 
   const accounts = accountRows.results ?? [];
@@ -338,6 +487,12 @@ export async function readBetaObservability(
       eligibleProofs: Number(eligibleProofs?.total ?? 0),
       retentionDays: PROOF_RETENTION_DAYS,
     },
+    onboarding: buildOnboardingFunnel(
+      accounts,
+      onboardingLedgerRows.results ?? [],
+      onboardingSessionRows.results ?? [],
+      now,
+    ),
     preferences: {
       ...preferenceCounts,
       unset: Math.max(

@@ -7,6 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
+import { FirstDayPanel } from "./FirstDayPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { TasksView } from "./TasksView";
 import {
@@ -23,7 +24,6 @@ import {
   canInstallAt,
   calculateDailyEstimatedReward,
   calculateEstimatedReward,
-  defaultInstalledMiners,
   findNextAvailableSlot,
   formatAtomic,
   getInstalledPower,
@@ -45,6 +45,7 @@ import type {
 } from "./game-server";
 import { roomCatalog } from "./room-rules";
 import type { NetworkPowerSnapshot } from "./network-server";
+import type { OnboardingStatus } from "./onboarding-rules";
 import {
   SUPPLY_CRATE_PITY_LIMIT,
   formatCrateChance,
@@ -158,23 +159,18 @@ const defaultRacks: RackInstance[] = [
 ];
 
 const defaultRackMiners: Record<string, InstalledMiner[]> = {
-  "rack-01": defaultInstalledMiners,
+  "rack-01": [],
 };
 
-const defaultMinerInventory: MinerUnit[] = miners
-  .filter(
-    (miner) =>
-      !defaultInstalledMiners.some(
-        (placement) => placement.minerId === miner.id,
-      ),
-  )
-  .map((miner) => ({
-    instanceId: `starter-${miner.id}`,
-    minerId: miner.id,
-  }));
+const defaultMinerInventory: MinerUnit[] = [
+  {
+    instanceId: "starter-byte-spark-preview",
+    minerId: "byte-spark",
+  },
+];
 
 const MS_PER_HOUR = 60 * 60 * 1000;
-const INITIAL_ENERGY_HOURS = 48;
+const INITIAL_ENERGY_HOURS = 12;
 const defaultPoolAllocations: PoolAllocations = {
   cma: 100,
   btc: 0,
@@ -264,10 +260,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   );
   const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
     useState<WalletSymbol>("CMA");
-  const [cmaBalance, setCmaBalance] = useState(86.4);
-  const [btcBalanceAtomic, setBtcBalanceAtomic] = useState(1284);
-  const [dogeBalanceAtomic, setDogeBalanceAtomic] = useState(642_000_000);
-  const [batteryCount, setBatteryCount] = useState(2);
+  const [cmaBalance, setCmaBalance] = useState(2);
+  const [btcBalanceAtomic, setBtcBalanceAtomic] = useState(0);
+  const [dogeBalanceAtomic, setDogeBalanceAtomic] = useState(0);
+  const [batteryCount, setBatteryCount] = useState(1);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
   const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
@@ -304,6 +300,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   >("connecting");
   const [actionPending, setActionPending] = useState(false);
   const [toast, setToast] = useState("");
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
 
   const selectedPool =
     pools.find((pool) => pool.id === selectedPoolId) ?? pools[0];
@@ -441,29 +438,12 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     const controller = new AbortController();
 
     void (async () => {
-      let bootstrapState: unknown;
-      for (const key of [
-        "arcadia-game-state-v4",
-        "arcadia-game-state-v3",
-        "arcadia-game-state-v2",
-      ]) {
-        const saved = window.localStorage.getItem(key);
-        if (!saved) continue;
-        try {
-          bootstrapState = JSON.parse(saved);
-          break;
-        } catch {
-          // Tenta a próxima versão local disponível.
-        }
-      }
-
       try {
         const response = await fetch("/api/game", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "bootstrap",
-            bootstrapState,
           }),
           signal: controller.signal,
         });
@@ -489,6 +469,23 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     return () => controller.abort();
     // A inicialização autoritativa acontece uma única vez por sessão.
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || serverStatus !== "online") return;
+    const controller = new AbortController();
+    void fetch("/api/onboarding", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        setOnboarding((await response.json()) as OnboardingStatus);
+      })
+      .catch(() => {
+        // O jogo permanece funcional se o guia estiver temporariamente offline.
+      });
+    return () => controller.abort();
+  }, [hydrated, serverStatus, serverVersion]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
@@ -747,6 +744,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           installedMinerCount={allInstalled.length}
           poolAllocations={poolAllocations}
           secondsLeft={secondsLeft}
+          onboarding={onboarding}
+          refreshKey={serverVersion}
           onNavigate={(target) => {
             setRackOpen(false);
             setWalletOpen(false);
@@ -976,6 +975,17 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             <em>{formatPower(network.playerPowerGh[selectedPool.id])} NA REDE</em>
           </article>
         </div>
+
+        {!rackOpen && activeView === "mine" && (
+          <FirstDayPanel
+            status={onboarding}
+            onNavigate={setActiveView}
+            onOpenStarterRack={() => {
+              setActiveView("mine");
+              openRack("rack-01");
+            }}
+          />
+        )}
 
         {rackOpen && activeRack && (
           <GameErrorBoundary

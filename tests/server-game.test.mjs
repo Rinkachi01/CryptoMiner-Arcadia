@@ -48,7 +48,17 @@ test("alocação precisa fechar em cem por cento", () => {
 
 test("blocos são liquidados pelo relógio do servidor", () => {
   const now = 1_800_000_000_000;
-  const state = createInitialGameState(now);
+  let state = createInitialGameState(now);
+  state = applyGameAction(
+    state,
+    "install_miner",
+    {
+      rackId: "rack-01",
+      instanceId: state.minerInventory[0].instanceId,
+      slotIndex: 0,
+    },
+    now,
+  ).state;
   state.lastSettledBlock = Math.floor(now / BLOCK_MS);
 
   const settlement = settleMiningBlocks(state, now + 2 * BLOCK_MS);
@@ -58,6 +68,24 @@ test("blocos são liquidados pelo relógio do servidor", () => {
     settlement.state.lastSettledBlock,
     Math.floor((now + 2 * BLOCK_MS) / BLOCK_MS),
   );
+});
+
+test("nova conta recebe somente o kit inicial equilibrado", () => {
+  const now = 1_800_000_000_000;
+  const state = createInitialGameState(now);
+
+  assert.equal(state.cmaBalance, 2);
+  assert.equal(state.btcBalanceAtomic, 0);
+  assert.equal(state.dogeBalanceAtomic, 0);
+  assert.equal(state.batteryCount, 1);
+  assert.equal(state.energyExpiresAt, now + 12 * 60 * 60 * 1000);
+  assert.equal(state.lastEnergyClaimAt, now);
+  assert.deepEqual(
+    state.minerInventory.map((unit) => unit.minerId),
+    ["byte-spark"],
+  );
+  assert.equal(state.racks.length, 1);
+  assert.deepEqual(state.rackMiners["rack-01"], []);
 });
 
 test("migração local é limitada antes de entrar no servidor", () => {

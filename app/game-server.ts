@@ -9,11 +9,9 @@ import {
   ROOM_RACK_CAPACITY,
   calculateEstimatedReward,
   canInstallAt,
-  defaultInstalledMiners,
   findNextAvailableSlot,
   getInstalledPower,
   getMiner,
-  miners,
   pools,
   type InstalledMiner,
   type PoolId,
@@ -147,34 +145,28 @@ function currentBlock(now: number) {
 }
 
 export function createInitialGameState(now: number): PublicGameState {
-  const installedIds = new Set(
-    defaultInstalledMiners.map((placement) => placement.minerId),
-  );
-
   return {
     selectedPoolId: "cma",
     poolAllocations: { cma: 100, btc: 0, doge: 0 },
     displayedBalanceSymbol: "CMA",
-    cmaBalance: 86.4,
-    btcBalanceAtomic: 1284,
-    dogeBalanceAtomic: 642_000_000,
-    batteryCount: 2,
-    energyExpiresAt: now + 48 * MS_PER_HOUR,
-    lastEnergyClaimAt: 0,
+    cmaBalance: 2,
+    btcBalanceAtomic: 0,
+    dogeBalanceAtomic: 0,
+    batteryCount: 1,
+    energyExpiresAt: now + ENERGY_CLAIM_HOURS * MS_PER_HOUR,
+    lastEnergyClaimAt: now,
     lastSettledBlock: currentBlock(now),
     activeRoomId: "room-1",
     ownedRoomIds: ["room-1"],
     rackInventoryCount: 0,
-    minerInventory: miners
-      .filter((miner) => !installedIds.has(miner.id))
-      .map((miner) => ({
-        instanceId: createId(`starter-${miner.id}`),
-        minerId: miner.id,
-      })),
+    minerInventory: [
+      {
+        instanceId: createId("starter-byte-spark"),
+        minerId: "byte-spark",
+      },
+    ],
     racks: [{ id: "rack-01", roomId: "room-1", positionIndex: 0 }],
-    rackMiners: {
-      "rack-01": defaultInstalledMiners.map((placement) => ({ ...placement })),
-    },
+    rackMiners: { "rack-01": [] },
     dailyMissionClaims: {},
     crateOpenCount: 0,
     cratePityStreaks: {

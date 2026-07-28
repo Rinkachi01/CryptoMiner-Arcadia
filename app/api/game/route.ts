@@ -7,7 +7,6 @@ import {
   applySupplyCratePurchase,
   createInitialGameState,
   nextBlockAt,
-  normalizeBootstrapState,
   settleMiningBlocks,
   type GameActionName,
   type PublicGameState,
@@ -19,6 +18,7 @@ import {
 } from "../../network-server";
 
 export const dynamic = "force-dynamic";
+const STARTER_KIT_VERSION = "operator-v1";
 
 type StoredRow = {
   account_id: string;
@@ -228,12 +228,8 @@ async function createAccount(
   email: string,
   displayName: string,
   now: number,
-  bootstrapState?: unknown,
 ) {
-  const state =
-    bootstrapState === undefined
-      ? createInitialGameState(now)
-      : normalizeBootstrapState(bootstrapState, now);
+  const state = createInitialGameState(now);
   await db
     .prepare(
       `INSERT OR IGNORE INTO game_states (
@@ -260,7 +256,32 @@ async function createAccount(
       crypto.randomUUID(),
       accountId,
       `bootstrap:${accountId}`,
-      JSON.stringify({ importedLocalState: bootstrapState !== undefined }),
+      JSON.stringify({
+        importedLocalState: false,
+        starterKitVersion: STARTER_KIT_VERSION,
+      }),
+      now,
+    )
+    .run();
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) VALUES (?, ?, 'starter_kit_granted', ?, 1, 0, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      accountId,
+      `starter-kit:${STARTER_KIT_VERSION}:${accountId}`,
+      JSON.stringify({
+        version: STARTER_KIT_VERSION,
+        rack: { id: "rack-01", roomId: "room-1", positionIndex: 0 },
+        miner: { minerId: "byte-spark", quantity: 1, installed: false },
+        batteryCount: 1,
+        energyHours: 12,
+        startingCma: 2,
+      }),
       now,
     )
     .run();
@@ -440,7 +461,6 @@ export async function POST(request: Request) {
       context.user.email,
       context.user.displayName,
       now,
-      body.action === "bootstrap" ? body.bootstrapState : undefined,
     );
   }
   const temporaryPowerGh = await activeTemporaryPower(

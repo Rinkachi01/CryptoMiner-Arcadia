@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PoolAllocations } from "./game-server";
+import type { OnboardingStatus } from "./onboarding-rules";
 
 type GuideTarget = "mine" | "pools" | "inventory" | "games" | "career";
 
@@ -23,6 +24,8 @@ type OperatorInboxProps = {
   installedMinerCount: number;
   poolAllocations: PoolAllocations;
   secondsLeft: number;
+  onboarding: OnboardingStatus | null;
+  refreshKey: number;
   onNavigate: (target: GuideTarget) => void;
 };
 
@@ -34,6 +37,8 @@ export function OperatorInbox({
   installedMinerCount,
   poolAllocations,
   secondsLeft,
+  onboarding,
+  refreshKey,
   onNavigate,
 }: OperatorInboxProps) {
   const [open, setOpen] = useState(false);
@@ -53,7 +58,7 @@ export function OperatorInbox({
         // O guia continua funcional com os dados da conta principal.
       });
     return () => controller.abort();
-  }, []);
+  }, [refreshKey]);
 
   const totalAllocation =
     poolAllocations.cma + poolAllocations.btc + poolAllocations.doge;
@@ -62,20 +67,38 @@ export function OperatorInbox({
     summary?.missions?.some((mission) => mission.claimable === true) ?? false;
 
   const steps = [
+    ...(onboarding?.eligible
+      ? [
+          {
+            id: "kit",
+            label: "Receba seu kit inicial",
+            detail: "Rack, Byte Spark e bateria registrados",
+            complete: onboarding.milestones.kitDelivered,
+            target: "mine" as const,
+          },
+        ]
+      : []),
     {
       id: "energy",
       label: "Mantenha a sala energizada",
       detail: energySeconds > 0 ? "Energia ativa" : "Use ou resgate uma bateria",
-      complete: energySeconds > 0,
+      complete: onboarding?.eligible
+        ? onboarding.milestones.energyOnline
+        : energySeconds > 0,
       target: "mine" as const,
     },
-    {
-      id: "rack",
-      label: "Instale seu primeiro rack",
-      detail: rackCount > 0 ? `${rackCount} rack(s) instalado(s)` : "Abra a sala",
-      complete: rackCount > 0,
-      target: "mine" as const,
-    },
+    ...(!onboarding?.eligible
+      ? [
+          {
+            id: "rack",
+            label: "Instale seu primeiro rack",
+            detail:
+              rackCount > 0 ? `${rackCount} rack(s) instalado(s)` : "Abra a sala",
+            complete: rackCount > 0,
+            target: "mine" as const,
+          },
+        ]
+      : []),
     {
       id: "miner",
       label: "Equipe um minerador",
@@ -83,7 +106,9 @@ export function OperatorInbox({
         installedMinerCount > 0
           ? `${installedMinerCount} equipamento(s) operando`
           : "Escolha um slot do rack",
-      complete: installedMinerCount > 0,
+      complete: onboarding?.eligible
+        ? onboarding.milestones.minerInstalled
+        : installedMinerCount > 0,
       target: "inventory" as const,
     },
     {
@@ -93,16 +118,33 @@ export function OperatorInbox({
         totalAllocation === 100
           ? `${poolAllocations.cma}% CMA · ${poolAllocations.btc}% BTC · ${poolAllocations.doge}% DOGE`
           : `${totalAllocation}% distribuído`,
-      complete: totalAllocation === 100,
+      complete: onboarding?.eligible
+        ? onboarding.milestones.poolsConfirmed
+        : totalAllocation === 100,
       target: "pools" as const,
     },
     {
       id: "arcade",
       label: "Conclua um minigame",
       detail: totalPlays > 0 ? `${totalPlays} partida(s) registrada(s)` : "Visite o Arcade",
-      complete: totalPlays > 0,
+      complete: onboarding?.eligible
+        ? onboarding.milestones.arcadeCompleted
+        : totalPlays > 0,
       target: "games" as const,
     },
+    ...(onboarding?.eligible
+      ? [
+          {
+            id: "first-block",
+            label: "Receba seu primeiro bloco",
+            detail: onboarding.milestones.firstBlockCredited
+              ? "Recompensa registrada no histórico"
+              : "Mantenha energia e poder ativos",
+            complete: onboarding.milestones.firstBlockCredited,
+            target: "pools" as const,
+          },
+        ]
+      : []),
   ];
   const completedSteps = steps.filter((step) => step.complete).length;
 
