@@ -13,6 +13,7 @@ import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getMiner, type PoolId } from "../../game-rules";
 import type { PublicGameState } from "../../game-server";
+import { readAdminBetaFeedback } from "../../feedback-server";
 import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
@@ -505,9 +506,12 @@ export async function GET() {
   }
   await ensureAdminSchema(context.db);
   const now = Date.now();
-  const settings = await readAdminRuntimeSettings(context.db);
-  const overview = await readAdminOverview(context.db, now);
-  const network = await readNetworkPowerSnapshot(context.db, now);
+  const [settings, overview, network, feedback] = await Promise.all([
+    readAdminRuntimeSettings(context.db),
+    readAdminOverview(context.db, now),
+    readNetworkPowerSnapshot(context.db, now),
+    readAdminBetaFeedback(context.db, now),
+  ]);
   await ensureDefaultSeason(context.db, now);
   const season = await readSeasonOverview(context.db, context.accountId, now);
   return json({
@@ -529,6 +533,7 @@ export async function GET() {
     settings,
     season,
     network,
+    feedback,
     ...overview,
     serverTime: now,
   });

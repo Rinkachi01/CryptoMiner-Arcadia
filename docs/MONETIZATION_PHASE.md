@@ -6,6 +6,11 @@ Nenhuma rede de anúncios real foi conectada ao beta. Primeiro o jogo mede
 retenção, fraude, sessões e custo da emissão fixa. Isso evita misturar uma
 integração publicitária ainda não validada com a economia do jogador.
 
+A Central de Tarefas já reserva a navegação e explica o fluxo, mas mostra
+explicitamente que pesquisas e anúncios parceiros estão desconectados.
+Missões internas e feedback do beta funcionam sem compartilhar dados com
+terceiros.
+
 ## Ordem recomendada
 
 1. **Patrocínio visual sem recompensa.** Um espaço de banner claramente
@@ -34,6 +39,12 @@ integração publicitária ainda não validada com a economia do jogador.
   personalizada;
 - revisão jurídica e das políticas do provedor antes de habilitar para
   jogadores.
+
+As políticas atuais do Google para anúncios recompensados proíbem recompensas
+monetárias diretas, incluindo criptomoedas. Se essa integração for escolhida no
+futuro, a recompensa deverá ser interna, não transferível, informada antes da
+ação e aceita voluntariamente pelo jogador. Cliques incentivados e tráfego
+artificial também devem ser tratados como risco de bloqueio da monetização.
 
 ## Critério de ativação
 

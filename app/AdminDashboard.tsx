@@ -34,6 +34,19 @@ type AdminOverview = {
     power: number;
     wins: number;
   }>;
+  feedback: {
+    averageRating: number;
+    recent: Array<{
+      category: string;
+      createdAt: number;
+      displayName: string;
+      id: string;
+      message: string;
+      rating: number;
+      status: string;
+    }>;
+    total30d: number;
+  };
   inventory: {
     batteriesInInventory: number;
     installedRacks: number;
@@ -115,6 +128,14 @@ const gameLabels: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
   "hash-match": "Hash Match",
   "packet-catch": "Packet Catch",
+};
+
+const feedbackCategoryLabels: Record<string, string> = {
+  economy: "Economia e pools",
+  interface: "Interface e leitura",
+  minigames: "Minigames",
+  racks: "Racks e mineradores",
+  tasks: "Tarefas e monetização",
 };
 
 const actionLabels: Record<string, string> = {
@@ -791,6 +812,45 @@ export function AdminDashboard({
             <span>FUTURO</span>
           </article>
         </div>
+      </section>
+
+      <section className="admin-panel admin-feedback-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <span>ESCUTA DO BETA · ÚLTIMOS 30 DIAS</span>
+            <h2>Feedback enviado pelos operadores</h2>
+          </div>
+          <small>
+            {overview.feedback.total30d} ENVIO(S) · NOTA{" "}
+            {overview.feedback.averageRating.toLocaleString("pt-BR", {
+              maximumFractionDigits: 1,
+              minimumFractionDigits: 1,
+            })}
+            /5
+          </small>
+        </div>
+        {overview.feedback.recent.length === 0 ? (
+          <div className="admin-feedback-empty">
+            As respostas enviadas pela nova Central de Tarefas aparecerão aqui.
+          </div>
+        ) : (
+          <div className="admin-feedback-grid">
+            {overview.feedback.recent.map((item) => (
+              <article key={item.id}>
+                <div>
+                  <span>
+                    {feedbackCategoryLabels[item.category] ?? item.category}
+                  </span>
+                  <b>{item.rating}/5</b>
+                </div>
+                <p>{item.message}</p>
+                <small>
+                  {item.displayName} · {formatDate(item.createdAt)}
+                </small>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="admin-layout">

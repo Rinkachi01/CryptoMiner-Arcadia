@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com blocos fixos, três pools e economia controlada pelo servidor.",
+    "Mineração virtual com blocos fixos, três pools, Central de Tarefas e economia controlada pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "CMA, BTC e DOGE disputam blocos fixos: mais poder muda sua participação, nunca o orçamento total.",
+      "Central de Tarefas, feedback beta e mineração em blocos fixos nas pools CMA, BTC e DOGE.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-fixed-block.png",
+        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-tasks-beta.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — mineradores disputando um bloco fixo nas três pools",
+        alt: "Crypto Miner Arcadia — Central de Tarefas em um laboratório pixel art",
       },
     ],
   },
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Bloco fixo, poder em disputa e economia validada pelo servidor.",
+      "Nova Central de Tarefas e canal direto de feedback do beta.",
     images: [
-      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-fixed-block.png",
+      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-tasks-beta.png",
     ],
   },
 };

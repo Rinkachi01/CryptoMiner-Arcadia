@@ -268,12 +268,31 @@ Entregas concluídas na décima primeira etapa:
 - plano de monetização separado da economia, sem anúncios recompensando moedas
   ou poder nesta fase.
 
+Entregas concluídas na décima segunda etapa:
+
+- Central de Tarefas adicionada como área própria na navegação principal;
+- separação visual entre missões internas, pesquisas futuras, instruções e
+  feedback do beta;
+- nenhuma pesquisa, anúncio de terceiros ou promessa de recompensa fictícia
+  ativada;
+- Tour do Arcade e feedback conectados a ações reais do jogo;
+- feedback estruturado por categoria, nota e comentário, salvo por conta no
+  servidor;
+- limite entre envios repetidos e histórico pessoal recente;
+- resumo de nota e respostas recentes disponível somente na Central do
+  Proprietário;
+- energia movida para o início do painel operacional da sala;
+- atividade recente decorativa removida da sala de mineração;
+- cartão de poder instalado reorganizado para impedir números cortados em
+  resoluções estreitas e escalas maiores de leitura.
+
 Próxima entrega segura:
 
-- checklist e coleta estruturada de feedback para o beta fechado;
 - painel de custo diário projetado e realizado por pool;
 - coortes que comparem retenção com consumo de energia e minigames;
-- coortes de retenção sem identificação pública dos jogadores;
+- classificação de feedback por prioridade e estado de resolução;
+- consentimento e antifraude específicos antes de avaliar um provedor de
+  pesquisas;
 - compactação dos comprovantes detalhados de partidas antigas, preservando o
   ledger econômico;
 - revisão da economia após uma temporada completa de dados reais.

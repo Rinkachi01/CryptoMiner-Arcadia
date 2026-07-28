@@ -8,6 +8,7 @@ import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
 import { OperatorInbox } from "./OperatorInbox";
+import { TasksView } from "./TasksView";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
@@ -57,6 +58,7 @@ type ViewId =
   | "inventory"
   | "shop"
   | "games"
+  | "tasks"
   | "career";
 type ShopCategory = "miners" | "racks" | "energy" | "crates";
 type TextScale = "comfortable" | "large" | "extra";
@@ -113,6 +115,7 @@ const navigation: Array<{
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
+  { id: "tasks", label: "Tarefas", shortLabel: "Tasks", glyph: "T" },
   {
     id: "career",
     label: "Central do operador",
@@ -906,6 +909,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
+              ) : activeView === "tasks" ? (
+                <>CENTRAL DE TAREFAS <i /> BETA E MONETIZAÇÃO FUTURA</>
               ) : activeView === "career" ? (
                 <>CENTRAL DO OPERADOR <i /> PROGRESSO E MISSÕES</>
               ) : (
@@ -927,7 +932,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                         ? "Loja de equipamentos"
                         : activeView === "games"
                           ? "Central de minigames"
-                          : "Carreira do operador"}
+                          : activeView === "tasks"
+                            ? "Central de tarefas"
+                            : "Carreira do operador"}
             </h1>
           </div>
         </div>
@@ -1073,6 +1080,15 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           <PacketCatchView
             temporaryPowerGh={temporaryPowerGh}
             onRefreshAccount={refreshServerState}
+          />
+        )}
+
+        {!rackOpen && activeView === "tasks" && (
+          <TasksView
+            onNavigate={(target) => {
+              setRackOpen(false);
+              setActiveView(target);
+            }}
           />
         )}
 
@@ -1302,6 +1318,16 @@ function MiningRoom({
           <i />
         </div>
 
+        <EnergyCard
+          energySeconds={energySeconds}
+          batteryCount={batteryCount}
+          canClaim={canClaimEnergy}
+          claimCooldownSeconds={claimCooldownSeconds}
+          onClaim={onClaimEnergy}
+          onOpenStore={() => onOpenStore("energy")}
+          onUseBattery={onUseBattery}
+        />
+
         <div className="allocation-summary-card">
           <div className="allocation-summary-heading">
             <span>DISTRIBUIÇÃO DE PODER</span>
@@ -1382,40 +1408,6 @@ function MiningRoom({
           </small>
         </div>
 
-        <EnergyCard
-          energySeconds={energySeconds}
-          batteryCount={batteryCount}
-          canClaim={canClaimEnergy}
-          claimCooldownSeconds={claimCooldownSeconds}
-          onClaim={onClaimEnergy}
-          onOpenStore={() => onOpenStore("energy")}
-          onUseBattery={onUseBattery}
-        />
-
-        <div className="activity-feed compact">
-          <div>
-            <strong>ATIVIDADE RECENTE</strong>
-            <span>AO VIVO</span>
-          </div>
-          <ul>
-            <li>
-              <i className="success" />
-              <p>
-                <strong>Layout de 12 racks pronto</strong>
-                encaixes sincronizados
-              </p>
-              <time>agora</time>
-            </li>
-            <li>
-              <i />
-              <p>
-                <strong>Bloco #3147 distribuído</strong>
-                intervalo de 10 minutos
-              </p>
-              <time>10 min</time>
-            </li>
-          </ul>
-        </div>
       </aside>
     </div>
   );
@@ -1488,7 +1480,7 @@ function EnergyCard({
           IR PARA LOJA
         </button>
       </div>
-      <p>Minigames poderão conceder baterias nas próximas etapas.</p>
+      <p>O Tour do Arcade concede 1 bateria após validar os três jogos.</p>
     </div>
   );
 }

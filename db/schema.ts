@@ -207,6 +207,27 @@ export const adminAuditLog = sqliteTable(
   ],
 );
 
+export const betaFeedback = sqliteTable(
+  "beta_feedback",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    category: text("category").notNull(),
+    rating: integer("rating").notNull(),
+    message: text("message").notNull(),
+    page: text("page").notNull().default("tasks"),
+    status: text("status").notNull().default("new"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("beta_feedback_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("beta_feedback_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   singletonId: integer("singleton_id").primaryKey(),
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),
