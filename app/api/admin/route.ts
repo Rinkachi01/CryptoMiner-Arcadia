@@ -19,6 +19,10 @@ import {
 } from "../../feedback-server";
 import { isBetaFeedbackStatus } from "../../feedback-rules";
 import {
+  compactEligibleGameProofs,
+  readBetaObservability,
+} from "../../beta-observability";
+import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
   readNetworkPowerSnapshot,
@@ -544,11 +548,12 @@ export async function GET() {
   }
   await ensureAdminSchema(context.db);
   const now = Date.now();
-  const [settings, overview, network, feedback] = await Promise.all([
+  const [settings, overview, network, feedback, beta] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
     readNetworkPowerSnapshot(context.db, now),
     readAdminBetaFeedback(context.db, now),
+    readBetaObservability(context.db, now),
   ]);
   await ensureDefaultSeason(context.db, now);
   const season = await readSeasonOverview(context.db, context.accountId, now);
@@ -572,6 +577,7 @@ export async function GET() {
     season,
     network,
     feedback,
+    beta,
     ...overview,
     serverTime: now,
   });
@@ -603,6 +609,23 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "compact-game-proofs") {
+    const result = await compactEligibleGameProofs(context.db, now);
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "old_game_proofs_compacted",
+      result,
+      now,
+    );
+    return json({
+      message:
+        result.compacted > 0
+          ? `${result.compacted} comprovante(s) antigo(s) compactado(s). O ledger e os resultados foram preservados.`
+          : "Nenhum comprovante antigo estava elegível para compactação.",
+    });
+  }
 
   if (
     body?.action === "set-feedback-status" &&

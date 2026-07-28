@@ -51,3 +51,14 @@ artificial também devem ser tratados como risco de bloqueio da monetização.
 Ativar somente quando uma temporada fechada demonstrar emissão estável, os
 controles antifraude estiverem operacionais, o fluxo de consentimento estiver
 pronto e o provedor escolhido aceitar explicitamente a natureza do produto.
+
+## Preparação concluída no beta
+
+- cada conta pode escolher entre receber uma pergunta futura ou manter tarefas
+  parceiras desativadas;
+- a escolha pode ser alterada e cada mudança fica registrada sem guardar dados
+  desnecessários;
+- o estado padrão não conecta parceiro nem autoriza compartilhamento;
+- o painel do proprietário mostra apenas contagens agregadas dessas escolhas;
+- a integração real continua bloqueada até uma nova decisão explícita e uma
+  temporada completa de dados.

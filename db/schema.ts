@@ -228,6 +228,32 @@ export const betaFeedback = sqliteTable(
   ],
 );
 
+export const taskPreferences = sqliteTable("task_preferences", {
+  accountId: text("account_id").primaryKey(),
+  partnerTasksMode: text("partner_tasks_mode").notNull().default("ask"),
+  consentVersion: text("consent_version").notNull().default("beta-v1"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const taskPreferenceEvents = sqliteTable(
+  "task_preference_events",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    partnerTasksMode: text("partner_tasks_mode").notNull(),
+    consentVersion: text("consent_version").notNull().default("beta-v1"),
+    source: text("source").notNull().default("tasks"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("task_preference_events_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   singletonId: integer("singleton_id").primaryKey(),
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),

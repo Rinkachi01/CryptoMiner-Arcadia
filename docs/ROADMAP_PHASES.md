@@ -304,14 +304,34 @@ Entregas concluídas na décima terceira etapa:
 - feedbacks do beta agora podem avançar entre recebido, em análise, planejado e
   resolvido, com cada alteração registrada na auditoria administrativa.
 
+Entregas concluídas na décima quarta etapa:
+
+- painel de beta observável com jogadores novos, ativos e retornando em sete
+  dias;
+- quatro coortes semanais separando entrada, retorno, uso do Arcade e uso de
+  energia;
+- comparação entre comportamento do primeiro dia e retorno nos dias 2–7,
+  exibida como sinal observacional e não como relação causal;
+- indicação explícita de amostra pequena até existirem ao menos cinco contas
+  em cada grupo de comparação;
+- preferência revogável por conta para pedir autorização futura ou manter
+  tarefas parceiras desativadas;
+- histórico append-only das mudanças de preferência, sem conectar provedor,
+  anúncio ou compartilhamento externo;
+- manutenção exclusiva do proprietário para compactar comprovantes detalhados
+  de partidas normais encerradas há mais de 30 dias;
+- confirmação em duas etapas, auditoria administrativa e preservação do
+  resultado, recompensa, sessão resumida e ledger econômico;
+- revisão de preços e recompensas adiada até o encerramento de uma temporada
+  completa, evitando decisões com amostra insuficiente.
+
 Próxima entrega segura:
 
-- coortes que comparem retenção com consumo de energia e minigames;
-- consentimento e antifraude específicos antes de avaliar um provedor de
-  pesquisas;
-- compactação dos comprovantes detalhados de partidas antigas, preservando o
-  ledger econômico;
-- revisão da economia após uma temporada completa de dados reais.
+- relatório comparativo da primeira temporada completa;
+- funil do onboarding, da primeira energia até o primeiro bloco creditado;
+- validação de acessibilidade por tarefa com usuários do beta;
+- avaliação de provedor de pesquisas somente se consentimento, antifraude e
+  estabilidade econômica estiverem comprovados.
 
 Critério de saída: economia estável em uma temporada fechada.
 

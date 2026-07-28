@@ -28,6 +28,60 @@ type AdminOverview = {
     createdAt: number;
     metadata: Record<string, unknown>;
   }>;
+  beta: {
+    behaviorSignals: {
+      arcade: {
+        deltaPercentagePoints: number;
+        exposed: number;
+        exposedRate: number;
+        reliable: boolean;
+        unexposed: number;
+        unexposedRate: number;
+      };
+      energy: {
+        deltaPercentagePoints: number;
+        exposed: number;
+        exposedRate: number;
+        reliable: boolean;
+        unexposed: number;
+        unexposedRate: number;
+      };
+      notice: string;
+    };
+    cohorts: Array<{
+      arcade7d: number;
+      energy7d: number;
+      endAt: number;
+      measurementComplete: boolean;
+      returned7d: number;
+      signups: number;
+      startAt: number;
+    }>;
+    definitions: {
+      active: string;
+      returned: string;
+    };
+    maintenance: {
+      archivedProofs: number;
+      eligibleProofs: number;
+      retentionDays: number;
+    };
+    preferences: {
+      ask: number;
+      disabled: number;
+      unset: number;
+    };
+    summary: {
+      activePlayers7d: number;
+      arcadePlayers7d: number;
+      energyPlayers7d: number;
+      expandedPlayers: number;
+      newPlayers7d: number;
+      returningPlayers7d: number;
+      totalPlayers: number;
+    };
+    windowDays: number;
+  };
   games: Array<{
     gameId: string;
     plays: number;
@@ -312,6 +366,18 @@ function formatSeasonRemaining(endsAt: number, now: number) {
   return days > 0 ? `${days} dias e ${hours}h` : `${hours} horas`;
 }
 
+function ratioPercent(value: number, total: number) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function formatShortDate(value: number) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
+
 export function AdminDashboard({
   signOutPath,
   user,
@@ -334,6 +400,7 @@ export function AdminDashboard({
   const [seasonDurationDays, setSeasonDurationDays] = useState(30);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
+  const [maintenanceArmed, setMaintenanceArmed] = useState(false);
 
   const loadOverview = useCallback(async () => {
     setError("");
@@ -606,6 +673,200 @@ export function AdminDashboard({
           <strong>{formatNumber(overview.metrics.batteryClaims24h)}</strong>
           <small>{overview.inventory.playersWithEnergy} contas energizadas</small>
         </article>
+      </section>
+
+      <section className="admin-panel admin-beta-observability">
+        <div className="admin-panel-heading">
+          <div>
+            <span>BETA OBSERVÁVEL · JANELA DE 7 DIAS</span>
+            <h2>Retenção, energia e Arcade</h2>
+          </div>
+          <small>DADOS DO SERVIDOR · SEM RASTREADOR EXTERNO</small>
+        </div>
+
+        <div className="admin-beta-summary">
+          <article>
+            <span>ATIVOS EM 7D</span>
+            <strong>{formatNumber(overview.beta.summary.activePlayers7d)}</strong>
+            <small>{overview.beta.definitions.active}</small>
+          </article>
+          <article>
+            <span>RETORNANDO</span>
+            <strong>
+              {formatNumber(overview.beta.summary.returningPlayers7d)}
+            </strong>
+            <small>{overview.beta.definitions.returned}</small>
+          </article>
+          <article>
+            <span>JOGARAM NO ARCADE</span>
+            <strong>
+              {ratioPercent(
+                overview.beta.summary.arcadePlayers7d,
+                overview.beta.summary.activePlayers7d,
+              )}
+              %
+            </strong>
+            <small>
+              {overview.beta.summary.arcadePlayers7d} de{" "}
+              {overview.beta.summary.activePlayers7d} ativos
+            </small>
+          </article>
+          <article>
+            <span>USARAM ENERGIA</span>
+            <strong>
+              {ratioPercent(
+                overview.beta.summary.energyPlayers7d,
+                overview.beta.summary.activePlayers7d,
+              )}
+              %
+            </strong>
+            <small>
+              {overview.beta.summary.energyPlayers7d} de{" "}
+              {overview.beta.summary.activePlayers7d} ativos
+            </small>
+          </article>
+        </div>
+
+        <div className="admin-beta-analysis">
+          {[
+            ["ARCADE NO 1º DIA", overview.beta.behaviorSignals.arcade],
+            ["ENERGIA NO 1º DIA", overview.beta.behaviorSignals.energy],
+          ].map(([label, signal]) => {
+            const observation = signal as
+              typeof overview.beta.behaviorSignals.arcade;
+            return (
+              <article key={label as string}>
+                <div>
+                  <span>{label as string}</span>
+                  <em className={observation.reliable ? "ready" : ""}>
+                    {observation.reliable
+                      ? "AMOSTRA MÍNIMA"
+                      : "AMOSTRA PEQUENA"}
+                  </em>
+                </div>
+                <strong>
+                  {observation.deltaPercentagePoints > 0 ? "+" : ""}
+                  {observation.deltaPercentagePoints} p.p.
+                </strong>
+                <p>diferença observada no retorno entre os dias 2 e 7</p>
+                <dl>
+                  <div>
+                    <dt>Com o recurso</dt>
+                    <dd>
+                      {observation.exposedRate}% · {observation.exposed} conta(s)
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Sem o recurso</dt>
+                    <dd>
+                      {observation.unexposedRate}% · {observation.unexposed}{" "}
+                      conta(s)
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            );
+          })}
+        </div>
+        <p className="admin-beta-notice">
+          {overview.beta.behaviorSignals.notice} A leitura só ganha força com
+          pelo menos cinco contas em cada grupo.
+        </p>
+
+        <div className="admin-cohort-table" role="table" aria-label="Coortes de retenção">
+          <div role="row" className="heading">
+            <span role="columnheader">COORTE</span>
+            <span role="columnheader">ENTRADAS</span>
+            <span role="columnheader">RETORNO 7D</span>
+            <span role="columnheader">ARCADE</span>
+            <span role="columnheader">ENERGIA</span>
+          </div>
+          {overview.beta.cohorts.map((cohort) => (
+            <div role="row" key={cohort.startAt}>
+              <strong role="cell">
+                {formatShortDate(cohort.startAt)}–{formatShortDate(cohort.endAt)}
+                {!cohort.measurementComplete && <small>EM ABERTO</small>}
+              </strong>
+              <span role="cell">{cohort.signups}</span>
+              <span role="cell">
+                {ratioPercent(cohort.returned7d, cohort.signups)}%
+              </span>
+              <span role="cell">
+                {ratioPercent(cohort.arcade7d, cohort.signups)}%
+              </span>
+              <span role="cell">
+                {ratioPercent(cohort.energy7d, cohort.signups)}%
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="admin-data-stewardship">
+          <div>
+            <span>PREFERÊNCIAS DE TAREFAS</span>
+            <strong>
+              {overview.beta.preferences.ask} pedir autorização ·{" "}
+              {overview.beta.preferences.disabled} desativadas
+            </strong>
+            <small>
+              {overview.beta.preferences.unset} conta(s) ainda sem escolha
+              salva. Nenhum parceiro está conectado.
+            </small>
+          </div>
+          <div>
+            <span>COMPROVANTES DE PARTIDA</span>
+            <strong>
+              {overview.beta.maintenance.eligibleProofs} elegível(is) ·{" "}
+              {overview.beta.maintenance.archivedProofs} compactado(s)
+            </strong>
+            <small>
+              Após {overview.beta.maintenance.retentionDays} dias, somente
+              provas normais e encerradas podem ser compactadas. Resultado,
+              recompensa e ledger permanecem intactos.
+            </small>
+          </div>
+          <div className="admin-maintenance-action">
+            {!maintenanceArmed ? (
+              <button
+                type="button"
+                disabled={
+                  overview.beta.maintenance.eligibleProofs === 0 ||
+                  Boolean(busyAction)
+                }
+                onClick={() => setMaintenanceArmed(true)}
+              >
+                REVISAR COMPACTAÇÃO
+              </button>
+            ) : (
+              <>
+                <p>
+                  Confirmar a compactação de{" "}
+                  {overview.beta.maintenance.eligibleProofs} comprovante(s)?
+                </p>
+                <button
+                  type="button"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => {
+                    setMaintenanceArmed(false);
+                    void runAdminAction("compact-game-proofs", {
+                      action: "compact-game-proofs",
+                    });
+                  }}
+                >
+                  CONFIRMAR
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => setMaintenanceArmed(false)}
+                >
+                  CANCELAR
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="admin-panel admin-network-lab">

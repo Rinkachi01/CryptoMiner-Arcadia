@@ -8,6 +8,10 @@ import {
   betaFeedbackCategories,
   type BetaFeedbackCategory,
 } from "./feedback-rules";
+import type {
+  PartnerTaskMode,
+  PublicTaskPreference,
+} from "./task-preferences";
 
 type TaskTab = "wall" | "mine" | "surveys" | "guide" | "feedback";
 
@@ -50,6 +54,12 @@ export function TasksView({
     "idle" | "loading" | "sending"
   >("loading");
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [taskPreference, setTaskPreference] =
+    useState<PublicTaskPreference | null>(null);
+  const [preferenceState, setPreferenceState] = useState<
+    "idle" | "loading" | "saving"
+  >("loading");
+  const [preferenceMessage, setPreferenceMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -78,6 +88,66 @@ export function TasksView({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/task-preferences", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json()) as {
+          error?: string;
+          preference?: PublicTaskPreference;
+        };
+        if (!response.ok) {
+          throw new Error(data.error ?? "Preferência indisponível.");
+        }
+        if (active) setTaskPreference(data.preference ?? null);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setPreferenceMessage(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar sua preferência.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setPreferenceState("idle");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function savePreference(partnerTasksMode: PartnerTaskMode) {
+    setPreferenceState("saving");
+    setPreferenceMessage("");
+    try {
+      const response = await fetch("/api/task-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerTasksMode }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        message?: string;
+        preference?: PublicTaskPreference;
+      };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Preferência recusada.");
+      }
+      setTaskPreference(data.preference ?? null);
+      setPreferenceMessage(data.message ?? "Preferência salva.");
+    } catch (error) {
+      setPreferenceMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar sua preferência.",
+      );
+    } finally {
+      setPreferenceState("idle");
+    }
+  }
 
   async function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -279,18 +349,96 @@ export function TasksView({
       )}
 
       {tab === "surveys" && (
-        <div className="task-empty-state">
-          <span>▤</span>
-          <h3>Pesquisas ainda não conectadas</h3>
-          <p>
-            Esta área já está separada do restante do jogo, mas nenhum provedor
-            externo recebe dados e nenhuma recompensa publicitária é exibida.
-          </p>
-          <ul>
-            <li>Escolha voluntária e consentimento claro</li>
-            <li>Recompensa interna, não transferível e com limite diário</li>
-            <li>Detecção de repetição, automação e tráfego inválido</li>
-          </ul>
+        <div className="task-survey-readiness">
+          <section className="task-empty-state">
+            <span>▤</span>
+            <h3>Pesquisas ainda não conectadas</h3>
+            <p>
+              Nenhum provedor externo recebe dados e nenhuma recompensa
+              publicitária é exibida. Esta escolha prepara o beta; ela não
+              autoriza nenhum compartilhamento agora.
+            </p>
+            <ul>
+              <li>Escolha voluntária, salva por conta e revogável</li>
+              <li>Nova autorização antes de abrir qualquer parceiro</li>
+              <li>Recompensa interna, limitada e nunca em CMA, BTC ou DOGE</li>
+              <li>Validação do servidor contra repetição e automação</li>
+            </ul>
+          </section>
+
+          <section className="task-preference-panel">
+            <span>SEU CONTROLE</span>
+            <h3>Como devemos tratar tarefas parceiras?</h3>
+            <p>
+              Você pode mudar esta escolha a qualquer momento. O Arcadia
+              continuará funcionando normalmente nas duas opções.
+            </p>
+            {preferenceState === "loading" ? (
+              <div className="task-preference-loading">
+                Carregando preferência...
+              </div>
+            ) : (
+              <div
+                className="task-preference-options"
+                role="radiogroup"
+                aria-label="Preferência para tarefas parceiras"
+              >
+                <button
+                  className={
+                    taskPreference?.partnerTasksMode === "ask" ? "selected" : ""
+                  }
+                  type="button"
+                  role="radio"
+                  aria-checked={taskPreference?.partnerTasksMode === "ask"}
+                  disabled={preferenceState === "saving"}
+                  onClick={() => void savePreference("ask")}
+                >
+                  <b>PERGUNTAR ANTES</b>
+                  <span>
+                    Mostrar uma decisão clara se um parceiro for aprovado no
+                    futuro.
+                  </span>
+                  <em>RECOMENDADO PARA O BETA</em>
+                </button>
+                <button
+                  className={
+                    taskPreference?.partnerTasksMode === "disabled"
+                      ? "selected"
+                      : ""
+                  }
+                  type="button"
+                  role="radio"
+                  aria-checked={
+                    taskPreference?.partnerTasksMode === "disabled"
+                  }
+                  disabled={preferenceState === "saving"}
+                  onClick={() => void savePreference("disabled")}
+                >
+                  <b>MANTER DESATIVADO</b>
+                  <span>
+                    Não oferecer tarefas externas nesta conta, mesmo quando a
+                    área for liberada.
+                  </span>
+                  <em>SEM IMPACTO NO JOGO</em>
+                </button>
+              </div>
+            )}
+            <footer>
+              <strong>
+                {taskPreference?.saved
+                  ? "PREFERÊNCIA SALVA NO SERVIDOR"
+                  : "NENHUMA ESCOLHA SALVA AINDA"}
+              </strong>
+              <span>
+                Parceiro conectado: <b>NÃO</b>
+              </span>
+            </footer>
+            {preferenceMessage && (
+              <p className="task-preference-message" role="status">
+                {preferenceMessage}
+              </p>
+            )}
+          </section>
         </div>
       )}
 

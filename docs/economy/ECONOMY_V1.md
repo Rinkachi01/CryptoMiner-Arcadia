@@ -245,8 +245,12 @@ recompensa continuam sendo recalculados no servidor.
 - cada fechamento mostra separadamente quanto entrou em CMA, BTC e DOGE;
 - o ledger econômico é preservado como trilha completa de auditoria, com
   consultas indexadas e limitadas, em vez de ser carregado inteiro;
-- comprovantes volumosos de partidas podem ser compactados depois de 30 dias em
-  uma rotina futura, mas compras, créditos e débitos não devem ser apagados.
+- comprovantes detalhados de partidas normais podem ser compactados após 30
+  dias por ação confirmada do proprietário;
+- a compactação preserva resultado resumido, recompensa, sessão e ledger;
+  compras, créditos e débitos nunca entram nessa manutenção;
+- o painel do beta compara coortes semanais, retorno em sete dias e adoção de
+  energia e Arcade, sempre marcando quando a amostra é pequena.
 
 ### Alertas, relatório e laboratório
 
