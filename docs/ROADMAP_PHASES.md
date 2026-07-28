@@ -63,7 +63,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: quinta entrega concluída.
+Status: sexta entrega concluída.
 
 Ordem de execução:
 
@@ -185,14 +185,27 @@ Entregas concluídas nesta quinta etapa:
 - Hash Match com revelação e comparação de cartas mais rápidas;
 - animações dos minigames isoladas para reduzir travamentos.
 
+Entregas concluídas nesta sexta etapa:
+
+- Central do Proprietário protegida pela conta autenticada;
+- primeiro proprietário do site privado registrado no servidor e bloqueado
+  contra substituição por outra conta;
+- métricas de jogadores, partidas, vitórias, poder, caixas e baterias em 24h;
+- desempenho individual dos três minigames;
+- concentração de mineradores, racks instalados e estoque de baterias;
+- fila de partidas suspeitas com resolução liberada ou confirmada;
+- observações e decisões mantidas em histórico administrativo;
+- controles reversíveis para pausar Caixas Arcadia, poder temporário dos
+  minigames e bateria diária;
+- toda mudança de controle registrada em trilha de auditoria;
+- pausas não removem inventário, saldo ou progresso já existente.
+
 Próxima entrega:
 
-- painel administrativo exclusivo do proprietário para revisar partidas
-  suspeitas, emissão de poder, abertura de caixas e uso de energia;
-- alertas de concentração por item e taxa de ganho por minigame;
-- controles de pausa para caixas e recompensas sem precisar publicar uma nova
-  versão do site;
-- teste fechado dos preços e probabilidades antes de qualquer economia real.
+- alertas automáticos por limites configuráveis de emissão e concentração;
+- exportação de relatórios da temporada fechada;
+- simulador de rebalanceamento antes de alterar preços ou probabilidades;
+- teste fechado dos controles administrativos e da economia completa.
 
 Critério de saída: economia estável em uma temporada fechada.
 

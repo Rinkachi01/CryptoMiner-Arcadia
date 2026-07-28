@@ -779,6 +779,11 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <span>{item.label}</span>
             </button>
           ))}
+          <a className="admin-nav-link" href="/admin">
+            <span className="nav-glyph">C</span>
+            <span>Central do proprietário</span>
+            <small>OWNER</small>
+          </a>
         </nav>
 
         <div className="simulation-note">

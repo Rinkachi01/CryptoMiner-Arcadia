@@ -569,7 +569,9 @@ export async function POST(request: Request) {
     nextPlayAt,
     cooldownSeconds,
     message: survived
-      ? emissionBudget.limited
+      ? emissionBudget.paused
+        ? `Nível ${session.difficulty} concluído. O poder temporário está pausado pelo operador.`
+        : emissionBudget.limited
         ? `Nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
         : `Nível ${session.difficulty} concluído. A próxima rodada será mais difícil.`
       : scoreResult.bombHit

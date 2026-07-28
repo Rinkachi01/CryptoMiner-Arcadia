@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Abra Caixas Arcadia com chances públicas, jogue minigames renovados e progrida com validação segura do servidor.",
+    "Minere, jogue e acompanhe a economia pela nova Central do Proprietário protegida pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Caixas Arcadia com chances públicas, três vidas no Packet Catch e resultados validados pelo servidor.",
+      "Central do Proprietário com métricas econômicas, revisão antifraude e controles de emergência.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — três Caixas Arcadia e transmissão segura para o servidor",
+        alt: "Crypto Miner Arcadia — Central do Proprietário com três controles econômicos seguros",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Caixas Arcadia, minigames renovados e transmissão segura de resultados.",
+      "Central do Proprietário, telemetria econômica e controles seguros.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],

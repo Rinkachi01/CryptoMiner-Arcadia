@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import { readAdminRuntimeSettings } from "../../../admin-settings";
 import {
   DAILY_ARCADE_BATTERY_REWARD,
   DAILY_ARCADE_GAMES,
@@ -304,6 +305,13 @@ export async function GET() {
   const accountId = await accountIdFor(user.email);
   const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
   await ensureSchema(db);
+  const settings = await readAdminRuntimeSettings(db);
+  if (!settings.dailyBatteryEnabled) {
+    return json(
+      { error: "A bateria diária está pausada temporariamente pelo operador." },
+      503,
+    );
+  }
   const emissionBudget = await readDailyGamePowerBudget(db, accountId, now);
   await db.batch(
     gameIds.map((gameId) =>

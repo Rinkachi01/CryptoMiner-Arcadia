@@ -191,6 +191,25 @@ recompensa continuam sendo recalculados no servidor.
 - novas recompensas só poderão ser ativadas depois de medir o impacto desta
   primeira missão sobre retenção, estoque de energia e abuso.
 
+## Controle administrativo
+
+- a Central do Proprietário é protegida no servidor e não confia em um botão
+  escondido no navegador;
+- a primeira conta autenticada que acessa o painel no site privado torna-se o
+  proprietário registrado;
+- outras contas recebem acesso negado, mesmo que conheçam o endereço do painel;
+- Caixas Arcadia, poder temporário e bateria diária possuem chaves de pausa
+  independentes;
+- pausar uma fonte impede novas emissões, mas preserva saldos, inventário,
+  partidas e itens já concedidos;
+- partidas com risco ficam em uma fila separada e recebem uma resolução
+  auditável, sem apagar a sessão original;
+- métricas de 24 horas mostram fontes, sumidouros, emissão e concentração de
+  equipamentos;
+- toda alteração administrativa fica registrada com autor, horário e
+  parâmetros;
+- nenhum controle permite criar CMA ou editar diretamente o saldo de uma conta.
+
 ## Referências analisadas
 
 - RollerCoin, Multi Mining:

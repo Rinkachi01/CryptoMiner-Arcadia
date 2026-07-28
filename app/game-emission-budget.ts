@@ -1,9 +1,12 @@
+import { readAdminRuntimeSettings } from "./admin-settings.ts";
+
 export const DAILY_GAME_POWER_BUDGET_GH = 5_000;
 
 export type GameEmissionBudget = {
   awardedPowerGh: number;
   budgetPowerGh: number;
   limited: boolean;
+  paused: boolean;
   remainingPowerGh: number;
   requestedPowerGh: number;
   resetAt: number;
@@ -87,6 +90,7 @@ function budgetPayload(
   requestedPowerGh: number,
   awardedPowerGh: number,
   now: number,
+  paused = false,
 ): GameEmissionBudget {
   const { resetAt, windowKey } = emissionWindow(now);
   const safeUsed = Math.max(0, Math.floor(usedPowerGh));
@@ -94,6 +98,7 @@ function budgetPayload(
     awardedPowerGh,
     budgetPowerGh: DAILY_GAME_POWER_BUDGET_GH,
     limited: awardedPowerGh < Math.max(0, Math.floor(requestedPowerGh)),
+    paused,
     remainingPowerGh: Math.max(
       0,
       DAILY_GAME_POWER_BUDGET_GH - safeUsed,
@@ -138,6 +143,16 @@ export async function reserveDailyGamePower(
   const { windowKey } = emissionWindow(now);
   const requested = Math.max(0, Math.floor(requestedPowerGh));
   await ensureBudgetRow(db, accountId, now);
+  const settings = await readAdminRuntimeSettings(db);
+  if (!settings.minigamePowerEnabled) {
+    const current = await readDailyGamePowerBudget(db, accountId, now);
+    return {
+      ...current,
+      limited: requested > 0,
+      paused: true,
+      requestedPowerGh: requested,
+    };
+  }
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const row = await db

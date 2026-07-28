@@ -485,7 +485,9 @@ export async function POST(request: Request) {
     nextPlayAt,
     cooldownSeconds,
     limits: await usage(current.db, current.accountId, now),
-    message: emissionBudget.limited
+    message: emissionBudget.paused
+      ? `Circuit Rush nível ${session.difficulty} concluído. O poder temporário está pausado pelo operador.`
+      : emissionBudget.limited
       ? `Circuit Rush nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
       : `Circuit Rush nível ${session.difficulty} concluído.`,
   });

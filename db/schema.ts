@@ -154,3 +154,47 @@ export const dailyMissionClaims = sqliteTable(
     ),
   ],
 );
+
+export const adminOwners = sqliteTable("admin_owners", {
+  singletonId: integer("singleton_id").primaryKey(),
+  accountId: text("account_id").notNull().unique(),
+  email: text("email").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const adminRuntimeSettings = sqliteTable("admin_runtime_settings", {
+  singletonId: integer("singleton_id").primaryKey(),
+  cratesEnabled: integer("crates_enabled").notNull().default(1),
+  minigamePowerEnabled: integer("minigame_power_enabled").notNull().default(1),
+  dailyBatteryEnabled: integer("daily_battery_enabled").notNull().default(1),
+  updatedAt: integer("updated_at").notNull().default(0),
+  updatedBy: text("updated_by"),
+});
+
+export const adminSessionReviews = sqliteTable(
+  "admin_session_reviews",
+  {
+    sessionId: text("session_id").primaryKey(),
+    resolution: text("resolution").notNull(),
+    note: text("note").notNull().default(""),
+    reviewedBy: text("reviewed_by").notNull(),
+    reviewedAt: integer("reviewed_at").notNull(),
+  },
+  (table) => [
+    index("admin_session_reviews_reviewed_at_idx").on(table.reviewedAt),
+  ],
+);
+
+export const adminAuditLog = sqliteTable(
+  "admin_audit_log",
+  {
+    id: text("id").primaryKey(),
+    actorAccountId: text("actor_account_id").notNull(),
+    action: text("action").notNull(),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("admin_audit_log_created_at_idx").on(table.createdAt),
+  ],
+);

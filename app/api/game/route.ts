@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { readAdminRuntimeSettings } from "../../admin-settings";
 import { BLOCK_INTERVAL_SECONDS } from "../../game-rules";
 import {
   applyGameAction,
@@ -509,6 +510,14 @@ export async function POST(request: Request) {
         ? (body.payload as Record<string, unknown>).crateId
         : undefined;
     const crate = getSupplyCrate(crateId);
+    if (body.action === "open_supply_crate") {
+      const settings = await readAdminRuntimeSettings(context.db);
+      if (!settings.cratesEnabled) {
+        throw new Error(
+          "As Caixas Arcadia estão pausadas temporariamente pelo operador.",
+        );
+      }
+    }
     result =
       body.action === "open_supply_crate" && crate
         ? applySupplyCratePurchase(

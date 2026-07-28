@@ -536,7 +536,9 @@ export async function POST(request: Request) {
     nextDifficulty,
     nextPlayAt,
     cooldownSeconds,
-    message: emissionBudget.limited
+    message: emissionBudget.paused
+      ? `Hash Match nível ${session.difficulty} concluído. O poder temporário está pausado pelo operador.`
+      : emissionBudget.limited
       ? `Hash Match nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
       : `Hash Match nível ${session.difficulty} concluído.`,
   });
