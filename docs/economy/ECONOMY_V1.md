@@ -81,7 +81,7 @@ controle de reserva.
 - cada bateria adiciona mais 12 horas;
 - máximo inicial de 96 horas;
 - baterias podem ser compradas com CMA;
-- minigames poderão conceder baterias posteriormente;
+- o tour diário dos três minigames concede uma bateria por conta e por dia UTC;
 - sem energia, mineradores deixam de produzir, mas permanecem instalados.
 
 ## Racks e posições
@@ -128,8 +128,9 @@ Calibração do Circuit Rush:
 - ordem, tempo e cliques são conferidos pelo servidor.
 
 Nos três jogos, o poder dura 6 horas e ainda depende de energia para participar
-dos blocos. CMA e baterias continuam desativados como prêmio. Recarga, limites
-e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
+dos blocos. CMA continua desativada como prêmio. Uma bateria pode ser resgatada
+ao encerrar ao menos uma partida em cada minigame no mesmo dia UTC. Recarga,
+limites e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
 pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 
 ### Orçamento global de poder temporário
@@ -153,10 +154,13 @@ pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 - conquistas de carreira registram marcos sem criar recompensa econômica;
 - nível, taxa de vitória, sequência e missões são calculados a partir dos
   registros autoritativos do servidor;
-- missões de 24 horas servem inicialmente para medir comportamento e não
-  concedem CMA, baterias ou poder;
-- recompensas de missão só poderão ser ativadas depois de existir um orçamento
-  diário de emissão e dados suficientes de abuso e retenção.
+- as missões continuam medindo comportamento por ciclo UTC;
+- o Tour do Arcade é a primeira missão com prêmio econômico controlado:
+  uma bateria por conta e por dia, sem CMA;
+- o servidor exige os três jogos encerrados, registra o resgate no ledger e
+  impede crédito duplicado mesmo com chamadas concorrentes;
+- novas recompensas só poderão ser ativadas depois de medir o impacto desta
+  primeira missão sobre retenção, estoque de energia e abuso.
 
 ## Referências analisadas
 

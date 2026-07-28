@@ -127,3 +127,30 @@ export const gameEmissionBudgets = sqliteTable(
     ),
   ],
 );
+
+export const dailyMissionClaims = sqliteTable(
+  "daily_mission_claims",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    missionId: text("mission_id").notNull(),
+    windowKey: text("window_key").notNull(),
+    status: text("status").notNull().default("reserved"),
+    batteryReward: integer("battery_reward").notNull().default(1),
+    stateVersionBefore: integer("state_version_before").notNull(),
+    stateVersionAfter: integer("state_version_after"),
+    createdAt: integer("created_at").notNull(),
+    completedAt: integer("completed_at"),
+  },
+  (table) => [
+    uniqueIndex("daily_mission_claims_account_window_unique").on(
+      table.accountId,
+      table.missionId,
+      table.windowKey,
+    ),
+    index("daily_mission_claims_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+  ],
+);

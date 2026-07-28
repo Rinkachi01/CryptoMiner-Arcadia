@@ -266,7 +266,10 @@ export function PacketCatchView({
         </div>
       </div>
 
-      <OperatorProgressPanel refreshKey={summaryRefreshKey} />
+      <OperatorProgressPanel
+        refreshKey={summaryRefreshKey}
+        onRefreshAccount={refreshArcadeAccount}
+      />
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">

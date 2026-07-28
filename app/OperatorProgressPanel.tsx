@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Summary = {
   operator: {
@@ -49,6 +49,14 @@ type Summary = {
     label: string;
     current: number;
     target: number;
+    eligible?: boolean;
+    claimed?: boolean;
+    claimable?: boolean;
+    resetAt?: number;
+    reward?: {
+      type: "battery";
+      amount: number;
+    };
   }>;
   achievements: Array<{
     id: string;
@@ -67,13 +75,17 @@ const gameNames: Record<string, string> = {
 
 export function OperatorProgressPanel({
   refreshKey,
+  onRefreshAccount,
 }: {
   refreshKey: number;
+  onRefreshAccount: () => Promise<boolean>;
 }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [message, setMessage] = useState("Carregando progresso...");
+  const [claiming, setClaiming] = useState(false);
+  const [claimMessage, setClaimMessage] = useState("");
 
-  useEffect(() => {
+  const loadSummary = useCallback(() => {
     let active = true;
     void fetch("/api/games/summary", { cache: "no-store" })
       .then(async (response) => {
@@ -96,7 +108,39 @@ export function OperatorProgressPanel({
     return () => {
       active = false;
     };
-  }, [refreshKey]);
+  }, []);
+
+  useEffect(() => loadSummary(), [loadSummary, refreshKey]);
+
+  async function claimDailyBattery() {
+    if (claiming) return;
+    setClaiming(true);
+    setClaimMessage("Validando o tour diário...");
+    try {
+      const response = await fetch("/api/games/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "claim-daily-battery" }),
+      });
+      const data = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Não foi possível resgatar a bateria.");
+      }
+      setClaimMessage(data.message ?? "Bateria adicionada ao inventário.");
+      await onRefreshAccount();
+    } catch (error) {
+      setClaimMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível resgatar a bateria.",
+      );
+    } finally {
+      setClaiming(false);
+    }
+  }
 
   if (!summary) {
     return (
@@ -139,15 +183,26 @@ export function OperatorProgressPanel({
 
       <div className="daily-mission-panel">
         <div>
-          <span>MISSÕES DE TELEMETRIA · 24H</span>
-          <small>Sem prêmio econômico durante a calibração.</small>
+          <span>MISSÕES DIÁRIAS · CICLO UTC</span>
+          <small>O tour completo libera 1 bateria por dia.</small>
         </div>
         {summary.missions.map((mission) => {
           const complete = mission.current >= mission.target;
+          const hasReward = Boolean(mission.reward);
+          const actionLabel = mission.claimed
+            ? "RESGATADA"
+            : mission.claimable
+              ? "RESGATAR 1 BATERIA"
+              : "CONCLUA O TOUR";
           return (
-            <article className={complete ? "complete" : ""} key={mission.id}>
-              <span>{complete ? "✓" : "○"}</span>
-              <div>
+            <article
+              className={`${complete ? "complete" : ""} ${
+                mission.claimed ? "claimed" : ""
+              } ${hasReward ? "reward-mission" : ""}`}
+              key={mission.id}
+            >
+              <span>{mission.claimed ? "✓" : complete ? "◇" : "○"}</span>
+              <div className="mission-copy">
                 <strong>{mission.label}</strong>
                 <i>
                   <em
@@ -160,12 +215,30 @@ export function OperatorProgressPanel({
                   />
                 </i>
               </div>
-              <b>
-                {mission.current}/{mission.target}
-              </b>
+              <div className="mission-status">
+                <b>
+                  {mission.current}/{mission.target}
+                </b>
+                {hasReward && (
+                  <button
+                    type="button"
+                    disabled={!mission.claimable || claiming}
+                    onClick={claimDailyBattery}
+                  >
+                    {claiming && mission.claimable
+                      ? "VALIDANDO..."
+                      : actionLabel}
+                  </button>
+                )}
+              </div>
             </article>
           );
         })}
+        {claimMessage && (
+          <p className="daily-mission-message" role="status" aria-live="polite">
+            {claimMessage}
+          </p>
+        )}
       </div>
 
       <div className={`economy-guard-panel ${summary.emission.status}`}>

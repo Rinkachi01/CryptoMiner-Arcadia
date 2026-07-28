@@ -68,6 +68,7 @@ test("migração local é limitada antes de entrar no servidor", () => {
       batteryCount: 999,
       energyExpiresAt: now + 9999 * 60 * 60 * 1000,
       ownedRoomIds: ["room-1", "room-2", "room-999"],
+      dailyMissionClaims: { "arcade-tour": "2099-12-31" },
     },
     now,
   );
@@ -75,10 +76,16 @@ test("migração local é limitada antes de entrar no servidor", () => {
   assert.equal(migrated.cmaBalance, 100);
   assert.equal(migrated.batteryCount, 8);
   assert.equal(migrated.ownedRoomIds.includes("room-2"), true);
+  assert.deepEqual(migrated.dailyMissionClaims, {});
   assert.equal(
     migrated.energyExpiresAt <= now + 96 * 60 * 60 * 1000,
     true,
   );
+});
+
+test("estado inicial não antecipa resgates de missão", () => {
+  const state = createInitialGameState(1_800_000_000_000);
+  assert.deepEqual(state.dailyMissionClaims, {});
 });
 
 test("liquidação de blocos protege contra chamadas concorrentes", async () => {

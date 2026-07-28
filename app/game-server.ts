@@ -51,6 +51,7 @@ export type PublicGameState = {
   minerInventory: MinerUnit[];
   racks: RackInstance[];
   rackMiners: Record<string, InstalledMiner[]>;
+  dailyMissionClaims: Record<string, string>;
 };
 
 export type GameActionName =
@@ -151,6 +152,7 @@ export function createInitialGameState(now: number): PublicGameState {
     rackMiners: {
       "rack-01": defaultInstalledMiners.map((placement) => ({ ...placement })),
     },
+    dailyMissionClaims: {},
   };
 }
 
@@ -322,6 +324,7 @@ export function normalizeBootstrapState(
     minerInventory,
     racks,
     rackMiners,
+    dailyMissionClaims: {},
   };
 }
 

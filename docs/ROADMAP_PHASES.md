@@ -63,7 +63,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: terceira entrega concluída.
+Status: quarta entrega concluída.
 
 Ordem de execução:
 
@@ -122,6 +122,10 @@ Entregas de telemetria concluídas:
 - missões de telemetria de 24 horas sem recompensa econômica;
 - sessões suspeitas permanecem marcadas para revisão;
 - sincronização de blocos protegida contra chamadas simultâneas.
+- tour diário que exige uma partida encerrada em cada minigame;
+- resgate de uma bateria por conta e por dia UTC;
+- recompensa validada no servidor, idempotente e registrada no ledger;
+- CMA permanece desativada como prêmio de missão.
 
 Próxima atualização:
 
@@ -145,12 +149,14 @@ improvisada.
 
 ## Fase 5 — beta econômico
 
-Status: terceira entrega concluída.
+Status: quarta entrega concluída.
 
 - nível do operador e progressão por experiência;
 - liga do operador com doze divisões, de Recruta a Diamante;
 - conquistas permanentes de carreira calculadas pelo servidor;
-- missões diárias de telemetria sem prêmio econômico;
+- missão diária controlada com uma bateria após jogar os três minigames;
+- limite de um resgate por conta e por ciclo UTC;
+- resgate concorrente protegido por versão de estado e chave idempotente;
 - painel de desempenho separado por minigame;
 - dados de vitórias, tentativas, sequência e taxa de conclusão;
 - proteção visual para que uma falha isolada nunca apague a interface inteira;
@@ -158,7 +164,7 @@ Status: terceira entrega concluída.
 - reserva concorrente de emissão para impedir que partidas simultâneas
   ultrapassem o orçamento;
 - painel de saúde econômica com uso, saldo restante e reinício do ciclo;
-- recompensas de liga e missões diárias continuam futuras;
+- recompensas de liga e fragmentos de CMA continuam futuras;
 - dificuldade dinâmica e orçamento de emissão;
 - limites por conta, dispositivo e comportamento;
 - telemetria de fontes, sumidouros, concentração e tempo de progressão;

@@ -3406,7 +3406,7 @@ img {
   align-items: center;
   gap: 8px;
   padding: 7px 8px;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(58px, auto);
   border: 1px solid #2d3844;
   background: #101821;
 }
@@ -3416,7 +3416,7 @@ img {
   font-size: 13px;
 }
 
-.daily-mission-panel article > div {
+.daily-mission-panel .mission-copy {
   display: grid;
   gap: 5px;
 }
@@ -3425,7 +3425,13 @@ img {
   font-size: 7px;
 }
 
-.daily-mission-panel article > b {
+.daily-mission-panel .mission-status {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.daily-mission-panel .mission-status > b {
   color: #8895a2;
   font-size: 7px;
 }
@@ -3435,8 +3441,60 @@ img {
 }
 
 .daily-mission-panel article.complete > span,
-.daily-mission-panel article.complete > b {
+.daily-mission-panel article.complete .mission-status > b {
   color: var(--lime);
+}
+
+.daily-mission-panel article.reward-mission {
+  border-color: rgba(44, 214, 255, 0.34);
+  background:
+    radial-gradient(circle at 100% 50%, rgba(44, 214, 255, 0.09), transparent 45%),
+    #101821;
+}
+
+.daily-mission-panel article.claimed {
+  border-color: rgba(169, 255, 63, 0.48);
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+
+.daily-mission-panel .mission-status button {
+  min-width: 108px;
+  padding: 6px 7px;
+  border: 1px solid var(--cyan);
+  background: rgba(44, 214, 255, 0.08);
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 6px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.daily-mission-panel .mission-status button:not(:disabled):hover,
+.daily-mission-panel .mission-status button:not(:disabled):focus-visible {
+  background: var(--cyan);
+  color: #061016;
+}
+
+.daily-mission-panel .mission-status button:disabled {
+  border-color: #34414d;
+  color: #66737f;
+  cursor: not-allowed;
+}
+
+.daily-mission-panel article.claimed .mission-status button {
+  border-color: rgba(169, 255, 63, 0.45);
+  background: rgba(169, 255, 63, 0.08);
+  color: var(--lime);
+}
+
+.daily-mission-message {
+  margin: 0;
+  padding: 7px 9px;
+  border-left: 2px solid var(--cyan);
+  background: rgba(44, 214, 255, 0.07);
+  color: #b7d8df;
+  font-size: 7px;
+  line-height: 1.45;
 }
 
 @media (max-width: 1280px) {

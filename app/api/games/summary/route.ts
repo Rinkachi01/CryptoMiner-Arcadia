@@ -1,11 +1,23 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  DAILY_ARCADE_BATTERY_REWARD,
+  DAILY_ARCADE_GAMES,
+  DAILY_ARCADE_MISSION_ID,
+  completedDailyArcadeGames,
+  dailyMissionIdempotencyKey,
+  dailyMissionWindow,
+} from "../../../daily-mission-rules";
 import { readDailyGamePowerBudget } from "../../../game-emission-budget";
+import {
+  createInitialGameState,
+  type PublicGameState,
+} from "../../../game-server";
 import { calculateOperatorProgress } from "../../../operator-progress-rules";
 
 export const dynamic = "force-dynamic";
 
-const gameIds = ["packet-catch", "hash-match", "circuit-rush"] as const;
+const gameIds = DAILY_ARCADE_GAMES;
 
 type ProgressRow = {
   game_id: string;
@@ -23,6 +35,16 @@ type TodayRow = {
   power_today: number;
 };
 
+type StoredGameRow = {
+  state_json: string;
+  version: number;
+};
+
+type ClaimRow = {
+  status: string;
+  state_version_after: number | null;
+};
+
 async function accountIdFor(email: string) {
   const bytes = new TextEncoder().encode(email.trim().toLowerCase());
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -38,8 +60,48 @@ function json(value: unknown, status = 200) {
   });
 }
 
+function parseGameState(row: StoredGameRow): PublicGameState {
+  const state = JSON.parse(row.state_json) as PublicGameState;
+  return {
+    ...state,
+    dailyMissionClaims:
+      state.dailyMissionClaims &&
+      typeof state.dailyMissionClaims === "object" &&
+      !Array.isArray(state.dailyMissionClaims)
+        ? state.dailyMissionClaims
+        : {},
+  };
+}
+
 async function ensureSchema(db: D1Database) {
   await db.batch([
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS game_states (
+        account_id TEXT PRIMARY KEY NOT NULL,
+        email TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        state_json TEXT NOT NULL,
+        version INTEGER DEFAULT 1 NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS ledger_entries (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        state_version INTEGER NOT NULL,
+        delta_cma_micros INTEGER DEFAULT 0 NOT NULL,
+        metadata_json TEXT DEFAULT '{}' NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ledger_entries_idempotency_unique
+      ON ledger_entries (account_id, idempotency_key)
+    `),
     db.prepare(`
       CREATE TABLE IF NOT EXISTS game_sessions (
         id TEXT PRIMARY KEY NOT NULL,
@@ -76,6 +138,159 @@ async function ensureSchema(db: D1Database) {
       CREATE UNIQUE INDEX IF NOT EXISTS game_progress_account_game_unique
       ON game_progress (account_id, game_id)
     `),
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_mission_claims (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        mission_id TEXT NOT NULL,
+        window_key TEXT NOT NULL,
+        status TEXT DEFAULT 'reserved' NOT NULL,
+        battery_reward INTEGER DEFAULT 1 NOT NULL,
+        state_version_before INTEGER NOT NULL,
+        state_version_after INTEGER,
+        created_at INTEGER NOT NULL,
+        completed_at INTEGER
+      )
+    `),
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS daily_mission_claims_account_window_unique
+      ON daily_mission_claims (account_id, mission_id, window_key)
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS daily_mission_claims_account_created_idx
+      ON daily_mission_claims (account_id, created_at)
+    `),
+  ]);
+}
+
+async function ensureGameState(
+  db: D1Database,
+  accountId: string,
+  email: string,
+  displayName: string,
+  now: number,
+) {
+  const state = createInitialGameState(now);
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO game_states (
+        account_id, email, display_name, state_json, version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 1, ?, ?)`,
+    )
+    .bind(
+      accountId,
+      email,
+      displayName,
+      JSON.stringify(state),
+      now,
+      now,
+    )
+    .run();
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) VALUES (?, ?, 'account_initialized', ?, 1, 0, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      accountId,
+      `bootstrap:${accountId}`,
+      JSON.stringify({ importedLocalState: false }),
+      now,
+    )
+    .run();
+  return readGameState(db, accountId);
+}
+
+async function readGameState(db: D1Database, accountId: string) {
+  return db
+    .prepare(
+      `SELECT state_json, version
+       FROM game_states
+       WHERE account_id = ?`,
+    )
+    .bind(accountId)
+    .first<StoredGameRow>();
+}
+
+async function completedGamesInWindow(
+  db: D1Database,
+  accountId: string,
+  startsAt: number,
+  resetAt: number,
+) {
+  const result = await db
+    .prepare(
+      `SELECT DISTINCT game_id
+       FROM game_sessions
+       WHERE account_id = ?
+         AND completed_at >= ? AND completed_at < ?
+         AND status IN ('completed', 'failed')`,
+    )
+    .bind(accountId, startsAt, resetAt)
+    .all<{ game_id: string }>();
+  return completedDailyArcadeGames(
+    (result.results ?? []).map((row) => row.game_id),
+  );
+}
+
+async function readClaim(
+  db: D1Database,
+  accountId: string,
+  windowKey: string,
+) {
+  return db
+    .prepare(
+      `SELECT status, state_version_after
+       FROM daily_mission_claims
+       WHERE account_id = ? AND mission_id = ? AND window_key = ?`,
+    )
+    .bind(accountId, DAILY_ARCADE_MISSION_ID, windowKey)
+    .first<ClaimRow>();
+}
+
+async function finalizeClaim(
+  db: D1Database,
+  accountId: string,
+  windowKey: string,
+  stateVersion: number,
+  now: number,
+) {
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE daily_mission_claims
+         SET status = 'completed', state_version_after = ?, completed_at = ?
+         WHERE account_id = ? AND mission_id = ? AND window_key = ?`,
+      )
+      .bind(
+        stateVersion,
+        now,
+        accountId,
+        DAILY_ARCADE_MISSION_ID,
+        windowKey,
+      ),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO ledger_entries (
+          id, account_id, action, idempotency_key, state_version,
+          delta_cma_micros, metadata_json, created_at
+        ) VALUES (?, ?, 'daily_mission_battery', ?, ?, 0, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        accountId,
+        dailyMissionIdempotencyKey(windowKey),
+        stateVersion,
+        JSON.stringify({
+          missionId: DAILY_ARCADE_MISSION_ID,
+          windowKey,
+          batteryReward: DAILY_ARCADE_BATTERY_REWARD,
+        }),
+        now,
+      ),
   ]);
 }
 
@@ -87,6 +302,7 @@ export async function GET() {
 
   const now = Date.now();
   const accountId = await accountIdFor(user.email);
+  const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
   await ensureSchema(db);
   const emissionBudget = await readDailyGamePowerBudget(db, accountId, now);
   await db.batch(
@@ -99,37 +315,60 @@ export async function GET() {
       ).bind(accountId, gameId, now),
     ),
   );
+  const gameStateRow = await ensureGameState(
+    db,
+    accountId,
+    user.email,
+    user.displayName,
+    now,
+  );
+  if (!gameStateRow) {
+    return json({ error: "Conta de mineração indisponível." }, 503);
+  }
+  const gameState = parseGameState(gameStateRow);
 
-  const [progressResult, todayResult, flaggedRow] = await Promise.all([
-    db.prepare(
-      `SELECT game_id, level, win_streak, next_play_at,
-              total_plays, total_wins
-       FROM game_progress
-       WHERE account_id = ?
-       ORDER BY game_id`,
-    )
-      .bind(accountId)
-      .all<ProgressRow>(),
-    db.prepare(
-      `SELECT game_id,
-              COUNT(*) AS plays_today,
-              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS wins_today,
-              COALESCE(SUM(CASE WHEN status = 'completed'
-                THEN reward_power_gh ELSE 0 END), 0) AS power_today
-       FROM game_sessions
-       WHERE account_id = ? AND started_at >= ?
-       GROUP BY game_id`,
-    )
-      .bind(accountId, now - 24 * 60 * 60 * 1000)
-      .all<TodayRow>(),
-    db.prepare(
-      `SELECT COUNT(*) AS total
-       FROM game_sessions
-       WHERE account_id = ? AND risk_level != 'normal'`,
-    )
-      .bind(accountId)
-      .first<{ total: number }>(),
-  ]);
+  const [progressResult, todayResult, flaggedRow, rollingPowerRow, claimRow] =
+    await Promise.all([
+      db.prepare(
+        `SELECT game_id, level, win_streak, next_play_at,
+                total_plays, total_wins
+         FROM game_progress
+         WHERE account_id = ?
+         ORDER BY game_id`,
+      )
+        .bind(accountId)
+        .all<ProgressRow>(),
+      db.prepare(
+        `SELECT game_id,
+                COUNT(*) AS plays_today,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS wins_today,
+                COALESCE(SUM(CASE WHEN status = 'completed'
+                  THEN reward_power_gh ELSE 0 END), 0) AS power_today
+         FROM game_sessions
+         WHERE account_id = ?
+           AND completed_at >= ? AND completed_at < ?
+           AND status IN ('completed', 'failed')
+         GROUP BY game_id`,
+      )
+        .bind(accountId, startsAt, resetAt)
+        .all<TodayRow>(),
+      db.prepare(
+        `SELECT COUNT(*) AS total
+         FROM game_sessions
+         WHERE account_id = ? AND risk_level != 'normal'`,
+      )
+        .bind(accountId)
+        .first<{ total: number }>(),
+      db.prepare(
+        `SELECT COALESCE(SUM(reward_power_gh), 0) AS total
+         FROM game_sessions
+         WHERE account_id = ? AND status = 'completed'
+           AND completed_at >= ?`,
+      )
+        .bind(accountId, now - 24 * 60 * 60 * 1000)
+        .first<{ total: number }>(),
+      readClaim(db, accountId, windowKey),
+    ]);
 
   const progressRows = progressResult.results ?? [];
   const todayRows = new Map(
@@ -151,10 +390,6 @@ export async function GET() {
     (sum, row) => sum + Number(row.wins_today),
     0,
   );
-  const rollingPower24h = [...todayRows.values()].reduce(
-    (sum, row) => sum + Number(row.power_today),
-    0,
-  );
   const gamesPlayedToday = gameIds.filter(
     (gameId) => Number(todayRows.get(gameId)?.plays_today ?? 0) > 0,
   ).length;
@@ -166,7 +401,10 @@ export async function GET() {
     (highest, row) => Math.max(highest, Number(row.level)),
     1,
   );
-
+  const missionClaimed =
+    gameState.dailyMissionClaims[DAILY_ARCADE_MISSION_ID] === windowKey ||
+    claimRow?.status === "completed";
+  const missionEligible = gamesPlayedToday === gameIds.length;
   return json({
     serverTime: now,
     operator: calculateOperatorProgress(totalPlays, totalWins),
@@ -180,7 +418,7 @@ export async function GET() {
     },
     emission: {
       ...emissionBudget,
-      rollingPower24h,
+      rollingPower24h: Number(rollingPowerRow?.total ?? 0),
       status:
         emissionBudget.usagePercent >= 100
           ? "limited"
@@ -219,10 +457,18 @@ export async function GET() {
         target: 2,
       },
       {
-        id: "arcade-tour",
-        label: "Jogue os 3 minigames",
+        id: DAILY_ARCADE_MISSION_ID,
+        label: "Tour diário do Arcade",
         current: gamesPlayedToday,
-        target: 3,
+        target: gameIds.length,
+        eligible: missionEligible,
+        claimed: missionClaimed,
+        claimable: missionEligible && !missionClaimed,
+        reward: {
+          type: "battery",
+          amount: DAILY_ARCADE_BATTERY_REWARD,
+        },
+        resetAt,
       },
     ],
     achievements: [
@@ -263,4 +509,127 @@ export async function GET() {
       },
     ],
   });
+}
+
+export async function POST(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) return json({ error: "Faça login para continuar." }, 401);
+  const db = env.DB;
+  if (!db) return json({ error: "Recompensas indisponíveis." }, 503);
+  const body = (await request.json().catch(() => null)) as {
+    action?: unknown;
+  } | null;
+  if (body?.action !== "claim-daily-battery") {
+    return json({ error: "Resgate inválido." }, 400);
+  }
+
+  const now = Date.now();
+  const accountId = await accountIdFor(user.email);
+  const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
+  await ensureSchema(db);
+  const playedGames = await completedGamesInWindow(
+    db,
+    accountId,
+    startsAt,
+    resetAt,
+  );
+  if (playedGames.length !== gameIds.length) {
+    return json(
+      {
+        error: "Jogue os três minigames antes de resgatar a bateria.",
+        current: playedGames.length,
+        target: gameIds.length,
+      },
+      409,
+    );
+  }
+
+  let row = await ensureGameState(
+    db,
+    accountId,
+    user.email,
+    user.displayName,
+    now,
+  );
+  if (!row) return json({ error: "Conta de mineração indisponível." }, 503);
+
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO daily_mission_claims (
+        id, account_id, mission_id, window_key, status, battery_reward,
+        state_version_before, created_at
+      ) VALUES (?, ?, ?, ?, 'reserved', ?, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      accountId,
+      DAILY_ARCADE_MISSION_ID,
+      windowKey,
+      DAILY_ARCADE_BATTERY_REWARD,
+      row.version,
+      now,
+    )
+    .run();
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const state = parseGameState(row);
+    if (state.dailyMissionClaims[DAILY_ARCADE_MISSION_ID] === windowKey) {
+      await finalizeClaim(db, accountId, windowKey, row.version, now);
+      return json({
+        claimed: true,
+        alreadyClaimed: true,
+        batteryCount: state.batteryCount,
+        message: "A bateria diária já está no seu inventário.",
+      });
+    }
+    const nextState: PublicGameState = {
+      ...state,
+      batteryCount: state.batteryCount + DAILY_ARCADE_BATTERY_REWARD,
+      dailyMissionClaims: {
+        ...state.dailyMissionClaims,
+        [DAILY_ARCADE_MISSION_ID]: windowKey,
+      },
+    };
+    const nextVersion = row.version + 1;
+    const update = await db
+      .prepare(
+        `UPDATE game_states
+         SET state_json = ?, version = ?, display_name = ?, updated_at = ?
+         WHERE account_id = ? AND version = ?`,
+      )
+      .bind(
+        JSON.stringify(nextState),
+        nextVersion,
+        user.displayName,
+        now,
+        accountId,
+        row.version,
+      )
+      .run();
+
+    if ((update.meta.changes ?? 0) === 1) {
+      await finalizeClaim(db, accountId, windowKey, nextVersion, now);
+      return json({
+        claimed: true,
+        alreadyClaimed: false,
+        batteryCount: nextState.batteryCount,
+        reward: {
+          type: "battery",
+          amount: DAILY_ARCADE_BATTERY_REWARD,
+        },
+        message: "Missão concluída: 1 bateria adicionada ao inventário.",
+      });
+    }
+
+    const latest = await readGameState(db, accountId);
+    if (!latest) {
+      return json({ error: "Conta de mineração indisponível." }, 503);
+    }
+    row = latest;
+  }
+
+  return json(
+    { error: "Seu progresso mudou em outra sessão. Tente novamente." },
+    409,
+  );
 }
