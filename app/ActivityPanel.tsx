@@ -12,6 +12,10 @@ type ActivityItem = {
   createdAt: number;
   cmaDelta: number;
   powerGh: number;
+  walletRewards: Array<{
+    symbol: "CMA" | "BTC" | "DOGE";
+    amount: number;
+  }>;
   category: ActivityCategory;
   title: string;
   description: string;
@@ -35,6 +39,11 @@ type ActivityResponse = {
   };
   timeline: ActivityItem[];
   periodDays: number;
+  retention: {
+    visibleDays: number;
+    maxTimelineRows: number;
+    economicLedger: "all_time";
+  };
   generatedAt: number;
   integrityNotice: string;
   error?: string;
@@ -62,6 +71,13 @@ function formatCma(value: number) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
+  });
+}
+
+function formatWalletAmount(value: number, symbol: "CMA" | "BTC" | "DOGE") {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: symbol === "CMA" ? 2 : 0,
+    maximumFractionDigits: symbol === "CMA" ? 6 : 8,
   });
 }
 
@@ -259,7 +275,13 @@ export function ActivityPanel({ refreshKey }: { refreshKey: number }) {
                   <p>{item.description}</p>
                 </div>
                 <div className="activity-values">
-                  {item.cmaDelta !== 0 && (
+                  {item.walletRewards.map((reward) => (
+                    <b className="positive" key={reward.symbol}>
+                      +{formatWalletAmount(reward.amount, reward.symbol)}{" "}
+                      {reward.symbol}
+                    </b>
+                  ))}
+                  {item.walletRewards.length === 0 && item.cmaDelta !== 0 && (
                     <b className={item.cmaDelta > 0 ? "positive" : "negative"}>
                       {item.cmaDelta > 0 ? "+" : "−"}
                       {formatCma(Math.abs(item.cmaDelta))} CMA
@@ -281,6 +303,9 @@ export function ActivityPanel({ refreshKey }: { refreshKey: number }) {
         <p>
           <strong>Histórico pessoal autoritativo.</strong> {data.integrityNotice} Uma
           tela aberta em outro dispositivo não consegue reescrever estes registros.
+          A tela consulta os últimos {data.retention.visibleDays} dias e mostra
+          até {data.retention.maxTimelineRows} itens; o ledger econômico completo
+          permanece preservado para auditoria, sem ser carregado inteiro no navegador.
         </p>
       </footer>
     </section>

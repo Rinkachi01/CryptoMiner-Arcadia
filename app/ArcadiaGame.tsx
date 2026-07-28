@@ -7,6 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
+import { OperatorInbox } from "./OperatorInbox";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
@@ -41,6 +42,7 @@ import type {
   RoomId,
   WalletSymbol,
 } from "./game-server";
+import type { NetworkPowerSnapshot } from "./network-server";
 import {
   SUPPLY_CRATE_PITY_LIMIT,
   formatCrateChance,
@@ -90,6 +92,7 @@ type GameApiResponse = {
   serverTime: number;
   nextBlockAt: number;
   temporaryPowerGh: number;
+  network?: NetworkPowerSnapshot;
   message: string;
   error?: string;
   actionResult?: {
@@ -179,6 +182,20 @@ const defaultPoolAllocations: PoolAllocations = {
   btc: 0,
   doge: 0,
 };
+const defaultNetworkSnapshot: NetworkPowerSnapshot = {
+  basePowerGh: Object.fromEntries(
+    pools.map((pool) => [pool.id, pool.networkPowerGh]),
+  ) as Record<PoolId, number>,
+  economicFloorGh: Object.fromEntries(
+    pools.map((pool) => [pool.id, pool.networkPowerGh]),
+  ) as Record<PoolId, number>,
+  playerPowerGh: { cma: 0, btc: 0, doge: 0 },
+  totalPowerGh: Object.fromEntries(
+    pools.map((pool) => [pool.id, pool.networkPowerGh]),
+  ) as Record<PoolId, number>,
+  testMode: false,
+  updatedAt: 0,
+};
 
 const rarityLabels = {
   common: "Comum",
@@ -255,6 +272,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
+  const [network, setNetwork] = useState<NetworkPowerSnapshot>(
+    defaultNetworkSnapshot,
+  );
   const [clockNow, setClockNow] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
@@ -342,6 +362,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     setLastEnergyClaimAt(state.lastEnergyClaimAt);
     setLastSettledBlock(state.lastSettledBlock);
     setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
+    if (snapshot.network) setNetwork(snapshot.network);
     setActiveRoomId(state.activeRoomId);
     setOwnedRoomIds(state.ownedRoomIds);
     setRackInventoryCount(state.rackInventoryCount);
@@ -718,6 +739,21 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           SISTEMA ONLINE
         </div>
 
+        <OperatorInbox
+          energySeconds={energySeconds}
+          batteryCount={batteryCount}
+          canClaimEnergy={canClaimEnergy}
+          rackCount={racks.length}
+          installedMinerCount={allInstalled.length}
+          poolAllocations={poolAllocations}
+          secondsLeft={secondsLeft}
+          onNavigate={(target) => {
+            setRackOpen(false);
+            setWalletOpen(false);
+            setActiveView(target);
+          }}
+        />
+
         <button
           className="reading-mode-toggle"
           type="button"
@@ -933,7 +969,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <small>REDE PRINCIPAL</small>
               <strong>{selectedPool.symbol}</strong>
             </div>
-            <em>{formatPower(selectedPool.networkPowerGh)} NA REDE</em>
+            <em>{formatPower(network.totalPowerGh[selectedPool.id])} NA REDE</em>
           </article>
         </div>
 
@@ -969,6 +1005,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             rackMiners={rackMiners}
             editMode={editMode}
             poolAllocations={poolAllocations}
+            network={network}
             effectivePower={effectivePower}
             secondsLeft={secondsLeft}
             energySeconds={energySeconds}
@@ -992,6 +1029,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           <PoolsView
             allocations={poolAllocations}
             installedPower={effectivePower}
+            network={network}
             onApplyAllocations={applyPoolAllocations}
           />
         )}
@@ -1085,6 +1123,7 @@ function MiningRoom({
   rackMiners,
   editMode,
   poolAllocations,
+  network,
   effectivePower,
   secondsLeft,
   energySeconds,
@@ -1107,6 +1146,7 @@ function MiningRoom({
   rackMiners: Record<string, InstalledMiner[]>;
   editMode: boolean;
   poolAllocations: PoolAllocations;
+  network: NetworkPowerSnapshot;
   effectivePower: number;
   secondsLeft: number;
   energySeconds: number;
@@ -1290,6 +1330,7 @@ function MiningRoom({
         <MiningStatusPanel
           installedPower={effectivePower}
           allocations={poolAllocations}
+          networkPowerGh={network.totalPowerGh}
           secondsLeft={secondsLeft}
           onOpenPools={onOpenPools}
         />
@@ -1307,7 +1348,11 @@ function MiningRoom({
                   <img src={pool.asset} alt="" />
                   <strong>
                     {formatAtomic(
-                      calculateEstimatedReward(pool, allocatedPower),
+                      calculateEstimatedReward(
+                        pool,
+                        allocatedPower,
+                        network.totalPowerGh[pool.id],
+                      ),
                       pool.decimals,
                     )}{" "}
                     {pool.symbol}
@@ -1436,11 +1481,13 @@ function EnergyCard({
 function MiningStatusPanel({
   installedPower,
   allocations,
+  networkPowerGh,
   secondsLeft,
   onOpenPools,
 }: {
   installedPower: number;
   allocations: PoolAllocations;
+  networkPowerGh: Record<PoolId, number>;
   secondsLeft: number;
   onOpenPools: () => void;
 }) {
@@ -1467,7 +1514,7 @@ function MiningStatusPanel({
               <img src={pool.asset} alt="" />
               <span>
                 <small>{pool.symbol} · {allocation}% DO SEU PODER</small>
-                <strong>{formatPower(pool.networkPowerGh)}</strong>
+                <strong>{formatPower(networkPowerGh[pool.id])}</strong>
                 <em>Poder total da rede {pool.symbol}</em>
               </span>
               <b>{formatPower(allocatedPower)}</b>
@@ -1622,10 +1669,12 @@ export function GamesView() {
 function PoolsView({
   allocations,
   installedPower,
+  network,
   onApplyAllocations,
 }: {
   allocations: PoolAllocations;
   installedPower: number;
+  network: NetworkPowerSnapshot;
   onApplyAllocations: (allocations: PoolAllocations) => void;
 }) {
   const [draft, setDraft] = useState<PoolAllocations>(allocations);
@@ -1697,10 +1746,15 @@ function PoolsView({
           const allocatedPower = Math.floor(
             (installedPower * allocation) / 100,
           );
-          const estimate = calculateEstimatedReward(pool, allocatedPower);
+          const estimate = calculateEstimatedReward(
+            pool,
+            allocatedPower,
+            network.totalPowerGh[pool.id],
+          );
           const dailyEstimate = calculateDailyEstimatedReward(
             pool,
             allocatedPower,
+            network.totalPowerGh[pool.id],
           );
 
           return (
@@ -1728,6 +1782,10 @@ function PoolsView({
                 <div>
                   <dt>Poder alocado</dt>
                   <dd>{formatPower(allocatedPower)}</dd>
+                </div>
+                <div>
+                  <dt>Poder vivo da rede</dt>
+                  <dd>{formatPower(network.totalPowerGh[pool.id])}</dd>
                 </div>
                 <div>
                   <dt>Por bloco</dt>

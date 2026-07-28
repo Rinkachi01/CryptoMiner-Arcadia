@@ -265,8 +265,12 @@ export function getUsedSlotCount(installed: InstalledMiner[]) {
 export function calculateDailyEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
+  liveNetworkPowerGh = pool.networkPowerGh,
 ) {
-  return calculateEstimatedReward(pool, playerPowerGh) * BigInt(BLOCKS_PER_DAY);
+  return (
+    calculateEstimatedReward(pool, playerPowerGh, liveNetworkPowerGh) *
+    BigInt(BLOCKS_PER_DAY)
+  );
 }
 
 export function calculateVirtualPaybackDays(miner: MinerDefinition) {
@@ -286,11 +290,16 @@ export function calculateVirtualPaybackDays(miner: MinerDefinition) {
 export function calculateEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
+  liveNetworkPowerGh = pool.networkPowerGh,
 ) {
-  if (playerPowerGh <= 0 || pool.networkPowerGh <= 0) return 0n;
+  const economicNetworkPowerGh = Math.max(
+    pool.networkPowerGh,
+    Math.floor(liveNetworkPowerGh),
+  );
+  if (playerPowerGh <= 0 || economicNetworkPowerGh <= 0) return 0n;
   return (
     (pool.rewardAtomic * BigInt(Math.floor(playerPowerGh))) /
-    BigInt(pool.networkPowerGh)
+    BigInt(economicNetworkPowerGh)
   );
 }
 

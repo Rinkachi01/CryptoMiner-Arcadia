@@ -353,6 +353,7 @@ export function settleMiningBlocks(
   state: PublicGameState,
   now: number,
   temporaryPowerGh = 0,
+  networkPowerGh?: Partial<Record<PoolId, number>>,
 ): {
   state: PublicGameState;
   settledBlocks: number;
@@ -375,7 +376,11 @@ export function settleMiningBlocks(
         (installedPower * next.poolAllocations[pool.id]) / 100,
       );
       const rewardAtomic =
-        calculateEstimatedReward(pool, allocatedPower) *
+        calculateEstimatedReward(
+          pool,
+          allocatedPower,
+          networkPowerGh?.[pool.id],
+        ) *
         BigInt(settledBlocks);
       rewards[pool.id] = Number(rewardAtomic);
     }
@@ -436,8 +441,14 @@ export function applySupplyCratePurchase(
   roll: number,
   now: number,
   temporaryPowerGh = 0,
+  networkPowerGh?: Partial<Record<PoolId, number>>,
 ): ActionResult {
-  const settled = settleMiningBlocks(currentState, now, temporaryPowerGh);
+  const settled = settleMiningBlocks(
+    currentState,
+    now,
+    temporaryPowerGh,
+    networkPowerGh,
+  );
   const state = settled.state;
   const crate = getSupplyCrate(crateId);
   if (!crate) throw new Error("Caixa de suprimentos inválida.");
@@ -500,8 +511,14 @@ export function applyGameAction(
   rawPayload: unknown,
   now: number,
   temporaryPowerGh = 0,
+  networkPowerGh?: Partial<Record<PoolId, number>>,
 ): ActionResult {
-  const settled = settleMiningBlocks(currentState, now, temporaryPowerGh);
+  const settled = settleMiningBlocks(
+    currentState,
+    now,
+    temporaryPowerGh,
+    networkPowerGh,
+  );
   const state = settled.state;
   const payload = payloadObject(rawPayload);
 

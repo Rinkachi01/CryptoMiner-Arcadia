@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [game, arcade, career, progress, admin, styles] = await Promise.all([
+const [game, arcade, career, progress, admin, inbox, styles] = await Promise.all([
   readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/PacketCatchView.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/CareerView.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/OperatorProgressPanel.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/OperatorInbox.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
 
@@ -17,6 +18,17 @@ test("Arcade mostra os jogos sem carregar carreira e temporada antes deles", () 
   assert.match(career, /Visão geral/);
   assert.match(career, /Temporada/);
   assert.match(career, /Missões e carreira/);
+});
+
+test("guia de entrada leva o jogador às áreas certas sem overlay escuro", () => {
+  assert.match(game, /<OperatorInbox/);
+  assert.match(inbox, /Mantenha a sala energizada/);
+  assert.match(inbox, /Instale seu primeiro rack/);
+  assert.match(inbox, /Distribua 100% do poder/);
+  assert.match(inbox, /Recarga gratuita disponível/);
+  assert.match(inbox, /aria-modal="false"/);
+  assert.doesNotMatch(inbox, /backdrop|overlay/);
+  assert.match(styles, /\.operator-inbox/);
 });
 
 test("Central do Operador separa visão geral, temporada, missões e histórico", () => {

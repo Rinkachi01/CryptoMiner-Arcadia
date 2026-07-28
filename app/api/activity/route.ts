@@ -49,6 +49,11 @@ type SessionSummaryRow = {
 const PERIOD_DAYS = 30;
 const MAX_SOURCE_ROWS = 60;
 const MAX_TIMELINE_ROWS = 80;
+const walletDecimals = {
+  CMA: 1_000_000,
+  BTC: 100_000_000,
+  DOGE: 100_000_000,
+} as const;
 
 async function accountIdFor(email: string) {
   const bytes = new TextEncoder().encode(email.trim().toLowerCase());
@@ -74,6 +79,27 @@ function parseJsonObject(value: string) {
   } catch {
     return {};
   }
+}
+
+function walletRewards(metadata: Record<string, unknown>) {
+  const rewards =
+    metadata.rewards && typeof metadata.rewards === "object"
+      ? (metadata.rewards as Record<string, unknown>)
+      : {};
+  return [
+    {
+      symbol: "CMA" as const,
+      amount: Number(rewards.cma ?? 0) / walletDecimals.CMA,
+    },
+    {
+      symbol: "BTC" as const,
+      amount: Number(rewards.btc ?? 0) / walletDecimals.BTC,
+    },
+    {
+      symbol: "DOGE" as const,
+      amount: Number(rewards.doge ?? 0) / walletDecimals.DOGE,
+    },
+  ].filter((reward) => Number.isFinite(reward.amount) && reward.amount > 0);
 }
 
 async function ensureReadableHistory(db: D1Database) {
@@ -209,9 +235,10 @@ export async function GET() {
   ]);
 
   const ledgerTimeline = (ledgerRows.results ?? []).map((row) => {
+    const metadata = parseJsonObject(row.metadata_json);
     const presentation = presentLedgerActivity(
       row.action,
-      parseJsonObject(row.metadata_json),
+      metadata,
     );
     return {
       id: `ledger:${row.id}`,
@@ -220,6 +247,7 @@ export async function GET() {
       createdAt: Number(row.created_at),
       cmaDelta: Number(row.delta_cma_micros) / 1_000_000,
       powerGh: 0,
+      walletRewards: walletRewards(metadata),
       ...presentation,
     };
   });
@@ -241,6 +269,7 @@ export async function GET() {
       cmaDelta: 0,
       powerGh:
         row.status === "completed" ? Number(row.reward_power_gh) : 0,
+      walletRewards: [],
       ...presentation,
     };
   });
@@ -250,6 +279,11 @@ export async function GET() {
 
   return json({
     periodDays: PERIOD_DAYS,
+    retention: {
+      visibleDays: PERIOD_DAYS,
+      maxTimelineRows: MAX_TIMELINE_ROWS,
+      economicLedger: "all_time",
+    },
     generatedAt: now,
     account: {
       createdAt: Number(state?.created_at ?? now),

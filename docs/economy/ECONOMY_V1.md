@@ -21,6 +21,14 @@ recompensa = recompensa_do_bloco × poder_alocado / poder_total_da_pool
 ```
 
 - A CMA inicia com 8 CMA por bloco e rede simulada de 60.000.000 GH/s.
+- O painel separa o poder vivo (jogadores + base simulada) do piso econômico
+  usado no denominador da recompensa.
+- Durante o teste fechado, o proprietário pode zerar a base simulada para ver a
+  rede crescer apenas com equipamentos energizados. O denominador nunca fica
+  abaixo das referências de 60.000.000 GH/s em CMA, 1.800.000 GH/s em BTC e
+  4.000.000 GH/s em DOGE.
+- Se o poder vivo superar esse piso, o denominador aumenta e a emissão por
+  unidade de poder é diluída automaticamente.
 - A estimativa é informativa, nunca um retorno garantido. Poder de rede,
   recompensa e orçamento diário poderão ser rebalanceados.
 
@@ -208,7 +216,21 @@ recompensa continuam sendo recalculados no servidor.
   equipamentos;
 - toda alteração administrativa fica registrada com autor, horário e
   parâmetros;
-- nenhum controle permite criar CMA ou editar diretamente o saldo de uma conta.
+- um único controle de teste pode completar somente a carteira do proprietário
+  até 10.000 CMA virtuais; ele não altera contas de jogadores, não acumula
+  créditos repetidos e registra o delta no ledger e na auditoria;
+- a base simulada das três redes pode ser zerada ou restaurada, sem remover o
+  poder real dos equipamentos energizados.
+
+### Histórico e retenção
+
+- a tela pessoal consulta somente os últimos 30 dias e entrega no máximo 80
+  itens recentes;
+- cada fechamento mostra separadamente quanto entrou em CMA, BTC e DOGE;
+- o ledger econômico é preservado como trilha completa de auditoria, com
+  consultas indexadas e limitadas, em vez de ser carregado inteiro;
+- comprovantes volumosos de partidas podem ser compactados depois de 30 dias em
+  uma rotina futura, mas compras, créditos e débitos não devem ser apagados.
 
 ### Alertas, relatório e laboratório
 

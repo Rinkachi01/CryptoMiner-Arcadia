@@ -49,6 +49,14 @@ export function presentLedgerActivity(
         "O servidor iniciou seu inventário, sua carteira e sua trilha de auditoria.",
     };
   }
+  if (action === "admin_test_cma_grant") {
+    return {
+      category: "economy",
+      title: "Crédito de teste do proprietário",
+      description:
+        "CMA virtual foi adicionado para validar compras e o crescimento controlado da rede beta.",
+    };
+  }
   if (action === "block_settlement") {
     const settledBlocks = Math.max(
       1,

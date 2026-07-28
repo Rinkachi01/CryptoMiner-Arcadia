@@ -12,6 +12,13 @@ import {
 import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getMiner } from "../../game-rules";
+import type { PublicGameState } from "../../game-server";
+import {
+  DEFAULT_NETWORK_BASE_POWER,
+  ZERO_NETWORK_POWER,
+  readNetworkPowerSnapshot,
+  updateNetworkBasePower,
+} from "../../network-server";
 import {
   closeActiveSeason,
   createSeason,
@@ -76,6 +83,10 @@ type StateRow = {
   state_json: string;
 };
 
+type OwnerStateRow = StateRow & {
+  version: number;
+};
+
 type AuditRow = {
   action: string;
   created_at: number;
@@ -87,6 +98,8 @@ const adminSettingKeys: AdminSettingKey[] = [
   "dailyBatteryEnabled",
   "minigamePowerEnabled",
 ];
+
+const OWNER_TEST_BALANCE_CMA = 10_000;
 
 const adminThresholdBounds: Record<
   AdminThresholdKey,
@@ -140,6 +153,82 @@ function parseJsonObject(value: string | null) {
   } catch {
     return {};
   }
+}
+
+async function completeOwnerTestBalance(
+  db: D1Database,
+  accountId: string,
+  now: number,
+) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const row = await db
+      .prepare(
+        `SELECT state_json, version
+         FROM game_states
+         WHERE account_id = ?`,
+      )
+      .bind(accountId)
+      .first<OwnerStateRow>();
+    if (!row) {
+      throw new Error(
+        "Abra o jogo uma vez para criar sua conta antes de preparar o teste.",
+      );
+    }
+
+    const state = JSON.parse(row.state_json) as PublicGameState;
+    const currentBalance = Math.max(0, Number(state.cmaBalance ?? 0));
+    const targetBalance = Math.max(currentBalance, OWNER_TEST_BALANCE_CMA);
+    const deltaCma = targetBalance - currentBalance;
+    if (deltaCma <= 0) {
+      return { balanceCma: currentBalance, deltaCma: 0 };
+    }
+
+    const nextVersion = Number(row.version) + 1;
+    const nextState = { ...state, cmaBalance: targetBalance };
+    const updated = await db
+      .prepare(
+        `UPDATE game_states
+         SET state_json = ?, version = ?, updated_at = ?
+         WHERE account_id = ? AND version = ?`,
+      )
+      .bind(
+        JSON.stringify(nextState),
+        nextVersion,
+        now,
+        accountId,
+        row.version,
+      )
+      .run();
+
+    if (Number(updated.meta.changes ?? 0) !== 1) continue;
+
+    await db
+      .prepare(
+        `INSERT INTO ledger_entries (
+          id, account_id, action, idempotency_key, state_version,
+          delta_cma_micros, metadata_json, created_at
+        ) VALUES (?, ?, 'admin_test_cma_grant', ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        accountId,
+        `admin-test-cma:${now}:${crypto.randomUUID()}`,
+        nextVersion,
+        Math.round(deltaCma * 1_000_000),
+        JSON.stringify({
+          purpose: "closed_beta_network_test",
+          balanceBeforeCma: currentBalance,
+          balanceAfterCma: targetBalance,
+        }),
+        now,
+      )
+      .run();
+    return { balanceCma: targetBalance, deltaCma };
+  }
+
+  throw new Error(
+    "Sua conta foi atualizada em outro dispositivo. Tente novamente.",
+  );
 }
 
 async function readAdminOverview(
@@ -408,6 +497,7 @@ export async function GET() {
   const now = Date.now();
   const settings = await readAdminRuntimeSettings(context.db);
   const overview = await readAdminOverview(context.db, now);
+  const network = await readNetworkPowerSnapshot(context.db, now);
   await ensureDefaultSeason(context.db, now);
   const season = await readSeasonOverview(context.db, context.accountId, now);
   return json({
@@ -428,6 +518,7 @@ export async function GET() {
     ),
     settings,
     season,
+    network,
     ...overview,
     serverTime: now,
   });
@@ -454,6 +545,73 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "prepare-economic-test") {
+    try {
+      const grant = await completeOwnerTestBalance(
+        context.db,
+        context.accountId,
+        now,
+      );
+      await updateNetworkBasePower(
+        context.db,
+        ZERO_NETWORK_POWER,
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "economic_test_prepared",
+        {
+          grantedCma: grant.deltaCma,
+          ownerBalanceCma: grant.balanceCma,
+          networkBasePowerGh: ZERO_NETWORK_POWER,
+          economicFloorGh: DEFAULT_NETWORK_BASE_POWER,
+        },
+        now,
+      );
+      const network = await readNetworkPowerSnapshot(context.db, now);
+      return json({
+        message:
+          grant.deltaCma > 0
+            ? `Teste preparado: +${grant.deltaCma.toLocaleString("pt-BR")} CMA e base simulada zerada.`
+            : "Teste preparado: sua carteira já tinha 10.000 CMA ou mais e a base simulada foi zerada.",
+        network,
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível preparar o teste econômico.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (body?.action === "restore-network-reference") {
+    await updateNetworkBasePower(
+      context.db,
+      DEFAULT_NETWORK_BASE_POWER,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "network_reference_restored",
+      { networkBasePowerGh: DEFAULT_NETWORK_BASE_POWER },
+      now,
+    );
+    const network = await readNetworkPowerSnapshot(context.db, now);
+    return json({
+      message: "Poder-base de referência restaurado nas três redes.",
+      network,
+    });
+  }
 
   if (
     body?.action === "create-season" &&

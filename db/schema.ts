@@ -207,6 +207,15 @@ export const adminAuditLog = sqliteTable(
   ],
 );
 
+export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
+  singletonId: integer("singleton_id").primaryKey(),
+  baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),
+  baseBtcGh: integer("base_btc_gh").notNull().default(1_800_000),
+  baseDogeGh: integer("base_doge_gh").notNull().default(4_000_000),
+  updatedAt: integer("updated_at").notNull().default(0),
+  updatedBy: text("updated_by"),
+});
+
 export const seasons = sqliteTable(
   "seasons",
   {

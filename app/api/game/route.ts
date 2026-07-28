@@ -13,6 +13,10 @@ import {
   type PublicGameState,
 } from "../../game-server";
 import { getSupplyCrate } from "../../supply-crate-rules";
+import {
+  readNetworkPowerSnapshot,
+  type NetworkPowerSnapshot,
+} from "../../network-server";
 
 export const dynamic = "force-dynamic";
 
@@ -284,6 +288,7 @@ function responsePayload(
   now: number,
   message: string,
   temporaryPowerGh = 0,
+  network?: NetworkPowerSnapshot,
 ) {
   return {
     state,
@@ -291,6 +296,7 @@ function responsePayload(
     serverTime: now,
     nextBlockAt: nextBlockAt(now),
     temporaryPowerGh,
+    network,
     message,
     account: {
       displayName: row.display_name,
@@ -320,6 +326,7 @@ export async function GET() {
     now,
   );
   const state = parseState(row);
+  const network = await readNetworkPowerSnapshot(context.db, now);
   const eligibleTemporaryPowerGh = await settlementTemporaryPower(
     context.db,
     context.accountId,
@@ -330,6 +337,7 @@ export async function GET() {
     state,
     now,
     eligibleTemporaryPowerGh,
+    network.totalPowerGh,
   );
   let responseState = settled.state;
   let settledBlockCount = settled.settledBlocks;
@@ -397,6 +405,7 @@ export async function GET() {
         ? `${settledBlockCount} bloco(s) processado(s).`
         : "Conta sincronizada.",
       temporaryPowerGh,
+      network,
     ),
   );
 }
@@ -441,6 +450,7 @@ export async function POST(request: Request) {
     parseState(row),
     now,
   );
+  let network = await readNetworkPowerSnapshot(context.db, now);
 
   if (body.action === "bootstrap") {
     return json(
@@ -450,6 +460,7 @@ export async function POST(request: Request) {
         now,
         "Conta autoritativa pronta.",
         temporaryPowerGh,
+        network,
       ),
     );
   }
@@ -478,6 +489,7 @@ export async function POST(request: Request) {
         now,
         "Ação já processada anteriormente.",
         temporaryPowerGh,
+        network,
       ),
     );
   }
@@ -494,6 +506,7 @@ export async function POST(request: Request) {
           now,
           "Seu estado foi atualizado em outra sessão.",
           temporaryPowerGh,
+          network,
         ),
         error: "Versão desatualizada. O estado mais recente foi restaurado.",
       },
@@ -526,6 +539,7 @@ export async function POST(request: Request) {
             secureRandomUnit(),
             now,
             eligibleTemporaryPowerGh,
+            network.totalPowerGh,
           )
         : applyGameAction(
             parseState(row),
@@ -533,6 +547,7 @@ export async function POST(request: Request) {
             body.payload,
             now,
             eligibleTemporaryPowerGh,
+            network.totalPowerGh,
           );
   } catch (error) {
     return json(
@@ -545,6 +560,7 @@ export async function POST(request: Request) {
           now,
           "Ação recusada.",
           temporaryPowerGh,
+          network,
         ),
       },
       400,
@@ -578,6 +594,7 @@ export async function POST(request: Request) {
           now,
           "Outra sessão concluiu uma ação primeiro.",
           temporaryPowerGh,
+          network,
         ),
         error: "Estado atualizado em outra sessão. Tente novamente.",
       },
@@ -611,6 +628,7 @@ export async function POST(request: Request) {
     version: nextVersion,
     updated_at: now,
   };
+  network = await readNetworkPowerSnapshot(context.db, now);
   return json({
     ...responsePayload(
       updatedRow,
@@ -618,6 +636,7 @@ export async function POST(request: Request) {
       now,
       result.message,
       temporaryPowerGh,
+      network,
     ),
     actionResult: result.metadata,
   });

@@ -18,6 +18,7 @@ import type {
   SeasonLeaderboardEntry,
   SeasonSnapshot,
 } from "./season-server";
+import type { NetworkPowerSnapshot } from "./network-server";
 
 type AdminOverview = {
   alerts: AdminAlert[];
@@ -59,6 +60,7 @@ type AdminOverview = {
     totalPlayers: number;
     wins24h: number;
   };
+  network: NetworkPowerSnapshot;
   owner: {
     claimedAt: number;
     displayName: string;
@@ -122,6 +124,7 @@ const actionLabels: Record<string, string> = {
   daily_mission_battery: "Baterias diárias",
   claim_energy: "Energia resgatada",
   open_supply_crate: "Caixas abertas",
+  admin_test_cma_grant: "Crédito CMA de teste",
   use_battery: "Baterias utilizadas",
 };
 
@@ -242,6 +245,20 @@ function formatCma(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(Math.abs(value))} CMA`;
+}
+
+function formatPower(value: number) {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 2,
+    })} PH/s`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toLocaleString("pt-BR", {
+      maximumFractionDigits: 2,
+    })} TH/s`;
+  }
+  return `${value.toLocaleString("pt-BR")} GH/s`;
 }
 
 function shortId(value: string) {
@@ -473,8 +490,8 @@ export function AdminDashboard({
           <span>CENTRAL DE OPERAÇÕES · ÚLTIMAS 24 HORAS</span>
           <h1>Saúde econômica e revisão</h1>
           <p>
-            Observe emissão, caixas, energia e alertas sem alterar diretamente o
-            inventário dos jogadores.
+            Observe emissão, caixas, energia e alertas. Ajustes de teste do
+            proprietário são limitados, reversíveis e registrados.
           </p>
         </div>
         <aside>
@@ -522,6 +539,97 @@ export function AdminDashboard({
           <strong>{formatNumber(overview.metrics.batteryClaims24h)}</strong>
           <small>{overview.inventory.playersWithEnergy} contas energizadas</small>
         </article>
+      </section>
+
+      <section className="admin-panel admin-network-lab">
+        <div className="admin-panel-heading">
+          <div>
+            <span>LABORATÓRIO ECONÔMICO · CLOSED BETA</span>
+            <h2>Rede viva e carteira de teste</h2>
+          </div>
+          <small className={overview.network.testMode ? "test-active" : ""}>
+            {overview.network.testMode ? "BASE ZERADA" : "BASE DE REFERÊNCIA"}
+          </small>
+        </div>
+
+        <div className="admin-network-lab-copy">
+          <div>
+            <strong>Faça seu equipamento construir a rede</strong>
+            <p>
+              Preparar o teste completa sua carteira até 10.000 CMA e remove
+              somente o poder artificial. Mineradores energizados aparecem
+              imediatamente no total vivo.
+            </p>
+          </div>
+          <aside>
+            <span>PROTEÇÃO ECONÔMICA</span>
+            <strong>Piso de dificuldade preservado</strong>
+            <p>
+              Mesmo com a rede visual zerada, o primeiro minerador não recebe
+              100% do bloco. Se a rede real superar o piso, a recompensa é
+              diluída automaticamente.
+            </p>
+          </aside>
+        </div>
+
+        <div className="admin-network-grid">
+          {(["cma", "btc", "doge"] as const).map((poolId) => (
+            <article key={poolId}>
+              <span>{poolId.toUpperCase()} · REDE VIVA</span>
+              <strong>
+                {formatPower(overview.network.totalPowerGh[poolId])}
+              </strong>
+              <dl>
+                <div>
+                  <dt>Jogadores</dt>
+                  <dd>{formatPower(overview.network.playerPowerGh[poolId])}</dd>
+                </div>
+                <div>
+                  <dt>Base simulada</dt>
+                  <dd>{formatPower(overview.network.basePowerGh[poolId])}</dd>
+                </div>
+                <div>
+                  <dt>Piso econômico</dt>
+                  <dd>
+                    {formatPower(overview.network.economicFloorGh[poolId])}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+
+        <div className="admin-network-actions">
+          <button
+            type="button"
+            disabled={busyAction === "prepare-economic-test"}
+            onClick={() =>
+              void runAdminAction("prepare-economic-test", {
+                action: "prepare-economic-test",
+              })
+            }
+          >
+            {busyAction === "prepare-economic-test"
+              ? "PREPARANDO..."
+              : "PREPARAR TESTE · SALDO 10.000 CMA"}
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            disabled={busyAction === "restore-network-reference"}
+            onClick={() =>
+              void runAdminAction("restore-network-reference", {
+                action: "restore-network-reference",
+              })
+            }
+          >
+            RESTAURAR PODER-BASE
+          </button>
+          <small>
+            Nenhum saldo real ou saque é criado. Cada alteração entra no ledger
+            pessoal e na auditoria administrativa.
+          </small>
+        </div>
       </section>
 
       <section className="admin-layout">

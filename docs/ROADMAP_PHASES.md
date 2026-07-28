@@ -149,7 +149,7 @@ improvisada.
 
 ## Fase 5 — beta econômico
 
-Status: quarta entrega concluída.
+Status: quinta entrega concluída.
 
 - nível do operador e progressão por experiência;
 - liga do operador com doze divisões, de Recruta a Diamante;
@@ -237,11 +237,29 @@ Entregas concluídas na oitava e nona etapas:
 - linha do tempo filtrável construída a partir do ledger e das sessões
   autoritativas, sem permitir alterações pelo navegador.
 
+Entregas concluídas na décima etapa:
+
+- rede viva separada em poder dos jogadores e base simulada configurável;
+- modo de teste que zera somente a base artificial das três redes;
+- piso econômico independente que preserva a progressão virtual conservadora
+  quando o poder vivo ainda é baixo;
+- crédito exclusivo do proprietário que completa a carteira até 10.000 CMA,
+  com lançamento no ledger e auditoria administrativa;
+- restauração reversível das bases CMA, BTC e DOGE;
+- histórico de blocos com os valores exatos recebidos em CMA, BTC e DOGE;
+- consulta pessoal limitada aos últimos 30 dias e a 80 itens, sem carregar o
+  ledger econômico completo no navegador;
+- guia de entrada com energia, rack, minerador, pools e primeira partida;
+- avisos pessoais derivados do servidor sobre energia, missão e próximo bloco;
+- painel lateral de orientação sem sobreposição escura sobre a sala.
+
 Próxima entrega segura:
 
-- onboarding guiado para novos operadores;
-- notificações pessoais sobre energia, bloco, missão e temporada;
-- checklist e coleta de feedback para o beta fechado.
+- checklist e coleta estruturada de feedback para o beta fechado;
+- coortes de retenção sem identificação pública dos jogadores;
+- compactação dos comprovantes detalhados de partidas antigas, preservando o
+  ledger econômico;
+- revisão da economia após uma temporada completa de dados reais.
 
 Critério de saída: economia estável em uma temporada fechada.
 
