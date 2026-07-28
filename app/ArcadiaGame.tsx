@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
+import { CareerView } from "./CareerView";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
@@ -48,8 +49,15 @@ import {
   type SupplyCrateOpening,
 } from "./supply-crate-rules";
 
-type ViewId = "mine" | "pools" | "inventory" | "shop" | "games";
+type ViewId =
+  | "mine"
+  | "pools"
+  | "inventory"
+  | "shop"
+  | "games"
+  | "career";
 type ShopCategory = "miners" | "racks" | "energy" | "crates";
+type TextScale = "comfortable" | "large" | "extra";
 
 type RoomDefinition = {
   id: RoomId;
@@ -102,6 +110,12 @@ const navigation: Array<{
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
+  {
+    id: "career",
+    label: "Central do operador",
+    shortLabel: "Carreira",
+    glyph: "C",
+  },
 ];
 
 const roomDefinitions: RoomDefinition[] = [
@@ -223,6 +237,8 @@ function rackMinerPosition(slotIndex: number): React.CSSProperties {
 
 export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [activeView, setActiveView] = useState<ViewId>("mine");
+  const [textScale, setTextScale] =
+    useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
@@ -459,6 +475,16 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const saved = window.localStorage.getItem("arcadia-text-scale");
+      if (saved === "large" || saved === "extra") {
+        setTextScale(saved);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (
       !hydrated ||
       serverStatus !== "online" ||
@@ -620,6 +646,17 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     await performGameAction("claim_energy");
   }
 
+  function cycleTextScale() {
+    const next: TextScale =
+      textScale === "comfortable"
+        ? "large"
+        : textScale === "large"
+          ? "extra"
+          : "comfortable";
+    setTextScale(next);
+    window.localStorage.setItem("arcadia-text-scale", next);
+  }
+
   const balances: Array<{
     symbol: WalletSymbol;
     value: string;
@@ -655,7 +692,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
 
   return (
     <main
-      className={`arcadia-shell ${actionPending ? "server-action-pending" : ""}`}
+      className={`arcadia-shell text-scale-${textScale} ${
+        actionPending ? "server-action-pending" : ""
+      }`}
       data-server-status={serverStatus}
     >
       <header className="topbar">
@@ -678,6 +717,31 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           <span className="online-dot" />
           SISTEMA ONLINE
         </div>
+
+        <button
+          className="reading-mode-toggle"
+          type="button"
+          aria-label={`Tamanho do texto: ${
+            textScale === "comfortable"
+              ? "confortável"
+              : textScale === "large"
+                ? "grande"
+                : "extra grande"
+          }. Clique para alterar.`}
+          onClick={cycleTextScale}
+        >
+          <b>A+</b>
+          <span>
+            <small>LEITURA</small>
+            <strong>
+              {textScale === "comfortable"
+                ? "CONFORTÁVEL"
+                : textScale === "large"
+                  ? "GRANDE"
+                  : "EXTRA GRANDE"}
+            </strong>
+          </span>
+        </button>
 
         <div className="balances wallet-control">
           <button
@@ -804,6 +868,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
+              ) : activeView === "career" ? (
+                <>CENTRAL DO OPERADOR <i /> PROGRESSO E MISSÕES</>
               ) : (
                 <>
                   {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
@@ -821,7 +887,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                       ? "Inventário de equipamentos"
                       : activeView === "shop"
                         ? "Loja de equipamentos"
-                        : "Central de minigames"}
+                        : activeView === "games"
+                          ? "Central de minigames"
+                          : "Carreira do operador"}
             </h1>
           </div>
         </div>
@@ -966,6 +1034,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             temporaryPowerGh={temporaryPowerGh}
             onRefreshAccount={refreshServerState}
           />
+        )}
+
+        {!rackOpen && activeView === "career" && (
+          <CareerView onRefreshAccount={refreshServerState} />
         )}
       </section>
 

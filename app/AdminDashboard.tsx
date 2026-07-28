@@ -106,6 +106,8 @@ type AdminDashboardProps = {
   };
 };
 
+type TextScale = "comfortable" | "large" | "extra";
+
 const gameLabels: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
   "hash-match": "Hash Match",
@@ -270,6 +272,8 @@ export function AdminDashboard({
     useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
   const [seasonName, setSeasonName] = useState("Temporada Beta");
   const [seasonDurationDays, setSeasonDurationDays] = useState(30);
+  const [textScale, setTextScale] =
+    useState<TextScale>("comfortable");
 
   const loadOverview = useCallback(async () => {
     setError("");
@@ -313,6 +317,16 @@ export function AdminDashboard({
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const saved = window.localStorage.getItem("arcadia-text-scale");
+      if (saved === "large" || saved === "extra") {
+        setTextScale(saved);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const maxGamePlays = useMemo(
@@ -361,6 +375,17 @@ export function AdminDashboard({
     }
   }
 
+  function cycleTextScale() {
+    const next: TextScale =
+      textScale === "comfortable"
+        ? "large"
+        : textScale === "large"
+          ? "extra"
+          : "comfortable";
+    setTextScale(next);
+    window.localStorage.setItem("arcadia-text-scale", next);
+  }
+
   if (loading) {
     return (
       <main className="admin-loading-shell">
@@ -397,7 +422,7 @@ export function AdminDashboard({
   ).length;
 
   return (
-    <main className="admin-shell">
+    <main className={`admin-shell text-scale-${textScale}`}>
       <header className="admin-topbar">
         <Link className="admin-brand" href="/">
           <b>CMA</b>
@@ -414,6 +439,24 @@ export function AdminDashboard({
           </span>
         </div>
         <nav>
+          <button
+            type="button"
+            aria-label={`Tamanho do texto: ${
+              textScale === "comfortable"
+                ? "confortável"
+                : textScale === "large"
+                  ? "grande"
+                  : "extra grande"
+            }. Clique para alterar.`}
+            onClick={cycleTextScale}
+          >
+            TEXTO{" "}
+            {textScale === "comfortable"
+              ? "A+"
+              : textScale === "large"
+                ? "A++"
+                : "A"}
+          </button>
           <button type="button" onClick={() => void loadOverview()}>
             ATUALIZAR
           </button>

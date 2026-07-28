@@ -75,9 +75,11 @@ const gameNames: Record<string, string> = {
 
 export function OperatorProgressPanel({
   refreshKey,
+  section = "overview",
   onRefreshAccount,
 }: {
   refreshKey: number;
+  section?: "overview" | "missions";
   onRefreshAccount: () => Promise<boolean>;
 }) {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -151,7 +153,7 @@ export function OperatorProgressPanel({
   }
 
   return (
-    <section className="operator-progress-panel">
+    <section className={`operator-progress-panel show-${section}`}>
       <div className="operator-level-card">
         <span>NÍVEL DO OPERADOR</span>
         <strong>{String(summary.operator.level).padStart(2, "0")}</strong>

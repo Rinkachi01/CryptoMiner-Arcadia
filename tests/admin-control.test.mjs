@@ -28,7 +28,12 @@ test("o primeiro proprietário fica travado no servidor", () => {
   assert.match(settingsSource, /INSERT OR IGNORE INTO admin_owners/);
   assert.match(settingsSource, /owner\?\.account_id === accountId/);
   assert.match(apiSource, /Ação permitida apenas ao proprietário/);
-  assert.doesNotMatch(dashboardSource, /localStorage|sessionStorage/);
+  assert.doesNotMatch(
+    dashboardSource,
+    /localStorage\.(?:getItem|setItem)\([^)]*(?:owner|admin|account)/i,
+  );
+  assert.doesNotMatch(dashboardSource, /sessionStorage/);
+  assert.match(dashboardSource, /arcadia-text-scale/);
 });
 
 test("as três chaves econômicas são reversíveis e auditadas", () => {

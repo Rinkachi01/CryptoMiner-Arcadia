@@ -4827,6 +4827,443 @@ img {
   }
 }
 
+/* Fase 7: acessibilidade de leitura e arquitetura de informação do Arcade. */
+.arcadia-shell {
+  --readable-meta: 0.78rem;
+  --readable-copy: 0.9rem;
+  --readable-control: 0.8rem;
+  --readable-value: 0.96rem;
+}
+
+.arcadia-shell.text-scale-large {
+  --readable-meta: 0.86rem;
+  --readable-copy: 1rem;
+  --readable-control: 0.88rem;
+  --readable-value: 1.06rem;
+}
+
+.arcadia-shell.text-scale-extra {
+  --readable-meta: 0.94rem;
+  --readable-copy: 1.08rem;
+  --readable-control: 0.96rem;
+  --readable-value: 1.16rem;
+}
+
+.reading-mode-toggle {
+  display: flex;
+  min-width: 148px;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  padding: 7px 12px;
+  border: 1px solid #344454;
+  background: #101821;
+  color: #dfe9ed;
+  cursor: pointer;
+  text-align: left;
+}
+
+.reading-mode-toggle:hover,
+.reading-mode-toggle:focus-visible {
+  border-color: var(--cyan);
+  background: rgba(54, 216, 242, 0.08);
+}
+
+.reading-mode-toggle > b {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font: 700 0.9rem/1 var(--font-display);
+}
+
+.reading-mode-toggle > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reading-mode-toggle small {
+  color: #8ea0ae;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.1em;
+}
+
+.reading-mode-toggle strong {
+  color: #eef6f8;
+  font-size: 0.72rem;
+}
+
+.reading-mode-toggle + .balances {
+  margin-left: 10px;
+}
+
+/* Piso de leitura: remove efetivamente os microtextos históricos de 5–9 px. */
+.arcadia-shell .workspace :where(span, small, label, dt, dd, time, em),
+.arcadia-shell .sidebar :where(span, small),
+.arcadia-shell .topbar :where(small),
+.arcadia-shell .server-status-strip,
+.arcadia-shell .server-status-strip small {
+  font-size: var(--readable-meta) !important;
+  line-height: 1.45;
+}
+
+.arcadia-shell .workspace p,
+.arcadia-shell .sidebar p {
+  font-size: var(--readable-copy) !important;
+  line-height: 1.65;
+}
+
+.arcadia-shell .workspace button,
+.arcadia-shell .workspace a,
+.arcadia-shell .sidebar button,
+.arcadia-shell .sidebar a {
+  font-size: var(--readable-control) !important;
+  line-height: 1.3;
+}
+
+.arcadia-shell .workspace strong {
+  font-size: var(--readable-value) !important;
+  line-height: 1.35;
+}
+
+.arcadia-shell .metric-strip strong {
+  font-size: max(var(--readable-value), 1.22rem) !important;
+}
+
+.arcadia-shell .games-balance-seal strong {
+  font-size: max(var(--readable-value), 1.4rem) !important;
+}
+
+.arcadia-shell .operator-level-card > strong {
+  font-size: max(var(--readable-value), 2.8rem) !important;
+}
+
+.arcadia-shell .season-player-rank > strong {
+  font-size: max(var(--readable-value), 2.05rem) !important;
+}
+
+.arcadia-shell .operator-league-card > strong {
+  font-size: max(var(--readable-value), 1.55rem) !important;
+}
+
+.arcadia-shell .workspace :where(input, select, textarea) {
+  min-height: 44px;
+  font-size: var(--readable-control) !important;
+}
+
+.arcadia-shell .workspace :where(button, a),
+.arcadia-shell .sidebar :where(button, a) {
+  min-height: 44px;
+}
+
+.arcadia-shell .workspace :where(p, span, small, strong, label, dt, dd) {
+  text-wrap: pretty;
+}
+
+/* Central do Operador: carreira separada do ato de jogar. */
+.career-view {
+  display: flex;
+  max-width: 1500px;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 auto;
+}
+
+.career-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 25px;
+  border: 1px solid #304352;
+  background:
+    radial-gradient(circle at 88% 0, rgba(255, 189, 74, 0.14), transparent 23rem),
+    linear-gradient(110deg, rgba(54, 216, 242, 0.06), transparent 48%),
+    #0b131c;
+}
+
+.career-hero h2 {
+  margin: 9px 0 10px;
+  color: #f2f8fa;
+  font: 700 clamp(1.55rem, 2.8vw, 2.35rem)/1.08 var(--font-display);
+  text-transform: uppercase;
+}
+
+.career-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: #b4c1ca;
+}
+
+.career-hero > aside {
+  display: grid;
+  min-width: 210px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 3px 12px;
+  padding: 15px 17px;
+  border: 1px solid rgba(255, 189, 74, 0.35);
+  background: rgba(255, 189, 74, 0.06);
+}
+
+.career-hero > aside strong {
+  grid-row: 1 / 3;
+  color: #ffbd4a;
+  font: 700 2.2rem/1 var(--font-display) !important;
+}
+
+.career-hero > aside span {
+  color: #fff0ca;
+  font-weight: 700;
+}
+
+.career-hero > aside small {
+  color: #9eacb6;
+}
+
+.career-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid #304352;
+  background: #304352;
+}
+
+.career-tabs button {
+  display: grid;
+  min-height: 78px !important;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 0;
+  background: #0b131c;
+  color: #9aabb7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.career-tabs button:hover,
+.career-tabs button.active {
+  background:
+    linear-gradient(110deg, rgba(169, 255, 63, 0.1), transparent 65%),
+    #0d1720;
+  color: #eef7e8;
+}
+
+.career-tabs button > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #4a5b68;
+  color: #93a4b0;
+}
+
+.career-tabs button.active > span {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+.career-tabs button > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.career-tabs button strong {
+  color: inherit;
+  font-size: var(--readable-value) !important;
+}
+
+.career-tabs button small {
+  color: #899aa7;
+}
+
+.career-content {
+  min-width: 0;
+}
+
+.operator-progress-panel.show-overview .daily-mission-panel,
+.operator-progress-panel.show-overview .operator-career-panel,
+.operator-progress-panel.show-missions .operator-level-card,
+.operator-progress-panel.show-missions .operator-game-stats,
+.operator-progress-panel.show-missions .economy-guard-panel {
+  display: none;
+}
+
+.operator-progress-panel.show-overview,
+.operator-progress-panel.show-missions {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.operator-progress-panel.show-overview .operator-level-card {
+  grid-column: span 4;
+}
+
+.operator-progress-panel.show-overview .operator-game-stats {
+  grid-column: span 8;
+}
+
+.operator-progress-panel.show-missions .daily-mission-panel,
+.operator-progress-panel.show-missions .operator-career-panel,
+.operator-progress-panel.show-overview .economy-guard-panel {
+  grid-column: 1 / -1;
+}
+
+/* O Arcade abre diretamente na lista e no jogo selecionado. */
+.games-view > .games-hub-body {
+  margin-top: 0;
+}
+
+.games-hub-body {
+  border-color: #3b4b59;
+}
+
+.game-selector-list {
+  position: sticky;
+  z-index: 5;
+  top: 120px;
+  align-self: start;
+}
+
+.game-selector-list button {
+  min-height: 104px !important;
+}
+
+.game-selector-list button > strong {
+  font-size: 1rem !important;
+}
+
+/* A mesma preferência de leitura acompanha a Central do Proprietário. */
+.admin-shell {
+  --admin-readable-meta: 0.78rem;
+  --admin-readable-copy: 0.9rem;
+  --admin-readable-control: 0.8rem;
+  --admin-readable-value: 0.96rem;
+}
+
+.admin-shell.text-scale-large {
+  --admin-readable-meta: 0.86rem;
+  --admin-readable-copy: 1rem;
+  --admin-readable-control: 0.88rem;
+  --admin-readable-value: 1.06rem;
+}
+
+.admin-shell.text-scale-extra {
+  --admin-readable-meta: 0.94rem;
+  --admin-readable-copy: 1.08rem;
+  --admin-readable-control: 0.96rem;
+  --admin-readable-value: 1.16rem;
+}
+
+.admin-shell :where(span, small, label, dt, dd, time, em) {
+  font-size: var(--admin-readable-meta) !important;
+  line-height: 1.45;
+}
+
+.admin-shell p {
+  font-size: var(--admin-readable-copy) !important;
+  line-height: 1.65;
+}
+
+.admin-shell :where(button, a, input, select, textarea) {
+  min-height: 44px;
+  font-size: var(--admin-readable-control) !important;
+  line-height: 1.3;
+}
+
+.admin-shell strong {
+  font-size: var(--admin-readable-value) !important;
+  line-height: 1.35;
+}
+
+.admin-shell .admin-hero h1,
+.admin-shell .admin-panel-heading h2 {
+  line-height: 1.12;
+}
+
+.admin-shell .admin-metric-grid strong {
+  font-size: max(var(--admin-readable-value), 1.45rem) !important;
+}
+
+.admin-shell .admin-hero aside strong,
+.admin-shell .admin-season-overview h3 {
+  font-size: max(var(--admin-readable-value), 1.12rem) !important;
+}
+
+.admin-topbar nav {
+  flex-wrap: wrap;
+}
+
+.admin-shell :where(p, span, small, strong, label, dt, dd) {
+  text-wrap: pretty;
+}
+
+@media (max-width: 1100px) {
+  .reading-mode-toggle {
+    min-width: 48px;
+    padding-inline: 8px;
+  }
+
+  .reading-mode-toggle > span {
+    display: none;
+  }
+
+  .operator-progress-panel.show-overview .operator-level-card,
+  .operator-progress-panel.show-overview .operator-game-stats {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-nav {
+    grid-template-columns: repeat(6, minmax(72px, 1fr));
+    overflow-x: auto;
+  }
+
+  .career-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .career-hero > aside {
+    min-width: 0;
+  }
+
+  .game-selector-list {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .career-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .career-tabs button {
+    min-height: 68px !important;
+  }
+
+  .career-hero {
+    padding: 19px;
+  }
+
+  .arcadia-shell .topbar-status {
+    display: none;
+  }
+
+  .reading-mode-toggle {
+    margin-left: auto;
+  }
+}
+
 /* Proprietor control center */
 .admin-shell,
 .admin-loading-shell,

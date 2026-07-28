@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Temporada Alfa, ranking de atividade e uma interface mais legível no Crypto Miner Arcadia.",
+    "Interface acessível, Arcade organizado e uma Central do Operador separada no Crypto Miner Arcadia.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Temporada Alfa online com ranking competitivo, snapshots econômicos e interface mais legível.",
+      "Minigames em primeiro plano, textos maiores e carreira organizada em uma área própria.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Temporada Alfa online em uma sala pixel art com racks, ranking e servidor validado",
+        alt: "Crypto Miner Arcadia — interface pixel art mais clara com três minigames, Central do Operador e controle A+",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Temporada Alfa, ranking de atividade e snapshots econômicos sem prêmio financeiro.",
+      "Interface mais clara, Arcade direto e Central do Operador com abas.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],

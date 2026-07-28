@@ -7,8 +7,6 @@ import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
-import { OperatorProgressPanel } from "./OperatorProgressPanel";
-import { SeasonPanel } from "./SeasonPanel";
 import {
   PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
@@ -44,7 +42,6 @@ export function PacketCatchView({
   const [activeGame, setActiveGame] = useState<
     "packet" | "hash" | "circuit"
   >("packet");
-  const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<GameSession | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -73,7 +70,6 @@ export function PacketCatchView({
 
   const refreshArcadeAccount = useCallback(async () => {
     const refreshed = await onRefreshAccount();
-    setSummaryRefreshKey((current) => current + 1);
     return refreshed;
   }, [onRefreshAccount]);
 
@@ -338,13 +334,6 @@ export function PacketCatchView({
           <small>Packet Catch + Hash Match</small>
         </div>
       </div>
-
-      <OperatorProgressPanel
-        refreshKey={summaryRefreshKey}
-        onRefreshAccount={refreshArcadeAccount}
-      />
-
-      <SeasonPanel refreshKey={summaryRefreshKey} />
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">
