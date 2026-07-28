@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Monte sua sala e mantenha inventário, energia, compras, pools e blocos protegidos por uma conta autoritativa.",
+    "Monte sua sala, organize racks e conquiste poder temporário no primeiro minigame validado pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Progresso protegido: organize racks e mine CMA, Bitcoin e Dogecoin.",
+      "Packet Catch está online: jogue, ganhe poder temporário e fortaleça sua sala.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "/og-authoritative.png",
-        width: 1721,
-        height: 914,
-        alt: "Crypto Miner Arcadia — progresso protegido",
+        url: "/og-packet-catch.png",
+        width: 1672,
+        height: 941,
+        alt: "Crypto Miner Arcadia — Packet Catch online",
       },
     ],
   },
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Progresso protegido: organize racks e mine CMA, Bitcoin e Dogecoin.",
-    images: ["/og-authoritative.png"],
+      "Packet Catch está online: jogue, ganhe poder temporário e fortaleça sua sala.",
+    images: ["/og-packet-catch.png"],
   },
 };
 

@@ -62,7 +62,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: próxima prioridade; projetada, ainda sem recompensas.
+Status: primeira entrega concluída.
 
 Ordem de execução:
 
@@ -82,16 +82,38 @@ emissão por jogador.
 Critério de saída: nenhuma pontuação ou prêmio pode ser criado apenas pelo
 cliente.
 
-Entregas técnicas da próxima atualização:
+Entregas concluídas no Packet Catch:
 
 - primeira versão jogável do Packet Catch;
 - sessão de partida criada e encerrada pelo servidor;
 - nonce de uso único e prazo curto;
 - pontuação validada com regras reproduzíveis;
-- limite de partidas por hora e por dia;
+- limite de cinco partidas por hora e quinze em 24 horas;
 - poder temporário salvo com início e expiração;
-- painel administrativo mínimo para revisar partidas suspeitas;
+- marcação de partidas suspeitas para revisão;
 - recompensas de bateria e CMA continuam desativadas nessa primeira entrega.
+
+Próxima atualização:
+
+- telemetria de dificuldade, abandono e pontuação do Packet Catch;
+- painel administrativo de revisão;
+- ajustes de recompensa com base nos dados reais;
+- primeira versão jogável do Hash Match;
+- nível do computador para ampliar a duração do poder temporário, somente
+  depois de confirmar que a progressão não cria emissão excessiva.
+
+## Fase 4.5 — conta externa
+
+Status: futura; depende da decisão de onde o site público será hospedado.
+
+- manter a entrada com ChatGPT durante o teste privado;
+- escolher um provedor de identidade para cadastro público;
+- cadastro, login, verificação de e-mail e recuperação de senha;
+- sessões seguras, limitação de tentativas e proteção contra contas múltiplas;
+- migração da conta de teste para a identidade pública sem perder o progresso.
+
+Critério de saída: o jogo funciona fora do ChatGPT sem armazenar senhas de forma
+improvisada.
 
 ## Fase 5 — beta econômico
 

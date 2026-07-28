@@ -95,10 +95,22 @@ controle de reserva.
 
 ## Minigames
 
-Os três conceitos iniciais são Packet Catch, Hash Match e Circuit Rush. Primeiro
-serão testados sem recompensa. Depois receberão sessões assinadas, pontuação
-validada no servidor, limite diário e poder temporário. Baterias e fragmentos de
-CMA só serão ativados com teto de emissão.
+Os três conceitos iniciais são Packet Catch, Hash Match e Circuit Rush.
+
+Calibração inicial do Packet Catch:
+
+- partida de 32 segundos;
+- limite de 5 partidas por hora e 15 por janela de 24 horas;
+- 40 pontos: 90 GH/s temporários;
+- 80 pontos: 160 GH/s temporários;
+- 125 pontos: 240 GH/s temporários;
+- o poder dura 6 horas e ainda depende de energia para participar dos blocos;
+- a sessão, os cliques, a pontuação e o prêmio são validados no servidor;
+- CMA e baterias continuam desativados como prêmio.
+
+O teto teórico desta calibração é 3.600 GH/s ativos por conta se todas as
+quinze partidas do período alcançarem a faixa máxima. Esse teto será reduzido ou
+ampliado apenas depois de medir distribuição de pontuação, abandono e abuso.
 
 ## Referências analisadas
 

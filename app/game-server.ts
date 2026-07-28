@@ -328,6 +328,7 @@ export function normalizeBootstrapState(
 export function settleMiningBlocks(
   state: PublicGameState,
   now: number,
+  temporaryPowerGh = 0,
 ): {
   state: PublicGameState;
   settledBlocks: number;
@@ -342,7 +343,8 @@ export function settleMiningBlocks(
 
   if (settledBlocks > 0) {
     const allInstalled = Object.values(next.rackMiners).flat();
-    const installedPower = getInstalledPower(allInstalled);
+    const installedPower =
+      getInstalledPower(allInstalled) + Math.max(0, temporaryPowerGh);
 
     for (const pool of pools) {
       const allocatedPower = Math.floor(
@@ -392,8 +394,9 @@ export function applyGameAction(
   action: GameActionName,
   rawPayload: unknown,
   now: number,
+  temporaryPowerGh = 0,
 ): ActionResult {
-  const settled = settleMiningBlocks(currentState, now);
+  const settled = settleMiningBlocks(currentState, now, temporaryPowerGh);
   const state = settled.state;
   const payload = payloadObject(rawPayload);
 

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../chatgpt-auth";
+import { BLOCK_INTERVAL_SECONDS } from "../../game-rules";
 import {
   applyGameAction,
   createInitialGameState,
@@ -83,6 +84,56 @@ async function ensureSchema(db: D1Database) {
       CREATE INDEX IF NOT EXISTS ledger_entries_account_created_idx
       ON ledger_entries (account_id, created_at)
     `),
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS game_sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        game_id TEXT NOT NULL,
+        nonce TEXT NOT NULL,
+        seed TEXT NOT NULL,
+        status TEXT DEFAULT 'active' NOT NULL,
+        started_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        duration_ms INTEGER,
+        score INTEGER,
+        reward_power_gh INTEGER DEFAULT 0 NOT NULL,
+        risk_level TEXT DEFAULT 'normal' NOT NULL,
+        review_reason TEXT,
+        proof_json TEXT DEFAULT '{}' NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS game_sessions_nonce_unique
+      ON game_sessions (nonce)
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS game_sessions_account_started_idx
+      ON game_sessions (account_id, started_at)
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS game_sessions_review_idx
+      ON game_sessions (risk_level, started_at)
+    `),
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS temporary_power_grants (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        source_session_id TEXT NOT NULL,
+        power_gh INTEGER NOT NULL,
+        starts_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS temporary_power_source_unique
+      ON temporary_power_grants (source_session_id)
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS temporary_power_account_expiry_idx
+      ON temporary_power_grants (account_id, expires_at)
+    `),
   ]);
 }
 
@@ -100,6 +151,41 @@ async function readState(db: D1Database, accountId: string) {
 
 function parseState(row: StoredRow): PublicGameState {
   return JSON.parse(row.state_json) as PublicGameState;
+}
+
+async function activeTemporaryPower(
+  db: D1Database,
+  accountId: string,
+  now: number,
+) {
+  const row = await db
+    .prepare(
+      `SELECT COALESCE(SUM(power_gh), 0) AS total
+       FROM temporary_power_grants
+       WHERE account_id = ? AND starts_at <= ? AND expires_at > ?`,
+    )
+    .bind(accountId, now, now)
+    .first<{ total: number }>();
+  return Number(row?.total ?? 0);
+}
+
+async function settlementTemporaryPower(
+  db: D1Database,
+  accountId: string,
+  state: PublicGameState,
+  now: number,
+) {
+  const firstUnsettledBlockAt =
+    (state.lastSettledBlock + 1) * BLOCK_INTERVAL_SECONDS * 1000;
+  const row = await db
+    .prepare(
+      `SELECT COALESCE(SUM(power_gh), 0) AS total
+       FROM temporary_power_grants
+       WHERE account_id = ? AND starts_at <= ? AND expires_at > ?`,
+    )
+    .bind(accountId, firstUnsettledBlockAt, now)
+    .first<{ total: number }>();
+  return Number(row?.total ?? 0);
 }
 
 async function createAccount(
@@ -173,12 +259,14 @@ function responsePayload(
   state: PublicGameState,
   now: number,
   message: string,
+  temporaryPowerGh = 0,
 ) {
   return {
     state,
     version: row.version,
     serverTime: now,
     nextBlockAt: nextBlockAt(now),
+    temporaryPowerGh,
     message,
     account: {
       displayName: row.display_name,
@@ -202,7 +290,23 @@ export async function GET() {
     );
   }
 
-  const settled = settleMiningBlocks(parseState(row), now);
+  const temporaryPowerGh = await activeTemporaryPower(
+    context.db,
+    context.accountId,
+    now,
+  );
+  const state = parseState(row);
+  const eligibleTemporaryPowerGh = await settlementTemporaryPower(
+    context.db,
+    context.accountId,
+    state,
+    now,
+  );
+  const settled = settleMiningBlocks(
+    state,
+    now,
+    eligibleTemporaryPowerGh,
+  );
   if (settled.settledBlocks > 0) {
     const nextVersion = row.version + 1;
     await context.db.batch([
@@ -255,6 +359,7 @@ export async function GET() {
       settled.settledBlocks > 0
         ? `${settled.settledBlocks} bloco(s) processado(s).`
         : "Conta sincronizada.",
+      temporaryPowerGh,
     ),
   );
 }
@@ -288,6 +393,17 @@ export async function POST(request: Request) {
       body.action === "bootstrap" ? body.bootstrapState : undefined,
     );
   }
+  const temporaryPowerGh = await activeTemporaryPower(
+    context.db,
+    context.accountId,
+    now,
+  );
+  const eligibleTemporaryPowerGh = await settlementTemporaryPower(
+    context.db,
+    context.accountId,
+    parseState(row),
+    now,
+  );
 
   if (body.action === "bootstrap") {
     return json(
@@ -296,6 +412,7 @@ export async function POST(request: Request) {
         parseState(row),
         now,
         "Conta autoritativa pronta.",
+        temporaryPowerGh,
       ),
     );
   }
@@ -323,6 +440,7 @@ export async function POST(request: Request) {
         parseState(latest),
         now,
         "Ação já processada anteriormente.",
+        temporaryPowerGh,
       ),
     );
   }
@@ -338,6 +456,7 @@ export async function POST(request: Request) {
           parseState(row),
           now,
           "Seu estado foi atualizado em outra sessão.",
+          temporaryPowerGh,
         ),
         error: "Versão desatualizada. O estado mais recente foi restaurado.",
       },
@@ -352,13 +471,20 @@ export async function POST(request: Request) {
       body.action as GameActionName,
       body.payload,
       now,
+      eligibleTemporaryPowerGh,
     );
   } catch (error) {
     return json(
       {
         error:
           error instanceof Error ? error.message : "Não foi possível concluir.",
-        ...responsePayload(row, parseState(row), now, "Ação recusada."),
+        ...responsePayload(
+          row,
+          parseState(row),
+          now,
+          "Ação recusada.",
+          temporaryPowerGh,
+        ),
       },
       400,
     );
@@ -390,6 +516,7 @@ export async function POST(request: Request) {
           parseState(latest),
           now,
           "Outra sessão concluiu uma ação primeiro.",
+          temporaryPowerGh,
         ),
         error: "Estado atualizado em outra sessão. Tente novamente.",
       },
@@ -423,5 +550,13 @@ export async function POST(request: Request) {
     version: nextVersion,
     updated_at: now,
   };
-  return json(responsePayload(updatedRow, result.state, now, result.message));
+  return json(
+    responsePayload(
+      updatedRow,
+      result.state,
+      now,
+      result.message,
+      temporaryPowerGh,
+    ),
+  );
 }

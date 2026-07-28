@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
+import { PacketCatchView } from "./PacketCatchView";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
@@ -70,6 +71,7 @@ type GameApiResponse = {
   version: number;
   serverTime: number;
   nextBlockAt: number;
+  temporaryPowerGh: number;
   message: string;
   error?: string;
 };
@@ -107,18 +109,18 @@ const roomDefinitions: RoomDefinition[] = [
 ];
 
 const rackPositions: RackPosition[] = [
-  { left: 1.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 17.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 34.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 50.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 67.2, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 83.7, top: 45, width: 14.8, height: 25, zIndex: 5 },
-  { left: 1.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
-  { left: 17.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
-  { left: 34.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
-  { left: 50.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
-  { left: 67.2, top: 71, width: 14.8, height: 25, zIndex: 7 },
-  { left: 83.7, top: 71, width: 14.8, height: 25, zIndex: 7 },
+  { left: 1.2, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 17.7, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 34.2, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 50.7, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 67.2, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 83.7, top: 45, width: 14.8, height: 25, zIndex: 12 },
+  { left: 1.2, top: 71, width: 14.8, height: 25, zIndex: 14 },
+  { left: 17.7, top: 71, width: 14.8, height: 25, zIndex: 14 },
+  { left: 34.2, top: 71, width: 14.8, height: 25, zIndex: 14 },
+  { left: 50.7, top: 71, width: 14.8, height: 25, zIndex: 14 },
+  { left: 67.2, top: 71, width: 14.8, height: 25, zIndex: 14 },
+  { left: 83.7, top: 71, width: 14.8, height: 25, zIndex: 14 },
 ];
 
 const defaultRacks: RackInstance[] = [
@@ -195,6 +197,15 @@ function formatEnergy(totalSeconds: number) {
     .padStart(2, "0")}m`;
 }
 
+function rackMinerPosition(slotIndex: number): React.CSSProperties {
+  const row = Math.floor(slotIndex / RACK_COLUMNS);
+  const column = slotIndex % RACK_COLUMNS;
+  return {
+    left: `${31 + column * 21.5}%`,
+    top: `${18 + row * 20.6}%`,
+  };
+}
+
 export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [activeView, setActiveView] = useState<ViewId>("mine");
   const [shopCategory, setShopCategory] =
@@ -212,6 +223,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
   const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
+  const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
   const [clockNow, setClockNow] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
@@ -257,7 +269,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const energySeconds = hydrated
     ? Math.max(0, Math.ceil((energyExpiresAt - clockNow) / 1000))
     : INITIAL_ENERGY_HOURS * 3600;
-  const effectivePower = energySeconds > 0 ? installedPower : 0;
+  const effectivePower =
+    energySeconds > 0 ? installedPower + temporaryPowerGh : 0;
   const energyClaimCooldownSeconds = Math.max(
     0,
     Math.ceil(
@@ -289,6 +302,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     setEnergyExpiresAt(state.energyExpiresAt);
     setLastEnergyClaimAt(state.lastEnergyClaimAt);
     setLastSettledBlock(state.lastSettledBlock);
+    setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
     setActiveRoomId(state.activeRoomId);
     setOwnedRoomIds(state.ownedRoomIds);
     setRackInventoryCount(state.rackInventoryCount);
@@ -341,6 +355,20 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     } finally {
       setActionPending(false);
     }
+  }
+
+  async function refreshServerState() {
+    try {
+      const response = await fetch("/api/game", { cache: "no-store" });
+      const result = (await response.json()) as GameApiResponse;
+      if (response.ok && result.state) {
+        applyServerSnapshot(result);
+        return true;
+      }
+    } catch {
+      setServerStatus("error");
+    }
+    return false;
   }
 
   useEffect(() => {
@@ -730,7 +758,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               {activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
-                <>ARCADE ARCADIA <i /> PROTÓTIPOS DE MINIGAMES</>
+                <>ARCADE ARCADIA <i /> PACKET CATCH ONLINE</>
               ) : (
                 <>
                   {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
@@ -754,7 +782,13 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <small>PODER INSTALADO</small>
               <strong>{formatPower(effectivePower)}</strong>
             </div>
-            <em>{energySeconds > 0 ? "ATIVO" : "SEM ENERGIA"}</em>
+            <em>
+              {energySeconds <= 0
+                ? "SEM ENERGIA"
+                : temporaryPowerGh > 0
+                  ? `+${formatPower(temporaryPowerGh)} DOS JOGOS`
+                  : "ATIVO"}
+            </em>
           </article>
           <article>
             <span className="metric-icon slots">R</span>
@@ -848,7 +882,12 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {activeView === "games" && <GamesView />}
+        {activeView === "games" && (
+          <PacketCatchView
+            temporaryPowerGh={temporaryPowerGh}
+            onRefreshAccount={refreshServerState}
+          />
+        )}
       </section>
 
       <nav className="mobile-nav" aria-label="Navegação móvel">
@@ -1034,8 +1073,6 @@ function MiningRoom({
                   {installed.map((placement) => {
                     const miner = getMiner(placement.minerId);
                     if (!miner) return null;
-                    const row = Math.floor(placement.slotIndex / RACK_COLUMNS);
-                    const column = placement.slotIndex % RACK_COLUMNS;
 
                     return (
                       <img
@@ -1043,10 +1080,7 @@ function MiningRoom({
                         key={placement.instanceId}
                         src={miner.asset}
                         alt={miner.alt}
-                        style={{
-                          left: `${30.5 + column * 22}%`,
-                          top: `${17 + row * 22.5}%`,
-                        }}
+                        style={rackMinerPosition(placement.slotIndex)}
                       />
                     );
                   })}
@@ -1327,7 +1361,7 @@ function MiningStatusPanel({
   );
 }
 
-function GamesView() {
+export function GamesView() {
   const games = [
     {
       id: "packet-catch",
@@ -2119,17 +2153,12 @@ function RackManager({
               {installed.map((placement) => {
                 const miner = getMiner(placement.minerId);
                 if (!miner) return null;
-                const row = Math.floor(placement.slotIndex / RACK_COLUMNS);
-                const column = placement.slotIndex % RACK_COLUMNS;
                 return (
                   <button
                     type="button"
                     className={`preview-miner corrected size-${miner.slotSize}`}
                     key={placement.instanceId}
-                    style={{
-                      left: `${31 + column * 21.5}%`,
-                      top: `${17 + row * 22.5}%`,
-                    }}
+                    style={rackMinerPosition(placement.slotIndex)}
                     onClick={() => onRemove(placement.instanceId)}
                     title={`Retirar ${miner.name}`}
                   >

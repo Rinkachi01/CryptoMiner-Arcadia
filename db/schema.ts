@@ -40,3 +40,52 @@ export const ledgerEntries = sqliteTable(
     ),
   ],
 );
+
+export const gameSessions = sqliteTable(
+  "game_sessions",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    gameId: text("game_id").notNull(),
+    nonce: text("nonce").notNull(),
+    seed: text("seed").notNull(),
+    status: text("status").notNull().default("active"),
+    startedAt: integer("started_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    completedAt: integer("completed_at"),
+    durationMs: integer("duration_ms"),
+    score: integer("score"),
+    rewardPowerGh: integer("reward_power_gh").notNull().default(0),
+    riskLevel: text("risk_level").notNull().default("normal"),
+    reviewReason: text("review_reason"),
+    proofJson: text("proof_json").notNull().default("{}"),
+  },
+  (table) => [
+    uniqueIndex("game_sessions_nonce_unique").on(table.nonce),
+    index("game_sessions_account_started_idx").on(
+      table.accountId,
+      table.startedAt,
+    ),
+    index("game_sessions_review_idx").on(table.riskLevel, table.startedAt),
+  ],
+);
+
+export const temporaryPowerGrants = sqliteTable(
+  "temporary_power_grants",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    sourceSessionId: text("source_session_id").notNull(),
+    powerGh: integer("power_gh").notNull(),
+    startsAt: integer("starts_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("temporary_power_source_unique").on(table.sourceSessionId),
+    index("temporary_power_account_expiry_idx").on(
+      table.accountId,
+      table.expiresAt,
+    ),
+  ],
+);
