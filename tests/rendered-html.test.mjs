@@ -65,7 +65,7 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /PROGRESSO PROTEGIDO/i);
   assert.match(source, /RACKS NESTA SALA/i);
   assert.match(source, /ENERGIA/i);
-  assert.match(source, /RECARGA GRATUITA/i);
+  assert.match(source, /ENERGIA PELO ARCADE/i);
   assert.match(source, /REDE PRINCIPAL/i);
   assert.match(source, /Poder total da rede/i);
   assert.match(source, /ENTRAR COM CHATGPT/i);

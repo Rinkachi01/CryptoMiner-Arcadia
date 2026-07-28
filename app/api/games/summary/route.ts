@@ -14,6 +14,7 @@ import {
   createInitialGameState,
   type PublicGameState,
 } from "../../../game-server";
+import { STARTER_KIT_VERSION } from "../../../onboarding-rules";
 import { calculateOperatorProgress } from "../../../operator-progress-rules";
 
 export const dynamic = "force-dynamic";
@@ -198,7 +199,29 @@ async function ensureGameState(
       crypto.randomUUID(),
       accountId,
       `bootstrap:${accountId}`,
-      JSON.stringify({ importedLocalState: false }),
+      JSON.stringify({
+        importedLocalState: false,
+        starterKitVersion: STARTER_KIT_VERSION,
+      }),
+      now,
+    )
+    .run();
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) VALUES (?, ?, 'starter_kit_granted', ?, 1, 0, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      accountId,
+      `starter-kit:${STARTER_KIT_VERSION}:${accountId}`,
+      JSON.stringify({
+        version: STARTER_KIT_VERSION,
+        rack: { id: "rack-01", roomId: "room-1", positionIndex: 0 },
+        miner: { minerId: "byte-spark", quantity: 1, installed: false },
+      }),
       now,
     )
     .run();

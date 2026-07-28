@@ -19,7 +19,6 @@ type GamesSummary = {
 type OperatorInboxProps = {
   energySeconds: number;
   batteryCount: number;
-  canClaimEnergy: boolean;
   rackCount: number;
   installedMinerCount: number;
   poolAllocations: PoolAllocations;
@@ -32,7 +31,6 @@ type OperatorInboxProps = {
 export function OperatorInbox({
   energySeconds,
   batteryCount,
-  canClaimEnergy,
   rackCount,
   installedMinerCount,
   poolAllocations,
@@ -72,21 +70,12 @@ export function OperatorInbox({
           {
             id: "kit",
             label: "Receba seu kit inicial",
-            detail: "Rack, Byte Spark e bateria registrados",
+            detail: "Somente rack e Byte Spark registrados",
             complete: onboarding.milestones.kitDelivered,
             target: "mine" as const,
           },
         ]
       : []),
-    {
-      id: "energy",
-      label: "Mantenha a sala energizada",
-      detail: energySeconds > 0 ? "Energia ativa" : "Use ou resgate uma bateria",
-      complete: onboarding?.eligible
-        ? onboarding.milestones.energyOnline
-        : energySeconds > 0,
-      target: "mine" as const,
-    },
     ...(!onboarding?.eligible
       ? [
           {
@@ -112,6 +101,37 @@ export function OperatorInbox({
       target: "inventory" as const,
     },
     {
+      id: "arcade",
+      label: onboarding?.eligible
+        ? "Complete o Tour do Arcade"
+        : "Conclua um minigame",
+      detail: onboarding?.eligible
+        ? "Jogue Packet Catch, Hash Match e Circuit Rush"
+        : totalPlays > 0
+          ? `${totalPlays} partida(s) registrada(s)`
+          : "Visite o Arcade",
+      complete: onboarding?.eligible
+        ? onboarding.milestones.arcadeCompleted
+        : totalPlays > 0,
+      target: "games" as const,
+    },
+    {
+      id: "energy",
+      label: onboarding?.eligible
+        ? "Conquiste e ative energia"
+        : "Mantenha a sala energizada",
+      detail:
+        energySeconds > 0
+          ? "Energia ativa"
+          : onboarding?.eligible
+            ? "Resgate a bateria do Tour na Central do Operador"
+            : "Use ou resgate uma bateria",
+      complete: onboarding?.eligible
+        ? onboarding.milestones.energyOnline
+        : energySeconds > 0,
+      target: onboarding?.eligible ? ("career" as const) : ("mine" as const),
+    },
+    {
       id: "pools",
       label: "Distribua 100% do poder",
       detail:
@@ -122,15 +142,6 @@ export function OperatorInbox({
         ? onboarding.milestones.poolsConfirmed
         : totalAllocation === 100,
       target: "pools" as const,
-    },
-    {
-      id: "arcade",
-      label: "Conclua um minigame",
-      detail: totalPlays > 0 ? `${totalPlays} partida(s) registrada(s)` : "Visite o Arcade",
-      complete: onboarding?.eligible
-        ? onboarding.milestones.arcadeCompleted
-        : totalPlays > 0,
-      target: "games" as const,
     },
     ...(onboarding?.eligible
       ? [
@@ -160,8 +171,10 @@ export function OperatorInbox({
       items.push({
         id: "energy-empty",
         label: "Mineração pausada",
-        detail: "Sua energia acabou. Recarregue para voltar a produzir.",
-        target: "mine",
+        detail: onboarding?.eligible
+          ? "Complete o Tour do Arcade para conquistar sua primeira bateria."
+          : "Sua energia acabou. Use uma bateria para voltar a produzir.",
+        target: onboarding?.eligible ? "games" : "mine",
         severity: "attention",
       });
     } else if (energySeconds <= 3 * 60 * 60) {
@@ -171,15 +184,6 @@ export function OperatorInbox({
         detail: `${batteryCount} bateria(s) disponível(is) no inventário.`,
         target: "mine",
         severity: "attention",
-      });
-    }
-    if (canClaimEnergy) {
-      items.push({
-        id: "claim-energy",
-        label: "Recarga gratuita disponível",
-        detail: "O novo ciclo de 12 horas já pode ser resgatado.",
-        target: "mine",
-        severity: "good",
       });
     }
     if (installedMinerCount === 0) {
@@ -212,10 +216,10 @@ export function OperatorInbox({
     return items;
   }, [
     batteryCount,
-    canClaimEnergy,
     energySeconds,
     installedMinerCount,
     missionClaimable,
+    onboarding?.eligible,
     secondsLeft,
   ]);
 

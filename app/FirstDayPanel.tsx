@@ -8,7 +8,7 @@ import type {
   OnboardingStatus,
 } from "./onboarding-rules";
 
-type FirstDayTarget = "mine" | "pools" | "games";
+type FirstDayTarget = "mine" | "pools" | "games" | "career";
 
 type FirstDayPanelProps = {
   status: OnboardingStatus | null;
@@ -25,13 +25,7 @@ const stepDefinitions: Array<{
   {
     id: "kitDelivered",
     label: "Kit entregue",
-    short: "Rack, minerador e bateria",
-    target: "mine",
-  },
-  {
-    id: "energyOnline",
-    label: "Energia ativa",
-    short: "Sala ligada por 12 horas",
+    short: "Rack e Byte Spark, somente",
     target: "mine",
   },
   {
@@ -41,16 +35,22 @@ const stepDefinitions: Array<{
     target: "mine",
   },
   {
+    id: "arcadeCompleted",
+    label: "Complete o Tour do Arcade",
+    short: "Jogue os três minigames",
+    target: "games",
+  },
+  {
+    id: "energyOnline",
+    label: "Conquiste energia",
+    short: "Resgate a bateria do Tour e use-a",
+    target: "career",
+  },
+  {
     id: "poolsConfirmed",
     label: "Confirme sua pool",
     short: "Salve a distribuição do poder",
     target: "pools",
-  },
-  {
-    id: "arcadeCompleted",
-    label: "Conheça o Arcade",
-    short: "Conclua um minigame",
-    target: "games",
   },
   {
     id: "firstBlockCredited",
@@ -90,15 +90,15 @@ export function FirstDayPanel({
       <div className="first-day-kit-art" aria-hidden="true">
         <img className="first-day-rack" src={assetsManifest.rackBasic.path} alt="" />
         <img className="first-day-miner" src={assetsManifest.minerOne.path} alt="" />
-        <img className="first-day-battery" src={assetsManifest.battery.path} alt="" />
       </div>
 
       <div className="first-day-copy">
         <span>PRIMEIRO DIA · KIT DO OPERADOR</span>
         <h2 id="first-day-title">Sua primeira operação já pode começar</h2>
         <p>
-          O servidor entregou um rack, um Byte Spark, uma bateria e 12 horas de
-          energia. Instale o equipamento e acompanhe seu primeiro bloco.
+          O servidor entregou somente um rack e um Byte Spark. Para ligar a
+          sala, conclua os três minigames, resgate a bateria na Central do
+          Operador e use-a antes de disputar seu primeiro bloco.
         </p>
         <div className="first-day-progress">
           <div>

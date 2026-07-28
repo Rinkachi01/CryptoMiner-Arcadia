@@ -120,7 +120,9 @@ export async function GET() {
              'starter_kit_granted',
              'install_miner',
              'apply_allocations',
-             'block_settlement'
+             'block_settlement',
+             'claim_energy',
+             'use_battery'
            )
          ORDER BY created_at ASC
          LIMIT 500`,
@@ -129,7 +131,7 @@ export async function GET() {
       .all<LedgerRow>(),
     db
       .prepare(
-        `SELECT COUNT(*) AS total
+        `SELECT COUNT(DISTINCT game_id) AS total
          FROM game_sessions
          WHERE account_id = ?
            AND status IN ('completed', 'failed')`,

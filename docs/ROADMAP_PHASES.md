@@ -24,7 +24,7 @@ Status: concluída.
 - compra e instalação de rack;
 - instalação, remoção e troca de mineradores;
 - mineradores de uma e duas fans respeitando um ou dois slots;
-- energia gratuita, baterias e segunda sala;
+- energia por baterias, loja e Arcade, além da segunda sala;
 - estado persistido no navegador.
 
 Critério de saída: fluxo completo de comprar, instalar, energizar e minerar.
@@ -55,7 +55,7 @@ Status: concluída nesta atualização.
 - ledger imutável para todo crédito e débito;
 - fechamento de blocos no servidor;
 - idempotência para impedir recompensa ou compra duplicada;
-- migração local única, validada e limitada;
+- importação de inventário local desativada para novas contas;
 - versão de estado para detectar sessões desatualizadas;
 - trilha de auditoria por conta.
 
@@ -249,7 +249,8 @@ Entregas concluídas na décima etapa:
 - histórico de blocos com os valores exatos recebidos em CMA, BTC e DOGE;
 - consulta pessoal limitada aos últimos 30 dias e a 80 itens, sem carregar o
   ledger econômico completo no navegador;
-- guia de entrada com energia, rack, minerador, pools e primeira partida;
+- guia de entrada com rack, minerador, Tour do Arcade, energia, pools e
+  primeiro bloco;
 - avisos pessoais derivados do servidor sobre energia, missão e próximo bloco;
 - painel lateral de orientação sem sobreposição escura sobre a sala.
 
@@ -334,6 +335,49 @@ Próxima entrega segura:
   estabilidade econômica estiverem comprovados.
 
 Critério de saída: economia estável em uma temporada fechada.
+
+## Ponto de retomada — próxima semana
+
+Status: kit inicial e mineração global prontos para teste fechado.
+
+Decisões consolidadas:
+
+- conta nova recebe somente um rack instalado e um Byte Spark no inventário;
+- saldo inicial de CMA, BTC e DOGE é zero;
+- bateria inicial e energia inicial são zero;
+- recarga gratuita automática está desativada;
+- o jogador precisa concluir o Tour do Arcade, resgatar a bateria diária e
+  ativar a sala;
+- as três pools compartilham o poder de todos os jogadores energizados;
+- cada rede possui um único bloco global de dez minutos, fechado no servidor;
+- o valor total do bloco é fixo e somente a participação proporcional muda;
+- navegador não cria saldo, inventário, energia, poder ou recompensa.
+
+Ordem recomendada das próximas entregas:
+
+1. testar o onboarding completo com contas novas e medir onde o jogador para;
+2. polir a passagem Arcade → missão de bateria → ativação da sala em celular;
+3. validar uma temporada econômica fechada antes de alterar preços ou blocos;
+4. preparar autenticação pública com cadastro, e-mail verificado, recuperação
+   de senha, proteção contra múltiplas contas e migração do progresso atual;
+5. substituir a leitura global limitada de contas por agregação incremental da
+   rede antes de abrir o beta para milhares de jogadores;
+6. adicionar monitoramento operacional, recuperação de dados e simulação de
+   incidentes antes de qualquer recurso financeiro real;
+7. avaliar tarefas e publicidade somente com consentimento, antifraude e
+   orçamento separado da recompensa dos blocos.
+
+Polimentos ainda recomendados:
+
+- teste real de toque e leitura em celulares pequenos;
+- revisão visual final de todos os encaixes de mineradores nos quatro níveis do
+  rack;
+- tutorial curto dentro de cada minigame;
+- mensagens mais claras quando energia, recarga ou orçamento diário bloquearem
+  uma ação;
+- comparação do funil do primeiro dia por dispositivo e tamanho de tela;
+- revisão jurídica antes de usar linguagem de investimento, ROI, saque ou
+  rendimento.
 
 ## Fase 6 — recursos financeiros reais
 

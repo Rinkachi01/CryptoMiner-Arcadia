@@ -22,10 +22,10 @@ test("Arcade mostra os jogos sem carregar carreira e temporada antes deles", () 
 
 test("guia de entrada leva o jogador às áreas certas sem overlay escuro", () => {
   assert.match(game, /<OperatorInbox/);
-  assert.match(inbox, /Mantenha a sala energizada/);
+  assert.match(inbox, /Conquiste e ative energia/);
   assert.match(inbox, /Instale seu primeiro rack/);
   assert.match(inbox, /Distribua 100% do poder/);
-  assert.match(inbox, /Recarga gratuita disponível/);
+  assert.match(inbox, /Tour do Arcade/);
   assert.match(inbox, /aria-modal="false"/);
   assert.doesNotMatch(inbox, /backdrop|overlay/);
   assert.match(styles, /\.operator-inbox/);

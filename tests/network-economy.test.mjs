@@ -13,6 +13,8 @@ test("rede viva soma apenas equipamentos energizados e respeita alocações", ()
   const now = 1_800_000_000_000;
   const cmaState = createInitialGameState(now);
   const splitState = createInitialGameState(now);
+  cmaState.energyExpiresAt = now + 12 * 60 * 60 * 1000;
+  splitState.energyExpiresAt = now + 12 * 60 * 60 * 1000;
   splitState.poolAllocations = { cma: 50, btc: 30, doge: 20 };
   const offlineState = createInitialGameState(now);
   offlineState.energyExpiresAt = now - 1;

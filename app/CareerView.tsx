@@ -36,10 +36,12 @@ const tabs: Array<{
 
 export function CareerView({
   onRefreshAccount,
+  initialTab = "overview",
 }: {
   onRefreshAccount: () => Promise<boolean>;
+  initialTab?: "overview" | "missions";
 }) {
-  const [activeTab, setActiveTab] = useState<CareerTab>("overview");
+  const [activeTab, setActiveTab] = useState<CareerTab>(initialTab);
   const [refreshKey, setRefreshKey] = useState(0);
 
   async function refreshAccount() {

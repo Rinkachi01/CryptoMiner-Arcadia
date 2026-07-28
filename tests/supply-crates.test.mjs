@@ -36,6 +36,7 @@ test("proteção de azar garante prêmio raro ou superior na décima abertura", 
 test("compra da caixa desconta CMA e credita somente item do jogo", () => {
   const now = 1_800_000_000_000;
   const state = createInitialGameState(now);
+  state.cmaBalance = 10;
   const beforeBalance = state.cmaBalance;
   const beforeBatteries = state.batteryCount;
   const result = applySupplyCratePurchase(

@@ -1,4 +1,5 @@
 import { ensureTaskPreferenceSchema } from "./task-preferences.ts";
+import { STARTER_KIT_VERSION } from "./onboarding-rules.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const COHORT_DAYS = 7;
@@ -90,6 +91,15 @@ function positiveBlockReward(metadataJson: string) {
   }
 }
 
+function starterKitVersion(metadataJson: string) {
+  try {
+    const metadata = JSON.parse(metadataJson) as { version?: unknown };
+    return typeof metadata.version === "string" ? metadata.version : null;
+  } catch {
+    return null;
+  }
+}
+
 export function buildOnboardingFunnel(
   accounts: StateRow[],
   ledger: OnboardingLedgerRow[],
@@ -97,7 +107,9 @@ export function buildOnboardingFunnel(
   now: number,
 ) {
   const starterEvents = ledger.filter(
-    (row) => row.action === "starter_kit_granted",
+    (row) =>
+      row.action === "starter_kit_granted" &&
+      starterKitVersion(row.metadata_json) === STARTER_KIT_VERSION,
   );
   const starterAccounts = new Set(
     starterEvents.map((row) => row.account_id),
@@ -129,12 +141,6 @@ export function buildOnboardingFunnel(
       // O funil ignora estados antigos malformados.
     }
   }
-  const poolsRecordedAccounts = actionAccounts("apply_allocations");
-  const poolsAccounts = new Set(
-    [...poolsRecordedAccounts].filter((accountId) =>
-      installedAccounts.has(accountId),
-    ),
-  );
   const arcadeRecordedAccounts = new Set(
     sessions
       .filter((row) => starterAccounts.has(row.account_id))
@@ -142,7 +148,22 @@ export function buildOnboardingFunnel(
   );
   const arcadeAccounts = new Set(
     [...arcadeRecordedAccounts].filter((accountId) =>
-      poolsAccounts.has(accountId),
+      installedAccounts.has(accountId),
+    ),
+  );
+  const energyRecordedAccounts = new Set([
+    ...actionAccounts("use_battery"),
+    ...actionAccounts("claim_energy"),
+  ]);
+  const energyAccounts = new Set(
+    [...energyRecordedAccounts].filter((accountId) =>
+      arcadeAccounts.has(accountId),
+    ),
+  );
+  const poolsRecordedAccounts = actionAccounts("apply_allocations");
+  const poolsAccounts = new Set(
+    [...poolsRecordedAccounts].filter((accountId) =>
+      energyAccounts.has(accountId),
     ),
   );
   const blockRecordedAccounts = new Set(
@@ -157,21 +178,23 @@ export function buildOnboardingFunnel(
   );
   const blockAccounts = new Set(
     [...blockRecordedAccounts].filter((accountId) =>
-      arcadeAccounts.has(accountId),
+      poolsAccounts.has(accountId),
     ),
   );
   const counts = [
     starterAccounts.size,
     installedAccounts.size,
-    poolsAccounts.size,
     arcadeAccounts.size,
+    energyAccounts.size,
+    poolsAccounts.size,
     blockAccounts.size,
   ];
   const labels = [
     "Kit entregue",
     "Minerador instalado",
-    "Pool confirmada",
     "Arcade concluído",
+    "Energia ativada",
+    "Pool confirmada",
     "Primeiro bloco",
   ];
   return {
@@ -182,7 +205,7 @@ export function buildOnboardingFunnel(
     ).size,
     totalStarted: starterAccounts.size,
     stages: counts.map((accountsAtStage, index) => ({
-      id: ["kit", "miner", "pools", "arcade", "block"][index],
+      id: ["kit", "miner", "arcade", "energy", "pools", "block"][index],
       label: labels[index],
       accounts: accountsAtStage,
       conversionFromStart: percent(accountsAtStage, counts[0]),
@@ -387,6 +410,8 @@ export async function readBetaObservability(
          WHERE action IN (
            'starter_kit_granted',
            'install_miner',
+           'use_battery',
+           'claim_energy',
            'apply_allocations',
            'block_settlement'
          )

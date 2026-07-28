@@ -59,6 +59,7 @@ test("blocos são liquidados pelo relógio do servidor", () => {
     },
     now,
   ).state;
+  state.energyExpiresAt = now + 12 * 60 * 60 * 1000;
   state.lastSettledBlock = Math.floor(now / BLOCK_MS);
 
   const settlement = settleMiningBlocks(state, now + 2 * BLOCK_MS);
@@ -74,11 +75,11 @@ test("nova conta recebe somente o kit inicial equilibrado", () => {
   const now = 1_800_000_000_000;
   const state = createInitialGameState(now);
 
-  assert.equal(state.cmaBalance, 2);
+  assert.equal(state.cmaBalance, 0);
   assert.equal(state.btcBalanceAtomic, 0);
   assert.equal(state.dogeBalanceAtomic, 0);
-  assert.equal(state.batteryCount, 1);
-  assert.equal(state.energyExpiresAt, now + 12 * 60 * 60 * 1000);
+  assert.equal(state.batteryCount, 0);
+  assert.equal(state.energyExpiresAt, now);
   assert.equal(state.lastEnergyClaimAt, now);
   assert.deepEqual(
     state.minerInventory.map((unit) => unit.minerId),
@@ -86,6 +87,24 @@ test("nova conta recebe somente o kit inicial equilibrado", () => {
   );
   assert.equal(state.racks.length, 1);
   assert.deepEqual(state.rackMiners["rack-01"], []);
+});
+
+test("energia inicial não pode ser obtida por recarga gratuita", () => {
+  const now = 1_800_000_000_000;
+  const state = createInitialGameState(now);
+
+  assert.throws(
+    () =>
+      applyGameAction(
+        state,
+        "claim_energy",
+        {},
+        now + 24 * 60 * 60 * 1000,
+      ),
+    /Tour do Arcade|bateria/i,
+  );
+  assert.equal(state.energyExpiresAt, now);
+  assert.equal(state.batteryCount, 0);
 });
 
 test("migração local é limitada antes de entrar no servidor", () => {

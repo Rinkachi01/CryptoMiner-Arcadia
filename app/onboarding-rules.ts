@@ -1,6 +1,6 @@
 import type { PublicGameState } from "./game-server.ts";
 
-export const STARTER_KIT_VERSION = "operator-v1";
+export const STARTER_KIT_VERSION = "operator-v2";
 
 export type OnboardingLedgerEvent = {
   action: string;
@@ -43,7 +43,7 @@ function hasPositiveBlockReward(event: OnboardingLedgerEvent) {
 export function buildOnboardingStatus(
   state: PublicGameState,
   events: OnboardingLedgerEvent[],
-  completedGameSessions: number,
+  completedArcadeGames: number,
   now: number,
 ): OnboardingStatus {
   const starterEvent = events.find(
@@ -57,7 +57,6 @@ export function buildOnboardingStatus(
   const milestones: OnboardingMilestones = {
     kitDelivered: Boolean(starterEvent),
     energyOnline:
-      Boolean(starterEvent) ||
       state.energyExpiresAt > now ||
       events.some(
         (event) =>
@@ -69,7 +68,7 @@ export function buildOnboardingStatus(
     poolsConfirmed: events.some(
       (event) => event.action === "apply_allocations",
     ),
-    arcadeCompleted: completedGameSessions > 0,
+    arcadeCompleted: completedArcadeGames >= 3,
     firstBlockCredited: events.some(hasPositiveBlockReward),
   };
   const completedCount = Object.values(milestones).filter(Boolean).length;

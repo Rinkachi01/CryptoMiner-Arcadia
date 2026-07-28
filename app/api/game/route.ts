@@ -16,9 +16,9 @@ import {
   readNetworkPowerSnapshot,
   type NetworkPowerSnapshot,
 } from "../../network-server";
+import { STARTER_KIT_VERSION } from "../../onboarding-rules";
 
 export const dynamic = "force-dynamic";
-const STARTER_KIT_VERSION = "operator-v1";
 
 type StoredRow = {
   account_id: string;
@@ -278,9 +278,6 @@ async function createAccount(
         version: STARTER_KIT_VERSION,
         rack: { id: "rack-01", roomId: "room-1", positionIndex: 0 },
         miner: { minerId: "byte-spark", quantity: 1, installed: false },
-        batteryCount: 1,
-        energyHours: 12,
-        startingCma: 2,
       }),
       now,
     )

@@ -2,8 +2,6 @@ import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
   BLOCK_INTERVAL_SECONDS,
-  ENERGY_CLAIM_COOLDOWN_HOURS,
-  ENERGY_CLAIM_HOURS,
   MAX_ENERGY_HOURS,
   RACK_PRICE_CMA,
   ROOM_RACK_CAPACITY,
@@ -149,11 +147,11 @@ export function createInitialGameState(now: number): PublicGameState {
     selectedPoolId: "cma",
     poolAllocations: { cma: 100, btc: 0, doge: 0 },
     displayedBalanceSymbol: "CMA",
-    cmaBalance: 2,
+    cmaBalance: 0,
     btcBalanceAtomic: 0,
     dogeBalanceAtomic: 0,
-    batteryCount: 1,
-    energyExpiresAt: now + ENERGY_CLAIM_HOURS * MS_PER_HOUR,
+    batteryCount: 0,
+    energyExpiresAt: now,
     lastEnergyClaimAt: now,
     lastSettledBlock: currentBlock(now),
     activeRoomId: "room-1",
@@ -833,28 +831,8 @@ export function applyGameAction(
   }
 
   if (action === "claim_energy") {
-    const cooldownEndsAt =
-      state.lastEnergyClaimAt +
-      ENERGY_CLAIM_COOLDOWN_HOURS * MS_PER_HOUR;
-    if (cooldownEndsAt > now) {
-      throw new Error("A recarga gratuita ainda está em resfriamento.");
-    }
-    const remaining = Math.max(0, state.energyExpiresAt - now);
-    if (remaining >= MAX_ENERGY_HOURS * MS_PER_HOUR) {
-      throw new Error("Use parte da energia antes de resgatar novamente.");
-    }
-    state.lastEnergyClaimAt = now;
-    state.energyExpiresAt =
-      now +
-      Math.min(
-        MAX_ENERGY_HOURS * MS_PER_HOUR,
-        remaining + ENERGY_CLAIM_HOURS * MS_PER_HOUR,
-      );
-    return success(
-      state,
-      `Recarga gratuita resgatada: +${ENERGY_CLAIM_HOURS} horas.`,
-      0,
-      { energyExpiresAt: state.energyExpiresAt },
+    throw new Error(
+      "A recarga gratuita foi desativada. Complete o Tour do Arcade ou compre uma bateria.",
     );
   }
 

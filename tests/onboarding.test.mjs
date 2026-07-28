@@ -21,7 +21,7 @@ test("onboarding exige ações confirmadas e recompensa positiva", () => {
   const start = buildOnboardingStatus(state, baseEvents, 0, NOW);
   assert.equal(start.eligible, true);
   assert.equal(start.milestones.kitDelivered, true);
-  assert.equal(start.milestones.energyOnline, true);
+  assert.equal(start.milestones.energyOnline, false);
   assert.equal(start.milestones.minerInstalled, false);
   assert.equal(start.milestones.poolsConfirmed, false);
   assert.equal(start.milestones.firstBlockCredited, false);
@@ -37,20 +37,21 @@ test("onboarding exige ações confirmadas e recompensa positiva", () => {
     state,
     [
       ...baseEvents,
+      { action: "use_battery" },
       { action: "apply_allocations" },
       {
         action: "block_settlement",
         metadata: { rewards: { cma: 1000, btc: 0, doge: 0 } },
       },
     ],
-    1,
+    3,
     NOW,
   );
   assert.equal(completed.completed, true);
   assert.equal(completed.completedCount, 6);
 });
 
-test("funil do proprietário usa somente contas do kit v1", () => {
+test("funil do proprietário usa somente contas do kit atual", () => {
   const accounts = [
     {
       account_id: "new",
@@ -71,6 +72,12 @@ test("funil do proprietário usa somente contas do kit v1", () => {
     {
       account_id: "new",
       action: "starter_kit_granted",
+      metadata_json: JSON.stringify({ version: STARTER_KIT_VERSION }),
+      created_at: NOW,
+    },
+    {
+      account_id: "new",
+      action: "use_battery",
       metadata_json: "{}",
       created_at: NOW,
     },
@@ -103,20 +110,27 @@ test("funil do proprietário usa somente contas do kit v1", () => {
   assert.equal(funnel.totalStarted, 1);
   assert.deepEqual(
     funnel.stages.map((stage) => stage.accounts),
-    [1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1],
   );
 });
 
-test("conta nova não importa mais inventário local", async () => {
-  const [route, client, panel] = await Promise.all([
+test("conta nova não importa saldo nem energia local", async () => {
+  const [route, client, panel, summaryRoute] = await Promise.all([
     readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/FirstDayPanel.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/api/games/summary/route.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
 
   assert.match(route, /starter_kit_granted/);
   assert.match(route, /starter-kit:\$\{STARTER_KIT_VERSION\}/);
+  assert.doesNotMatch(route, /startingCma|energyHours|batteryCount: 1/);
   assert.doesNotMatch(client, /arcadia-game-state-v4/);
   assert.match(panel, /Instale o Byte Spark/);
+  assert.match(panel, /Jogue os três minigames/);
   assert.match(panel, /Receba o primeiro bloco/);
+  assert.match(summaryRoute, /starter_kit_granted/);
 });

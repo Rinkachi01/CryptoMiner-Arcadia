@@ -742,7 +742,7 @@ export function AdminDashboard({
         <section className="admin-onboarding-funnel">
           <header>
             <div>
-              <span>FUNIL DO PRIMEIRO DIA · KIT V1</span>
+              <span>FUNIL DO PRIMEIRO DIA · KIT ATUAL</span>
               <h3>Da entrega do Byte Spark ao primeiro bloco</h3>
             </div>
             <strong>

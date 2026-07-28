@@ -5181,14 +5181,6 @@ img {
   image-rendering: pixelated;
 }
 
-.first-day-battery {
-  position: absolute;
-  right: 5px;
-  bottom: 4px;
-  width: 48px;
-  filter: drop-shadow(0 0 7px rgba(85, 224, 255, 0.4));
-}
-
 .first-day-copy > span,
 .first-day-next > span {
   color: var(--lime);
@@ -5424,7 +5416,7 @@ img {
 
 .admin-onboarding-stages {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 

@@ -54,7 +54,7 @@ export function presentLedgerActivity(
       category: "account",
       title: "Kit inicial entregue",
       description:
-        "Um rack, um Byte Spark, uma bateria e 12 horas de energia foram registrados pelo servidor.",
+        "Um rack e um Byte Spark foram registrados pelo servidor. Energia e moedas precisam ser conquistadas no jogo.",
     };
   }
   if (action === "admin_test_cma_grant") {

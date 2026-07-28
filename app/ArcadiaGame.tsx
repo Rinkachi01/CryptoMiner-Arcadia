@@ -14,8 +14,6 @@ import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
   BLOCK_INTERVAL_SECONDS,
-  ENERGY_CLAIM_COOLDOWN_HOURS,
-  ENERGY_CLAIM_HOURS,
   MAX_ENERGY_HOURS,
   RACK_CAPACITY,
   RACK_COLUMNS,
@@ -169,8 +167,6 @@ const defaultMinerInventory: MinerUnit[] = [
   },
 ];
 
-const MS_PER_HOUR = 60 * 60 * 1000;
-const INITIAL_ENERGY_HOURS = 12;
 const defaultPoolAllocations: PoolAllocations = {
   cma: 100,
   btc: 0,
@@ -254,18 +250,20 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
+  const [careerStartTab, setCareerStartTab] = useState<
+    "overview" | "missions"
+  >("overview");
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
   const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
     defaultPoolAllocations,
   );
   const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
     useState<WalletSymbol>("CMA");
-  const [cmaBalance, setCmaBalance] = useState(2);
+  const [cmaBalance, setCmaBalance] = useState(0);
   const [btcBalanceAtomic, setBtcBalanceAtomic] = useState(0);
   const [dogeBalanceAtomic, setDogeBalanceAtomic] = useState(0);
-  const [batteryCount, setBatteryCount] = useState(1);
+  const [batteryCount, setBatteryCount] = useState(0);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
-  const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
   const [network, setNetwork] = useState<NetworkPowerSnapshot>(
@@ -324,20 +322,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   );
   const energySeconds = hydrated
     ? Math.max(0, Math.ceil((energyExpiresAt - clockNow) / 1000))
-    : INITIAL_ENERGY_HOURS * 3600;
+    : 0;
   const effectivePower =
     energySeconds > 0 ? installedPower + temporaryPowerGh : 0;
-  const energyClaimCooldownSeconds = Math.max(
-    0,
-    Math.ceil(
-      (lastEnergyClaimAt +
-        ENERGY_CLAIM_COOLDOWN_HOURS * MS_PER_HOUR -
-        clockNow) /
-        1000,
-    ),
-  );
-  const canClaimEnergy =
-    hydrated && energyClaimCooldownSeconds === 0;
   const currentRoomRacks = useMemo(
     () => racks.filter((rack) => rack.roomId === activeRoomId),
     [activeRoomId, racks],
@@ -356,7 +343,6 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     setDogeBalanceAtomic(state.dogeBalanceAtomic);
     setBatteryCount(state.batteryCount);
     setEnergyExpiresAt(state.energyExpiresAt);
-    setLastEnergyClaimAt(state.lastEnergyClaimAt);
     setLastSettledBlock(state.lastSettledBlock);
     setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
     if (snapshot.network) setNetwork(snapshot.network);
@@ -455,7 +441,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
       } catch (error) {
         if (controller.signal.aborted) return;
         setClockNow(Date.now());
-        setEnergyExpiresAt(Date.now() + INITIAL_ENERGY_HOURS * MS_PER_HOUR);
+        setEnergyExpiresAt(Date.now());
         setHydrated(true);
         setServerStatus("error");
         setToast(
@@ -660,10 +646,6 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     await performGameAction("use_battery");
   }
 
-  async function claimEnergy() {
-    await performGameAction("claim_energy");
-  }
-
   function cycleTextScale() {
     const next: TextScale =
       textScale === "comfortable"
@@ -739,7 +721,6 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
         <OperatorInbox
           energySeconds={energySeconds}
           batteryCount={batteryCount}
-          canClaimEnergy={canClaimEnergy}
           rackCount={racks.length}
           installedMinerCount={allInstalled.length}
           poolAllocations={poolAllocations}
@@ -749,6 +730,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           onNavigate={(target) => {
             setRackOpen(false);
             setWalletOpen(false);
+            if (target === "career") setCareerStartTab("missions");
             setActiveView(target);
           }}
         />
@@ -871,6 +853,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               key={item.id}
               onClick={() => {
                 setRackOpen(false);
+                if (item.id === "career") setCareerStartTab("overview");
                 setActiveView(item.id);
               }}
             >
@@ -979,7 +962,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
         {!rackOpen && activeView === "mine" && (
           <FirstDayPanel
             status={onboarding}
-            onNavigate={setActiveView}
+            onNavigate={(target) => {
+              if (target === "career") setCareerStartTab("missions");
+              setActiveView(target);
+            }}
             onOpenStarterRack={() => {
               setActiveView("mine");
               openRack("rack-01");
@@ -1025,8 +1011,6 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             energySeconds={energySeconds}
             batteryCount={batteryCount}
             rackInventoryCount={rackInventoryCount}
-            canClaimEnergy={canClaimEnergy}
-            claimCooldownSeconds={energyClaimCooldownSeconds}
             ownedRooms={ownedRoomIds.length}
             onSetEditMode={setEditMode}
             onOpenRack={openRack}
@@ -1034,7 +1018,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             onOpenPools={() => setActiveView("pools")}
             onOpenRooms={() => setRoomsOpen(true)}
             onOpenStore={openStore}
-            onClaimEnergy={claimEnergy}
+            onOpenGames={() => setActiveView("games")}
             onUseBattery={useBattery}
           />
         )}
@@ -1092,13 +1076,17 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           <TasksView
             onNavigate={(target) => {
               setRackOpen(false);
+              if (target === "career") setCareerStartTab("overview");
               setActiveView(target);
             }}
           />
         )}
 
         {!rackOpen && activeView === "career" && (
-          <CareerView onRefreshAccount={refreshServerState} />
+          <CareerView
+            initialTab={careerStartTab}
+            onRefreshAccount={refreshServerState}
+          />
         )}
       </section>
 
@@ -1110,6 +1098,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             className={activeView === item.id ? "active" : ""}
             onClick={() => {
               setRackOpen(false);
+              if (item.id === "career") setCareerStartTab("overview");
               setActiveView(item.id);
             }}
           >
@@ -1153,8 +1142,6 @@ function MiningRoom({
   energySeconds,
   batteryCount,
   rackInventoryCount,
-  canClaimEnergy,
-  claimCooldownSeconds,
   ownedRooms,
   onSetEditMode,
   onOpenRack,
@@ -1162,7 +1149,7 @@ function MiningRoom({
   onOpenPools,
   onOpenRooms,
   onOpenStore,
-  onClaimEnergy,
+  onOpenGames,
   onUseBattery,
 }: {
   activeRoom: RoomDefinition;
@@ -1176,8 +1163,6 @@ function MiningRoom({
   energySeconds: number;
   batteryCount: number;
   rackInventoryCount: number;
-  canClaimEnergy: boolean;
-  claimCooldownSeconds: number;
   ownedRooms: number;
   onSetEditMode: (value: boolean) => void;
   onOpenRack: (rackId: string) => void;
@@ -1185,7 +1170,7 @@ function MiningRoom({
   onOpenPools: () => void;
   onOpenRooms: () => void;
   onOpenStore: (category: ShopCategory) => void;
-  onClaimEnergy: () => void;
+  onOpenGames: () => void;
   onUseBattery: () => void;
 }) {
   return (
@@ -1327,9 +1312,7 @@ function MiningRoom({
         <EnergyCard
           energySeconds={energySeconds}
           batteryCount={batteryCount}
-          canClaim={canClaimEnergy}
-          claimCooldownSeconds={claimCooldownSeconds}
-          onClaim={onClaimEnergy}
+          onOpenGames={onOpenGames}
           onOpenStore={() => onOpenStore("energy")}
           onUseBattery={onUseBattery}
         />
@@ -1422,17 +1405,13 @@ function MiningRoom({
 function EnergyCard({
   energySeconds,
   batteryCount,
-  canClaim,
-  claimCooldownSeconds,
-  onClaim,
+  onOpenGames,
   onOpenStore,
   onUseBattery,
 }: {
   energySeconds: number;
   batteryCount: number;
-  canClaim: boolean;
-  claimCooldownSeconds: number;
-  onClaim: () => void;
+  onOpenGames: () => void;
   onOpenStore: () => void;
   onUseBattery: () => void;
 }) {
@@ -1462,13 +1441,11 @@ function EnergyCard({
       </div>
       <div className="daily-energy">
         <span>
-          <small>RECARGA GRATUITA</small>
-          <strong>+{ENERGY_CLAIM_HOURS}h a cada 12h</strong>
+          <small>ENERGIA PELO ARCADE</small>
+          <strong>Complete os 3 minigames</strong>
         </span>
-        <button type="button" onClick={onClaim} disabled={!canClaim}>
-          {canClaim
-            ? "RESGATAR"
-            : `EM ${formatEnergy(claimCooldownSeconds)}`}
+        <button type="button" onClick={onOpenGames}>
+          JOGAR
         </button>
       </div>
       <div className="energy-actions">
@@ -1509,7 +1486,7 @@ function MiningStatusPanel({
   return (
     <section className="mining-status-panel" aria-label="Status da mineração">
       <div className="mining-status-heading">
-        <span>REDE EM MINERAÇÃO</span>
+        <span>REDE GLOBAL DO SERVIDOR</span>
         <i className="online-dot" />
       </div>
 
@@ -1710,8 +1687,9 @@ function PoolsView({
           <span className="eyebrow">MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS</span>
           <h2>Distribua seu poder</h2>
           <p>
-            Escolha quanto do seu poder vai para CMA, Bitcoin e Dogecoin. A soma
-            precisa fechar em 100% antes de aplicar.
+            Todos os jogadores disputam os mesmos blocos globais processados
+            pelo servidor. Escolha quanto do seu poder vai para CMA, Bitcoin e
+            Dogecoin; a soma precisa fechar em 100%.
           </p>
         </div>
         <div
@@ -1799,7 +1777,7 @@ function PoolsView({
                   <dd>{formatPower(allocatedPower)}</dd>
                 </div>
                 <div>
-                  <dt>Poder vivo da rede</dt>
+                  <dt>Poder global dos jogadores</dt>
                   <dd>{formatPower(network.playerPowerGh[pool.id])}</dd>
                 </div>
                 <div>
@@ -1901,9 +1879,10 @@ function PoolsView({
         <span>i</span>
         <p>
           <strong>Proteção da economia</strong>
-          A estimativa não é retorno garantido. O poder global, a recompensa e
-          o orçamento diário de cada pool podem ser rebalanceados para controlar
-          emissão e preservar a reserva do jogo.
+          O navegador apenas exibe a estimativa. O servidor soma o poder
+          energizado de todas as contas, fecha um único bloco por rede e
+          registra cada divisão no ledger. A estimativa não é retorno
+          garantido.
         </p>
       </div>
     </section>
@@ -2442,11 +2421,11 @@ function ShopView({
               <h3>Bateria de mineração</h3>
               <p>
                 Cada bateria adiciona 12 horas, até o limite de 96 horas.
-                Baterias também poderão ser conquistadas nos minigames.
+                O Tour diário do Arcade concede uma bateria após os três jogos.
               </p>
               <ul>
                 <li>+12 horas por bateria</li>
-                <li>Resgate gratuito de +12h a cada 12h</li>
+                <li>1 bateria diária ao concluir o Tour do Arcade</li>
                 <li>{batteryCount} baterias no inventário</li>
               </ul>
               <QuantityPicker
