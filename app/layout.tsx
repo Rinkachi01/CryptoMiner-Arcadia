@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com blocos fixos, três pools, Central de Tarefas e economia controlada pelo servidor.",
+    "Mineração virtual com seis salas permanentes, blocos fixos, três pools e economia controlada pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Central de Tarefas, feedback beta e mineração em blocos fixos nas pools CMA, BTC e DOGE.",
+      "Expanda sua operação por seis salas permanentes e organize até 72 racks em layouts independentes.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-tasks-beta.png",
+        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-room-expansion.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Central de Tarefas em um laboratório pixel art",
+        alt: "Crypto Miner Arcadia — expansão progressiva de seis salas em pixel art",
       },
     ],
   },
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Nova Central de Tarefas e canal direto de feedback do beta.",
+      "Nova expansão com Oficina Neon e cinco Laboratórios Noturnos.",
     images: [
-      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-tasks-beta.png",
+      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-room-expansion.png",
     ],
   },
 };

@@ -68,7 +68,11 @@ Fontes previstas:
 Sumidouros atuais:
 
 - rack básico: 0,35 CMA;
-- segunda sala: 8 CMA;
+- Laboratório Noturno 1: 20 CMA;
+- Laboratório Noturno 2: 50 CMA;
+- Laboratório Noturno 3: 100 CMA;
+- Laboratório Noturno 4: 200 CMA;
+- Laboratório Noturno 5: 400 CMA;
 - bateria de 12 horas: 0,05 CMA;
 - mineradores;
 - Caixas Arcadia de 0,90, 3,50 e 12 CMA.
@@ -123,8 +127,12 @@ BTC ou DOGE: o prêmio é sempre um item utilizável dentro do jogo.
 
 ## Racks e posições
 
+- o complexo possui uma Oficina Neon inicial e cinco Laboratórios Noturnos;
+- as salas são liberadas em sequência e não é possível pular uma expansão;
 - cada sala possui 12 posições gratuitas e predeterminadas;
 - o jogador compra apenas o rack, nunca o espaço da sala;
+- a compra da sala é permanente, confirmada antes do débito e registrada no
+  ledger autoritativo;
 - racks comprados entram no inventário antes da instalação;
 - cada rack básico possui quatro prateleiras e oito slots;
 - mineradores de uma fan ocupam um slot;

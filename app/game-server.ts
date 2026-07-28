@@ -24,8 +24,16 @@ import {
   supplyCrates,
   type SupplyCrateId,
 } from "./supply-crate-rules.ts";
+import {
+  ROOM_COUNT,
+  getPreviousRoom,
+  getRoomDefinition,
+  isRoomId,
+  normalizeOwnedRoomIds,
+  type RoomId,
+} from "./room-rules.ts";
 
-export type RoomId = "room-1" | "room-2";
+export type { RoomId } from "./room-rules.ts";
 export type WalletSymbol = "CMA" | "BTC" | "DOGE";
 export type PoolAllocations = Record<PoolId, number>;
 
@@ -88,8 +96,8 @@ export type ActionResult = {
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const BLOCK_INTERVAL_MS = BLOCK_INTERVAL_SECONDS * 1000;
-const ROOM_TWO_PRICE_CMA = 8;
-const MAX_MINER_UNITS = 80;
+const MAX_MINER_UNITS = ROOM_COUNT * ROOM_RACK_CAPACITY * 8 + 40;
+const MAX_BOOTSTRAP_MINER_UNITS = 80;
 const MAX_PURCHASE_QUANTITY = 20;
 
 function createId(prefix: string) {
@@ -100,8 +108,14 @@ function cloneState(state: PublicGameState): PublicGameState {
   return JSON.parse(JSON.stringify(state)) as PublicGameState;
 }
 
-function isRoomId(value: unknown): value is RoomId {
-  return value === "room-1" || value === "room-2";
+function getOwnedMinerUnitCount(state: PublicGameState) {
+  return (
+    state.minerInventory.length +
+    Object.values(state.rackMiners).reduce(
+      (total, placements) => total + placements.length,
+      0,
+    )
+  );
 }
 
 function isWalletSymbol(value: unknown): value is WalletSymbol {
@@ -179,10 +193,7 @@ export function normalizeBootstrapState(
   if (!value || typeof value !== "object") return initial;
   const candidate = value as Partial<PublicGameState>;
 
-  const ownedRoomIds = Array.isArray(candidate.ownedRoomIds)
-    ? Array.from(new Set(candidate.ownedRoomIds.filter(isRoomId)))
-    : ["room-1"];
-  if (!ownedRoomIds.includes("room-1")) ownedRoomIds.unshift("room-1");
+  const ownedRoomIds = normalizeOwnedRoomIds(candidate.ownedRoomIds);
 
   const racks: RackInstance[] = [];
   const seenRackIds = new Set<string>();
@@ -229,7 +240,7 @@ export function normalizeBootstrapState(
     if (Array.isArray(placements)) {
       for (const rawPlacement of placements) {
         if (
-          totalUnits >= MAX_MINER_UNITS ||
+          totalUnits >= MAX_BOOTSTRAP_MINER_UNITS ||
           !rawPlacement ||
           typeof rawPlacement !== "object"
         ) {
@@ -266,7 +277,7 @@ export function normalizeBootstrapState(
   if (Array.isArray(candidate.minerInventory)) {
     for (const rawUnit of candidate.minerInventory) {
       if (
-        totalUnits >= MAX_MINER_UNITS ||
+        totalUnits >= MAX_BOOTSTRAP_MINER_UNITS ||
         !rawUnit ||
         typeof rawUnit !== "object"
       ) {
@@ -465,7 +476,7 @@ export function applySupplyCratePurchase(
   const reward = opening.reward;
   if (
     reward.type === "miner" &&
-    state.minerInventory.length + reward.quantity > MAX_MINER_UNITS
+    getOwnedMinerUnitCount(state) + reward.quantity > MAX_MINER_UNITS
   ) {
     throw new Error(
       "Seu inventário de mineradores está cheio. Libere espaço antes de abrir.",
@@ -559,24 +570,36 @@ export function applyGameAction(
   }
 
   if (action === "buy_room") {
-    if (payload.roomId !== "room-2") {
+    const room = getRoomDefinition(payload.roomId);
+    if (!room || room.id === "room-1") {
       throw new Error("Sala inválida.");
     }
-    if (state.ownedRoomIds.includes("room-2")) {
-      state.activeRoomId = "room-2";
-      return success(state, "Laboratório Noturno já pertence à sua conta.");
+    if (state.ownedRoomIds.includes(room.id)) {
+      state.activeRoomId = room.id;
+      return success(state, `${room.name} já pertence à sua conta.`);
     }
-    if (state.cmaBalance < ROOM_TWO_PRICE_CMA) {
+    const previousRoom = getPreviousRoom(room.id);
+    if (!previousRoom || !state.ownedRoomIds.includes(previousRoom.id)) {
+      throw new Error(
+        `Desbloqueie ${previousRoom?.name ?? "a sala anterior"} primeiro.`,
+      );
+    }
+    if (state.cmaBalance < room.priceCma) {
       throw new Error("Saldo CMA insuficiente para comprar essa sala.");
     }
-    state.cmaBalance -= ROOM_TWO_PRICE_CMA;
-    state.ownedRoomIds.push("room-2");
-    state.activeRoomId = "room-2";
+    state.cmaBalance -= room.priceCma;
+    state.ownedRoomIds.push(room.id);
+    state.activeRoomId = room.id;
     return success(
       state,
-      "Laboratório Noturno desbloqueado com 12 posições gratuitas.",
-      -ROOM_TWO_PRICE_CMA * 1_000_000,
-      { roomId: "room-2" },
+      `${room.name} desbloqueado com 12 posições gratuitas.`,
+      -room.priceCma * 1_000_000,
+      {
+        priceCma: room.priceCma,
+        roomId: room.id,
+        roomName: room.name,
+        sequence: room.sequence,
+      },
     );
   }
 
@@ -589,7 +612,7 @@ export function applyGameAction(
     }
     const miner = getMiner(payload.minerId);
     if (!miner) throw new Error("Minerador não encontrado.");
-    if (state.minerInventory.length + payload.quantity > MAX_MINER_UNITS) {
+    if (getOwnedMinerUnitCount(state) + payload.quantity > MAX_MINER_UNITS) {
       throw new Error("Limite de equipamentos do inventário atingido.");
     }
     const total = miner.priceCma * payload.quantity;

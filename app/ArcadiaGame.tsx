@@ -43,6 +43,7 @@ import type {
   RoomId,
   WalletSymbol,
 } from "./game-server";
+import { roomCatalog } from "./room-rules";
 import type { NetworkPowerSnapshot } from "./network-server";
 import {
   SUPPLY_CRATE_PITY_LIMIT,
@@ -70,6 +71,7 @@ type RoomDefinition = {
   asset: string;
   alt: string;
   priceCma: number;
+  sequence: number;
 };
 
 type RackPosition = {
@@ -124,24 +126,17 @@ const navigation: Array<{
   },
 ];
 
-const roomDefinitions: RoomDefinition[] = [
-  {
-    id: "room-1",
-    name: "Oficina Neon",
-    label: "SALA 01",
-    asset: assetsManifest.roomOne.path,
-    alt: assetsManifest.roomOne.alt,
-    priceCma: 0,
-  },
-  {
-    id: "room-2",
-    name: "Laboratório Noturno",
-    label: "SALA 02",
-    asset: assetsManifest.roomTwo.path,
-    alt: assetsManifest.roomTwo.alt,
-    priceCma: 8,
-  },
-];
+const roomDefinitions: RoomDefinition[] = roomCatalog.map((room) => ({
+  ...room,
+  asset:
+    room.id === "room-1"
+      ? assetsManifest.roomOne.path
+      : assetsManifest.roomTwo.path,
+  alt:
+    room.id === "room-1"
+      ? assetsManifest.roomOne.alt
+      : `${assetsManifest.roomTwo.alt} · setor ${room.sequence - 1}`,
+}));
 
 const rackPositions: RackPosition[] = [
   { left: 1.2, top: 45, width: 14.8, height: 25, zIndex: 12 },
@@ -1119,6 +1114,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           activeRoomId={activeRoomId}
           ownedRoomIds={ownedRoomIds}
           cmaBalance={cmaBalance}
+          purchasePending={actionPending}
           onChoose={chooseRoom}
           onBuy={buyRoom}
           onClose={() => setRoomsOpen(false)}
@@ -1205,7 +1201,7 @@ function MiningRoom({
               <span>+</span> ORGANIZAR · {roomRacks.length}/{ROOM_RACK_CAPACITY}
             </button>
             <button type="button" onClick={onOpenRooms}>
-              <span>▣</span> TROCAR SALA · {ownedRooms}/2
+              <span>▣</span> TROCAR SALA · {ownedRooms}/{roomDefinitions.length}
             </button>
           </div>
         </div>
@@ -2753,6 +2749,7 @@ function RoomsModal({
   activeRoomId,
   ownedRoomIds,
   cmaBalance,
+  purchasePending,
   onChoose,
   onBuy,
   onClose,
@@ -2760,10 +2757,17 @@ function RoomsModal({
   activeRoomId: RoomId;
   ownedRoomIds: RoomId[];
   cmaBalance: number;
+  purchasePending: boolean;
   onChoose: (roomId: RoomId) => void;
-  onBuy: (room: RoomDefinition) => void;
+  onBuy: (room: RoomDefinition) => Promise<void>;
   onClose: () => void;
 }) {
+  const [confirmingRoomId, setConfirmingRoomId] = useState<RoomId | null>(null);
+  const confirmingRoom =
+    roomDefinitions.find((room) => room.id === confirmingRoomId) ?? null;
+  const nextRoom =
+    roomDefinitions.find((room) => !ownedRoomIds.includes(room.id)) ?? null;
+
   return (
     <div
       className="modal-backdrop"
@@ -2783,12 +2787,20 @@ function RoomsModal({
             <span className="eyebrow">EXPANSÃO DA OPERAÇÃO</span>
             <h2 id="rooms-title">Salas de mineração</h2>
             <p>
-              Cada sala possui 12 posições de rack e mantém seu próprio layout.
+              Seis setores permanentes. Cada sala possui 12 posições gratuitas
+              e mantém seu próprio layout.
             </p>
           </div>
           <div className="room-wallet">
-            <small>SEU SALDO</small>
+            <small>
+              {ownedRoomIds.length}/{roomDefinitions.length} SALAS · SEU SALDO
+            </small>
             <strong>{formatCma(cmaBalance)} CMA</strong>
+            <span>
+              {nextRoom
+                ? `Próxima: ${nextRoom.name} · ${formatCma(nextRoom.priceCma)} CMA`
+                : "Complexo completo"}
+            </span>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar">
             ×
@@ -2799,35 +2811,109 @@ function RoomsModal({
           {roomDefinitions.map((room) => {
             const owned = ownedRoomIds.includes(room.id);
             const active = activeRoomId === room.id;
+            const previousRoom = roomDefinitions[room.sequence - 2];
+            const previousOwned =
+              room.sequence === 1 ||
+              (previousRoom && ownedRoomIds.includes(previousRoom.id));
+            const canAfford = cmaBalance >= room.priceCma;
+            const lockedBySequence = !owned && !previousOwned;
+            const unavailable = !owned && (!previousOwned || !canAfford);
             return (
               <article
-                className={`room-store-card ${active ? "active" : ""}`}
+                className={`room-store-card ${active ? "active" : ""} ${
+                  lockedBySequence ? "sequence-locked" : ""
+                }`}
                 key={room.id}
               >
                 <div className="room-preview-image">
                   <img src={room.asset} alt={room.alt} />
-                  <span>{owned ? "DESBLOQUEADA" : "BLOQUEADA"}</span>
+                  <span>
+                    {active
+                      ? "SALA ATUAL"
+                      : owned
+                        ? "DESBLOQUEADA"
+                        : lockedBySequence
+                          ? "REQUER SALA ANTERIOR"
+                          : "PRÓXIMA EXPANSÃO"}
+                  </span>
                 </div>
                 <div className="room-store-info">
                   <span>{room.label}</span>
                   <h3>{room.name}</h3>
-                  <p>12 posições de rack · layout independente</p>
+                  <p>
+                    12 posições de rack · layout independente · compra
+                    permanente
+                  </p>
+                  {!owned && (
+                    <strong className="room-price">
+                      {formatCma(room.priceCma)} CMA
+                    </strong>
+                  )}
                   <button
                     type="button"
-                    disabled={active}
-                    onClick={() => (owned ? onChoose(room.id) : onBuy(room))}
+                    disabled={active || unavailable || purchasePending}
+                    onClick={() =>
+                      owned
+                        ? onChoose(room.id)
+                        : setConfirmingRoomId(room.id)
+                    }
                   >
                     {active
                       ? "SALA ATUAL"
                       : owned
                         ? "ENTRAR NA SALA"
-                        : `COMPRAR · ${formatCma(room.priceCma)} CMA`}
+                        : lockedBySequence
+                          ? `DESBLOQUEIE ${previousRoom?.label ?? "A SALA ANTERIOR"}`
+                          : !canAfford
+                            ? "SALDO INSUFICIENTE"
+                            : "REVISAR COMPRA"}
                   </button>
                 </div>
               </article>
             );
           })}
         </div>
+
+        {confirmingRoom && (
+          <div className="room-purchase-confirmation" role="status">
+            <div>
+              <span>CONFIRMAR EXPANSÃO</span>
+              <strong>{confirmingRoom.name}</strong>
+              <small>
+                A compra libera 12 posições gratuitas e não pode ser desfeita.
+              </small>
+            </div>
+            <dl>
+              <div>
+                <dt>PREÇO</dt>
+                <dd>{formatCma(confirmingRoom.priceCma)} CMA</dd>
+              </div>
+              <div>
+                <dt>SALDO APÓS COMPRA</dt>
+                <dd>
+                  {formatCma(cmaBalance - confirmingRoom.priceCma)} CMA
+                </dd>
+              </div>
+            </dl>
+            <div>
+              <button
+                type="button"
+                disabled={purchasePending}
+                onClick={() => setConfirmingRoomId(null)}
+              >
+                CANCELAR
+              </button>
+              <button
+                className="confirm"
+                type="button"
+                disabled={purchasePending}
+                onClick={() => void onBuy(confirmingRoom)}
+              >
+                {purchasePending ? "PROCESSANDO..." : "CONFIRMAR COMPRA"}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

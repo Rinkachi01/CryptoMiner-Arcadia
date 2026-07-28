@@ -28,6 +28,13 @@ const categoryLabels: Record<BetaFeedbackCategory, string> = {
   tasks: "Tarefas e monetização",
 };
 
+const feedbackStatusLabels: Record<string, string> = {
+  new: "Recebido",
+  reviewing: "Em análise",
+  planned: "Planejado",
+  resolved: "Resolvido",
+};
+
 export function TasksView({
   onNavigate,
 }: {
@@ -394,7 +401,8 @@ export function TasksView({
                         hour: "2-digit",
                         minute: "2-digit",
                         month: "short",
-                      }).format(new Date(item.createdAt))}
+                      }).format(new Date(item.createdAt))}{" "}
+                      · {feedbackStatusLabels[item.status] ?? "Recebido"}
                     </small>
                   </article>
                 ))}

@@ -45,7 +45,17 @@ type AdminOverview = {
       rating: number;
       status: string;
     }>;
+    statusCounts: {
+      new: number;
+      planned: number;
+      resolved: number;
+      reviewing: number;
+    };
     total30d: number;
+  };
+  emission24h: {
+    rewardsAtomic: Record<PoolId, number>;
+    settlementRecords: number;
   };
   inventory: {
     batteriesInInventory: number;
@@ -136,6 +146,13 @@ const feedbackCategoryLabels: Record<string, string> = {
   minigames: "Minigames",
   racks: "Racks e mineradores",
   tasks: "Tarefas e monetização",
+};
+
+const feedbackStatusLabels: Record<string, string> = {
+  new: "Recebido",
+  reviewing: "Em análise",
+  planned: "Planejado",
+  resolved: "Resolvido",
 };
 
 const actionLabels: Record<string, string> = {
@@ -621,12 +638,27 @@ export function AdminDashboard({
               têm duração máxima de 24h, limite de 200% e ficam registrados na
               auditoria.
             </p>
+            <small>
+              {overview.emission24h.settlementRecords} registro(s) de crédito
+              processados nas últimas 24 horas.
+            </small>
           </aside>
         </div>
 
         <div className="admin-network-grid">
           {pools.map((pool) => {
             const atomic = overview.network.baseBlockRewardAtomic[pool.id];
+            const activeDailyLimitAtomic =
+              overview.network.blockRewardAtomic[pool.id] * BLOCKS_PER_DAY;
+            const realizedAtomic =
+              overview.emission24h.rewardsAtomic[pool.id] ?? 0;
+            const utilizationPercent =
+              activeDailyLimitAtomic > 0
+                ? Math.min(
+                    100,
+                    (realizedAtomic / activeDailyLimitAtomic) * 100,
+                  )
+                : 0;
             const inputValue =
               rewardDrafts[pool.id] ??
               (pool.id === "btc"
@@ -658,7 +690,28 @@ export function AdminDashboard({
                     {pool.symbol}
                   </dd>
                 </div>
+                <div>
+                  <dt>Crédito processado em 24h</dt>
+                  <dd>
+                    {formatAtomic(BigInt(realizedAtomic), pool.decimals)}{" "}
+                    {pool.symbol}
+                  </dd>
+                </div>
               </dl>
+              <div className="admin-emission-progress">
+                <span>
+                  UTILIZAÇÃO DO TETO
+                  <b>
+                    {utilizationPercent.toLocaleString("pt-BR", {
+                      maximumFractionDigits: 1,
+                    })}
+                    %
+                  </b>
+                </span>
+                <i>
+                  <em style={{ width: `${utilizationPercent}%` }} />
+                </i>
+              </div>
               <label className="admin-block-budget-input">
                 <span>
                   VALOR-BASE · {pool.id === "btc" ? "SATOSHIS" : pool.symbol}
@@ -821,7 +874,8 @@ export function AdminDashboard({
             <h2>Feedback enviado pelos operadores</h2>
           </div>
           <small>
-            {overview.feedback.total30d} ENVIO(S) · NOTA{" "}
+            {overview.feedback.total30d} ENVIO(S) ·{" "}
+            {overview.feedback.statusCounts.new} NOVO(S) · NOTA{" "}
             {overview.feedback.averageRating.toLocaleString("pt-BR", {
               maximumFractionDigits: 1,
               minimumFractionDigits: 1,
@@ -844,9 +898,33 @@ export function AdminDashboard({
                   <b>{item.rating}/5</b>
                 </div>
                 <p>{item.message}</p>
-                <small>
-                  {item.displayName} · {formatDate(item.createdAt)}
-                </small>
+                <footer>
+                  <small>
+                    {item.displayName} · {formatDate(item.createdAt)}
+                  </small>
+                  <label>
+                    ETAPA
+                    <select
+                      value={item.status}
+                      disabled={busyAction === `feedback-${item.id}`}
+                      onChange={(event) =>
+                        void runAdminAction(`feedback-${item.id}`, {
+                          action: "set-feedback-status",
+                          feedbackId: item.id,
+                          feedbackStatus: event.target.value,
+                        })
+                      }
+                    >
+                      {Object.entries(feedbackStatusLabels).map(
+                        ([status, label]) => (
+                          <option key={status} value={status}>
+                            {label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                </footer>
               </article>
             ))}
           </div>

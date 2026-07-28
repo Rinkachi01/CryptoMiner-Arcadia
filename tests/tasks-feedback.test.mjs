@@ -3,7 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   betaFeedbackCategories,
+  betaFeedbackStatuses,
   isBetaFeedbackCategory,
+  isBetaFeedbackStatus,
 } from "../app/feedback-rules.ts";
 
 test("Central de Tarefas separa missões internas de parceiros futuros", async () => {
@@ -38,11 +40,23 @@ test("feedback do beta é autenticado, validado e persistido por conta", async (
   ]);
   assert.equal(isBetaFeedbackCategory("economy"), true);
   assert.equal(isBetaFeedbackCategory("payment"), false);
+  assert.deepEqual(betaFeedbackStatuses, [
+    "new",
+    "reviewing",
+    "planned",
+    "resolved",
+  ]);
+  assert.equal(isBetaFeedbackStatus("planned"), true);
+  assert.equal(isBetaFeedbackStatus("ignored"), false);
   assert.match(route, /getChatGPTUser/);
   assert.match(route, /message\.length < 10/);
   assert.match(route, /INSERT INTO beta_feedback/);
   assert.match(route, /30_000/);
   assert.match(admin, /readAdminBetaFeedback/);
+  assert.match(admin, /set-feedback-status/);
+  assert.match(admin, /beta_feedback_status_updated/);
+  assert.match(admin, /block_settlement/);
+  assert.match(admin, /rewardsAtomic/);
   assert.match(migration, /CREATE TABLE `beta_feedback`/);
 });
 

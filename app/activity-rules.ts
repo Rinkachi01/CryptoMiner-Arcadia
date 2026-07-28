@@ -108,10 +108,18 @@ export function presentLedgerActivity(
     };
   }
   if (action === "buy_room") {
+    const roomName =
+      typeof metadata.roomName === "string"
+        ? metadata.roomName
+        : "Laboratório Noturno";
+    const priceCma = Math.max(0, numberValue(metadata.priceCma));
     return {
       category: "economy",
-      title: "Laboratório Noturno desbloqueado",
-      description: "A segunda sala foi adicionada permanentemente à conta.",
+      title: `${roomName} desbloqueado`,
+      description:
+        priceCma > 0
+          ? `A expansão permanente foi comprada por ${priceCma.toLocaleString("pt-BR")} CMA.`
+          : "A nova sala foi adicionada permanentemente à conta.",
     };
   }
   if (action === "buy_miners") {

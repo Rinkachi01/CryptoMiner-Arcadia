@@ -8,6 +8,11 @@ type FeedbackRow = {
   status: string;
 };
 
+type FeedbackStatusRow = {
+  status: string;
+  total: number;
+};
+
 export async function ensureBetaFeedbackSchema(db: D1Database) {
   await db.batch([
     db.prepare(
@@ -64,7 +69,7 @@ export async function readAdminBetaFeedback(
 ) {
   await ensureBetaFeedbackSchema(db);
   const since = now - 30 * 24 * 60 * 60 * 1000;
-  const [summary, rows] = await Promise.all([
+  const [summary, statusRows, rows] = await Promise.all([
     db
       .prepare(
         `SELECT COUNT(*) AS total, COALESCE(AVG(rating), 0) AS average_rating
@@ -73,6 +78,15 @@ export async function readAdminBetaFeedback(
       )
       .bind(since)
       .first<{ average_rating: number; total: number }>(),
+    db
+      .prepare(
+        `SELECT status, COUNT(*) AS total
+         FROM beta_feedback
+         WHERE created_at >= ?
+         GROUP BY status`,
+      )
+      .bind(since)
+      .all<FeedbackStatusRow>(),
     db
       .prepare(
         `SELECT feedback.id, feedback.category, feedback.rating,
@@ -88,6 +102,15 @@ export async function readAdminBetaFeedback(
 
   return {
     averageRating: Number(summary?.average_rating ?? 0),
+    statusCounts: (statusRows.results ?? []).reduce(
+      (counts, row) => {
+        if (Object.hasOwn(counts, row.status)) {
+          counts[row.status as keyof typeof counts] += Number(row.total);
+        }
+        return counts;
+      },
+      { new: 0, planned: 0, resolved: 0, reviewing: 0 },
+    ),
     recent: (rows.results ?? []).map((row) => ({
       category: row.category,
       createdAt: Number(row.created_at),

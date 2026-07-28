@@ -11712,6 +11712,262 @@ img {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
 }
 
+/* Fase 13: complexo de salas progressivo e confirmação econômica. */
+.rooms-modal {
+  width: min(1280px, calc(100vw - 40px));
+}
+
+.rooms-modal > header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.room-wallet {
+  min-width: 250px;
+}
+
+.room-wallet span {
+  color: #93a1ad;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.room-store-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.room-store-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.room-store-card.sequence-locked {
+  filter: saturate(0.45);
+}
+
+.room-store-card.sequence-locked .room-preview-image img {
+  opacity: 0.48;
+}
+
+.room-store-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.room-store-info p {
+  min-height: 2.8em;
+}
+
+.room-store-info .room-price {
+  display: block;
+  margin: 0 0 13px;
+  color: #f4f8ef;
+  font: 800 1.15rem/1 var(--font-display);
+}
+
+.room-store-info button {
+  min-height: 44px;
+  margin-top: auto;
+}
+
+.room-purchase-confirmation {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  display: grid;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 24px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(290px, 0.8fr) auto;
+  border-top: 1px solid rgba(169, 255, 63, 0.5);
+  background:
+    linear-gradient(115deg, rgba(169, 255, 63, 0.1), transparent 52%),
+    rgba(8, 14, 20, 0.98);
+  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.55);
+}
+
+.room-purchase-confirmation > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.room-purchase-confirmation > div:first-child span {
+  color: var(--lime);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.room-purchase-confirmation > div:first-child strong {
+  color: #f2f7f3;
+  font: 800 1.25rem/1.15 var(--font-display);
+}
+
+.room-purchase-confirmation > div:first-child small {
+  color: #8c9aa5;
+}
+
+.room-purchase-confirmation dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.room-purchase-confirmation dl > div {
+  padding: 9px 11px;
+  border: 1px solid #30404c;
+  background: rgba(10, 17, 24, 0.82);
+}
+
+.room-purchase-confirmation dt {
+  color: #71818d;
+  font-size: 0.62rem;
+}
+
+.room-purchase-confirmation dd {
+  margin: 5px 0 0;
+  color: #f0f6f1;
+  font-weight: 900;
+}
+
+.room-purchase-confirmation > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.room-purchase-confirmation button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid #3e4c58;
+  background: #121c26;
+  color: #a8b5bf;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.room-purchase-confirmation button.confirm {
+  border-color: var(--lime);
+  background: var(--lime);
+  color: #071008;
+}
+
+.room-purchase-confirmation button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.admin-emission-progress {
+  display: flex;
+  gap: 7px;
+  margin-top: 14px;
+  flex-direction: column;
+}
+
+.admin-emission-progress > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8194a4;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-emission-progress > span b {
+  color: var(--cyan);
+}
+
+.admin-emission-progress > i {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  background: #1a2732;
+}
+
+.admin-emission-progress > i em {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+}
+
+.admin-feedback-grid article footer {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+}
+
+.admin-feedback-grid article footer label {
+  display: flex;
+  min-width: 145px;
+  gap: 5px;
+  flex-direction: column;
+  color: #718390;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.admin-feedback-grid article footer select {
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid #344655;
+  background: #0c151e;
+  color: #e2ebef;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0;
+}
+
+@media (max-width: 1120px) {
+  .room-store-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .room-purchase-confirmation {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .room-purchase-confirmation > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .rooms-modal {
+    width: 100%;
+  }
+
+  .room-store-grid,
+  .room-purchase-confirmation,
+  .room-purchase-confirmation dl {
+    grid-template-columns: 1fr;
+  }
+
+  .room-purchase-confirmation {
+    position: relative;
+    padding: 18px;
+  }
+
+  .room-purchase-confirmation > div:last-child {
+    display: grid;
+    grid-column: 1;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-feedback-grid article footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .rack-inline-panel > header,
 .rack-inline-panel > footer {
   position: static;

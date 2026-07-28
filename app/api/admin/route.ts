@@ -13,7 +13,11 @@ import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getMiner, type PoolId } from "../../game-rules";
 import type { PublicGameState } from "../../game-server";
-import { readAdminBetaFeedback } from "../../feedback-server";
+import {
+  ensureBetaFeedbackSchema,
+  readAdminBetaFeedback,
+} from "../../feedback-server";
+import { isBetaFeedbackStatus } from "../../feedback-rules";
 import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
@@ -79,6 +83,10 @@ type LedgerRow = {
   display_name: string | null;
   email: string | null;
   id: string;
+  metadata_json: string;
+};
+
+type BlockSettlementRow = {
   metadata_json: string;
 };
 
@@ -257,6 +265,7 @@ async function readAdminOverview(
     gameBreakdown,
     suspiciousSessions,
     ledgerSummary,
+    blockSettlements,
     recentCrates,
     stateRows,
     auditRows,
@@ -343,6 +352,16 @@ async function readAdminOverview(
       .all<LedgerSummaryRow>(),
     db
       .prepare(
+        `SELECT metadata_json
+         FROM ledger_entries
+         WHERE action = 'block_settlement' AND created_at >= ?
+         ORDER BY created_at DESC
+         LIMIT 10000`,
+      )
+      .bind(since)
+      .all<BlockSettlementRow>(),
+    db
+      .prepare(
         `SELECT ledger.id, ledger.action, ledger.metadata_json,
                 ledger.created_at, states.display_name, states.email
          FROM ledger_entries ledger
@@ -401,8 +420,27 @@ async function readAdminOverview(
   const topMinerCount = Math.max(0, ...minerCounts.values());
   const minerConcentrationPercent =
     totalMiners > 0 ? Math.round((topMinerCount / totalMiners) * 100) : 0;
+  const emissionRewardsAtomic = blockSettlements.results.reduce(
+    (total, row) => {
+      const metadata = parseJsonObject(row.metadata_json) as {
+        rewards?: Partial<Record<PoolId, unknown>>;
+      };
+      for (const poolId of ["cma", "btc", "doge"] as const) {
+        const reward = Number(metadata.rewards?.[poolId]);
+        if (Number.isFinite(reward) && reward > 0) {
+          total[poolId] += Math.floor(reward);
+        }
+      }
+      return total;
+    },
+    { cma: 0, btc: 0, doge: 0 } as Record<PoolId, number>,
+  );
 
   return {
+    emission24h: {
+      rewardsAtomic: emissionRewardsAtomic,
+      settlementRecords: blockSettlements.results.length,
+    },
     metrics: {
       activePlayers24h: Number(activePlayers?.total ?? 0),
       batteryClaims24h: Number(batteryClaims?.total ?? 0),
@@ -554,6 +592,8 @@ export async function POST(request: Request) {
         note?: unknown;
         bonusBps?: unknown;
         durationHours?: unknown;
+        feedbackId?: unknown;
+        feedbackStatus?: unknown;
         rewards?: unknown;
         resolution?: unknown;
         sessionId?: unknown;
@@ -563,6 +603,37 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (
+    body?.action === "set-feedback-status" &&
+    typeof body.feedbackId === "string" &&
+    body.feedbackId.length >= 8 &&
+    isBetaFeedbackStatus(body.feedbackStatus)
+  ) {
+    await ensureBetaFeedbackSchema(context.db);
+    const updated = await context.db
+      .prepare(
+        `UPDATE beta_feedback
+         SET status = ?
+         WHERE id = ?`,
+      )
+      .bind(body.feedbackStatus, body.feedbackId)
+      .run();
+    if (Number(updated.meta.changes ?? 0) !== 1) {
+      return json({ error: "Feedback não encontrado." }, 404);
+    }
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "beta_feedback_status_updated",
+      {
+        feedbackId: body.feedbackId,
+        status: body.feedbackStatus,
+      },
+      now,
+    );
+    return json({ message: "Etapa do feedback atualizada." });
+  }
 
   if (body?.action === "set-block-budget") {
     const candidate =

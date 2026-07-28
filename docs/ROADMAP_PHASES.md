@@ -286,11 +286,27 @@ Entregas concluídas na décima segunda etapa:
 - cartão de poder instalado reorganizado para impedir números cortados em
   resoluções estreitas e escalas maiores de leitura.
 
+Entregas concluídas na décima terceira etapa:
+
+- complexo ampliado para seis salas permanentes;
+- Oficina Neon preservada como sala inicial gratuita;
+- cinco Laboratórios Noturnos numerados, usando a identidade visual do segundo
+  cenário;
+- preços progressivos de 20, 50, 100, 200 e 400 CMA;
+- compra sequencial e autoritativa, sem possibilidade de pular uma sala;
+- confirmação mostra preço e saldo restante antes do débito;
+- cada laboratório mantém 12 posições gratuitas e um layout de racks
+  independente;
+- limite de equipamentos ampliado para comportar o complexo completo;
+- histórico de compra identifica sala e preço real;
+- painel do proprietário compara teto diário de cada pool com os créditos
+  efetivamente processados nas últimas 24 horas;
+- feedbacks do beta agora podem avançar entre recebido, em análise, planejado e
+  resolvido, com cada alteração registrada na auditoria administrativa.
+
 Próxima entrega segura:
 
-- painel de custo diário projetado e realizado por pool;
 - coortes que comparem retenção com consumo de energia e minigames;
-- classificação de feedback por prioridade e estado de resolução;
 - consentimento e antifraude específicos antes de avaliar um provedor de
   pesquisas;
 - compactação dos comprovantes detalhados de partidas antigas, preservando o
