@@ -12,6 +12,7 @@ async function readProductSources() {
     circuitRush,
     operatorProgress,
     gamesSummary,
+    gameSubmission,
     errorBoundary,
     styles,
   ] =
@@ -31,12 +32,16 @@ async function readProductSources() {
         "utf8",
       ),
       readFile(
+        new URL("../app/GameSubmissionOverlay.tsx", import.meta.url),
+        "utf8",
+      ),
+      readFile(
         new URL("../app/GameErrorBoundary.tsx", import.meta.url),
         "utf8",
       ),
       readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     ]);
-  return `${layout}\n${page}\n${game}\n${packetCatch}\n${hashMatch}\n${circuitRush}\n${operatorProgress}\n${gamesSummary}\n${errorBoundary}\n${styles}`;
+  return `${layout}\n${page}\n${game}\n${packetCatch}\n${hashMatch}\n${circuitRush}\n${operatorProgress}\n${gamesSummary}\n${gameSubmission}\n${errorBoundary}\n${styles}`;
 }
 
 test("mantém a experiência principal e a conta autoritativa do Arcadia", async () => {
@@ -75,6 +80,12 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /MISSÕES DIÁRIAS/i);
   assert.match(source, /RESGATAR 1 BATERIA/i);
   assert.match(source, /Tour diário do Arcade/i);
+  assert.match(source, /CAIXAS ARCADIA/i);
+  assert.match(source, /CHANCES PÚBLICAS/i);
+  assert.match(source, /PROTEÇÃO DE AZAR/i);
+  assert.match(source, /3 VIDAS/i);
+  assert.match(source, /TRANSMISSÃO SEGURA/i);
+  assert.match(source, /ENVIANDO PROVA DA PARTIDA/i);
   assert.match(source, /SISTEMA DE RECUPERAÇÃO/i);
   assert.doesNotMatch(source, /createPortal/i);
   assert.doesNotMatch(source, /1 CMA = US\$ 1/i);

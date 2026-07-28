@@ -56,11 +56,34 @@ Sumidouros atuais:
 - rack básico: 0,35 CMA;
 - segunda sala: 8 CMA;
 - bateria de 12 horas: 0,05 CMA;
-- mineradores.
+- mineradores;
+- Caixas Arcadia de 0,90, 3,50 e 12 CMA.
 
 Antes de ativar qualquer recompensa resgatável, o servidor deverá aplicar
 orçamento diário de emissão, limites por conta, telemetria antifraude e
 controle de reserva.
+
+### Caixas Arcadia
+
+As caixas são um sumidouro opcional de CMA virtual. Nenhuma delas devolve CMA,
+BTC ou DOGE: o prêmio é sempre um item utilizável dentro do jogo.
+
+| Caixa | Preço | Conteúdo possível |
+|---|---:|---|
+| Cache de Sinal | 0,90 CMA | baterias, rack básico, Byte Spark ou Amber Core |
+| Cache de Rede | 3,50 CMA | baterias, racks, Amber Core, Dual Nova ou Violet Bit |
+| Cache Quântico | 12 CMA | baterias, racks, Cryo Twin, Violet Bit, Magenta Flux ou Helix Gold |
+
+- todas as probabilidades são exibidas antes da compra e fecham em 100%;
+- o servidor produz o resultado com aleatoriedade segura e ignora qualquer
+  resultado enviado pelo navegador;
+- após nove aberturas sem item raro, a décima usa somente a faixa rara ou
+  superior;
+- a proteção é independente para cada tipo de caixa;
+- saldo, capacidade do inventário e versão do estado são validados antes do
+  débito;
+- cada abertura é registrada no ledger para auditoria e rebalanceamento;
+- preços e chances devem permanecer configuráveis antes do beta público.
 
 ## Autoridade e liquidação
 
@@ -101,6 +124,8 @@ Calibração do Packet Catch:
 
 - partida de 30 segundos;
 - doze moedas com valores entre 4 e 18 pontos;
+- três vidas; cada moeda que toca o chão remove uma vida;
+- a terceira moeda perdida encerra a partida sem recompensa;
 - tocar uma bomba encerra a partida e zera pontos e poder;
 - dez níveis: a queda acelera e a frequência de bombas cresce;
 - poder calculado por pontuação e dificuldade, sem faixas publicadas na tela;
@@ -132,6 +157,10 @@ dos blocos. CMA continua desativada como prêmio. Uma bateria pode ser resgatada
 ao encerrar ao menos uma partida em cada minigame no mesmo dia UTC. Recarga,
 limites e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
 pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
+
+Ao terminar uma partida, a interface mostra o envio da prova do computador para
+o servidor. A animação não decide o resultado: pontuação, vidas, tempo e
+recompensa continuam sendo recalculados no servidor.
 
 ### Orçamento global de poder temporário
 

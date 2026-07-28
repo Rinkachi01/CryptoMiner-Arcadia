@@ -18,6 +18,12 @@ import {
   type InstalledMiner,
   type PoolId,
 } from "./game-rules.ts";
+import {
+  getSupplyCrate,
+  resolveSupplyCrate,
+  supplyCrates,
+  type SupplyCrateId,
+} from "./supply-crate-rules.ts";
 
 export type RoomId = "room-1" | "room-2";
 export type WalletSymbol = "CMA" | "BTC" | "DOGE";
@@ -52,6 +58,8 @@ export type PublicGameState = {
   racks: RackInstance[];
   rackMiners: Record<string, InstalledMiner[]>;
   dailyMissionClaims: Record<string, string>;
+  crateOpenCount: number;
+  cratePityStreaks: Record<SupplyCrateId, number>;
 };
 
 export type GameActionName =
@@ -62,6 +70,7 @@ export type GameActionName =
   | "buy_miners"
   | "buy_racks"
   | "buy_batteries"
+  | "open_supply_crate"
   | "place_rack"
   | "install_miner"
   | "remove_miner"
@@ -153,6 +162,12 @@ export function createInitialGameState(now: number): PublicGameState {
       "rack-01": defaultInstalledMiners.map((placement) => ({ ...placement })),
     },
     dailyMissionClaims: {},
+    crateOpenCount: 0,
+    cratePityStreaks: {
+      "signal-cache": 0,
+      "grid-cache": 0,
+      "quantum-cache": 0,
+    },
   };
 }
 
@@ -325,6 +340,12 @@ export function normalizeBootstrapState(
     racks,
     rackMiners,
     dailyMissionClaims: {},
+    crateOpenCount: 0,
+    cratePityStreaks: {
+      "signal-cache": 0,
+      "grid-cache": 0,
+      "quantum-cache": 0,
+    },
   };
 }
 
@@ -390,6 +411,87 @@ function success(
   metadata: Record<string, unknown> = {},
 ): ActionResult {
   return { state, message, deltaCmaMicros, metadata };
+}
+
+function normalizedCratePityStreaks(
+  state: Pick<PublicGameState, "cratePityStreaks">,
+) {
+  return Object.fromEntries(
+    supplyCrates.map((crate) => [
+      crate.id,
+      Math.min(
+        9,
+        Math.max(
+          0,
+          Math.floor(Number(state.cratePityStreaks?.[crate.id] ?? 0)),
+        ),
+      ),
+    ]),
+  ) as Record<SupplyCrateId, number>;
+}
+
+export function applySupplyCratePurchase(
+  currentState: PublicGameState,
+  crateId: SupplyCrateId,
+  roll: number,
+  now: number,
+  temporaryPowerGh = 0,
+): ActionResult {
+  const settled = settleMiningBlocks(currentState, now, temporaryPowerGh);
+  const state = settled.state;
+  const crate = getSupplyCrate(crateId);
+  if (!crate) throw new Error("Caixa de suprimentos inválida.");
+  if (state.cmaBalance < crate.priceCma) {
+    throw new Error("Saldo CMA insuficiente para abrir essa caixa.");
+  }
+
+  const pityStreaks = normalizedCratePityStreaks(state);
+  const opening = resolveSupplyCrate(crate.id, roll, pityStreaks[crate.id]);
+  const reward = opening.reward;
+  if (
+    reward.type === "miner" &&
+    state.minerInventory.length + reward.quantity > MAX_MINER_UNITS
+  ) {
+    throw new Error(
+      "Seu inventário de mineradores está cheio. Libere espaço antes de abrir.",
+    );
+  }
+
+  state.cmaBalance =
+    Math.round((state.cmaBalance - crate.priceCma) * 1_000_000) / 1_000_000;
+  state.crateOpenCount = Math.max(0, Math.floor(state.crateOpenCount ?? 0)) + 1;
+  const rareOrBetter = ["rare", "epic", "legendary"].includes(reward.rarity);
+  state.cratePityStreaks = {
+    ...pityStreaks,
+    [crate.id]: rareOrBetter ? 0 : Math.min(9, pityStreaks[crate.id] + 1),
+  };
+
+  if (reward.type === "battery") {
+    state.batteryCount += reward.quantity;
+  } else if (reward.type === "rack") {
+    state.rackInventoryCount += reward.quantity;
+  } else if (reward.type === "miner" && reward.minerId) {
+    state.minerInventory.push(
+      ...Array.from({ length: reward.quantity }, () => ({
+        instanceId: createId(`crate-${reward.minerId}`),
+        minerId: reward.minerId as string,
+      })),
+    );
+  }
+
+  return success(
+    state,
+    `${crate.name} aberta: ${reward.label} enviado ao inventário.`,
+    -Math.round(crate.priceCma * 1_000_000),
+    {
+      settledBlocks: settled.settledBlocks,
+      rewards: settled.rewards,
+      supplyCrate: {
+        ...opening,
+        openCount: state.crateOpenCount,
+      },
+    },
+  );
 }
 
 export function applyGameAction(

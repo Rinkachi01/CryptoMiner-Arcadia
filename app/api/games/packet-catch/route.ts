@@ -10,10 +10,13 @@ import {
   PACKET_CATCH_DURATION_MS,
   PACKET_CATCH_HOURLY_LIMIT,
   PACKET_CATCH_POWER_DURATION_HOURS,
+  PACKET_CATCH_STARTING_LIVES,
   createPacketTargets,
   gameCooldownSeconds,
+  missedPacketCoins,
   packetCatchRewardPower,
   scorePacketCatch,
+  thirdPacketMissAt,
   type PacketCatchEvent,
 } from "../../../packet-catch-rules";
 
@@ -333,7 +336,9 @@ export async function POST(request: Request) {
     typeof body.sessionId !== "string" ||
     typeof body.nonce !== "string" ||
     typeof body.durationMs !== "number" ||
-    (body.endReason !== "complete" && body.endReason !== "bomb") ||
+    (body.endReason !== "complete" &&
+      body.endReason !== "bomb" &&
+      body.endReason !== "lives") ||
     !Array.isArray(body.events) ||
     body.events.length > 48
   ) {
@@ -390,6 +395,17 @@ export async function POST(request: Request) {
 
   const durationMs = Math.floor(body.durationMs);
   const serverElapsed = now - session.started_at;
+  const missedCoins = missedPacketCoins(
+    session.seed,
+    session.difficulty,
+    events,
+    durationMs,
+  );
+  const thirdMissAt = thirdPacketMissAt(
+    session.seed,
+    session.difficulty,
+    events,
+  );
   const validBombFinish =
     scoreResult.bombHit &&
     body.endReason === "bomb" &&
@@ -399,10 +415,19 @@ export async function POST(request: Request) {
   const validCompleteFinish =
     !scoreResult.bombHit &&
     body.endReason === "complete" &&
+    missedCoins.length < PACKET_CATCH_STARTING_LIVES &&
     durationMs >= PACKET_CATCH_DURATION_MS - 1_200 &&
     durationMs <= PACKET_CATCH_DURATION_MS + 3_000 &&
     serverElapsed >= PACKET_CATCH_DURATION_MS - 2_000;
-  if (!validBombFinish && !validCompleteFinish) {
+  const validLivesFinish =
+    !scoreResult.bombHit &&
+    body.endReason === "lives" &&
+    thirdMissAt !== null &&
+    missedCoins.length >= PACKET_CATCH_STARTING_LIVES &&
+    durationMs >= thirdMissAt - 250 &&
+    durationMs <= thirdMissAt + 1_100 &&
+    serverElapsed >= durationMs - 1_500;
+  if (!validBombFinish && !validCompleteFinish && !validLivesFinish) {
     await current.db
       .prepare(
         `UPDATE game_sessions
@@ -415,11 +440,11 @@ export async function POST(request: Request) {
     return json({ error: "Encerramento da partida incompatível." }, 400);
   }
 
-  const survived = !scoreResult.bombHit;
+  const survived = validCompleteFinish;
   const requestedRewardPowerGh = packetCatchRewardPower(
     scoreResult.score,
     session.difficulty,
-    scoreResult.bombHit,
+    !survived,
   );
   const update = await current.db
     .prepare(
@@ -438,6 +463,7 @@ export async function POST(request: Request) {
         events,
         coinHits: scoreResult.coinHits,
         bombHit: scoreResult.bombHit,
+        missedCoins: missedCoins.map((coin) => coin.id),
       }),
       session.id,
     )
@@ -522,7 +548,11 @@ export async function POST(request: Request) {
   }
 
   return json({
-    outcome: survived ? "completed" : "bomb",
+    outcome: survived
+      ? "completed"
+      : scoreResult.bombHit
+        ? "bomb"
+        : "lives",
     score: survived ? scoreResult.score : 0,
     coinHits: survived ? scoreResult.coinHits : 0,
     rewardPowerGh,
@@ -542,6 +572,8 @@ export async function POST(request: Request) {
       ? emissionBudget.limited
         ? `Nível ${session.difficulty} concluído. O orçamento diário limitou parte do poder.`
         : `Nível ${session.difficulty} concluído. A próxima rodada será mais difícil.`
-      : "Bomba atingida: partida encerrada sem pontos e sem poder.",
+      : scoreResult.bombHit
+        ? "Bomba atingida: partida encerrada sem pontos e sem poder."
+        : "Três moedas tocaram o chão: vidas esgotadas e rodada encerrada.",
   });
 }

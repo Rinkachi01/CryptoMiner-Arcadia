@@ -3,6 +3,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import { BLOCK_INTERVAL_SECONDS } from "../../game-rules";
 import {
   applyGameAction,
+  applySupplyCratePurchase,
   createInitialGameState,
   nextBlockAt,
   normalizeBootstrapState,
@@ -10,6 +11,7 @@ import {
   type GameActionName,
   type PublicGameState,
 } from "../../game-server";
+import { getSupplyCrate } from "../../supply-crate-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +174,12 @@ async function readState(db: D1Database, accountId: string) {
 
 function parseState(row: StoredRow): PublicGameState {
   return JSON.parse(row.state_json) as PublicGameState;
+}
+
+function secureRandomUnit() {
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return values[0] / 4_294_967_296;
 }
 
 async function activeTemporaryPower(
@@ -494,13 +502,29 @@ export async function POST(request: Request) {
 
   let result;
   try {
-    result = applyGameAction(
-      parseState(row),
-      body.action as GameActionName,
-      body.payload,
-      now,
-      eligibleTemporaryPowerGh,
-    );
+    const crateId =
+      body.action === "open_supply_crate" &&
+      body.payload &&
+      typeof body.payload === "object"
+        ? (body.payload as Record<string, unknown>).crateId
+        : undefined;
+    const crate = getSupplyCrate(crateId);
+    result =
+      body.action === "open_supply_crate" && crate
+        ? applySupplyCratePurchase(
+            parseState(row),
+            crate.id,
+            secureRandomUnit(),
+            now,
+            eligibleTemporaryPowerGh,
+          )
+        : applyGameAction(
+            parseState(row),
+            body.action as GameActionName,
+            body.payload,
+            now,
+            eligibleTemporaryPowerGh,
+          );
   } catch (error) {
     return json(
       {
@@ -578,13 +602,14 @@ export async function POST(request: Request) {
     version: nextVersion,
     updated_at: now,
   };
-  return json(
-    responsePayload(
+  return json({
+    ...responsePayload(
       updatedRow,
       result.state,
       now,
       result.message,
       temporaryPowerGh,
     ),
-  );
+    actionResult: result.metadata,
+  });
 }

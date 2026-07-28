@@ -5,9 +5,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
+import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import {
+  PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
   type PacketTarget,
 } from "./packet-catch-rules";
@@ -46,6 +48,7 @@ export function PacketCatchView({
   const [session, setSession] = useState<GameSession | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [clickedIds, setClickedIds] = useState<string[]>([]);
+  const [lives, setLives] = useState(PACKET_CATCH_STARTING_LIVES);
   const [events, setEvents] = useState<PacketCatchEvent[]>([]);
   const [message, setMessage] = useState(
     "Capture as moedas e nunca clique na bomba.",
@@ -58,13 +61,14 @@ export function PacketCatchView({
   const [nextPlayAt, setNextPlayAt] = useState(0);
   const [clockNow, setClockNow] = useState(0);
   const [result, setResult] = useState<{
-    outcome: "completed" | "bomb";
+    outcome: "completed" | "bomb" | "lives";
     score: number;
     rewardPowerGh: number;
   } | null>(null);
   const localStartedAt = useRef(0);
   const eventsRef = useRef<PacketCatchEvent[]>([]);
   const finishStarted = useRef(false);
+  const missedIdsRef = useRef(new Set<string>());
 
   const refreshArcadeAccount = useCallback(async () => {
     const refreshed = await onRefreshAccount();
@@ -100,13 +104,14 @@ export function PacketCatchView({
   const finishGame = useCallback(
     async (
       activeSession: GameSession,
-      endReason: "complete" | "bomb",
+      endReason: "complete" | "bomb" | "lives",
       finalEvents: PacketCatchEvent[],
       durationMs: number,
     ) => {
       if (finishStarted.current) return;
       finishStarted.current = true;
       setPhase("finishing");
+      const submissionStartedAt = performance.now();
       try {
         const response = await fetch("/api/games/packet-catch", {
           method: "POST",
@@ -121,7 +126,7 @@ export function PacketCatchView({
           }),
         });
         const data = (await response.json()) as {
-          outcome?: "completed" | "bomb";
+          outcome?: "completed" | "bomb" | "lives";
           score?: number;
           rewardPowerGh?: number;
           nextDifficulty?: number;
@@ -141,12 +146,24 @@ export function PacketCatchView({
         if (data.limits) setLimits(data.limits);
         setMessage(data.message ?? "Partida validada pelo servidor.");
         await refreshArcadeAccount();
+        await new Promise((resolve) =>
+          window.setTimeout(
+            resolve,
+            Math.max(0, 720 - (performance.now() - submissionStartedAt)),
+          ),
+        );
         setPhase("result");
       } catch (error) {
         setMessage(
           error instanceof Error
             ? error.message
             : "Não foi possível encerrar a partida.",
+        );
+        await new Promise((resolve) =>
+          window.setTimeout(
+            resolve,
+            Math.max(0, 720 - (performance.now() - submissionStartedAt)),
+          ),
         );
         setPhase("result");
       }
@@ -159,6 +176,59 @@ export function PacketCatchView({
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - localStartedAt.current;
       setElapsedMs(Math.min(elapsed, session.durationMs));
+      const caughtIds = new Set(
+        eventsRef.current.map((event) => event.targetId),
+      );
+      const newlyMissed = session.targets
+        .filter(
+          (target) =>
+            target.kind === "coin" &&
+            target.appearsAtMs + target.lifetimeMs <= elapsed &&
+            !caughtIds.has(target.id) &&
+            !missedIdsRef.current.has(target.id),
+        )
+        .sort(
+          (first, second) =>
+            first.appearsAtMs +
+            first.lifetimeMs -
+            (second.appearsAtMs + second.lifetimeMs),
+        );
+      for (const target of newlyMissed) {
+        missedIdsRef.current.add(target.id);
+      }
+      if (newlyMissed.length > 0) {
+        const remainingLives = Math.max(
+          0,
+          PACKET_CATCH_STARTING_LIVES - missedIdsRef.current.size,
+        );
+        setLives(remainingLives);
+        if (remainingLives > 0) {
+          setMessage(
+            `Moeda perdida. ${remainingLives} ${
+              remainingLives === 1 ? "vida restante" : "vidas restantes"
+            }.`,
+          );
+        } else {
+          const thirdMiss = session.targets
+            .filter((target) => missedIdsRef.current.has(target.id))
+            .sort(
+              (first, second) =>
+                first.appearsAtMs +
+                first.lifetimeMs -
+                (second.appearsAtMs + second.lifetimeMs),
+            )[PACKET_CATCH_STARTING_LIVES - 1];
+          setMessage("Três moedas tocaram o chão. Rodada encerrada.");
+          void finishGame(
+            session,
+            "lives",
+            eventsRef.current,
+            thirdMiss
+              ? thirdMiss.appearsAtMs + thirdMiss.lifetimeMs
+              : Math.floor(elapsed),
+          );
+          return;
+        }
+      }
       if (elapsed >= session.durationMs) {
         void finishGame(
           session,
@@ -194,6 +264,8 @@ export function PacketCatchView({
       setEvents([]);
       finishStarted.current = false;
       setClickedIds([]);
+      setLives(PACKET_CATCH_STARTING_LIVES);
+      missedIdsRef.current = new Set();
       setElapsedMs(0);
       setSession(data);
       setDifficulty(data.difficulty);
@@ -337,11 +409,27 @@ export function PacketCatchView({
                 s
               </strong>
             </span>
+            <span className="packet-lives">
+              VIDAS{" "}
+              <strong aria-label={`${lives} vidas restantes`}>
+                {Array.from(
+                  { length: PACKET_CATCH_STARTING_LIVES },
+                  (_, index) => (
+                    <i className={index < lives ? "active" : ""} key={index}>
+                      ♥
+                    </i>
+                  ),
+                )}
+              </strong>
+            </span>
           </div>
         </header>
 
         <div className="packet-game-layout">
           <div className="packet-board coin-rain" aria-label="Área do Packet Catch">
+            <div className="packet-ground" aria-hidden="true">
+              LINHA DE PERDA
+            </div>
             {Array.from({ length: 5 }, (_, lane) => (
               <i
                 className="packet-lane"
@@ -386,7 +474,9 @@ export function PacketCatchView({
                 <span>CHUVA DE MOEDAS · NÍVEL {difficulty}</span>
                 <strong>
                   {result?.outcome === "bomb"
-                    ? "Partida perdida"
+                    ? "Bomba atingida"
+                    : result?.outcome === "lives"
+                      ? "Vidas esgotadas"
                     : result?.rewardPowerGh
                       ? `+${result.rewardPowerGh} GH/s`
                       : "Capture as moedas"}
@@ -411,10 +501,7 @@ export function PacketCatchView({
               </div>
             )}
             {phase === "finishing" && (
-              <div className="packet-board-cover compact">
-                <strong>Validando a partida...</strong>
-                <p>O servidor está conferindo moedas, bomba e pontuação.</p>
-              </div>
+              <GameSubmissionOverlay gameLabel="Packet Catch" />
             )}
           </div>
 
@@ -438,6 +525,10 @@ export function PacketCatchView({
                 <strong>BOMBA</strong>
                 encerra a partida sem pontos e sem poder
               </p>
+            </div>
+            <div className="life-warning">
+              <strong>3 VIDAS</strong>
+              <p>Cada moeda que tocar o chão remove uma vida.</p>
             </div>
             <div className="packet-message" role="status" aria-live="polite">
               {message}

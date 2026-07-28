@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CircuitEvent, CircuitStep } from "./circuit-rush-rules";
+import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type CircuitSession = {
@@ -71,6 +72,7 @@ export function CircuitRushView({
       if (finishStarted.current) return;
       finishStarted.current = true;
       setPhase("finishing");
+      const submissionStartedAt = performance.now();
       try {
         const response = await fetch("/api/games/circuit-rush", {
           method: "POST",
@@ -107,6 +109,12 @@ export function CircuitRushView({
             : "Não foi possível validar o circuito.",
         );
       } finally {
+        await new Promise((resolve) =>
+          window.setTimeout(
+            resolve,
+            Math.max(0, 720 - (performance.now() - submissionStartedAt)),
+          ),
+        );
         setPhase("result");
       }
     },
@@ -254,7 +262,11 @@ export function CircuitRushView({
             );
           })}
 
-          {phase !== "playing" && (
+          {phase === "finishing" && (
+            <GameSubmissionOverlay gameLabel="Circuit Rush" />
+          )}
+
+          {phase !== "playing" && phase !== "finishing" && (
             <div className="circuit-board-cover">
               <span>ROTA DE REAÇÃO</span>
               <strong>{reward > 0 ? `+${reward} GH/s` : "Circuit Rush"}</strong>

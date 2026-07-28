@@ -3,6 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { gameCoins } from "./game-coin-catalog";
+import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type Reveal = {
@@ -32,7 +34,7 @@ export function HashMatchView({
   onRefreshAccount: () => Promise<boolean>;
 }) {
   const [phase, setPhase] = useState<
-    "idle" | "loading" | "playing" | "result"
+    "idle" | "loading" | "playing" | "finishing" | "result"
   >("idle");
   const [difficulty, setDifficulty] = useState(1);
   const [nextPlayAt, setNextPlayAt] = useState(0);
@@ -59,6 +61,13 @@ export function HashMatchView({
   }, []);
 
   useEffect(() => {
+    for (const coin of gameCoins) {
+      const image = new window.Image();
+      image.src = coin.asset;
+    }
+  }, []);
+
+  useEffect(() => {
     void fetch("/api/games/hash-match", { cache: "no-store" })
       .then(async (response) => {
         const data = (await response.json()) as {
@@ -81,6 +90,7 @@ export function HashMatchView({
       if (timeoutSent.current) return;
       timeoutSent.current = true;
       setPending(true);
+      setPhase("finishing");
       try {
         const response = await fetch("/api/games/hash-match", {
           method: "POST",
@@ -104,6 +114,7 @@ export function HashMatchView({
       } finally {
         setReward(0);
         setPending(false);
+        await new Promise((resolve) => window.setTimeout(resolve, 650));
         setPhase("result");
       }
     },
@@ -160,7 +171,7 @@ export function HashMatchView({
   async function flipCard(cardId: string) {
     if (!session || phase !== "playing" || pending) return;
     setPending(true);
-    let unlockDelay = 110;
+    let unlockDelay = 40;
     try {
       const response = await fetch("/api/games/hash-match", {
         method: "POST",
@@ -200,14 +211,16 @@ export function HashMatchView({
       setMoves(data.moves ?? moves);
 
       if (data.completed) {
+        setPhase("finishing");
         setReward(data.rewardPowerGh ?? 0);
         setDifficulty(data.nextDifficulty ?? difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
         setMessage(data.message ?? "Todos os pares foram encontrados.");
+        await new Promise((resolve) => window.setTimeout(resolve, 780));
         await onRefreshAccount();
         setPhase("result");
       } else if (reveals.length === 2 && !data.matched) {
-        unlockDelay = 730;
+        unlockDelay = 430;
         window.setTimeout(() => {
           const ids = new Set(reveals.map((item) => item.cardId));
           setCards((current) =>
@@ -217,7 +230,7 @@ export function HashMatchView({
                 : card,
             ),
           );
-        }, 720);
+        }, 420);
       }
     } catch (error) {
       setMessage(
@@ -295,7 +308,11 @@ export function HashMatchView({
             </button>
           ))}
 
-          {phase !== "playing" && (
+          {phase === "finishing" && (
+            <GameSubmissionOverlay gameLabel="Hash Match" />
+          )}
+
+          {phase !== "playing" && phase !== "finishing" && (
             <div className="hash-board-cover">
               <span>CRIPTO-MEMÓRIA</span>
               <strong>

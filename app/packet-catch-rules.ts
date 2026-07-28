@@ -4,6 +4,7 @@ export const PACKET_CATCH_DURATION_MS = 30_000;
 export const PACKET_CATCH_HOURLY_LIMIT = 8;
 export const PACKET_CATCH_DAILY_LIMIT = 24;
 export const PACKET_CATCH_POWER_DURATION_HOURS = 6;
+export const PACKET_CATCH_STARTING_LIVES = 3;
 export const MAX_GAME_DIFFICULTY = 10;
 
 export type PacketTarget = {
@@ -143,6 +144,45 @@ export function scorePacketCatch(
     bombHit,
     lastEventAt,
   };
+}
+
+export function missedPacketCoins(
+  seed: string,
+  difficulty: number,
+  events: PacketCatchEvent[],
+  durationMs: number,
+) {
+  const clicked = new Set(events.map((event) => event.targetId));
+  return createPacketTargets(seed, difficulty)
+    .filter(
+      (target) =>
+        target.kind === "coin" &&
+        !clicked.has(target.id) &&
+        target.appearsAtMs + target.lifetimeMs <= durationMs,
+    )
+    .sort(
+      (first, second) =>
+        first.appearsAtMs +
+        first.lifetimeMs -
+        (second.appearsAtMs + second.lifetimeMs),
+    );
+}
+
+export function thirdPacketMissAt(
+  seed: string,
+  difficulty: number,
+  events: PacketCatchEvent[],
+) {
+  const missed = missedPacketCoins(
+    seed,
+    difficulty,
+    events,
+    PACKET_CATCH_DURATION_MS,
+  );
+  const thirdMiss = missed[PACKET_CATCH_STARTING_LIVES - 1];
+  return thirdMiss
+    ? thirdMiss.appearsAtMs + thirdMiss.lifetimeMs
+    : null;
 }
 
 export function packetCatchRewardPower(

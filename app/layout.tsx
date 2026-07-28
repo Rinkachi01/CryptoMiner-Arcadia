@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Jogue os três minigames, avance nas ligas e resgate uma bateria diária protegida pelo servidor.",
+    "Abra Caixas Arcadia com chances públicas, jogue minigames renovados e progrida com validação segura do servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Complete o Tour do Arcade e resgate uma bateria diária com validação segura do servidor.",
+      "Caixas Arcadia com chances públicas, três vidas no Packet Catch e resultados validados pelo servidor.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — bateria diária online",
+        alt: "Crypto Miner Arcadia — três Caixas Arcadia e transmissão segura para o servidor",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Tour diário, bateria protegida e minigames autoritativos.",
+      "Caixas Arcadia, minigames renovados e transmissão segura de resultados.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],

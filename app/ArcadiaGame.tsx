@@ -40,9 +40,16 @@ import type {
   RoomId,
   WalletSymbol,
 } from "./game-server";
+import {
+  SUPPLY_CRATE_PITY_LIMIT,
+  formatCrateChance,
+  supplyCrates,
+  type SupplyCrateId,
+  type SupplyCrateOpening,
+} from "./supply-crate-rules";
 
 type ViewId = "mine" | "pools" | "inventory" | "shop" | "games";
-type ShopCategory = "miners" | "racks" | "energy";
+type ShopCategory = "miners" | "racks" | "energy" | "crates";
 
 type RoomDefinition = {
   id: RoomId;
@@ -77,6 +84,11 @@ type GameApiResponse = {
   temporaryPowerGh: number;
   message: string;
   error?: string;
+  actionResult?: {
+    supplyCrate?: SupplyCrateOpening & {
+      openCount: number;
+    };
+  };
 };
 
 const navigation: Array<{
@@ -231,6 +243,14 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
   const [rackInventoryCount, setRackInventoryCount] = useState(0);
+  const [crateOpenCount, setCrateOpenCount] = useState(0);
+  const [cratePityStreaks, setCratePityStreaks] = useState<
+    Record<SupplyCrateId, number>
+  >({
+    "signal-cache": 0,
+    "grid-cache": 0,
+    "quantum-cache": 0,
+  });
   const [minerInventory, setMinerInventory] =
     useState<MinerUnit[]>(defaultMinerInventory);
   const [racks, setRacks] = useState<RackInstance[]>(defaultRacks);
@@ -309,6 +329,12 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     setActiveRoomId(state.activeRoomId);
     setOwnedRoomIds(state.ownedRoomIds);
     setRackInventoryCount(state.rackInventoryCount);
+    setCrateOpenCount(Math.max(0, state.crateOpenCount ?? 0));
+    setCratePityStreaks({
+      "signal-cache": state.cratePityStreaks?.["signal-cache"] ?? 0,
+      "grid-cache": state.cratePityStreaks?.["grid-cache"] ?? 0,
+      "quantum-cache": state.cratePityStreaks?.["quantum-cache"] ?? 0,
+    });
     setMinerInventory(state.minerInventory);
     setRacks(state.racks);
     setRackMiners(state.rackMiners);
@@ -580,6 +606,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
 
   async function buyBatteries(quantity: number) {
     await performGameAction("buy_batteries", { quantity });
+  }
+
+  async function openSupplyCrate(crateId: SupplyCrateId) {
+    return performGameAction("open_supply_crate", { crateId });
   }
 
   async function useBattery() {
@@ -912,10 +942,13 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             installedMiners={allInstalled}
             rackInventoryCount={rackInventoryCount}
             batteryCount={batteryCount}
+            crateOpenCount={crateOpenCount}
+            cratePityStreaks={cratePityStreaks}
             onSetCategory={setShopCategory}
             onBuyMiners={buyMiners}
             onBuyRacks={buyRacks}
             onBuyBatteries={buyBatteries}
+            onOpenSupplyCrate={openSupplyCrate}
             onGoToRoom={() => {
               setActiveView("mine");
               setEditMode(true);
@@ -1873,10 +1906,13 @@ function ShopView({
   installedMiners,
   rackInventoryCount,
   batteryCount,
+  crateOpenCount,
+  cratePityStreaks,
   onSetCategory,
   onBuyMiners,
   onBuyRacks,
   onBuyBatteries,
+  onOpenSupplyCrate,
   onGoToRoom,
 }: {
   activeCategory: ShopCategory;
@@ -1885,10 +1921,15 @@ function ShopView({
   installedMiners: InstalledMiner[];
   rackInventoryCount: number;
   batteryCount: number;
+  crateOpenCount: number;
+  cratePityStreaks: Record<SupplyCrateId, number>;
   onSetCategory: (category: ShopCategory) => void;
   onBuyMiners: (minerId: string, quantity: number) => void;
   onBuyRacks: (quantity: number) => void;
   onBuyBatteries: (quantity: number) => void;
+  onOpenSupplyCrate: (
+    crateId: SupplyCrateId,
+  ) => Promise<GameApiResponse | null>;
   onGoToRoom: () => void;
 }) {
   const [minerQuantities, setMinerQuantities] = useState<
@@ -1896,6 +1937,28 @@ function ShopView({
   >({});
   const [rackQuantity, setRackQuantity] = useState(1);
   const [batteryQuantity, setBatteryQuantity] = useState(1);
+  const [crateOpening, setCrateOpening] = useState<{
+    crateId: SupplyCrateId;
+    phase: "opening" | "revealed";
+    result?: SupplyCrateOpening;
+  } | null>(null);
+
+  async function openCrate(crateId: SupplyCrateId) {
+    if (crateOpening?.phase === "opening") return;
+    setCrateOpening({ crateId, phase: "opening" });
+    const response = await onOpenSupplyCrate(crateId);
+    await new Promise((resolve) => window.setTimeout(resolve, 1_150));
+    const result = response?.actionResult?.supplyCrate;
+    if (!result) {
+      setCrateOpening(null);
+      return;
+    }
+    setCrateOpening({
+      crateId,
+      phase: "revealed",
+      result,
+    });
+  }
 
   return (
     <section className="shop-view">
@@ -1940,7 +2003,152 @@ function ShopView({
         >
           ENERGIA · {batteryCount}
         </button>
+        <button
+          type="button"
+          className={activeCategory === "crates" ? "active" : ""}
+          onClick={() => onSetCategory("crates")}
+        >
+          CAIXAS · {crateOpenCount}
+        </button>
       </nav>
+
+      {activeCategory === "crates" && (
+        <div className="supply-crates-section">
+          <div className="supply-crates-heading">
+            <div>
+              <span className="eyebrow">SUPRIMENTOS ALEATÓRIOS · CHANCES PÚBLICAS</span>
+              <h3>Caixas Arcadia</h3>
+              <p>
+                Cada abertura é resolvida no servidor e registrada no histórico.
+                Os prêmios são itens virtuais; não existe saque, revenda ou
+                retorno financeiro.
+              </p>
+            </div>
+            <aside>
+              <strong>PROTEÇÃO DE AZAR</strong>
+              <span>
+                A 10ª caixa sem item raro garante raridade rara ou superior.
+              </span>
+            </aside>
+          </div>
+
+          {crateOpening && (
+            <section
+              className={`crate-opening-stage ${crateOpening.phase}`}
+              aria-live="polite"
+            >
+              <div className={`supply-crate-visual ${crateOpening.crateId}`}>
+                <i />
+                <b>CMA</b>
+                <span />
+              </div>
+              <div className="crate-opening-copy">
+                <span>
+                  {crateOpening.phase === "opening"
+                    ? "ABERTURA AUTORIZADA PELO SERVIDOR"
+                    : "ITEM ENVIADO AO INVENTÁRIO"}
+                </span>
+                <strong>
+                  {crateOpening.phase === "opening"
+                    ? "DECODIFICANDO SUPRIMENTOS..."
+                    : crateOpening.result?.reward.label}
+                </strong>
+                {crateOpening.phase === "opening" ? (
+                  <div className="crate-opening-progress">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                ) : (
+                  <>
+                    <p>
+                      Raridade{" "}
+                      <b>{crateOpening.result?.reward.rarity.toUpperCase()}</b>
+                      {crateOpening.result?.pityTriggered
+                        ? " · proteção de azar ativada"
+                        : ""}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCrateOpening(null)}
+                    >
+                      CONTINUAR NA LOJA
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+
+          <div className="supply-crate-grid">
+            {supplyCrates.map((crate) => {
+              const pityStreak = cratePityStreaks[crate.id] ?? 0;
+              return (
+                <article className={`supply-crate-card ${crate.tier}`} key={crate.id}>
+                  <div className="supply-crate-card-art">
+                    <div className={`supply-crate-visual ${crate.id}`}>
+                      <i />
+                      <b>CMA</b>
+                      <span />
+                    </div>
+                    <small>{crate.shortName}</small>
+                  </div>
+                  <div className="supply-crate-card-info">
+                    <span>CAIXA DE SUPRIMENTOS</span>
+                    <h4>{crate.name}</h4>
+                    <p>{crate.description}</p>
+                    <div className="crate-odds-table">
+                      <div>
+                        <strong>CONTEÚDO POSSÍVEL</strong>
+                        <b>CHANCE</b>
+                      </div>
+                      {crate.rewards.map((reward) => (
+                        <div className={reward.rarity} key={reward.id}>
+                          <span>{reward.label}</span>
+                          <b>{formatCrateChance(reward.chanceBasisPoints)}</b>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="crate-pity-meter">
+                      <span>
+                        PROTEÇÃO RARA · {pityStreak}/{SUPPLY_CRATE_PITY_LIMIT - 1}
+                      </span>
+                      <i>
+                        <em
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (pityStreak / (SUPPLY_CRATE_PITY_LIMIT - 1)) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </i>
+                    </div>
+                    <div className="crate-price">
+                      <span>ABERTURA</span>
+                      <strong>{formatCma(crate.priceCma)} CMA</strong>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={
+                        crate.priceCma > cmaBalance ||
+                        crateOpening?.phase === "opening"
+                      }
+                      onClick={() => openCrate(crate.id)}
+                    >
+                      {crate.priceCma > cmaBalance
+                        ? "SALDO INSUFICIENTE"
+                        : "COMPRAR E ABRIR"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {activeCategory === "miners" && (
         <div className="shop-miner-grid">

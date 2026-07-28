@@ -4,8 +4,10 @@ import { gameCoins } from "../app/game-coin-catalog.ts";
 import {
   createPacketTargets,
   gameCooldownSeconds,
+  missedPacketCoins,
   packetCatchRewardPower,
   scorePacketCatch,
+  thirdPacketMissAt,
 } from "../app/packet-catch-rules.ts";
 
 test("agenda de moedas é reproduzível por nível", () => {
@@ -68,4 +70,12 @@ test("recompensa é nula ao tocar bomba e possui teto", () => {
 test("recarga cresce com atividade e dificuldade", () => {
   assert.equal(gameCooldownSeconds(0, 1) < gameCooldownSeconds(12, 1), true);
   assert.equal(gameCooldownSeconds(3, 2) < gameCooldownSeconds(3, 8), true);
+});
+
+test("três moedas no chão esgotam as vidas no instante validado", () => {
+  const seed = "three-lives-seed";
+  const thirdMissAt = thirdPacketMissAt(seed, 1, []);
+  assert.equal(typeof thirdMissAt, "number");
+  const missed = missedPacketCoins(seed, 1, [], thirdMissAt);
+  assert.equal(missed.length, 3);
 });

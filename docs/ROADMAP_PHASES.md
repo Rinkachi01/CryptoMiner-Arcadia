@@ -63,7 +63,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: quarta entrega concluída.
+Status: quinta entrega concluída.
 
 Ordem de execução:
 
@@ -170,6 +170,29 @@ Status: quarta entrega concluída.
 - telemetria de fontes, sumidouros, concentração e tempo de progressão;
 - testes controlados de preço, recompensa e onboarding;
 - alertas de inflação e fraude.
+
+Entregas concluídas nesta quinta etapa:
+
+- Caixas Arcadia em três faixas de preço: 0,90, 3,50 e 12 CMA;
+- compra, sorteio e crédito do item processados pelo servidor;
+- probabilidades públicas que totalizam exatamente 100% em cada caixa;
+- proteção de azar que garante item raro ou superior na décima abertura;
+- prêmios limitados a baterias, racks e mineradores, sem devolver CMA;
+- cada compra registrada no ledger com chave idempotente;
+- Packet Catch com três vidas e perda de uma vida quando uma moeda toca o chão;
+- bomba continua encerrando a partida imediatamente e sem recompensa;
+- transmissão visual do resultado entre o computador e o servidor;
+- Hash Match com revelação e comparação de cartas mais rápidas;
+- animações dos minigames isoladas para reduzir travamentos.
+
+Próxima entrega:
+
+- painel administrativo exclusivo do proprietário para revisar partidas
+  suspeitas, emissão de poder, abertura de caixas e uso de energia;
+- alertas de concentração por item e taxa de ganho por minigame;
+- controles de pausa para caixas e recompensas sem precisar publicar uma nova
+  versão do site;
+- teste fechado dos preços e probabilidades antes de qualquer economia real.
 
 Critério de saída: economia estável em uma temporada fechada.
 
