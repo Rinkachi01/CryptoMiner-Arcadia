@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
+import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import {
   BATTERY_HOURS,
@@ -16,9 +17,11 @@ import {
   RACK_COLUMNS,
   RACK_PRICE_CMA,
   ROOM_RACK_CAPACITY,
+  canInstallAt,
   calculateDailyEstimatedReward,
   calculateEstimatedReward,
   defaultInstalledMiners,
+  findNextAvailableSlot,
   formatAtomic,
   getInstalledPower,
   getMiner,
@@ -832,20 +835,28 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
         </div>
 
         {rackOpen && activeRack && (
-          <RackManager
-            rackLabel={`RACK ${String(
-              currentRoomRacks.findIndex(
-                (rack) => rack.id === activeRack.id,
-              ) + 1,
-            ).padStart(2, "0")}`}
-            roomName={activeRoom.name}
-            installed={activeRackMiners}
-            minerInventory={minerInventory}
-            onInstall={installMiner}
-            onRemove={removeMiner}
-            onRemoveAll={removeAllMiners}
-            onClose={() => setRackOpen(false)}
-          />
+          <GameErrorBoundary
+            compact
+            resetKey={activeRack.id}
+            title="O painel do rack foi interrompido"
+            message="Sua sala e seus equipamentos continuam salvos. Volte à sala e tente novamente."
+            onRecover={() => setRackOpen(false)}
+          >
+            <RackManager
+              rackLabel={`RACK ${String(
+                currentRoomRacks.findIndex(
+                  (rack) => rack.id === activeRack.id,
+                ) + 1,
+              ).padStart(2, "0")}`}
+              roomName={activeRoom.name}
+              installed={activeRackMiners}
+              minerInventory={minerInventory}
+              onInstall={installMiner}
+              onRemove={removeMiner}
+              onRemoveAll={removeAllMiners}
+              onClose={() => setRackOpen(false)}
+            />
+          </GameErrorBoundary>
         )}
 
         {!rackOpen && activeView === "mine" && (

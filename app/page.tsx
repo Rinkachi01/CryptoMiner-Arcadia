@@ -4,6 +4,7 @@ import {
   chatGPTSignOutPath,
   getChatGPTUser,
 } from "./chatgpt-auth";
+import { GameErrorBoundary } from "./GameErrorBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,14 @@ export default async function Home() {
   }
 
   return (
-    <ArcadiaGame
-      user={{
-        displayName: user.displayName,
-        email: user.email,
-      }}
-      signOutPath={chatGPTSignOutPath("/")}
-    />
+    <GameErrorBoundary>
+      <ArcadiaGame
+        user={{
+          displayName: user.displayName,
+          email: user.email,
+        }}
+        signOutPath={chatGPTSignOutPath("/")}
+      />
+    </GameErrorBoundary>
   );
 }

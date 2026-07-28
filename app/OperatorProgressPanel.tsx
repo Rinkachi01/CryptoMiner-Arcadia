@@ -6,6 +6,13 @@ type Summary = {
   operator: {
     level: number;
     rank: string;
+    league: {
+      name: string;
+      nextName: string | null;
+      currentXp: number;
+      targetXp: number;
+      progressPercent: number;
+    };
     xp: number;
     currentLevelXp: number;
     nextLevelXp: number;
@@ -30,6 +37,13 @@ type Summary = {
   missions: Array<{
     id: string;
     label: string;
+    current: number;
+    target: number;
+  }>;
+  achievements: Array<{
+    id: string;
+    label: string;
+    description: string;
     current: number;
     target: number;
   }>;
@@ -142,6 +156,53 @@ export function OperatorProgressPanel({
             </article>
           );
         })}
+      </div>
+
+      <div className="operator-career-panel">
+        <article className="operator-league-card">
+          <span>LIGA DO OPERADOR</span>
+          <strong>{summary.operator.league.name}</strong>
+          <p>
+            {summary.operator.league.nextName
+              ? `Próxima divisão: ${summary.operator.league.nextName}`
+              : "Divisão máxima alcançada"}
+          </p>
+          <i>
+            <em
+              style={{ width: `${summary.operator.league.progressPercent}%` }}
+            />
+          </i>
+          <small>
+            Progressão competitiva sem prêmio econômico nesta fase.
+          </small>
+        </article>
+
+        <div className="operator-achievements">
+          <div>
+            <span>CONQUISTAS DE CARREIRA</span>
+            <small>Marcos permanentes calculados pelo servidor.</small>
+          </div>
+          <section>
+            {summary.achievements.map((achievement) => {
+              const complete = achievement.current >= achievement.target;
+              return (
+                <article
+                  className={complete ? "complete" : ""}
+                  key={achievement.id}
+                >
+                  <b>{complete ? "✓" : "◇"}</b>
+                  <div>
+                    <strong>{achievement.label}</strong>
+                    <p>{achievement.description}</p>
+                  </div>
+                  <span>
+                    {achievement.current}/{achievement.target}
+                  </span>
+                </article>
+              );
+            })}
+          </section>
+        </div>
       </div>
     </section>
   );

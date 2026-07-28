@@ -145,13 +145,16 @@ improvisada.
 
 ## Fase 5 — beta econômico
 
-Status: primeira entrega concluída.
+Status: segunda entrega concluída.
 
 - nível do operador e progressão por experiência;
+- liga do operador com doze divisões, de Recruta a Diamante;
+- conquistas permanentes de carreira calculadas pelo servidor;
 - missões diárias de telemetria sem prêmio econômico;
 - painel de desempenho separado por minigame;
 - dados de vitórias, tentativas, sequência e taxa de conclusão;
-- missões diárias e progressão de liga com recompensas continuam futuras;
+- proteção visual para que uma falha isolada nunca apague a interface inteira;
+- recompensas de liga e missões diárias continuam futuras;
 - dificuldade dinâmica e orçamento de emissão;
 - limites por conta, dispositivo e comportamento;
 - telemetria de fontes, sumidouros, concentração e tempo de progressão;

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Gerencie racks, evolua seu operador e jogue três minigames validados pelo servidor.",
+    "Gerencie racks, avance nas ligas e desbloqueie conquistas validadas pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Rack integrado, progressão do operador e três minigames com servidor autoritativo.",
+      "Rack estável, liga do operador e conquistas de carreira com servidor autoritativo.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "/og-operator-phase.png",
+        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — fase de progressão do operador",
+        alt: "Crypto Miner Arcadia — rack estável e liga do operador",
       },
     ],
   },
@@ -31,8 +31,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Rack integrado, progressão do operador e três minigames online.",
-    images: ["/og-operator-phase.png"],
+      "Rack estável, liga do operador e conquistas de carreira.",
+    images: [
+      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
+    ],
   },
 };
 

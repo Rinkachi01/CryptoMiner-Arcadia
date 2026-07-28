@@ -137,6 +137,8 @@ pontuação, abandono, bombas, excesso de jogadas, bloqueios e abuso.
 - cada partida concede 18 XP de atividade;
 - cada vitória adiciona 120 XP;
 - a experiência necessária cresce a cada nível;
+- a liga competitiva possui doze divisões entre Recruta e Diamante;
+- conquistas de carreira registram marcos sem criar recompensa econômica;
 - nível, taxa de vitória, sequência e missões são calculados a partir dos
   registros autoritativos do servidor;
 - missões de 24 horas servem inicialmente para medir comportamento e não

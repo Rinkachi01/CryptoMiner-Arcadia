@@ -156,6 +156,14 @@ export async function GET() {
   const gamesPlayedToday = gameIds.filter(
     (gameId) => Number(todayRows.get(gameId)?.plays_today ?? 0) > 0,
   ).length;
+  const gamesWon = gameIds.filter((gameId) => {
+    const progress = progressRows.find((row) => row.game_id === gameId);
+    return Number(progress?.total_wins ?? 0) > 0;
+  }).length;
+  const highestGameLevel = progressRows.reduce(
+    (highest, row) => Math.max(highest, Number(row.level)),
+    1,
+  );
 
   return json({
     serverTime: now,
@@ -203,6 +211,43 @@ export async function GET() {
         label: "Jogue os 3 minigames",
         current: gamesPlayedToday,
         target: 3,
+      },
+    ],
+    achievements: [
+      {
+        id: "first-win",
+        label: "Primeiro bloco de treino",
+        description: "Conquiste sua primeira vitória no Arcade.",
+        current: Math.min(1, totalWins),
+        target: 1,
+      },
+      {
+        id: "arcade-operator",
+        label: "Operador versátil",
+        description: "Vença ao menos uma vez em cada minigame.",
+        current: gamesWon,
+        target: 3,
+      },
+      {
+        id: "twenty-five-runs",
+        label: "Rotina de mineração",
+        description: "Complete 25 tentativas validadas pelo servidor.",
+        current: Math.min(25, totalPlays),
+        target: 25,
+      },
+      {
+        id: "ten-wins",
+        label: "Precisão comprovada",
+        description: "Alcance 10 vitórias no Arcade.",
+        current: Math.min(10, totalWins),
+        target: 10,
+      },
+      {
+        id: "game-level-five",
+        label: "Especialista de sistema",
+        description: "Chegue ao nível 5 em qualquer minigame.",
+        current: Math.min(5, highestGameLevel),
+        target: 5,
       },
     ],
   });
