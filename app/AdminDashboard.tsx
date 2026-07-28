@@ -13,6 +13,11 @@ import {
   simulateEconomy,
   type EconomySimulationInput,
 } from "./economy-simulator";
+import type {
+  PublicSeason,
+  SeasonLeaderboardEntry,
+  SeasonSnapshot,
+} from "./season-server";
 
 type AdminOverview = {
   alerts: AdminAlert[];
@@ -69,6 +74,12 @@ type AdminOverview = {
     reward: string;
   }>;
   serverTime: number;
+  season: {
+    currentPlayer: SeasonLeaderboardEntry | null;
+    leaderboard: SeasonLeaderboardEntry[];
+    season: PublicSeason | null;
+    snapshots: SeasonSnapshot[];
+  };
   settings: AdminRuntimeSettings;
   suspiciousSessions: Array<{
     completedAt: number | null;
@@ -235,6 +246,13 @@ function shortId(value: string) {
   return value.length > 12 ? `${value.slice(0, 8)}…` : value;
 }
 
+function formatSeasonRemaining(endsAt: number, now: number) {
+  const remaining = Math.max(0, endsAt - now);
+  const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((remaining / (60 * 60 * 1000)) % 24);
+  return days > 0 ? `${days} dias e ${hours}h` : `${hours} horas`;
+}
+
 export function AdminDashboard({
   signOutPath,
   user,
@@ -250,6 +268,8 @@ export function AdminDashboard({
   >({});
   const [simulationInput, setSimulationInput] =
     useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
+  const [seasonName, setSeasonName] = useState("Temporada Beta");
+  const [seasonDurationDays, setSeasonDurationDays] = useState(30);
 
   const loadOverview = useCallback(async () => {
     setError("");
@@ -463,6 +483,178 @@ export function AdminDashboard({
 
       <section className="admin-layout">
         <div className="admin-main-column">
+          <section className="admin-panel admin-season-panel">
+            <div className="admin-panel-heading">
+              <div>
+                <span>CICLOS COMPETITIVOS</span>
+                <h2>Temporadas e snapshots</h2>
+              </div>
+              <small>SEM PRÊMIO FINANCEIRO</small>
+            </div>
+
+            {overview.season.season ? (
+              <>
+                <div className="admin-season-overview">
+                  <article>
+                    <span>
+                      {overview.season.season.status === "active"
+                        ? "TEMPORADA ATIVA"
+                        : "ÚLTIMA TEMPORADA"}
+                    </span>
+                    <h3>{overview.season.season.name}</h3>
+                    <p>
+                      Ranking por partidas, vitórias e dificuldade validada pelo
+                      servidor. A classificação não concede CMA, saque ou
+                      vantagem econômica.
+                    </p>
+                    <i>
+                      <em
+                        style={{
+                          width: `${overview.season.season.progressPercent}%`,
+                        }}
+                      />
+                    </i>
+                    <div>
+                      <strong>
+                        {overview.season.season.progressPercent}% do ciclo
+                      </strong>
+                      <span>
+                        {overview.season.season.status === "active"
+                          ? formatSeasonRemaining(
+                              overview.season.season.endsAt,
+                              overview.serverTime,
+                            )
+                          : "Ciclo encerrado"}
+                      </span>
+                    </div>
+                    {overview.season.season.status === "active" && (
+                      <div className="admin-season-actions">
+                        <button
+                          type="button"
+                          disabled={Boolean(busyAction)}
+                          onClick={() =>
+                            void runAdminAction("snapshot-season", {
+                              action: "snapshot-season",
+                            })
+                          }
+                        >
+                          REGISTRAR SNAPSHOT
+                        </button>
+                        <button
+                          className="danger"
+                          type="button"
+                          disabled={Boolean(busyAction)}
+                          onClick={() =>
+                            void runAdminAction("close-season", {
+                              action: "close-season",
+                            })
+                          }
+                        >
+                          ENCERRAR TEMPORADA
+                        </button>
+                      </div>
+                    )}
+                  </article>
+
+                  <section className="admin-season-ranking">
+                    <div>
+                      <span>TOP OPERADORES</span>
+                      <small>{overview.season.leaderboard.length} ranqueados</small>
+                    </div>
+                    {overview.season.leaderboard.length === 0 ? (
+                      <p className="admin-inline-empty">
+                        O ranking começa na primeira partida concluída.
+                      </p>
+                    ) : (
+                      overview.season.leaderboard.slice(0, 6).map((entry) => (
+                        <article key={entry.accountId}>
+                          <b>{String(entry.rank).padStart(2, "0")}</b>
+                          <div>
+                            <strong>{entry.displayName}</strong>
+                            <small>
+                              {entry.wins} vitórias · {entry.plays} partidas
+                            </small>
+                          </div>
+                          <span>{formatNumber(entry.score)} pts</span>
+                        </article>
+                      ))
+                    )}
+                  </section>
+                </div>
+
+                <div className="admin-snapshot-strip">
+                  <div>
+                    <span>HISTÓRICO ECONÔMICO</span>
+                    <strong>
+                      {overview.season.snapshots.length} snapshots preservados
+                    </strong>
+                  </div>
+                  {overview.season.snapshots.length === 0 ? (
+                    <p>Registre o primeiro ponto de comparação desta temporada.</p>
+                  ) : (
+                    overview.season.snapshots.slice(0, 4).map((snapshot) => (
+                      <article key={snapshot.id}>
+                        <span>{formatDate(snapshot.createdAt)}</span>
+                        <strong>
+                          {formatNumber(snapshot.metrics.totalPlayers ?? 0)}{" "}
+                          jogadores
+                        </strong>
+                        <small>
+                          {formatNumber(snapshot.metrics.powerGranted24h ?? 0)}{" "}
+                          GH/s · {formatNumber(snapshot.metrics.games24h ?? 0)}{" "}
+                          partidas
+                        </small>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="admin-inline-empty">
+                Nenhuma temporada registrada.
+              </p>
+            )}
+
+            {overview.season.season?.status !== "active" && (
+              <div className="admin-season-create">
+                <label>
+                  <span>NOME DA PRÓXIMA TEMPORADA</span>
+                  <input
+                    maxLength={72}
+                    value={seasonName}
+                    onChange={(event) => setSeasonName(event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>DURAÇÃO</span>
+                  <select
+                    value={seasonDurationDays}
+                    onChange={(event) =>
+                      setSeasonDurationDays(Number(event.target.value))
+                    }
+                  >
+                    <option value={14}>14 dias</option>
+                    <option value={30}>30 dias</option>
+                    <option value={60}>60 dias</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={Boolean(busyAction) || !seasonName.trim()}
+                  onClick={() =>
+                    void runAdminAction("create-season", {
+                      action: "create-season",
+                      durationDays: seasonDurationDays,
+                      name: seasonName,
+                    })
+                  }
+                >
+                  INICIAR NOVA TEMPORADA
+                </button>
+              </div>
+            )}
+          </section>
+
           <section className="admin-panel admin-alerts-panel">
             <div className="admin-panel-heading">
               <div>

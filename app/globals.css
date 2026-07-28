@@ -3981,6 +3981,852 @@ img {
   }
 }
 
+/* Fase 6: escala de leitura confortável e hierarquia consistente. */
+.arcadia-shell {
+  --readable-meta: 0.72rem;
+  --readable-copy: 0.82rem;
+  --readable-control: 0.76rem;
+}
+
+.arcadia-shell p {
+  font-size: var(--readable-copy);
+  line-height: 1.6;
+}
+
+.arcadia-shell small {
+  font-size: var(--readable-meta);
+  line-height: 1.45;
+}
+
+.brand strong {
+  font-size: 0.78rem;
+}
+
+.brand em {
+  font-size: 1.28rem;
+}
+
+.topbar-status,
+.player-card strong,
+.account-control strong {
+  font-size: 0.78rem;
+}
+
+.account-control small,
+.account-control a,
+.server-status-strip,
+.server-status-strip small {
+  font-size: 0.68rem;
+}
+
+.sidebar nav button,
+.sidebar nav a {
+  min-height: 54px;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.sidebar nav a.admin-nav-link small,
+.player-card span,
+.player-card small,
+.simulation-note span {
+  font-size: 0.68rem;
+}
+
+.simulation-note p {
+  color: #94a2b0;
+  font-size: 0.72rem;
+}
+
+.eyebrow,
+.room-toolbar > span,
+.room-toolbar button,
+.panel-title,
+.metric-strip small,
+.metric-strip em,
+.room-mode-badge,
+.rack-click-label,
+.rack-placement small,
+.rack-placement b {
+  font-size: var(--readable-meta);
+  line-height: 1.35;
+}
+
+.workspace-heading h1 {
+  font-size: clamp(1.75rem, 2.7vw, 2.7rem);
+  line-height: 1.08;
+}
+
+.metric-strip article {
+  min-height: 92px;
+  gap: 13px;
+  padding: 15px 17px;
+}
+
+.metric-strip strong {
+  font-size: clamp(1rem, 1.5vw, 1.22rem);
+  line-height: 1.15;
+}
+
+.metric-strip em {
+  max-width: 130px;
+  color: #a2b590;
+  text-align: right;
+}
+
+.room-toolbar {
+  min-height: 58px;
+}
+
+.room-toolbar button {
+  min-height: 40px;
+  padding-inline: 13px;
+}
+
+.operation-panel,
+.pools-view,
+.inventory-view,
+.shop-view,
+.games-view {
+  color: #f1f6f8;
+}
+
+.operation-panel button,
+.pools-view button,
+.inventory-view button,
+.shop-view button,
+.games-view button,
+.rack-modal button,
+.rooms-modal button {
+  min-height: 42px;
+  font-size: var(--readable-control);
+  line-height: 1.25;
+}
+
+.section-intro p,
+.pool-card > p,
+.inventory-info p,
+.shop-hero p,
+.games-hero p,
+.game-prototype-info > p,
+.energy-card > p,
+.activity-feed p,
+.rack-modal header p,
+.rooms-modal header p {
+  color: #b5c1cc;
+  font-size: var(--readable-copy);
+  line-height: 1.6;
+}
+
+.pool-card h3,
+.inventory-info h3,
+.shop-product-info h3,
+.game-prototype-info h3,
+.rack-miner-data h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.pool-card dt,
+.pool-card dd,
+.inventory-info > span,
+.inventory-info small,
+.shop-product-info > small,
+.shop-product-info dl div,
+.shop-total,
+.rack-miner-data > span,
+.rack-miner-data p,
+.rack-rule p,
+.rack-summary,
+.wallet-menu-title,
+.wallet-balance-row span,
+.wallet-balance-row em {
+  font-size: var(--readable-meta);
+  line-height: 1.45;
+}
+
+.pool-card dd,
+.shop-product-info dd,
+.wallet-balance-row strong,
+.rack-summary strong {
+  font-size: 0.88rem;
+}
+
+.game-selector-list button {
+  min-height: 92px;
+  padding: 15px;
+}
+
+.game-selector-list button > span,
+.game-selector-list button > small,
+.game-selector-list button > b {
+  font-size: 0.7rem;
+}
+
+.game-selector-list button > strong {
+  font-size: 0.92rem;
+}
+
+.packet-game-stats span,
+.active-game-stage header > div > span,
+.operator-progress-panel span,
+.operator-progress-panel small,
+.economy-guard-panel span,
+.economy-guard-panel p {
+  font-size: 0.72rem;
+}
+
+.operator-progress-panel strong,
+.economy-guard-panel strong {
+  line-height: 1.3;
+}
+
+/* Temporada competitiva: destaque grande, legível e sem linguagem financeira. */
+.season-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.35fr);
+  gap: 12px;
+}
+
+.season-panel.loading {
+  min-height: 120px;
+  place-items: center;
+  border: 1px solid #2b4050;
+  background: #0a121b;
+  color: #aebdca;
+  font-size: 0.82rem;
+}
+
+.season-summary-card,
+.season-ranking-card {
+  border: 1px solid #324757;
+  background:
+    linear-gradient(135deg, rgba(255, 179, 59, 0.08), transparent 54%),
+    #0a121b;
+}
+
+.season-summary-card {
+  padding: 22px;
+}
+
+.season-summary-card > span,
+.season-ranking-card > div > span {
+  color: #ffbd4a;
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+}
+
+.season-summary-card h3 {
+  margin: 9px 0 10px;
+  color: #fff0ca;
+  font: 700 clamp(1.25rem, 2vw, 1.7rem)/1.15 var(--font-display);
+  text-transform: uppercase;
+}
+
+.season-summary-card > p {
+  max-width: 560px;
+  margin: 0;
+  color: #b4c0ca;
+}
+
+.season-progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  margin-top: 19px;
+}
+
+.season-progress > i {
+  grid-column: 1 / -1;
+  height: 9px;
+  overflow: hidden;
+  background: #22313e;
+}
+
+.season-progress > i em {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff9d22, #ffe26b);
+}
+
+.season-progress span,
+.season-progress strong {
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.season-progress span {
+  color: #8fa0ad;
+}
+
+.season-progress strong {
+  color: #ffe193;
+}
+
+.season-player-rank {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid rgba(169, 255, 63, 0.25);
+  background: rgba(169, 255, 63, 0.05);
+}
+
+.season-player-rank > span {
+  color: #8fa0ad;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+}
+
+.season-player-rank > strong {
+  color: var(--lime);
+  font: 700 1.65rem/1 var(--font-display);
+}
+
+.season-player-rank > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.season-player-rank b {
+  color: #eff7e9;
+  font-size: 0.84rem;
+}
+
+.season-no-reward {
+  display: block;
+  margin-top: 13px;
+  color: #8fa0ad;
+}
+
+.season-ranking-card > div {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 17px;
+  border-bottom: 1px solid #324757;
+}
+
+.season-ranking-card > div > small {
+  color: #8296a5;
+}
+
+.season-ranking-card > section {
+  display: flex;
+  flex-direction: column;
+}
+
+.season-ranking-card > section > p {
+  margin: 0;
+  padding: 24px;
+  color: #93a4b1;
+}
+
+.season-ranking-card article {
+  display: grid;
+  min-height: 63px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 17px;
+  border-bottom: 1px solid #20313e;
+}
+
+.season-ranking-card article:last-child {
+  border-bottom: 0;
+}
+
+.season-ranking-card article.current {
+  background: rgba(169, 255, 63, 0.075);
+}
+
+.season-ranking-card article > b {
+  color: #ffbd4a;
+  font-size: 0.86rem;
+}
+
+.season-ranking-card article > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.season-ranking-card article strong {
+  overflow: hidden;
+  color: #edf4f7;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.season-ranking-card article span {
+  color: var(--lime);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+/* Central do proprietário: nenhuma informação operacional em microtexto. */
+.admin-shell {
+  --admin-muted: #9bb0bd;
+}
+
+.admin-shell p {
+  color: #aebdc7;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.admin-shell small {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.admin-brand small,
+.admin-owner-lock small,
+.admin-topbar nav a,
+.admin-topbar nav button,
+.admin-hero > div > span,
+.admin-panel-heading span,
+.admin-panel-heading > small,
+.admin-metric-grid span,
+.admin-metric-grid small,
+.admin-control-grid article span,
+.admin-risk-badge,
+.admin-review-summary small,
+.admin-review-summary time,
+.admin-review-list dt,
+.admin-reviewed-note span,
+.admin-game-bars span,
+.admin-game-bars small,
+.admin-stock-summary span,
+.admin-crate-feed span,
+.admin-alert-status span,
+.admin-alert-grid label > span,
+.admin-simulator-controls label > small,
+.admin-simulation-status > span,
+.admin-simulation-metrics span,
+.admin-simulation-metrics small,
+.admin-simulation-prices > section > span {
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.admin-brand strong,
+.admin-owner-lock strong {
+  font-size: 0.86rem;
+}
+
+.admin-topbar nav a,
+.admin-topbar nav button {
+  min-height: 42px;
+  padding-inline: 14px;
+  line-height: 40px;
+}
+
+.admin-hero p {
+  color: #afbdc7;
+  font-size: 0.9rem;
+}
+
+.admin-hero aside strong {
+  font-size: 1rem;
+}
+
+.admin-feedback {
+  min-height: 48px;
+  font-size: 0.8rem;
+}
+
+.admin-metric-grid article {
+  min-height: 118px;
+  padding: 19px;
+}
+
+.admin-metric-grid strong {
+  margin-block: 11px 9px;
+  font-size: clamp(1.3rem, 2vw, 1.85rem);
+  line-height: 1.1;
+}
+
+.admin-panel-heading {
+  min-height: 76px;
+  padding-inline: 22px;
+}
+
+.admin-panel-heading h2 {
+  font-size: 1.18rem;
+}
+
+.admin-control-grid article {
+  min-height: 252px;
+  padding: 20px;
+}
+
+.admin-control-grid h3,
+.admin-alert-grid h3 {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.admin-control-grid p,
+.admin-alert-grid > article > p,
+.admin-simulator-note p,
+.admin-simulation-status p,
+.admin-review-list > article > p,
+.admin-reviewed-note p,
+.admin-empty-state p,
+.admin-inline-empty {
+  color: #a6b7c2;
+  font-size: 0.78rem;
+}
+
+.admin-control-grid button,
+.admin-review-actions button,
+.admin-alert-grid button,
+.admin-simulator-controls > button {
+  min-height: 44px;
+  font-size: 0.72rem;
+}
+
+.admin-review-summary strong,
+.admin-game-bars strong,
+.admin-crate-feed strong,
+.admin-miner-ranking span,
+.admin-ledger-list span {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.admin-review-list dd,
+.admin-stock-summary strong,
+.admin-miner-ranking strong,
+.admin-ledger-list strong,
+.admin-ledger-list em,
+.admin-alert-value strong,
+.admin-simulation-metrics strong,
+.admin-simulation-prices strong,
+.admin-simulation-prices b {
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.admin-review-actions input,
+.admin-alert-grid input {
+  min-height: 44px;
+  font-size: 0.8rem;
+}
+
+/* Controle de temporada dentro da Central do Proprietário. */
+.admin-season-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 1px;
+  background: var(--admin-border);
+}
+
+.admin-season-overview > article,
+.admin-season-ranking {
+  padding: 22px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 181, 60, 0.08), transparent 18rem),
+    #091118;
+}
+
+.admin-season-overview > article > span,
+.admin-season-ranking > div > span,
+.admin-snapshot-strip > div > span,
+.admin-season-create label > span {
+  color: #ffbd4a;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+
+.admin-season-overview h3 {
+  margin: 10px 0;
+  color: #fff0ca;
+  font: 700 1.35rem/1.2 var(--font-display);
+  text-transform: uppercase;
+}
+
+.admin-season-overview > article > p {
+  max-width: 650px;
+  margin: 0 0 18px;
+}
+
+.admin-season-overview > article > i {
+  display: block;
+  height: 9px;
+  overflow: hidden;
+  background: #22313d;
+}
+
+.admin-season-overview > article > i em {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff9c1c, #ffe06b);
+}
+
+.admin-season-overview > article > div:not(.admin-season-actions) {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: #a5b5c0;
+  font-size: 0.76rem;
+}
+
+.admin-season-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.admin-season-actions button,
+.admin-season-create button {
+  min-height: 44px;
+  padding-inline: 16px;
+  border: 1px solid rgba(169, 255, 63, 0.42);
+  background: rgba(169, 255, 63, 0.08);
+  color: var(--admin-lime);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.admin-season-actions button.danger {
+  border-color: rgba(255, 95, 100, 0.45);
+  background: rgba(255, 95, 100, 0.08);
+  color: #ff8e92;
+}
+
+.admin-season-actions button:disabled,
+.admin-season-create button:disabled {
+  cursor: wait;
+  opacity: 0.48;
+}
+
+.admin-season-ranking {
+  padding: 0;
+}
+
+.admin-season-ranking > div {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 17px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-season-ranking > article {
+  display: grid;
+  min-height: 60px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 17px;
+  border-bottom: 1px solid #20313d;
+}
+
+.admin-season-ranking > article > b {
+  color: #ffbd4a;
+}
+
+.admin-season-ranking > article > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-season-ranking > article strong {
+  overflow: hidden;
+  color: #edf5f7;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-season-ranking > article > span {
+  color: var(--admin-lime);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.admin-snapshot-strip {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) repeat(4, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--admin-border);
+}
+
+.admin-snapshot-strip > div,
+.admin-snapshot-strip > article,
+.admin-snapshot-strip > p {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  background: #0b141c;
+}
+
+.admin-snapshot-strip > div strong,
+.admin-snapshot-strip > article span,
+.admin-snapshot-strip > article strong,
+.admin-snapshot-strip > article small {
+  display: block;
+}
+
+.admin-snapshot-strip > div strong,
+.admin-snapshot-strip > article strong {
+  margin-top: 7px;
+  color: #eaf3f5;
+  font-size: 0.78rem;
+}
+
+.admin-snapshot-strip > article span,
+.admin-snapshot-strip > article small {
+  color: #8fa3af;
+  font-size: 0.69rem;
+}
+
+.admin-snapshot-strip > article small {
+  margin-top: 6px;
+}
+
+.admin-season-create {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 160px auto;
+  align-items: end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid var(--admin-border);
+  background: #0a1219;
+}
+
+.admin-season-create label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-season-create input,
+.admin-season-create select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #344755;
+  background: #070d13;
+  color: #eef5f7;
+  font-size: 0.82rem;
+}
+
+@media (min-width: 901px) {
+  .arcadia-shell {
+    grid-template:
+      "topbar topbar" 80px
+      "sidebar server" 36px
+      "sidebar workspace" minmax(calc(100vh - 116px), auto)
+      / 248px minmax(0, 1fr);
+  }
+
+  .brand {
+    width: 248px;
+  }
+
+  .sidebar {
+    top: 80px;
+    height: calc(100vh - 80px);
+  }
+
+  .mine-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-strip article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metric-strip article:nth-child(-n + 2) {
+    border-bottom: 1px solid #26303c;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-season-overview,
+  .admin-snapshot-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .season-panel,
+  .admin-season-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-snapshot-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-season-create {
+    grid-template-columns: 1fr 160px;
+  }
+
+  .admin-season-create button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .arcadia-shell {
+    --readable-meta: 0.68rem;
+    --readable-copy: 0.78rem;
+  }
+
+  .metric-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-strip article,
+  .metric-strip article:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid #26303c;
+  }
+
+  .season-player-rank {
+    grid-template-columns: auto 1fr;
+  }
+
+  .season-player-rank > span {
+    grid-column: 1 / -1;
+  }
+
+  .admin-metric-grid,
+  .admin-snapshot-strip,
+  .admin-season-create {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-season-create button {
+    grid-column: auto;
+  }
+}
+
 /* Proprietor control center */
 .admin-shell,
 .admin-loading-shell,

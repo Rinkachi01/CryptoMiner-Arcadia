@@ -8,6 +8,7 @@ import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
+import { SeasonPanel } from "./SeasonPanel";
 import {
   PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
@@ -342,6 +343,8 @@ export function PacketCatchView({
         refreshKey={summaryRefreshKey}
         onRefreshAccount={refreshArcadeAccount}
       />
+
+      <SeasonPanel refreshKey={summaryRefreshKey} />
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">

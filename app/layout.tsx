@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Monitore alertas, exporte a temporada e simule o balanceamento no Laboratório Econômico do Arcadia.",
+    "Temporada Alfa, ranking de atividade e uma interface mais legível no Crypto Miner Arcadia.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Laboratório Econômico com alertas automáticos, relatório da temporada e simulação segura.",
+      "Temporada Alfa online com ranking competitivo, snapshots econômicos e interface mais legível.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Laboratório Econômico com quatro alertas e quatro controles de simulação",
+        alt: "Crypto Miner Arcadia — Temporada Alfa online em uma sala pixel art com racks, ranking e servidor validado",
       },
     ],
   },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Alertas econômicos, relatório CSV e simulação sem alterar o jogo.",
+      "Temporada Alfa, ranking de atividade e snapshots econômicos sem prêmio financeiro.",
     images: [
       "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
     ],

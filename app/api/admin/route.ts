@@ -12,6 +12,13 @@ import {
 import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getMiner } from "../../game-rules";
+import {
+  closeActiveSeason,
+  createSeason,
+  createSeasonSnapshot,
+  ensureDefaultSeason,
+  readSeasonOverview,
+} from "../../season-server";
 
 export const dynamic = "force-dynamic";
 
@@ -374,6 +381,23 @@ async function readAdminOverview(
   };
 }
 
+function economicSnapshot(
+  overview: Awaited<ReturnType<typeof readAdminOverview>>,
+) {
+  return {
+    activePlayers24h: overview.metrics.activePlayers24h,
+    batteryClaims24h: overview.metrics.batteryClaims24h,
+    crateOpens24h: overview.metrics.crateOpens24h,
+    games24h: overview.metrics.games24h,
+    installedRacks: overview.inventory.installedRacks,
+    openReviews: overview.metrics.openReviews,
+    powerGranted24h: overview.metrics.powerGranted24h,
+    totalMiners: overview.inventory.totalMiners,
+    totalPlayers: overview.metrics.totalPlayers,
+    wins24h: overview.metrics.wins24h,
+  };
+}
+
 export async function GET() {
   const context = await adminContext();
   if (!context) return json({ error: "Faça login para continuar." }, 401);
@@ -384,6 +408,8 @@ export async function GET() {
   const now = Date.now();
   const settings = await readAdminRuntimeSettings(context.db);
   const overview = await readAdminOverview(context.db, now);
+  await ensureDefaultSeason(context.db, now);
+  const season = await readSeasonOverview(context.db, context.accountId, now);
   return json({
     owner: {
       claimedAt: context.owner?.created_at ?? now,
@@ -401,6 +427,7 @@ export async function GET() {
       settings,
     ),
     settings,
+    season,
     ...overview,
     serverTime: now,
   });
@@ -415,7 +442,9 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
     | {
         action?: unknown;
+        durationDays?: unknown;
         enabled?: unknown;
+        name?: unknown;
         note?: unknown;
         resolution?: unknown;
         sessionId?: unknown;
@@ -424,6 +453,109 @@ export async function POST(request: Request) {
       }
     | null;
   const now = Date.now();
+  await ensureDefaultSeason(context.db, now);
+
+  if (
+    body?.action === "create-season" &&
+    typeof body.name === "string" &&
+    typeof body.durationDays === "number" &&
+    Number.isFinite(body.durationDays)
+  ) {
+    try {
+      const season = await createSeason(
+        context.db,
+        body.name,
+        body.durationDays,
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "season_created",
+        season,
+        now,
+      );
+      return json({ message: `${season.name} iniciada com sucesso.` });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível iniciar a temporada.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (body?.action === "snapshot-season") {
+    const overview = await readAdminOverview(context.db, now);
+    try {
+      const snapshot = await createSeasonSnapshot(
+        context.db,
+        economicSnapshot(overview),
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "season_snapshot_created",
+        snapshot,
+        now,
+      );
+      return json({ message: "Snapshot econômico registrado na temporada." });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível registrar o snapshot.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (body?.action === "close-season") {
+    const overview = await readAdminOverview(context.db, now);
+    try {
+      const snapshot = await createSeasonSnapshot(
+        context.db,
+        economicSnapshot(overview),
+        context.accountId,
+        now,
+      );
+      const season = await closeActiveSeason(
+        context.db,
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "season_closed",
+        { seasonId: season.id, finalSnapshotId: snapshot.id },
+        now,
+      );
+      return json({
+        message: "Temporada encerrada com snapshot final preservado.",
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível encerrar a temporada.",
+        },
+        409,
+      );
+    }
+  }
 
   if (
     body?.action === "update-setting" &&

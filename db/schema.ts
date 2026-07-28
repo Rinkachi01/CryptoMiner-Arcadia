@@ -206,3 +206,38 @@ export const adminAuditLog = sqliteTable(
     index("admin_audit_log_created_at_idx").on(table.createdAt),
   ],
 );
+
+export const seasons = sqliteTable(
+  "seasons",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("active"),
+    startsAt: integer("starts_at").notNull(),
+    endsAt: integer("ends_at").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at").notNull(),
+    closedAt: integer("closed_at"),
+  },
+  (table) => [
+    index("seasons_status_ends_at_idx").on(table.status, table.endsAt),
+    index("seasons_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const seasonSnapshots = sqliteTable(
+  "season_snapshots",
+  {
+    id: text("id").primaryKey(),
+    seasonId: text("season_id").notNull(),
+    metricsJson: text("metrics_json").notNull().default("{}"),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("season_snapshots_season_created_idx").on(
+      table.seasonId,
+      table.createdAt,
+    ),
+  ],
+);
