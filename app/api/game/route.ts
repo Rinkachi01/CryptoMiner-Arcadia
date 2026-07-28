@@ -100,7 +100,8 @@ async function ensureSchema(db: D1Database) {
         reward_power_gh INTEGER DEFAULT 0 NOT NULL,
         risk_level TEXT DEFAULT 'normal' NOT NULL,
         review_reason TEXT,
-        proof_json TEXT DEFAULT '{}' NOT NULL
+        proof_json TEXT DEFAULT '{}' NOT NULL,
+        difficulty INTEGER DEFAULT 1 NOT NULL
       )
     `),
     db.prepare(`
@@ -114,6 +115,26 @@ async function ensureSchema(db: D1Database) {
     db.prepare(`
       CREATE INDEX IF NOT EXISTS game_sessions_review_idx
       ON game_sessions (risk_level, started_at)
+    `),
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS game_progress (
+        account_id TEXT NOT NULL,
+        game_id TEXT NOT NULL,
+        level INTEGER DEFAULT 1 NOT NULL,
+        win_streak INTEGER DEFAULT 0 NOT NULL,
+        next_play_at INTEGER DEFAULT 0 NOT NULL,
+        total_plays INTEGER DEFAULT 0 NOT NULL,
+        total_wins INTEGER DEFAULT 0 NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS game_progress_account_game_unique
+      ON game_progress (account_id, game_id)
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS game_progress_next_play_idx
+      ON game_progress (game_id, next_play_at)
     `),
     db.prepare(`
       CREATE TABLE IF NOT EXISTS temporary_power_grants (

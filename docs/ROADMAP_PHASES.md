@@ -62,7 +62,7 @@ Critério de saída: o navegador deixa de ser a fonte da verdade.
 
 ## Fase 4 — minigames
 
-Status: primeira entrega concluída.
+Status: segunda entrega concluída.
 
 Ordem de execução:
 
@@ -84,21 +84,33 @@ cliente.
 
 Entregas concluídas no Packet Catch:
 
-- primeira versão jogável do Packet Catch;
+- doze moedas do acervo visual, cada uma com pontuação própria;
+- bomba fatal que encerra a partida sem pontos ou poder;
+- dez níveis de dificuldade com queda mais rápida e mais bombas;
 - sessão de partida criada e encerrada pelo servidor;
 - nonce de uso único e prazo curto;
 - pontuação validada com regras reproduzíveis;
-- limite de cinco partidas por hora e quinze em 24 horas;
+- recarga crescente conforme nível e vitórias recentes;
+- limite adicional por hora e por janela de 24 horas;
 - poder temporário salvo com início e expiração;
 - marcação de partidas suspeitas para revisão;
 - recompensas de bateria e CMA continuam desativadas nessa primeira entrega.
 
+Entregas concluídas no Hash Match:
+
+- jogo da memória usando as mesmas doze moedas;
+- cartas reveladas individualmente pelo servidor;
+- quatro a oito pares conforme o nível;
+- menos tempo nos níveis mais altos;
+- recompensa reduzida quando o jogador usa jogadas extras;
+- recarga e progresso independentes do Packet Catch.
+
 Próxima atualização:
 
-- telemetria de dificuldade, abandono e pontuação do Packet Catch;
+- telemetria de dificuldade, abandono, bombas, memória e pontuação;
 - painel administrativo de revisão;
 - ajustes de recompensa com base nos dados reais;
-- primeira versão jogável do Hash Match;
+- primeira versão jogável do Circuit Rush;
 - nível do computador para ampliar a duração do poder temporário, somente
   depois de confirmar que a progressão não cria emissão excessiva.
 

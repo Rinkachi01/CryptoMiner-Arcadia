@@ -1,8 +1,11 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useCallback, useEffect, useRef, useState } from "react";
+import { gameCoins } from "./game-coin-catalog";
+import { HashMatchView } from "./HashMatchView";
 import {
-  PACKET_CATCH_TARGET_LIFETIME_MS,
   type PacketCatchEvent,
   type PacketTarget,
 } from "./packet-catch-rules";
@@ -13,6 +16,7 @@ type GameSession = {
   sessionId: string;
   nonce: string;
   durationMs: number;
+  difficulty: number;
   targets: PacketTarget[];
 };
 
@@ -38,13 +42,17 @@ export function PacketCatchView({
   const [clickedIds, setClickedIds] = useState<string[]>([]);
   const [events, setEvents] = useState<PacketCatchEvent[]>([]);
   const [message, setMessage] = useState(
-    "Clique apenas nos pacotes azuis. Pacotes vermelhos retiram pontos.",
+    "Capture as moedas e nunca clique na bomba.",
   );
   const [limits, setLimits] = useState<Limits>({
-    hourRemaining: 5,
-    dayRemaining: 15,
+    hourRemaining: 8,
+    dayRemaining: 24,
   });
+  const [difficulty, setDifficulty] = useState(1);
+  const [nextPlayAt, setNextPlayAt] = useState(0);
+  const [clockNow, setClockNow] = useState(0);
   const [result, setResult] = useState<{
+    outcome: "completed" | "bomb";
     score: number;
     rewardPowerGh: number;
   } | null>(null);
@@ -53,66 +61,100 @@ export function PacketCatchView({
   const finishStarted = useRef(false);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     void fetch("/api/games/packet-catch", { cache: "no-store" })
       .then(async (response) => {
         const data = (await response.json()) as {
+          serverTime?: number;
           limits?: Limits;
+          difficulty?: number;
+          nextPlayAt?: number;
         };
-        if (response.ok && data.limits) setLimits(data.limits);
+        if (!response.ok) return;
+        setClockNow(data.serverTime ?? 0);
+        if (data.limits) setLimits(data.limits);
+        setDifficulty(data.difficulty ?? 1);
+        setNextPlayAt(data.nextPlayAt ?? 0);
       })
       .catch(() => {
         setMessage("O painel de partidas será atualizado ao iniciar.");
       });
   }, []);
 
-  const finishGame = useCallback(async (activeSession: GameSession) => {
-    if (finishStarted.current) return;
-    finishStarted.current = true;
-    setPhase("finishing");
-    try {
-      const response = await fetch("/api/games/packet-catch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "finish",
-          sessionId: activeSession.sessionId,
-          nonce: activeSession.nonce,
-          durationMs: activeSession.durationMs,
-          events: eventsRef.current,
-        }),
-      });
-      const data = (await response.json()) as {
-        score?: number;
-        rewardPowerGh?: number;
-        limits?: Limits;
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) throw new Error(data.error ?? "Partida não validada.");
-      setResult({
-        score: data.score ?? 0,
-        rewardPowerGh: data.rewardPowerGh ?? 0,
-      });
-      if (data.limits) setLimits(data.limits);
-      setMessage(data.message ?? "Partida validada pelo servidor.");
-      await onRefreshAccount();
-      setPhase("result");
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível encerrar a partida.",
-      );
-      setPhase("result");
-    }
-  }, [onRefreshAccount]);
+  const finishGame = useCallback(
+    async (
+      activeSession: GameSession,
+      endReason: "complete" | "bomb",
+      finalEvents: PacketCatchEvent[],
+      durationMs: number,
+    ) => {
+      if (finishStarted.current) return;
+      finishStarted.current = true;
+      setPhase("finishing");
+      try {
+        const response = await fetch("/api/games/packet-catch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "finish",
+            sessionId: activeSession.sessionId,
+            nonce: activeSession.nonce,
+            durationMs,
+            endReason,
+            events: finalEvents,
+          }),
+        });
+        const data = (await response.json()) as {
+          outcome?: "completed" | "bomb";
+          score?: number;
+          rewardPowerGh?: number;
+          nextDifficulty?: number;
+          nextPlayAt?: number;
+          limits?: Limits;
+          message?: string;
+          error?: string;
+        };
+        if (!response.ok) throw new Error(data.error ?? "Partida não validada.");
+        setResult({
+          outcome: data.outcome ?? "completed",
+          score: data.score ?? 0,
+          rewardPowerGh: data.rewardPowerGh ?? 0,
+        });
+        setDifficulty(data.nextDifficulty ?? activeSession.difficulty);
+        setNextPlayAt(data.nextPlayAt ?? 0);
+        if (data.limits) setLimits(data.limits);
+        setMessage(data.message ?? "Partida validada pelo servidor.");
+        await onRefreshAccount();
+        setPhase("result");
+      } catch (error) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível encerrar a partida.",
+        );
+        setPhase("result");
+      }
+    },
+    [onRefreshAccount],
+  );
 
   useEffect(() => {
     if (phase !== "playing" || !session) return;
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - localStartedAt.current;
       setElapsedMs(Math.min(elapsed, session.durationMs));
-      if (elapsed >= session.durationMs) void finishGame(session);
+      if (elapsed >= session.durationMs) {
+        void finishGame(
+          session,
+          "complete",
+          eventsRef.current,
+          session.durationMs,
+        );
+      }
     }, 50);
     return () => window.clearInterval(timer);
   }, [finishGame, phase, session]);
@@ -129,18 +171,23 @@ export function PacketCatchView({
       });
       const data = (await response.json()) as GameSession & {
         limits?: Limits;
+        nextPlayAt?: number;
         error?: string;
       };
-      if (!response.ok) throw new Error(data.error ?? "Partida indisponível.");
+      if (!response.ok) {
+        if (data.nextPlayAt) setNextPlayAt(data.nextPlayAt);
+        throw new Error(data.error ?? "Partida indisponível.");
+      }
       eventsRef.current = [];
       setEvents([]);
       finishStarted.current = false;
       setClickedIds([]);
       setElapsedMs(0);
       setSession(data);
+      setDifficulty(data.difficulty);
       if (data.limits) setLimits(data.limits);
       localStartedAt.current = Date.now();
-      setMessage("Capture os pacotes azuis e evite os vermelhos.");
+      setMessage("Clique nas moedas. Uma bomba encerra tudo.");
       setPhase("playing");
     } catch (error) {
       setMessage(
@@ -150,60 +197,73 @@ export function PacketCatchView({
     }
   }
 
-  function catchPacket(target: PacketTarget) {
-    if (phase !== "playing" || clickedIds.includes(target.id)) return;
+  function catchTarget(target: PacketTarget) {
+    if (
+      !session ||
+      phase !== "playing" ||
+      clickedIds.includes(target.id)
+    ) {
+      return;
+    }
     const event = { targetId: target.id, atMs: Math.floor(elapsedMs) };
-    eventsRef.current = [...eventsRef.current, event];
+    const nextEvents = [...eventsRef.current, event];
+    eventsRef.current = nextEvents;
     setEvents((current) => [...current, event]);
     setClickedIds((current) => [...current, target.id]);
+    if (target.kind === "bomb") {
+      setMessage("Bomba atingida. A partida foi perdida.");
+      void finishGame(session, "bomb", nextEvents, event.atMs);
+    }
   }
 
   const liveScore = session
-    ? Math.max(
-        0,
-        events.reduce((total, gameEvent) => {
-          const target = session.targets.find(
-            (item) => item.id === gameEvent.targetId,
-          );
-          return total + (target?.points ?? 0);
-        }, 0),
-      )
+    ? events.reduce((total, gameEvent) => {
+        const target = session.targets.find(
+          (item) => item.id === gameEvent.targetId,
+        );
+        return target?.kind === "coin" ? total + target.points : 0;
+      }, 0)
     : 0;
   const activeTargets =
     session?.targets.filter(
       (target) =>
         !clickedIds.includes(target.id) &&
         elapsedMs >= target.appearsAtMs &&
-        elapsedMs <=
-          target.appearsAtMs + PACKET_CATCH_TARGET_LIFETIME_MS,
+        elapsedMs <= target.appearsAtMs + target.lifetimeMs,
     ) ?? [];
+  const cooldownSeconds = Math.max(
+    0,
+    Math.ceil((nextPlayAt - clockNow) / 1000),
+  );
 
   return (
     <section className="games-view">
       <div className="games-hero live">
         <div>
-          <span className="eyebrow">FASE 4 · PRIMEIRO JOGO AUTORITATIVO</span>
-          <h2>Arcade de mineração</h2>
+          <span className="eyebrow">ARCADE ARCADIA · DIFICULDADE PROGRESSIVA</span>
+          <h2>Minigames de mineração</h2>
           <p>
-            O Packet Catch já cria uma sessão única, valida cada clique e
-            concede somente poder temporário. CMA e baterias continuam
-            desativados até a medição de abuso e emissão.
+            Vença para avançar de nível. A dificuldade e a recarga crescem com
+            a atividade, e toda recompensa continua validada no servidor.
           </p>
         </div>
         <div className="games-balance-seal live">
           <strong>{formatPower(temporaryPowerGh)}</strong>
           <span>PODER TEMPORÁRIO ATIVO</span>
-          <small>expiração controlada no servidor</small>
+          <small>Packet Catch + Hash Match</small>
         </div>
       </div>
 
       <div className="packet-catch-shell">
         <header>
           <div>
-            <span>MINIGAME 01 · ONLINE</span>
+            <span>MINIGAME 01 · CAÇA-MOEDAS</span>
             <h3>Packet Catch</h3>
           </div>
           <div className="packet-game-stats">
+            <span>
+              NÍVEL <strong>{session?.difficulty ?? difficulty}</strong>
+            </span>
             <span>
               PONTOS <strong>{result?.score ?? liveScore}</strong>
             </span>
@@ -213,20 +273,17 @@ export function PacketCatchView({
                 {Math.max(
                   0,
                   Math.ceil(
-                    ((session?.durationMs ?? 32_000) - elapsedMs) / 1000,
+                    ((session?.durationMs ?? 30_000) - elapsedMs) / 1000,
                   ),
                 )}
                 s
               </strong>
             </span>
-            <span>
-              RESTAM <strong>{limits.hourRemaining}/h</strong>
-            </span>
           </div>
         </header>
 
         <div className="packet-game-layout">
-          <div className="packet-board" aria-label="Área do Packet Catch">
+          <div className="packet-board coin-rain" aria-label="Área do Packet Catch">
             {Array.from({ length: 5 }, (_, lane) => (
               <i
                 className="packet-lane"
@@ -236,111 +293,126 @@ export function PacketCatchView({
             ))}
             {activeTargets.map((target) => {
               const progress =
-                (elapsedMs - target.appearsAtMs) /
-                PACKET_CATCH_TARGET_LIFETIME_MS;
+                (elapsedMs - target.appearsAtMs) / target.lifetimeMs;
               return (
                 <button
                   type="button"
-                  className={`packet-target ${target.kind}`}
+                  className={`falling-target ${target.kind}`}
                   style={{
-                    left: `${target.lane * 20 + 3}%`,
-                    top: `${5 + progress * 77}%`,
+                    left: `${target.lane * 20 + 4}%`,
+                    top: `${3 + progress * 80}%`,
                   }}
-                  onClick={() => catchPacket(target)}
+                  onClick={() => catchTarget(target)}
                   key={target.id}
                   aria-label={
-                    target.kind === "valid"
-                      ? "Capturar pacote válido"
-                      : "Pacote corrompido"
+                    target.kind === "bomb"
+                      ? "Bomba: não clique"
+                      : `Capturar ${target.symbol}, ${target.points} pontos`
                   }
                 >
-                  <span>{target.kind === "valid" ? "DATA" : "ERR"}</span>
-                  <b>{target.kind === "valid" ? `+${target.points}` : "-12"}</b>
+                  {target.kind === "coin" && target.asset ? (
+                    <>
+                      <img src={target.asset} alt="" />
+                      <b>+{target.points}</b>
+                    </>
+                  ) : (
+                    <span className="bomb-sprite" aria-hidden="true">
+                      <i />
+                    </span>
+                  )}
                 </button>
               );
             })}
             {phase !== "playing" && phase !== "finishing" && (
               <div className="packet-board-cover">
-                <span>PC-01 · CANAL SEGURO</span>
-                <strong>Capture dados válidos</strong>
-                <p>Azul soma pontos. Vermelho reduz a pontuação.</p>
+                <span>CHUVA DE MOEDAS · NÍVEL {difficulty}</span>
+                <strong>
+                  {result?.outcome === "bomb"
+                    ? "Partida perdida"
+                    : result?.rewardPowerGh
+                      ? `+${result.rewardPowerGh} GH/s`
+                      : "Capture as moedas"}
+                </strong>
+                <p>{message}</p>
                 <button
                   type="button"
                   onClick={startGame}
                   disabled={
                     phase === "loading" ||
+                    cooldownSeconds > 0 ||
                     limits.hourRemaining === 0 ||
                     limits.dayRemaining === 0
                   }
                 >
-                  {phase === "loading" ? "CONECTANDO..." : "INICIAR PARTIDA"}
+                  {phase === "loading"
+                    ? "CONECTANDO..."
+                    : cooldownSeconds > 0
+                      ? `RECARGA ${cooldownSeconds}s`
+                      : "INICIAR PARTIDA"}
                 </button>
               </div>
             )}
             {phase === "finishing" && (
               <div className="packet-board-cover compact">
                 <strong>Validando a partida...</strong>
-                <p>O servidor está conferindo sequência, tempo e pontuação.</p>
+                <p>O servidor está conferindo moedas, bomba e pontuação.</p>
               </div>
             )}
           </div>
 
-          <aside className="packet-rules-panel">
-            <span>REGRAS DA SESSÃO</span>
-            <h4>Poder sem inflação</h4>
-            <ul>
-              <li>40 pontos: +90 GH/s</li>
-              <li>80 pontos: +160 GH/s</li>
-              <li>125 pontos: +240 GH/s</li>
-              <li>O poder dura 6 horas</li>
-              <li>5 partidas/h e 15/dia</li>
-            </ul>
+          <aside className="packet-rules-panel coin-values-panel">
+            <span>VALOR DAS MOEDAS</span>
+            <h4>Cada clique conta</h4>
+            <div className="coin-points-grid">
+              {gameCoins.map((coin) => (
+                <div key={coin.id}>
+                  <img src={coin.asset} alt="" />
+                  <span>{coin.symbol}</span>
+                  <b>+{coin.points}</b>
+                </div>
+              ))}
+            </div>
+            <div className="bomb-warning">
+              <span className="bomb-sprite small" aria-hidden="true">
+                <i />
+              </span>
+              <p>
+                <strong>BOMBA</strong>
+                encerra a partida sem pontos e sem poder
+              </p>
+            </div>
             <div className="packet-message" role="status" aria-live="polite">
               {message}
             </div>
             <small>
-              {limits.dayRemaining} partidas ainda disponíveis nas últimas 24h.
+              {limits.dayRemaining} partidas disponíveis nas últimas 24h.
             </small>
           </aside>
         </div>
       </div>
 
-      <div className="games-grid upcoming">
-        {[
-          {
-            name: "Hash Match",
-            glyph: "◇",
-            text: "Memória visual com pares de chips e dificuldade progressiva.",
-          },
-          {
-            name: "Circuit Rush",
-            glyph: "»",
-            text: "Reflexo em circuitos com obstáculos e combos controlados.",
-          },
-        ].map((game, index) => (
-          <article
-            className="game-prototype-card"
-            style={
-              {
-                "--game-color": index === 0 ? "#a9ff3f" : "#ffb33b",
-              } as React.CSSProperties
-            }
-            key={game.name}
-          >
-            <div className="game-prototype-art compact">
-              <span>{game.glyph}</span>
-              <b>PRÓXIMA FASE</b>
-            </div>
-            <div className="game-prototype-info">
-              <span>MINIGAME 0{index + 2}</span>
-              <h3>{game.name}</h3>
-              <p>{game.text}</p>
-              <button type="button" disabled>
-                EM DESENVOLVIMENTO
-              </button>
-            </div>
-          </article>
-        ))}
+      <HashMatchView onRefreshAccount={onRefreshAccount} />
+
+      <div className="games-grid upcoming single">
+        <article
+          className="game-prototype-card"
+          style={{ "--game-color": "#ffb33b" } as React.CSSProperties}
+        >
+          <div className="game-prototype-art compact">
+            <span>»</span>
+            <b>PRÓXIMA FASE</b>
+          </div>
+          <div className="game-prototype-info">
+            <span>MINIGAME 03</span>
+            <h3>Circuit Rush</h3>
+            <p>
+              Reflexo em circuitos com obstáculos, combos e níveis progressivos.
+            </p>
+            <button type="button" disabled>
+              EM DESENVOLVIMENTO
+            </button>
+          </div>
+        </article>
       </div>
     </section>
   );

@@ -97,20 +97,30 @@ controle de reserva.
 
 Os três conceitos iniciais são Packet Catch, Hash Match e Circuit Rush.
 
-Calibração inicial do Packet Catch:
+Calibração do Packet Catch:
 
-- partida de 32 segundos;
-- limite de 5 partidas por hora e 15 por janela de 24 horas;
-- 40 pontos: 90 GH/s temporários;
-- 80 pontos: 160 GH/s temporários;
-- 125 pontos: 240 GH/s temporários;
-- o poder dura 6 horas e ainda depende de energia para participar dos blocos;
-- a sessão, os cliques, a pontuação e o prêmio são validados no servidor;
-- CMA e baterias continuam desativados como prêmio.
+- partida de 30 segundos;
+- doze moedas com valores entre 4 e 18 pontos;
+- tocar uma bomba encerra a partida e zera pontos e poder;
+- dez níveis: a queda acelera e a frequência de bombas cresce;
+- poder calculado por pontuação e dificuldade, sem faixas publicadas na tela;
+- máximo de 320 GH/s por vitória;
+- limite de 8 partidas por hora e 24 por janela de 24 horas;
+- recarga de 45 a 372 segundos conforme atividade e dificuldade.
 
-O teto teórico desta calibração é 3.600 GH/s ativos por conta se todas as
-quinze partidas do período alcançarem a faixa máxima. Esse teto será reduzido ou
-ampliado apenas depois de medir distribuição de pontuação, abandono e abuso.
+Calibração do Hash Match:
+
+- quatro pares no nível inicial e até oito nos níveis avançados;
+- duração de 68 segundos no nível inicial e 39,2 segundos no nível máximo;
+- máximo de 300 GH/s por vitória;
+- jogadas extras reduzem o poder concedido;
+- limite de 6 partidas por hora e 18 por janela de 24 horas;
+- cartas e combinações ficam guardadas no servidor.
+
+Nos dois jogos, o poder dura 6 horas e ainda depende de energia para participar
+dos blocos. CMA e baterias continuam desativados como prêmio. Recarga, limites
+e dificuldade poderão ser reduzidos ou ampliados somente depois de medir
+pontuação, abandono, bombas, excesso de jogadas e abuso.
 
 ## Referências analisadas
 
@@ -124,4 +134,6 @@ ampliado apenas depois de medir distribuição de pontuação, abandono e abuso.
   https://rollercoin.com/blog/dev-diaries-part-7
 - RollerCoin, Economics Update:
   https://rollercoin.com/blog/rollercoin-universes-economics-update-doge-withdrawals-consensus-balancing-and-new-algorithms
+- RollerCoin, Game Cooldown:
+  https://faq.rollercoin.com/rollercoin/f.a.q./games/5.-why-do-games-take-so-much-time-to-load
 - Capturas de preço e interface fornecidas pelo proprietário do projeto.

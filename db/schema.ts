@@ -59,6 +59,7 @@ export const gameSessions = sqliteTable(
     riskLevel: text("risk_level").notNull().default("normal"),
     reviewReason: text("review_reason"),
     proofJson: text("proof_json").notNull().default("{}"),
+    difficulty: integer("difficulty").notNull().default(1),
   },
   (table) => [
     uniqueIndex("game_sessions_nonce_unique").on(table.nonce),
@@ -67,6 +68,27 @@ export const gameSessions = sqliteTable(
       table.startedAt,
     ),
     index("game_sessions_review_idx").on(table.riskLevel, table.startedAt),
+  ],
+);
+
+export const gameProgress = sqliteTable(
+  "game_progress",
+  {
+    accountId: text("account_id").notNull(),
+    gameId: text("game_id").notNull(),
+    level: integer("level").notNull().default(1),
+    winStreak: integer("win_streak").notNull().default(0),
+    nextPlayAt: integer("next_play_at").notNull().default(0),
+    totalPlays: integer("total_plays").notNull().default(0),
+    totalWins: integer("total_wins").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("game_progress_account_game_unique").on(
+      table.accountId,
+      table.gameId,
+    ),
+    index("game_progress_next_play_idx").on(table.gameId, table.nextPlayAt),
   ],
 );
 

@@ -202,7 +202,7 @@ function rackMinerPosition(slotIndex: number): React.CSSProperties {
   const column = slotIndex % RACK_COLUMNS;
   return {
     left: `${31 + column * 21.5}%`,
-    top: `${18 + row * 20.6}%`,
+    top: `${row * 23}%`,
   };
 }
 
@@ -758,7 +758,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               {activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "games" ? (
-                <>ARCADE ARCADIA <i /> PACKET CATCH ONLINE</>
+                <>ARCADE ARCADIA <i /> 2 MINIGAMES ONLINE</>
               ) : (
                 <>
                   {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}

@@ -1,36 +1,34 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../../../chatgpt-auth";
 import {
-  MAX_GAME_DIFFICULTY,
-  PACKET_CATCH_DAILY_LIMIT,
-  PACKET_CATCH_DURATION_MS,
-  PACKET_CATCH_HOURLY_LIMIT,
-  PACKET_CATCH_POWER_DURATION_HOURS,
-  createPacketTargets,
+  HASH_MATCH_DAILY_LIMIT,
+  HASH_MATCH_HOURLY_LIMIT,
+  HASH_MATCH_POWER_DURATION_HOURS,
+  createHashMatchProof,
   gameCooldownSeconds,
-  packetCatchRewardPower,
-  scorePacketCatch,
-  type PacketCatchEvent,
-} from "../../../packet-catch-rules";
+  hashMatchDurationMs,
+  hashMatchPairCount,
+  hashMatchRewardPower,
+  revealHashCard,
+  type HashMatchProof,
+} from "../../../hash-match-rules";
+import { MAX_GAME_DIFFICULTY } from "../../../packet-catch-rules";
 
 export const dynamic = "force-dynamic";
 
 type SessionRow = {
   id: string;
   nonce: string;
-  seed: string;
   status: string;
   started_at: number;
   expires_at: number;
   difficulty: number;
+  proof_json: string;
 };
 
 type ProgressRow = {
   level: number;
-  win_streak: number;
   next_play_at: number;
-  total_plays: number;
-  total_wins: number;
 };
 
 async function accountIdFor(email: string) {
@@ -79,10 +77,6 @@ async function ensureSchema(db: D1Database) {
       ON game_sessions (account_id, started_at)
     `),
     db.prepare(`
-      CREATE INDEX IF NOT EXISTS game_sessions_review_idx
-      ON game_sessions (risk_level, started_at)
-    `),
-    db.prepare(`
       CREATE TABLE IF NOT EXISTS game_progress (
         account_id TEXT NOT NULL,
         game_id TEXT NOT NULL,
@@ -97,10 +91,6 @@ async function ensureSchema(db: D1Database) {
     db.prepare(`
       CREATE UNIQUE INDEX IF NOT EXISTS game_progress_account_game_unique
       ON game_progress (account_id, game_id)
-    `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS game_progress_next_play_idx
-      ON game_progress (game_id, next_play_at)
     `),
     db.prepare(`
       CREATE TABLE IF NOT EXISTS temporary_power_grants (
@@ -135,6 +125,52 @@ async function context() {
   };
 }
 
+async function progress(
+  db: D1Database,
+  accountId: string,
+  now: number,
+) {
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO game_progress (
+        account_id, game_id, level, win_streak, next_play_at,
+        total_plays, total_wins, updated_at
+      ) VALUES (?, 'hash-match', 1, 0, 0, 0, 0, ?)`,
+    )
+    .bind(accountId, now)
+    .run();
+  return db
+    .prepare(
+      `SELECT level, next_play_at FROM game_progress
+       WHERE account_id = ? AND game_id = 'hash-match'`,
+    )
+    .bind(accountId)
+    .first<ProgressRow>();
+}
+
+async function usage(db: D1Database, accountId: string, now: number) {
+  const row = await db
+    .prepare(
+      `SELECT
+         SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS hour_count,
+         SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS day_count
+       FROM game_sessions
+       WHERE account_id = ? AND game_id = 'hash-match'`,
+    )
+    .bind(now - 60 * 60 * 1000, now - 24 * 60 * 60 * 1000, accountId)
+    .first<{ hour_count: number | null; day_count: number | null }>();
+  return {
+    hourRemaining: Math.max(
+      0,
+      HASH_MATCH_HOURLY_LIMIT - Number(row?.hour_count ?? 0),
+    ),
+    dayRemaining: Math.max(
+      0,
+      HASH_MATCH_DAILY_LIMIT - Number(row?.day_count ?? 0),
+    ),
+  };
+}
+
 async function activeTemporaryPower(
   db: D1Database,
   accountId: string,
@@ -151,53 +187,6 @@ async function activeTemporaryPower(
   return Number(row?.total ?? 0);
 }
 
-async function usage(
-  db: D1Database,
-  accountId: string,
-  now: number,
-) {
-  const row = await db
-    .prepare(
-      `SELECT
-         SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS hour_count,
-         SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) AS day_count
-       FROM game_sessions
-       WHERE account_id = ? AND game_id = 'packet-catch'`,
-    )
-    .bind(now - 60 * 60 * 1000, now - 24 * 60 * 60 * 1000, accountId)
-    .first<{ hour_count: number | null; day_count: number | null }>();
-  const hourCount = Number(row?.hour_count ?? 0);
-  const dayCount = Number(row?.day_count ?? 0);
-  return {
-    hourRemaining: Math.max(0, PACKET_CATCH_HOURLY_LIMIT - hourCount),
-    dayRemaining: Math.max(0, PACKET_CATCH_DAILY_LIMIT - dayCount),
-  };
-}
-
-async function progress(
-  db: D1Database,
-  accountId: string,
-  now: number,
-) {
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO game_progress (
-        account_id, game_id, level, win_streak, next_play_at,
-        total_plays, total_wins, updated_at
-      ) VALUES (?, 'packet-catch', 1, 0, 0, 0, 0, ?)`,
-    )
-    .bind(accountId, now)
-    .run();
-  return db
-    .prepare(
-      `SELECT level, win_streak, next_play_at, total_plays, total_wins
-       FROM game_progress
-       WHERE account_id = ? AND game_id = 'packet-catch'`,
-    )
-    .bind(accountId)
-    .first<ProgressRow>();
-}
-
 export async function GET() {
   const current = await context();
   if (!current) return json({ error: "Faça login para continuar." }, 401);
@@ -205,14 +194,9 @@ export async function GET() {
   const gameProgress = await progress(current.db, current.accountId, now);
   return json({
     serverTime: now,
-    limits: await usage(current.db, current.accountId, now),
     difficulty: gameProgress?.level ?? 1,
     nextPlayAt: gameProgress?.next_play_at ?? 0,
-    temporaryPowerGh: await activeTemporaryPower(
-      current.db,
-      current.accountId,
-      now,
-    ),
+    limits: await usage(current.db, current.accountId, now),
   });
 }
 
@@ -224,13 +208,16 @@ export async function POST(request: Request) {
         action?: unknown;
         sessionId?: unknown;
         nonce?: unknown;
-        durationMs?: unknown;
-        endReason?: unknown;
-        events?: unknown;
+        cardId?: unknown;
       }
     | null;
-  if (!body || (body.action !== "start" && body.action !== "finish")) {
-    return json({ error: "Ação de minigame inválida." }, 400);
+  if (
+    !body ||
+    (body.action !== "start" &&
+      body.action !== "flip" &&
+      body.action !== "timeout")
+  ) {
+    return json({ error: "Ação de memória inválida." }, 400);
   }
 
   const now = Date.now();
@@ -238,8 +225,8 @@ export async function POST(request: Request) {
     await current.db
       .prepare(
         `UPDATE game_sessions
-         SET status = 'expired', review_reason = 'Prazo da sessão encerrado.'
-         WHERE account_id = ? AND game_id = 'packet-catch'
+         SET status = 'expired', review_reason = 'Tempo do tabuleiro encerrado.'
+         WHERE account_id = ? AND game_id = 'hash-match'
            AND status = 'active' AND expires_at <= ?`,
       )
       .bind(current.accountId, now)
@@ -247,50 +234,44 @@ export async function POST(request: Request) {
     const active = await current.db
       .prepare(
         `SELECT id FROM game_sessions
-         WHERE account_id = ? AND game_id = 'packet-catch'
+         WHERE account_id = ? AND game_id = 'hash-match'
            AND status = 'active' AND expires_at > ?`,
       )
       .bind(current.accountId, now)
       .first<{ id: string }>();
     if (active) {
-      return json(
-        { error: "Já existe uma partida ativa. Aguarde o prazo encerrar." },
-        409,
-      );
+      return json({ error: "Já existe um tabuleiro ativo." }, 409);
     }
 
     const gameProgress = await progress(current.db, current.accountId, now);
     if (gameProgress && gameProgress.next_play_at > now) {
       return json(
         {
-          error: "O sistema ainda está resfriando para a próxima partida.",
+          error: "O Hash Match ainda está em recarga.",
           difficulty: gameProgress.level,
           nextPlayAt: gameProgress.next_play_at,
         },
         429,
       );
     }
-
     const limits = await usage(current.db, current.accountId, now);
     if (limits.hourRemaining === 0 || limits.dayRemaining === 0) {
-      return json(
-        { error: "Limite seguro de partidas alcançado.", limits },
-        429,
-      );
+      return json({ error: "Limite seguro do Hash Match alcançado.", limits }, 429);
     }
 
     const difficulty = gameProgress?.level ?? 1;
+    const durationMs = hashMatchDurationMs(difficulty);
+    const seed = crypto.randomUUID();
+    const proof = createHashMatchProof(seed, difficulty);
     const sessionId = crypto.randomUUID();
     const nonce = crypto.randomUUID();
-    const seed = crypto.randomUUID();
-    const expiresAt = now + 75_000;
     await current.db.batch([
       current.db
         .prepare(
           `INSERT INTO game_sessions (
             id, account_id, game_id, nonce, seed, status,
             started_at, expires_at, proof_json, difficulty
-          ) VALUES (?, ?, 'packet-catch', ?, ?, 'active', ?, ?, '{}', ?)`,
+          ) VALUES (?, ?, 'hash-match', ?, ?, 'active', ?, ?, ?, ?)`,
         )
         .bind(
           sessionId,
@@ -298,14 +279,15 @@ export async function POST(request: Request) {
           nonce,
           seed,
           now,
-          expiresAt,
+          now + durationMs + 25_000,
+          JSON.stringify(proof),
           difficulty,
         ),
       current.db
         .prepare(
           `UPDATE game_progress
            SET total_plays = total_plays + 1, updated_at = ?
-           WHERE account_id = ? AND game_id = 'packet-catch'`,
+           WHERE account_id = ? AND game_id = 'hash-match'`,
         )
         .bind(now, current.accountId),
     ]);
@@ -313,11 +295,9 @@ export async function POST(request: Request) {
     return json({
       sessionId,
       nonce,
-      startedAt: now,
-      expiresAt,
-      durationMs: PACKET_CATCH_DURATION_MS,
       difficulty,
-      targets: createPacketTargets(seed, difficulty),
+      durationMs,
+      cards: proof.deck.map((card) => ({ id: card.id })),
       limits: {
         hourRemaining: limits.hourRemaining - 1,
         dayRemaining: limits.dayRemaining - 1,
@@ -327,20 +307,15 @@ export async function POST(request: Request) {
 
   if (
     typeof body.sessionId !== "string" ||
-    typeof body.nonce !== "string" ||
-    typeof body.durationMs !== "number" ||
-    (body.endReason !== "complete" && body.endReason !== "bomb") ||
-    !Array.isArray(body.events) ||
-    body.events.length > 48
+    typeof body.nonce !== "string"
   ) {
-    return json({ error: "Comprovante da partida inválido." }, 400);
+    return json({ error: "Sessão de memória inválida." }, 400);
   }
-
   const session = await current.db
     .prepare(
-      `SELECT id, nonce, seed, status, started_at, expires_at, difficulty
+      `SELECT id, nonce, status, started_at, expires_at, difficulty, proof_json
        FROM game_sessions
-       WHERE id = ? AND account_id = ? AND game_id = 'packet-catch'`,
+       WHERE id = ? AND account_id = ? AND game_id = 'hash-match'`,
     )
     .bind(body.sessionId, current.accountId)
     .first<SessionRow>();
@@ -350,136 +325,164 @@ export async function POST(request: Request) {
     session.nonce !== body.nonce ||
     now > session.expires_at
   ) {
-    return json({ error: "Sessão expirada, encerrada ou inválida." }, 409);
+    return json({ error: "Tabuleiro expirado ou já encerrado." }, 409);
   }
 
-  const events = body.events.filter(
-    (event): event is PacketCatchEvent =>
-      Boolean(
-        event &&
-          typeof event === "object" &&
-          typeof (event as PacketCatchEvent).targetId === "string" &&
-          typeof (event as PacketCatchEvent).atMs === "number",
-      ),
-  );
-  if (events.length !== body.events.length) {
-    return json({ error: "Eventos da partida inválidos." }, 400);
+  if (body.action === "timeout") {
+    const durationMs = hashMatchDurationMs(session.difficulty);
+    if (now - session.started_at < durationMs - 1_500) {
+      return json({ error: "O tabuleiro ainda possui tempo." }, 400);
+    }
+    const nextPlayAt = now + 45_000;
+    await current.db.batch([
+      current.db
+        .prepare(
+          `UPDATE game_sessions
+           SET status = 'failed', completed_at = ?, duration_ms = ?,
+               score = 0, reward_power_gh = 0,
+               review_reason = 'Tempo esgotado.'
+           WHERE id = ? AND status = 'active'`,
+        )
+        .bind(now, durationMs, session.id),
+      current.db
+        .prepare(
+          `UPDATE game_progress
+           SET win_streak = 0, next_play_at = ?, updated_at = ?
+           WHERE account_id = ? AND game_id = 'hash-match'`,
+        )
+        .bind(nextPlayAt, now, current.accountId),
+    ]);
+    return json({
+      outcome: "timeout",
+      rewardPowerGh: 0,
+      nextPlayAt,
+      message: "Tempo esgotado. O tabuleiro não concedeu poder.",
+    });
   }
 
-  const scoreResult = scorePacketCatch(
-    session.seed,
-    session.difficulty,
-    events,
-  );
-  if (!scoreResult.valid) {
-    await current.db
+  if (typeof body.cardId !== "string") {
+    return json({ error: "Carta inválida." }, 400);
+  }
+  const proof = JSON.parse(session.proof_json) as HashMatchProof;
+  const originalProofJson = session.proof_json;
+  if (
+    now - proof.lastFlipAt < 180 ||
+    proof.matchedCardIds.includes(body.cardId) ||
+    proof.openCardId === body.cardId
+  ) {
+    return json({ error: "Virada de carta recusada." }, 400);
+  }
+  const revealed = revealHashCard(proof, body.cardId);
+  if (!revealed) return json({ error: "Carta não pertence ao tabuleiro." }, 400);
+  proof.lastFlipAt = now;
+
+  if (!proof.openCardId) {
+    proof.openCardId = body.cardId;
+    const update = await current.db
       .prepare(
-        `UPDATE game_sessions
-         SET status = 'rejected', completed_at = ?, duration_ms = ?,
-             risk_level = 'review', review_reason = ?
-         WHERE id = ? AND status = 'active'`,
+        `UPDATE game_sessions SET proof_json = ?
+         WHERE id = ? AND status = 'active' AND proof_json = ?`,
       )
-      .bind(now, Math.floor(body.durationMs), scoreResult.reason, session.id)
+      .bind(JSON.stringify(proof), session.id, originalProofJson)
       .run();
-    return json({ error: scoreResult.reason }, 400);
+    if ((update.meta.changes ?? 0) !== 1) {
+      return json({ error: "Outra carta foi processada primeiro." }, 409);
+    }
+    return json({
+      reveals: [revealed],
+      matched: false,
+      completed: false,
+      moves: proof.moves,
+    });
   }
 
-  const durationMs = Math.floor(body.durationMs);
-  const serverElapsed = now - session.started_at;
-  const validBombFinish =
-    scoreResult.bombHit &&
-    body.endReason === "bomb" &&
-    durationMs >= Math.max(400, scoreResult.lastEventAt - 200) &&
-    durationMs <= scoreResult.lastEventAt + 900 &&
-    serverElapsed >= durationMs - 1_500;
-  const validCompleteFinish =
-    !scoreResult.bombHit &&
-    body.endReason === "complete" &&
-    durationMs >= PACKET_CATCH_DURATION_MS - 1_200 &&
-    durationMs <= PACKET_CATCH_DURATION_MS + 3_000 &&
-    serverElapsed >= PACKET_CATCH_DURATION_MS - 2_000;
-  if (!validBombFinish && !validCompleteFinish) {
-    await current.db
+  const firstReveal = revealHashCard(proof, proof.openCardId);
+  if (!firstReveal) return json({ error: "Estado do tabuleiro inválido." }, 500);
+  const isMatch = firstReveal.coinId === revealed.coinId;
+  proof.moves += 1;
+  if (isMatch) {
+    proof.matchedCardIds.push(firstReveal.cardId, revealed.cardId);
+  }
+  proof.openCardId = null;
+  const completed = proof.matchedCardIds.length === proof.deck.length;
+
+  if (!completed) {
+    const update = await current.db
       .prepare(
-        `UPDATE game_sessions
-         SET status = 'rejected', completed_at = ?, duration_ms = ?,
-             risk_level = 'review', review_reason = 'Encerramento incompatível.'
-         WHERE id = ? AND status = 'active'`,
+        `UPDATE game_sessions SET proof_json = ?
+         WHERE id = ? AND status = 'active' AND proof_json = ?`,
       )
-      .bind(now, durationMs, session.id)
+      .bind(JSON.stringify(proof), session.id, originalProofJson)
       .run();
-    return json({ error: "Encerramento da partida incompatível." }, 400);
+    if ((update.meta.changes ?? 0) !== 1) {
+      return json({ error: "Outra carta foi processada primeiro." }, 409);
+    }
+    return json({
+      reveals: [firstReveal, revealed],
+      matched: isMatch,
+      matchedCardIds: isMatch ? [firstReveal.cardId, revealed.cardId] : [],
+      completed: false,
+      moves: proof.moves,
+    });
   }
 
-  const survived = !scoreResult.bombHit;
-  const rewardPowerGh = packetCatchRewardPower(
-    scoreResult.score,
+  const pairs = hashMatchPairCount(session.difficulty);
+  const score = Math.max(0, pairs * 100 - Math.max(0, proof.moves - pairs) * 15);
+  const rewardPowerGh = hashMatchRewardPower(
     session.difficulty,
-    scoreResult.bombHit,
+    pairs,
+    proof.moves,
   );
   const update = await current.db
     .prepare(
       `UPDATE game_sessions
-       SET status = ?, completed_at = ?, duration_ms = ?,
+       SET status = 'completed', completed_at = ?, duration_ms = ?,
            score = ?, reward_power_gh = ?, proof_json = ?
-       WHERE id = ? AND status = 'active'`,
+       WHERE id = ? AND status = 'active' AND proof_json = ?`,
     )
     .bind(
-      survived ? "completed" : "failed",
       now,
-      durationMs,
-      survived ? scoreResult.score : 0,
+      now - session.started_at,
+      score,
       rewardPowerGh,
-      JSON.stringify({
-        events,
-        coinHits: scoreResult.coinHits,
-        bombHit: scoreResult.bombHit,
-      }),
+      JSON.stringify(proof),
       session.id,
+      originalProofJson,
     )
     .run();
   if ((update.meta.changes ?? 0) !== 1) {
-    return json({ error: "Esta partida já foi processada." }, 409);
+    return json({ error: "Conclusão já processada." }, 409);
   }
 
   const wins = await current.db
     .prepare(
       `SELECT COUNT(*) AS total FROM game_sessions
-       WHERE account_id = ? AND game_id = 'packet-catch'
+       WHERE account_id = ? AND game_id = 'hash-match'
          AND status = 'completed' AND completed_at >= ?`,
     )
     .bind(current.accountId, now - 24 * 60 * 60 * 1000)
     .first<{ total: number }>();
-  const cooldownSeconds = survived
-    ? gameCooldownSeconds(Number(wins?.total ?? 0), session.difficulty)
-    : 45 + (session.difficulty - 1) * 5;
+  const cooldownSeconds = gameCooldownSeconds(
+    Number(wins?.total ?? 0),
+    session.difficulty,
+  );
   const nextPlayAt = now + cooldownSeconds * 1000;
-  const nextDifficulty = survived
-    ? Math.min(MAX_GAME_DIFFICULTY, session.difficulty + 1)
-    : session.difficulty;
-  await current.db
-    .prepare(
-      `UPDATE game_progress
-       SET level = ?,
-           win_streak = CASE WHEN ? = 1 THEN win_streak + 1 ELSE 0 END,
-           next_play_at = ?, total_wins = total_wins + ?,
-           updated_at = ?
-       WHERE account_id = ? AND game_id = 'packet-catch'`,
-    )
-    .bind(
-      nextDifficulty,
-      survived ? 1 : 0,
-      nextPlayAt,
-      survived ? 1 : 0,
-      now,
-      current.accountId,
-    )
-    .run();
-
+  const nextDifficulty = Math.min(
+    MAX_GAME_DIFFICULTY,
+    session.difficulty + 1,
+  );
   const powerExpiresAt =
-    now + PACKET_CATCH_POWER_DURATION_HOURS * 60 * 60 * 1000;
-  if (rewardPowerGh > 0) {
-    await current.db
+    now + HASH_MATCH_POWER_DURATION_HOURS * 60 * 60 * 1000;
+  await current.db.batch([
+    current.db
+      .prepare(
+        `UPDATE game_progress
+         SET level = ?, win_streak = win_streak + 1,
+             next_play_at = ?, total_wins = total_wins + 1, updated_at = ?
+         WHERE account_id = ? AND game_id = 'hash-match'`,
+      )
+      .bind(nextDifficulty, nextPlayAt, now, current.accountId),
+    current.db
       .prepare(
         `INSERT INTO temporary_power_grants (
           id, account_id, source_session_id, power_gh,
@@ -494,28 +497,26 @@ export async function POST(request: Request) {
         now,
         powerExpiresAt,
         now,
-      )
-      .run();
-  }
+      ),
+  ]);
 
   return json({
-    outcome: survived ? "completed" : "bomb",
-    score: survived ? scoreResult.score : 0,
-    coinHits: survived ? scoreResult.coinHits : 0,
+    reveals: [firstReveal, revealed],
+    matched: true,
+    matchedCardIds: [firstReveal.cardId, revealed.cardId],
+    completed: true,
+    score,
+    moves: proof.moves,
     rewardPowerGh,
-    powerExpiresAt: rewardPowerGh > 0 ? powerExpiresAt : null,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
       current.accountId,
       now,
     ),
-    limits: await usage(current.db, current.accountId, now),
     difficulty: session.difficulty,
     nextDifficulty,
     nextPlayAt,
     cooldownSeconds,
-    message: survived
-      ? `Nível ${session.difficulty} concluído. A próxima rodada será mais difícil.`
-      : "Bomba atingida: partida encerrada sem pontos e sem poder.",
+    message: `Hash Match nível ${session.difficulty} concluído.`,
   });
 }

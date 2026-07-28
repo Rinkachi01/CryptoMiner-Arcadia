@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Monte sua sala, organize racks e conquiste poder temporário no primeiro minigame validado pelo servidor.",
+    "Organize sua sala, instale mineradores e conquiste poder temporário nos minigames validados pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Packet Catch está online: jogue, ganhe poder temporário e fortaleça sua sala.",
+      "Coin Arcade online: sobreviva à chuva de moedas no Packet Catch e encontre pares no Hash Match.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "/og-packet-catch.png",
+        url: "/og-coin-arcade.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — Packet Catch online",
+        alt: "Crypto Miner Arcadia — Coin Arcade online",
       },
     ],
   },
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Packet Catch está online: jogue, ganhe poder temporário e fortaleça sua sala.",
-    images: ["/og-packet-catch.png"],
+      "Coin Arcade online: Packet Catch e Hash Match com progressão de dificuldade.",
+    images: ["/og-coin-arcade.png"],
   },
 };
 
