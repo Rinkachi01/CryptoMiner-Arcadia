@@ -1,0 +1,42 @@
+# Arcadia — fase de monetização responsável
+
+## Decisão desta fase
+
+Nenhuma rede de anúncios real foi conectada ao beta. Primeiro o jogo mede
+retenção, fraude, sessões e custo da emissão fixa. Isso evita misturar uma
+integração publicitária ainda não validada com a economia do jogador.
+
+## Ordem recomendada
+
+1. **Patrocínio visual sem recompensa.** Um espaço de banner claramente
+   identificado na página do Arcade, fora dos botões e da área de jogo.
+2. **Cosméticos.** Temas de sala, molduras, skins de rack e efeitos que não
+   aumentam poder nem moedas.
+3. **Anúncio recompensado opcional.** Somente depois de consentimento,
+   antifraude e revisão das regras do provedor. A recompensa deve ser interna,
+   não transferível e sem conversão em dinheiro — por exemplo, uma tentativa
+   extra visual ou energia limitada.
+4. **Assinatura de conveniência.** Sem alterar a chance de ganhar blocos:
+   personalização, relatórios e organização de inventário.
+
+## Regras de proteção
+
+- nunca conceder CMA, BTC, DOGE, saque ou prêmio transferível por assistir a um
+  anúncio;
+- escolha voluntária, descrição clara da recompensa e opção de continuar sem
+  assistir;
+- limite inicial de uma recompensa publicitária por conta a cada 24 horas;
+- nenhuma chamada para clicar no anúncio;
+- telemetria separada para impressões, conclusão, concessão e suspeita de abuso;
+- banner e anúncio não podem cobrir racks, carteira, pools ou controles dos
+  minigames;
+- política de privacidade e preferências de cookies antes de publicidade
+  personalizada;
+- revisão jurídica e das políticas do provedor antes de habilitar para
+  jogadores.
+
+## Critério de ativação
+
+Ativar somente quando uma temporada fechada demonstrar emissão estável, os
+controles antifraude estiverem operacionais, o fluxo de consentimento estiver
+pronto e o provedor escolhido aceitar explicitamente a natureza do produto.

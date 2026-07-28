@@ -36,19 +36,19 @@ test("rede viva soma apenas equipamentos energizados e respeita alocações", ()
   assert.equal(totals.doge, Math.floor((splitInstalled + 1_000) * 0.2));
 });
 
-test("base visual zerada não remove o piso econômico da recompensa", () => {
+test("bloco total fica fixo enquanto o poder altera apenas a participação", () => {
   const cma = pools.find((pool) => pool.id === "cma");
   assert.ok(cma);
-  const defaultReward = calculateEstimatedReward(cma, 14_500);
-  const zeroVisualReward = calculateEstimatedReward(cma, 14_500, 0);
-  const crowdedReward = calculateEstimatedReward(
-    cma,
-    14_500,
-    cma.networkPowerGh * 2,
-  );
+  const soloSmall = calculateEstimatedReward(cma, 100, 100);
+  const soloLarge = calculateEstimatedReward(cma, 10_000, 10_000);
+  const firstShare = calculateEstimatedReward(cma, 300, 1_000);
+  const secondShare = calculateEstimatedReward(cma, 700, 1_000);
+  const doubledFirstShare = calculateEstimatedReward(cma, 600, 2_000);
 
-  assert.equal(zeroVisualReward, defaultReward);
-  assert.ok(crowdedReward < defaultReward);
+  assert.equal(soloSmall, cma.rewardAtomic);
+  assert.equal(soloLarge, cma.rewardAtomic);
+  assert.equal(firstShare, doubledFirstShare);
+  assert.ok(firstShare + secondShare <= cma.rewardAtomic);
 });
 
 test("laboratório do proprietário é limitado, reversível e auditado", async () => {
@@ -56,7 +56,7 @@ test("laboratório do proprietário é limitado, reversível e auditado", async 
     readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
     readFile(
-      new URL("../drizzle/0008_goofy_pestilence.sql", import.meta.url),
+      new URL("../drizzle/0009_chubby_legion.sql", import.meta.url),
       "utf8",
     ),
   ]);
@@ -64,9 +64,11 @@ test("laboratório do proprietário é limitado, reversível e auditado", async 
   assert.match(route, /OWNER_TEST_BALANCE_CMA = 10_000/);
   assert.match(route, /admin_test_cma_grant/);
   assert.match(route, /economic_test_prepared/);
-  assert.match(route, /restore-network-reference/);
+  assert.match(route, /set-block-budget/);
+  assert.match(route, /start-block-bonus/);
+  assert.match(route, /blockRewardBounds/);
   assert.match(route, /writeAdminAudit/);
-  assert.match(dashboard, /Piso de dificuldade preservado/);
-  assert.match(dashboard, /SALDO 10\.000 CMA/);
-  assert.match(migration, /network_runtime_settings/);
+  assert.match(dashboard, /Uma quantia fixa é disputada em cada bloco/);
+  assert.match(dashboard, /SALVAR ORÇAMENTO FIXO/);
+  assert.match(migration, /reward_cma_atomic/);
 });

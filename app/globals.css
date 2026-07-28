@@ -932,6 +932,27 @@ img {
   line-height: 1.55;
 }
 
+.fixed-block-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fixed-block-heading span {
+  color: #9ba9b7;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.fixed-block-heading b {
+  padding: 4px 6px;
+  border: 1px solid rgba(169, 255, 63, 0.35);
+  color: var(--lime);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+
 .activity-feed {
   padding: 0 14px 15px;
 }
@@ -6279,6 +6300,34 @@ img {
   font-weight: 700;
 }
 
+.admin-block-budget-input {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.admin-block-budget-input span {
+  color: #8ea1ad;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-block-budget-input input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #344a59;
+  outline: none;
+  background: #071017;
+  color: #eff9fa;
+  font: 700 0.95rem/1 var(--font-display);
+}
+
+.admin-block-budget-input input:focus {
+  border-color: var(--admin-lime);
+  box-shadow: 0 0 0 2px rgba(169, 255, 63, 0.1);
+}
+
 .admin-network-actions {
   display: flex;
   align-items: center;
@@ -6315,6 +6364,62 @@ img {
   max-width: 530px;
   margin-left: auto;
   color: #8296a2;
+}
+
+.admin-bonus-actions > span {
+  color: #6ddff5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.admin-monetization-panel {
+  max-width: 1500px;
+  margin: 16px auto 0;
+}
+
+.admin-monetization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--admin-border);
+}
+
+.admin-monetization-grid article {
+  display: grid;
+  min-height: 132px;
+  align-items: start;
+  gap: 14px;
+  padding: 20px 22px;
+  grid-template-columns: auto 1fr auto;
+  background: #0a131b;
+}
+
+.admin-monetization-grid article > b {
+  color: var(--admin-lime);
+  font: 700 1.3rem/1 var(--font-display);
+}
+
+.admin-monetization-grid strong {
+  display: block;
+  color: #edf7f8;
+  font-size: 0.94rem;
+}
+
+.admin-monetization-grid p {
+  margin: 7px 0 0;
+  color: #8ca0ab;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.admin-monetization-grid article > span {
+  padding: 4px 6px;
+  border: 1px solid #334957;
+  color: #7fdcf0;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .admin-layout {
@@ -6994,7 +7099,8 @@ img {
   }
 
   .admin-network-lab-copy,
-  .admin-network-grid {
+  .admin-network-grid,
+  .admin-monetization-grid {
     grid-template-columns: 1fr;
   }
 

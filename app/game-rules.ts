@@ -6,6 +6,11 @@ export const RACK_CAPACITY = RACK_COLUMNS * RACK_ROWS;
 export const ROOM_RACK_CAPACITY = 12;
 export const BLOCK_INTERVAL_SECONDS = 600;
 export const BLOCKS_PER_DAY = 86_400 / BLOCK_INTERVAL_SECONDS;
+export const DEFAULT_BLOCK_REWARD_ATOMIC: Record<PoolId, number> = {
+  cma: 5_000,
+  btc: 5,
+  doge: 1_000_000,
+};
 export const RACK_PRICE_CMA = 0.35;
 export const BATTERY_PRICE_CMA = 0.05;
 export const BATTERY_HOURS = 12;
@@ -141,7 +146,7 @@ export const pools: MiningPool[] = [
     asset: assetsManifest.cmaCoin.path,
     decimals: 6,
     blockSeconds: BLOCK_INTERVAL_SECONDS,
-    rewardAtomic: 8_000_000n,
+    rewardAtomic: BigInt(DEFAULT_BLOCK_REWARD_ATOMIC.cma),
     networkPowerGh: 60_000_000,
     color: "#a9ff3f",
     tagline: "A moeda central da economia de Arcadia",
@@ -153,7 +158,7 @@ export const pools: MiningPool[] = [
     asset: assetsManifest.bitcoin.path,
     decimals: 8,
     blockSeconds: BLOCK_INTERVAL_SECONDS,
-    rewardAtomic: 85_000n,
+    rewardAtomic: BigInt(DEFAULT_BLOCK_REWARD_ATOMIC.btc),
     networkPowerGh: 1_800_000,
     color: "#f5a524",
     tagline: "Pool virtual com blocos mais longos",
@@ -165,7 +170,7 @@ export const pools: MiningPool[] = [
     asset: assetsManifest.dogecoin.path,
     decimals: 8,
     blockSeconds: BLOCK_INTERVAL_SECONDS,
-    rewardAtomic: 2_500_000_000n,
+    rewardAtomic: BigInt(DEFAULT_BLOCK_REWARD_ATOMIC.doge),
     networkPowerGh: 4_000_000,
     color: "#f4d45f",
     tagline: "Blocos rápidos para uma progressão leve",
@@ -266,10 +271,14 @@ export function calculateDailyEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
   liveNetworkPowerGh = pool.networkPowerGh,
+  blockRewardAtomic = pool.rewardAtomic,
 ) {
-  return (
-    calculateEstimatedReward(pool, playerPowerGh, liveNetworkPowerGh) *
-    BigInt(BLOCKS_PER_DAY)
+  return calculateEstimatedReward(
+    pool,
+    playerPowerGh,
+    liveNetworkPowerGh,
+    blockRewardAtomic,
+    BLOCKS_PER_DAY,
   );
 }
 
@@ -291,15 +300,24 @@ export function calculateEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
   liveNetworkPowerGh = pool.networkPowerGh,
+  blockRewardAtomic = pool.rewardAtomic,
+  blockCount = 1,
 ) {
-  const economicNetworkPowerGh = Math.max(
-    pool.networkPowerGh,
-    Math.floor(liveNetworkPowerGh),
-  );
-  if (playerPowerGh <= 0 || economicNetworkPowerGh <= 0) return 0n;
+  const activeNetworkPowerGh = Math.max(0, Math.floor(liveNetworkPowerGh));
+  const safeBlockCount = Math.max(0, Math.floor(blockCount));
+  if (
+    playerPowerGh <= 0 ||
+    activeNetworkPowerGh <= 0 ||
+    safeBlockCount <= 0 ||
+    blockRewardAtomic <= 0n
+  ) {
+    return 0n;
+  }
   return (
-    (pool.rewardAtomic * BigInt(Math.floor(playerPowerGh))) /
-    BigInt(economicNetworkPowerGh)
+    (blockRewardAtomic *
+      BigInt(safeBlockCount) *
+      BigInt(Math.floor(playerPowerGh))) /
+    BigInt(activeNetworkPowerGh)
   );
 }
 

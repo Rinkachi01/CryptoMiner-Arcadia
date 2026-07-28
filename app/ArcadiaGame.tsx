@@ -183,17 +183,19 @@ const defaultPoolAllocations: PoolAllocations = {
   doge: 0,
 };
 const defaultNetworkSnapshot: NetworkPowerSnapshot = {
-  basePowerGh: Object.fromEntries(
-    pools.map((pool) => [pool.id, pool.networkPowerGh]),
-  ) as Record<PoolId, number>,
-  economicFloorGh: Object.fromEntries(
-    pools.map((pool) => [pool.id, pool.networkPowerGh]),
-  ) as Record<PoolId, number>,
+  basePowerGh: { cma: 0, btc: 0, doge: 0 },
   playerPowerGh: { cma: 0, btc: 0, doge: 0 },
-  totalPowerGh: Object.fromEntries(
-    pools.map((pool) => [pool.id, pool.networkPowerGh]),
+  totalPowerGh: { cma: 0, btc: 0, doge: 0 },
+  baseBlockRewardAtomic: Object.fromEntries(
+    pools.map((pool) => [pool.id, Number(pool.rewardAtomic)]),
   ) as Record<PoolId, number>,
-  testMode: false,
+  blockRewardAtomic: Object.fromEntries(
+    pools.map((pool) => [pool.id, Number(pool.rewardAtomic)]),
+  ) as Record<PoolId, number>,
+  bonusActive: false,
+  bonusBps: 10_000,
+  bonusEndsAt: 0,
+  testMode: true,
   updatedAt: 0,
 };
 
@@ -969,7 +971,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <small>REDE PRINCIPAL</small>
               <strong>{selectedPool.symbol}</strong>
             </div>
-            <em>{formatPower(network.totalPowerGh[selectedPool.id])} NA REDE</em>
+            <em>{formatPower(network.playerPowerGh[selectedPool.id])} NA REDE</em>
           </article>
         </div>
 
@@ -1330,40 +1332,53 @@ function MiningRoom({
         <MiningStatusPanel
           installedPower={effectivePower}
           allocations={poolAllocations}
-          networkPowerGh={network.totalPowerGh}
+          networkPowerGh={network.playerPowerGh}
           secondsLeft={secondsLeft}
           onOpenPools={onOpenPools}
         />
 
         <div className="reward-box multi-reward-box">
-          <span>ESTIMATIVA POR BLOCO · 10 MIN</span>
+          <div className="fixed-block-heading">
+            <span>BLOCO FIXO DA REDE · 10 MIN</span>
+            <b>
+              {network.bonusActive
+                ? `EVENTO ${network.bonusBps / 100}%`
+                : "EMISSÃO-BASE"}
+            </b>
+          </div>
           <div className="reward-split-list">
             {pools.map((pool) => {
               const allocation = poolAllocations[pool.id];
               const allocatedPower = Math.floor(
                 (effectivePower * allocation) / 100,
               );
+              const personalEstimate = calculateEstimatedReward(
+                pool,
+                allocatedPower,
+                network.playerPowerGh[pool.id],
+                BigInt(network.blockRewardAtomic[pool.id]),
+              );
               return (
                 <div key={pool.id}>
                   <img src={pool.asset} alt="" />
                   <strong>
                     {formatAtomic(
-                      calculateEstimatedReward(
-                        pool,
-                        allocatedPower,
-                        network.totalPowerGh[pool.id],
-                      ),
+                      BigInt(network.blockRewardAtomic[pool.id]),
                       pool.decimals,
                     )}{" "}
                     {pool.symbol}
                   </strong>
-                  <small>{allocation}% do poder</small>
+                  <small>
+                    Sua parte: {formatAtomic(personalEstimate, pool.decimals)}{" "}
+                    {pool.symbol}
+                  </small>
                 </div>
               );
             })}
           </div>
           <small>
-            Estimativas proporcionais e virtuais, sem saque nesta fase.
+            Mais poder altera sua porcentagem na disputa, nunca o valor total
+            emitido pelo bloco. Simulação virtual, sem saque nesta fase.
           </small>
         </div>
 
@@ -1749,12 +1764,14 @@ function PoolsView({
           const estimate = calculateEstimatedReward(
             pool,
             allocatedPower,
-            network.totalPowerGh[pool.id],
+            network.playerPowerGh[pool.id],
+            BigInt(network.blockRewardAtomic[pool.id]),
           );
           const dailyEstimate = calculateDailyEstimatedReward(
             pool,
             allocatedPower,
-            network.totalPowerGh[pool.id],
+            network.playerPowerGh[pool.id],
+            BigInt(network.blockRewardAtomic[pool.id]),
           );
 
           return (
@@ -1785,10 +1802,20 @@ function PoolsView({
                 </div>
                 <div>
                   <dt>Poder vivo da rede</dt>
-                  <dd>{formatPower(network.totalPowerGh[pool.id])}</dd>
+                  <dd>{formatPower(network.playerPowerGh[pool.id])}</dd>
                 </div>
                 <div>
-                  <dt>Por bloco</dt>
+                  <dt>Bloco fixo total</dt>
+                  <dd>
+                    {formatAtomic(
+                      BigInt(network.blockRewardAtomic[pool.id]),
+                      pool.decimals,
+                    )}{" "}
+                    {pool.symbol}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Sua parte por bloco</dt>
                   <dd>
                     {formatAtomic(estimate, pool.decimals)} {pool.symbol}
                   </dd>

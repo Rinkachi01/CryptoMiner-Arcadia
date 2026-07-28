@@ -1,4 +1,4 @@
-# Crypto Miner Arcadia — economia inicial v3
+# Crypto Miner Arcadia — economia inicial v4
 
 ## Escopo
 
@@ -17,27 +17,33 @@ interna da CMA não aparece na interface do jogador.
 
 ```text
 poder_alocado = poder_total_do_jogador × percentual_da_pool
-recompensa = recompensa_do_bloco × poder_alocado / poder_total_da_pool
+participação = poder_alocado / poder_ativo_dos_jogadores_na_pool
+recompensa_pessoal = bloco_fixo × participação
 ```
 
-- A CMA inicia com 8 CMA por bloco e rede simulada de 60.000.000 GH/s.
-- O painel separa o poder vivo (jogadores + base simulada) do piso econômico
-  usado no denominador da recompensa.
-- Durante o teste fechado, o proprietário pode zerar a base simulada para ver a
-  rede crescer apenas com equipamentos energizados. O denominador nunca fica
-  abaixo das referências de 60.000.000 GH/s em CMA, 1.800.000 GH/s em BTC e
-  4.000.000 GH/s em DOGE.
-- Se o poder vivo superar esse piso, o denominador aumenta e a emissão por
-  unidade de poder é diluída automaticamente.
+- O valor total do bloco não depende do poder instalado por um jogador.
+- O orçamento-base inicial é 0,005 CMA, 5 satoshis e 0,01 DOGE por bloco.
+- O teto de rede em 24 horas é, respectivamente, 0,72 CMA, 720 satoshis e
+  1,44 DOGE.
+- Se um jogador estiver sozinho em uma pool, recebe o bloco fixo inteiro;
+  aumentar apenas o próprio poder não aumenta seu pagamento.
+- Com vários jogadores, o poder altera somente a porcentagem disputada. A soma
+  distribuída nunca ultrapassa o valor fixo do bloco.
+- O proprietário pode ajustar os três orçamentos dentro de faixas limitadas e
+  auditadas: 0,001–0,05 CMA, 1–100 satoshis e 0,001–0,1 DOGE.
+- Eventos temporários permitem 125%, 150% ou 200% do bloco-base por até 24
+  horas. O vencimento é automático e o evento pode ser encerrado antes.
+- Poderes-base antigos permanecem apenas como dado legado de teste e não entram
+  no cálculo da recompensa.
 - A estimativa é informativa, nunca um retorno garantido. Poder de rede,
   recompensa e orçamento diário poderão ser rebalanceados.
 
 ## Catálogo recalibrado
 
 Os preços foram reduzidos tomando como referência as capturas fornecidas de
-jogos semelhantes. A dificuldade da rede CMA foi ajustada em conjunto para
-manter uma progressão virtual conservadora, próxima de 294 a 313 dias no
-estado inicial da rede.
+jogos semelhantes. Eles continuam sendo preços de progressão virtual, sem
+promessa de prazo de retorno: o resultado depende da participação do jogador
+na rede viva e do orçamento fixo vigente.
 
 | Minerador | Fans | Slots | Poder | Preço |
 |---|---:|---:|---:|---:|
@@ -219,8 +225,10 @@ recompensa continuam sendo recalculados no servidor.
 - um único controle de teste pode completar somente a carteira do proprietário
   até 10.000 CMA virtuais; ele não altera contas de jogadores, não acumula
   créditos repetidos e registra o delta no ledger e na auditoria;
-- a base simulada das três redes pode ser zerada ou restaurada, sem remover o
-  poder real dos equipamentos energizados.
+- o orçamento fixo e cada evento temporário são configurados no servidor,
+  limitados por faixas seguras e registrados na auditoria;
+- a carteira de teste do proprietário pode ser completada até 10.000 CMA sem
+  alterar a recompensa de bloco dos demais jogadores.
 
 ### Histórico e retenção
 
@@ -244,8 +252,8 @@ recompensa continuam sendo recalculados no servidor.
 - a exportação exige a mesma autorização exclusiva da Central do Proprietário;
 - o simulador aceita percentuais de preço de mineradores, preço de caixas,
   dificuldade da rede e poder dos minigames;
-- o cenário base representa os valores atuais e projeta 303 dias de progressão
-  virtual;
+- o simulador de catálogo permanece isolado da emissão real; antes do beta
+  público ele deverá usar dados observados de participação e retenção;
 - nenhuma simulação grava configurações, altera preços ou modifica o estado de
   uma conta;
 - projeções internas não podem ser apresentadas ao jogador como ROI, promessa

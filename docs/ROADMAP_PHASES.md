@@ -253,9 +253,26 @@ Entregas concluídas na décima etapa:
 - avisos pessoais derivados do servidor sobre energia, missão e próximo bloco;
 - painel lateral de orientação sem sobreposição escura sobre a sala.
 
+Entregas concluídas na décima primeira etapa:
+
+- recompensa total predeterminada para cada bloco CMA, BTC e DOGE;
+- divisão proporcional somente pelo poder ativo dos jogadores na pool;
+- orçamento inicial reduzido, com teto diário de rede previsível;
+- painel do jogador separando bloco fixo e participação pessoal estimada;
+- controles exclusivos do proprietário para alterar os três valores dentro de
+  faixas seguras;
+- eventos auditados de 125%, 150% e 200%, com duração limitada e encerramento
+  automático;
+- liquidações registrando o valor do bloco, o bônus e o poder da rede usado no
+  cálculo;
+- plano de monetização separado da economia, sem anúncios recompensando moedas
+  ou poder nesta fase.
+
 Próxima entrega segura:
 
 - checklist e coleta estruturada de feedback para o beta fechado;
+- painel de custo diário projetado e realizado por pool;
+- coortes que comparem retenção com consumo de energia e minigames;
 - coortes de retenção sem identificação pública dos jogadores;
 - compactação dos comprovantes detalhados de partidas antigas, preservando o
   ledger econômico;

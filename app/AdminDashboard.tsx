@@ -19,6 +19,7 @@ import type {
   SeasonSnapshot,
 } from "./season-server";
 import type { NetworkPowerSnapshot } from "./network-server";
+import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
   alerts: AdminAlert[];
@@ -125,6 +126,7 @@ const actionLabels: Record<string, string> = {
   claim_energy: "Energia resgatada",
   open_supply_crate: "Caixas abertas",
   admin_test_cma_grant: "Crédito CMA de teste",
+  block_settlement: "Blocos minerados",
   use_battery: "Baterias utilizadas",
 };
 
@@ -285,6 +287,9 @@ export function AdminDashboard({
   const [thresholdDrafts, setThresholdDrafts] = useState<
     Partial<Record<AdminThresholdKey, number>>
   >({});
+  const [rewardDrafts, setRewardDrafts] = useState<
+    Partial<Record<PoolId, string>>
+  >({});
   const [simulationInput, setSimulationInput] =
     useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
   const [seasonName, setSeasonName] = useState("Temporada Beta");
@@ -390,6 +395,30 @@ export function AdminDashboard({
     } finally {
       setBusyAction("");
     }
+  }
+
+  function saveBlockBudget() {
+    if (!overview) return;
+    const rewards = Object.fromEntries(
+      pools.map((pool) => {
+        const fallback =
+          pool.id === "btc"
+            ? overview.network.baseBlockRewardAtomic[pool.id]
+            : overview.network.baseBlockRewardAtomic[pool.id] /
+              10 ** pool.decimals;
+        const value = Number(rewardDrafts[pool.id] ?? fallback);
+        return [
+          pool.id,
+          pool.id === "btc"
+            ? Math.round(value)
+            : Math.round(value * 10 ** pool.decimals),
+        ];
+      }),
+    ) as Record<PoolId, number>;
+    void runAdminAction("set-block-budget", {
+      action: "set-block-budget",
+      rewards,
+    });
   }
 
   function cycleTextScale() {
@@ -544,63 +573,105 @@ export function AdminDashboard({
       <section className="admin-panel admin-network-lab">
         <div className="admin-panel-heading">
           <div>
-            <span>LABORATÓRIO ECONÔMICO · CLOSED BETA</span>
-            <h2>Rede viva e carteira de teste</h2>
+            <span>ORÇAMENTO DE EMISSÃO · SERVIDOR AUTORITATIVO</span>
+            <h2>Blocos fixos e eventos temporários</h2>
           </div>
-          <small className={overview.network.testMode ? "test-active" : ""}>
-            {overview.network.testMode ? "BASE ZERADA" : "BASE DE REFERÊNCIA"}
+          <small className={overview.network.bonusActive ? "test-active" : ""}>
+            {overview.network.bonusActive
+              ? `EVENTO ${overview.network.bonusBps / 100}%`
+              : "ORÇAMENTO-BASE"}
           </small>
         </div>
 
         <div className="admin-network-lab-copy">
           <div>
-            <strong>Faça seu equipamento construir a rede</strong>
+            <strong>Uma quantia fixa é disputada em cada bloco</strong>
             <p>
-              Preparar o teste completa sua carteira até 10.000 CMA e remove
-              somente o poder artificial. Mineradores energizados aparecem
-              imediatamente no total vivo.
+              O poder de um jogador altera apenas sua participação. Ele nunca
+              aumenta a emissão total de CMA, BTC ou DOGE. Se todos dobrarem o
+              poder, a divisão permanece igual.
             </p>
           </div>
           <aside>
-            <span>PROTEÇÃO ECONÔMICA</span>
-            <strong>Piso de dificuldade preservado</strong>
+            <span>LIMITE DIÁRIO PREVISÍVEL</span>
+            <strong>144 blocos por rede a cada 24 horas</strong>
             <p>
-              Mesmo com a rede visual zerada, o primeiro minerador não recebe
-              100% do bloco. Se a rede real superar o piso, a recompensa é
-              diluída automaticamente.
+              O teto diário é o valor do bloco multiplicado por 144. Eventos
+              têm duração máxima de 24h, limite de 200% e ficam registrados na
+              auditoria.
             </p>
           </aside>
         </div>
 
         <div className="admin-network-grid">
-          {(["cma", "btc", "doge"] as const).map((poolId) => (
-            <article key={poolId}>
-              <span>{poolId.toUpperCase()} · REDE VIVA</span>
+          {pools.map((pool) => {
+            const atomic = overview.network.baseBlockRewardAtomic[pool.id];
+            const inputValue =
+              rewardDrafts[pool.id] ??
+              (pool.id === "btc"
+                ? String(atomic)
+                : String(atomic / 10 ** pool.decimals));
+            return (
+            <article key={pool.id}>
+              <span>{pool.symbol} · BLOCO FIXO</span>
               <strong>
-                {formatPower(overview.network.totalPowerGh[poolId])}
+                {formatAtomic(
+                  BigInt(overview.network.blockRewardAtomic[pool.id]),
+                  pool.decimals,
+                )}{" "}
+                {pool.symbol}
               </strong>
               <dl>
                 <div>
-                  <dt>Jogadores</dt>
-                  <dd>{formatPower(overview.network.playerPowerGh[poolId])}</dd>
+                  <dt>Rede de jogadores</dt>
+                  <dd>{formatPower(overview.network.playerPowerGh[pool.id])}</dd>
                 </div>
                 <div>
-                  <dt>Base simulada</dt>
-                  <dd>{formatPower(overview.network.basePowerGh[poolId])}</dd>
-                </div>
-                <div>
-                  <dt>Piso econômico</dt>
+                  <dt>Teto ativo em 24h</dt>
                   <dd>
-                    {formatPower(overview.network.economicFloorGh[poolId])}
+                    {formatAtomic(
+                      BigInt(overview.network.blockRewardAtomic[pool.id]) *
+                        BigInt(BLOCKS_PER_DAY),
+                      pool.decimals,
+                    )}{" "}
+                    {pool.symbol}
                   </dd>
                 </div>
               </dl>
+              <label className="admin-block-budget-input">
+                <span>
+                  VALOR-BASE · {pool.id === "btc" ? "SATOSHIS" : pool.symbol}
+                </span>
+                <input
+                  type="number"
+                  min={pool.id === "cma" ? 0.001 : pool.id === "btc" ? 1 : 0.001}
+                  max={pool.id === "cma" ? 0.05 : pool.id === "btc" ? 100 : 0.1}
+                  step={pool.id === "btc" ? 1 : 0.001}
+                  value={inputValue}
+                  onChange={(event) =>
+                    setRewardDrafts((current) => ({
+                      ...current,
+                      [pool.id]: event.target.value,
+                    }))
+                  }
+                />
+              </label>
             </article>
-          ))}
+          )})}
         </div>
 
         <div className="admin-network-actions">
           <button
+            type="button"
+            disabled={busyAction === "set-block-budget"}
+            onClick={saveBlockBudget}
+          >
+            {busyAction === "set-block-budget"
+              ? "SALVANDO..."
+              : "SALVAR ORÇAMENTO FIXO"}
+          </button>
+          <button
+            className="secondary"
             type="button"
             disabled={busyAction === "prepare-economic-test"}
             onClick={() =>
@@ -610,25 +681,115 @@ export function AdminDashboard({
             }
           >
             {busyAction === "prepare-economic-test"
-              ? "PREPARANDO..."
-              : "PREPARAR TESTE · SALDO 10.000 CMA"}
+              ? "RECARREGANDO..."
+              : "REPOR CARTEIRA · 10.000 CMA"}
+          </button>
+          <small>
+            Faixas seguras: 0,001–0,05 CMA; 1–100 satoshis; 0,001–0,1 DOGE.
+            O saldo de teste não cria saque real.
+          </small>
+        </div>
+
+        <div className="admin-network-actions admin-bonus-actions">
+          <span>EVENTO TEMPORÁRIO</span>
+          <button
+            className="secondary"
+            type="button"
+            disabled={Boolean(busyAction)}
+            onClick={() =>
+              void runAdminAction("bonus-125", {
+                action: "start-block-bonus",
+                bonusBps: 12_500,
+                durationHours: 6,
+              })
+            }
+          >
+            125% · 6H
           </button>
           <button
             className="secondary"
             type="button"
-            disabled={busyAction === "restore-network-reference"}
+            disabled={Boolean(busyAction)}
             onClick={() =>
-              void runAdminAction("restore-network-reference", {
-                action: "restore-network-reference",
+              void runAdminAction("bonus-150", {
+                action: "start-block-bonus",
+                bonusBps: 15_000,
+                durationHours: 6,
               })
             }
           >
-            RESTAURAR PODER-BASE
+            150% · 6H
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            disabled={Boolean(busyAction)}
+            onClick={() =>
+              void runAdminAction("bonus-200", {
+                action: "start-block-bonus",
+                bonusBps: 20_000,
+                durationHours: 1,
+              })
+            }
+          >
+            200% · 1H
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            disabled={!overview.network.bonusActive || Boolean(busyAction)}
+            onClick={() =>
+              void runAdminAction("stop-block-bonus", {
+                action: "stop-block-bonus",
+              })
+            }
+          >
+            ENCERRAR EVENTO
           </button>
           <small>
-            Nenhum saldo real ou saque é criado. Cada alteração entra no ledger
-            pessoal e na auditoria administrativa.
+            {overview.network.bonusActive
+              ? `Encerramento automático: ${formatDate(overview.network.bonusEndsAt)}.`
+              : "Nenhum bônus ativo. O valor-base continua protegido."}
           </small>
+        </div>
+      </section>
+
+      <section className="admin-panel admin-monetization-panel">
+        <div className="admin-panel-heading">
+          <div>
+            <span>PRÓXIMA FRENTE · MONETIZAÇÃO RESPONSÁVEL</span>
+            <h2>Receita sem inflar moedas ou poder</h2>
+          </div>
+          <small>INTEGRAÇÃO REAL DESATIVADA</small>
+        </div>
+        <div className="admin-monetization-grid">
+          <article>
+            <b>01</b>
+            <div>
+              <strong>Patrocínio visual</strong>
+              <p>Banner identificado no Arcade, longe dos controles do jogo.</p>
+            </div>
+            <span>PRIMEIRO TESTE</span>
+          </article>
+          <article>
+            <b>02</b>
+            <div>
+              <strong>Cosméticos</strong>
+              <p>Temas de sala, molduras e skins sem vantagem de mineração.</p>
+            </div>
+            <span>SEGURO</span>
+          </article>
+          <article>
+            <b>03</b>
+            <div>
+              <strong>Anúncio opcional</strong>
+              <p>
+                Somente após consentimento e antifraude; nunca paga CMA, BTC,
+                DOGE ou poder.
+              </p>
+            </div>
+            <span>FUTURO</span>
+          </article>
         </div>
       </section>
 
@@ -971,9 +1132,11 @@ export function AdminDashboard({
                 </div>
                 <div className="admin-simulation-metrics">
                   <article>
-                    <span>PROGRESSÃO ESTIMADA</span>
-                    <strong>{simulation.progressionDays} dias</strong>
-                    <small>referência atual: 303 dias</small>
+                    <span>RITMO RELATIVO DO CATÁLOGO</span>
+                    <strong>
+                      {Math.round((303 / simulation.progressionDays) * 100)}%
+                    </strong>
+                    <small>100% = cenário-base, sem promessa de prazo</small>
                   </article>
                   <article>
                     <span>ORÇAMENTO DE PODER</span>

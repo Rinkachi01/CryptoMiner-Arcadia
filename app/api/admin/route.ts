@@ -11,12 +11,14 @@ import {
 } from "../../admin-settings";
 import { evaluateAdminAlerts } from "../../admin-alert-rules";
 import { getChatGPTUser } from "../../chatgpt-auth";
-import { getMiner } from "../../game-rules";
+import { getMiner, type PoolId } from "../../game-rules";
 import type { PublicGameState } from "../../game-server";
 import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
   readNetworkPowerSnapshot,
+  updateBlockRewardBonus,
+  updateBlockRewards,
   updateNetworkBasePower,
 } from "../../network-server";
 import {
@@ -100,6 +102,14 @@ const adminSettingKeys: AdminSettingKey[] = [
 ];
 
 const OWNER_TEST_BALANCE_CMA = 10_000;
+const blockRewardBounds: Record<
+  PoolId,
+  { maximum: number; minimum: number }
+> = {
+  cma: { minimum: 1_000, maximum: 50_000 },
+  btc: { minimum: 1, maximum: 100 },
+  doge: { minimum: 100_000, maximum: 10_000_000 },
+};
 
 const adminThresholdBounds: Record<
   AdminThresholdKey,
@@ -537,6 +547,9 @@ export async function POST(request: Request) {
         enabled?: unknown;
         name?: unknown;
         note?: unknown;
+        bonusBps?: unknown;
+        durationHours?: unknown;
+        rewards?: unknown;
         resolution?: unknown;
         sessionId?: unknown;
         setting?: unknown;
@@ -545,6 +558,108 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "set-block-budget") {
+    const candidate =
+      body.rewards && typeof body.rewards === "object"
+        ? (body.rewards as Partial<Record<PoolId, unknown>>)
+        : {};
+    const rewards = Object.fromEntries(
+      (["cma", "btc", "doge"] as const).map((poolId) => [
+        poolId,
+        Number(candidate[poolId]),
+      ]),
+    ) as Record<PoolId, number>;
+    const invalidPool = (["cma", "btc", "doge"] as const).find((poolId) => {
+      const value = rewards[poolId];
+      const bounds = blockRewardBounds[poolId];
+      return (
+        !Number.isInteger(value) ||
+        value < bounds.minimum ||
+        value > bounds.maximum
+      );
+    });
+    if (invalidPool) {
+      return json(
+        {
+          error:
+            "Orçamento recusado: use os limites seguros exibidos no painel.",
+        },
+        400,
+      );
+    }
+    await updateBlockRewards(
+      context.db,
+      rewards,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "block_budget_updated",
+      { rewards },
+      now,
+    );
+    return json({
+      message:
+        "Orçamento fixo salvo. O novo valor será dividido a partir do próximo bloco.",
+      network: await readNetworkPowerSnapshot(context.db, now),
+    });
+  }
+
+  if (body?.action === "start-block-bonus") {
+    const bonusBps = Number(body.bonusBps);
+    const durationHours = Number(body.durationHours);
+    if (
+      ![12_500, 15_000, 20_000].includes(bonusBps) ||
+      !Number.isFinite(durationHours) ||
+      durationHours < 1 ||
+      durationHours > 24
+    ) {
+      return json({ error: "Bônus ou duração fora dos limites seguros." }, 400);
+    }
+    const bonusEndsAt = now + Math.floor(durationHours * 60 * 60 * 1000);
+    await updateBlockRewardBonus(
+      context.db,
+      bonusBps,
+      bonusEndsAt,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "block_bonus_started",
+      { bonusBps, bonusEndsAt, durationHours },
+      now,
+    );
+    return json({
+      message: `Evento de ${bonusBps / 100}% ativado por ${durationHours}h.`,
+      network: await readNetworkPowerSnapshot(context.db, now),
+    });
+  }
+
+  if (body?.action === "stop-block-bonus") {
+    await updateBlockRewardBonus(
+      context.db,
+      10_000,
+      0,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "block_bonus_stopped",
+      {},
+      now,
+    );
+    return json({
+      message: "Bônus encerrado. Os blocos voltaram ao orçamento-base.",
+      network: await readNetworkPowerSnapshot(context.db, now),
+    });
+  }
 
   if (body?.action === "prepare-economic-test") {
     try {
@@ -567,7 +682,6 @@ export async function POST(request: Request) {
           grantedCma: grant.deltaCma,
           ownerBalanceCma: grant.balanceCma,
           networkBasePowerGh: ZERO_NETWORK_POWER,
-          economicFloorGh: DEFAULT_NETWORK_BASE_POWER,
         },
         now,
       );
@@ -575,8 +689,8 @@ export async function POST(request: Request) {
       return json({
         message:
           grant.deltaCma > 0
-            ? `Teste preparado: +${grant.deltaCma.toLocaleString("pt-BR")} CMA e base simulada zerada.`
-            : "Teste preparado: sua carteira já tinha 10.000 CMA ou mais e a base simulada foi zerada.",
+            ? `Carteira de teste: +${grant.deltaCma.toLocaleString("pt-BR")} CMA.`
+            : "Sua carteira de teste já possui 10.000 CMA ou mais.",
         network,
       });
     } catch (error) {

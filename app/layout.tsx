@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   ),
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com rede viva, economia protegida e guia pessoal no Crypto Miner Arcadia.",
+    "Mineração virtual com blocos fixos, três pools e economia controlada pelo servidor.",
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Construa o poder das redes CMA, BTC e DOGE com economia protegida e progresso validado pelo servidor.",
+      "CMA, BTC e DOGE disputam blocos fixos: mais poder muda sua participação, nunca o orçamento total.",
     type: "website",
     locale: "pt_BR",
     images: [
       {
-        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-network-lab.png",
+        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-fixed-block.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — rack de mineradores conectado às três redes vivas do jogo",
+        alt: "Crypto Miner Arcadia — mineradores disputando um bloco fixo nas três pools",
       },
     ],
   },
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Rede viva, economia protegida e progresso validado pelo servidor.",
+      "Bloco fixo, poder em disputa e economia validada pelo servidor.",
     images: [
-      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-network-lab.png",
+      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og-fixed-block.png",
     ],
   },
 };

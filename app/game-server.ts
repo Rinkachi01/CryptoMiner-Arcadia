@@ -354,6 +354,7 @@ export function settleMiningBlocks(
   now: number,
   temporaryPowerGh = 0,
   networkPowerGh?: Partial<Record<PoolId, number>>,
+  blockRewardAtomic?: Partial<Record<PoolId, number>>,
 ): {
   state: PublicGameState;
   settledBlocks: number;
@@ -379,9 +380,10 @@ export function settleMiningBlocks(
         calculateEstimatedReward(
           pool,
           allocatedPower,
-          networkPowerGh?.[pool.id],
-        ) *
-        BigInt(settledBlocks);
+          networkPowerGh?.[pool.id] ?? allocatedPower,
+          BigInt(blockRewardAtomic?.[pool.id] ?? Number(pool.rewardAtomic)),
+          settledBlocks,
+        );
       rewards[pool.id] = Number(rewardAtomic);
     }
 
@@ -442,12 +444,14 @@ export function applySupplyCratePurchase(
   now: number,
   temporaryPowerGh = 0,
   networkPowerGh?: Partial<Record<PoolId, number>>,
+  blockRewardAtomic?: Partial<Record<PoolId, number>>,
 ): ActionResult {
   const settled = settleMiningBlocks(
     currentState,
     now,
     temporaryPowerGh,
     networkPowerGh,
+    blockRewardAtomic,
   );
   const state = settled.state;
   const crate = getSupplyCrate(crateId);
@@ -512,12 +516,14 @@ export function applyGameAction(
   now: number,
   temporaryPowerGh = 0,
   networkPowerGh?: Partial<Record<PoolId, number>>,
+  blockRewardAtomic?: Partial<Record<PoolId, number>>,
 ): ActionResult {
   const settled = settleMiningBlocks(
     currentState,
     now,
     temporaryPowerGh,
     networkPowerGh,
+    blockRewardAtomic,
   );
   const state = settled.state;
   const payload = payloadObject(rawPayload);

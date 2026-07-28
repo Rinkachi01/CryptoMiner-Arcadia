@@ -337,7 +337,8 @@ export async function GET() {
     state,
     now,
     eligibleTemporaryPowerGh,
-    network.totalPowerGh,
+    network.playerPowerGh,
+    network.blockRewardAtomic,
   );
   let responseState = settled.state;
   let settledBlockCount = settled.settledBlocks;
@@ -376,6 +377,9 @@ export async function GET() {
           JSON.stringify({
             settledBlocks: settled.settledBlocks,
             rewards: settled.rewards,
+            blockRewardAtomic: network.blockRewardAtomic,
+            bonusBps: network.bonusBps,
+            networkPowerGh: network.playerPowerGh,
           }),
           now,
         )
@@ -539,7 +543,8 @@ export async function POST(request: Request) {
             secureRandomUnit(),
             now,
             eligibleTemporaryPowerGh,
-            network.totalPowerGh,
+            network.playerPowerGh,
+            network.blockRewardAtomic,
           )
         : applyGameAction(
             parseState(row),
@@ -547,7 +552,8 @@ export async function POST(request: Request) {
             body.payload,
             now,
             eligibleTemporaryPowerGh,
-            network.totalPowerGh,
+            network.playerPowerGh,
+            network.blockRewardAtomic,
           );
   } catch (error) {
     return json(
