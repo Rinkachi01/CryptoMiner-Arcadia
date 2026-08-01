@@ -355,6 +355,21 @@ Entregas concluídas na retomada:
 - potência instalada e temporária continuam contando somente enquanto a sala
   estiver energizada.
 
+Entregas concluídas na etapa de validação da temporada:
+
+- relatório econômico do ciclo disponível somente na Central do Proprietário;
+- totais do período para jogadores, Arcade, poder temporário, baterias, caixas,
+  CMA de blocos, sumidouros e créditos administrativos de teste;
+- BTC e DOGE creditados exibidos separadamente a partir do ledger do servidor;
+- cinco portões impedem recomendar rebalanceamento com temporada ativa, amostra
+  pequena, pouca atividade, snapshots insuficientes ou revisão antifraude
+  pendente;
+- comparação automática entre o primeiro e o último snapshot preservado;
+- relatório permanece somente informativo e nunca altera preço, recompensa ou
+  valor de bloco;
+- guia do primeiro dia em celular usa cartões horizontais, etapa atual marcada
+  e ação principal com leitura ampliada.
+
 Decisões consolidadas:
 
 - conta nova recebe somente um rack instalado e um Byte Spark no inventário;
@@ -370,8 +385,8 @@ Decisões consolidadas:
 
 Ordem recomendada das próximas entregas:
 
-1. validar uma temporada econômica fechada antes de alterar preços ou blocos;
-2. testar o onboarding em celulares reais e medir onde o jogador para;
+1. coletar uma temporada completa até os cinco portões ficarem verdes;
+2. testar o onboarding em celulares reais com jogadores do beta;
 3. escolher a hospedagem e o provedor da autenticação pública;
 4. implementar cadastro, e-mail verificado, recuperação
    de senha, proteção contra múltiplas contas e migração do progresso atual;

@@ -35,6 +35,7 @@ import {
   createSeason,
   createSeasonSnapshot,
   ensureDefaultSeason,
+  readSeasonEconomicReport,
   readSeasonOverview,
 } from "../../season-server";
 
@@ -548,7 +549,10 @@ export async function GET() {
     readBetaObservability(context.db, now),
   ]);
   await ensureDefaultSeason(context.db, now);
-  const season = await readSeasonOverview(context.db, context.accountId, now);
+  const [season, seasonReport] = await Promise.all([
+    readSeasonOverview(context.db, context.accountId, now),
+    readSeasonEconomicReport(context.db, now),
+  ]);
   return json({
     owner: {
       claimedAt: context.owner?.created_at ?? now,
@@ -567,6 +571,7 @@ export async function GET() {
     ),
     settings,
     season,
+    seasonReport,
     network,
     feedback,
     beta,

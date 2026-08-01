@@ -134,6 +134,7 @@ export function FirstDayPanel({
         <small>{nextStepShort}</small>
         <button
           type="button"
+          aria-label={`Continuar: ${nextStepLabel}`}
           onClick={() => openStep(nextStep.id, nextStep.target)}
         >
           CONTINUAR
@@ -143,10 +144,15 @@ export function FirstDayPanel({
       <ol className="first-day-steps">
         {stepDefinitions.map((step, index) => {
           const complete = status.milestones[step.id];
+          const current = step.id === nextStep.id;
           return (
-            <li className={complete ? "complete" : ""} key={step.id}>
+            <li
+              className={`${complete ? "complete" : ""} ${current ? "current" : ""}`}
+              key={step.id}
+            >
               <button
                 type="button"
+                aria-current={current ? "step" : undefined}
                 onClick={() => openStep(step.id, step.target)}
               >
                 <b>{complete ? "✓" : index + 1}</b>

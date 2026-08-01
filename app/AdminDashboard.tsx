@@ -15,6 +15,7 @@ import {
 } from "./economy-simulator";
 import type {
   PublicSeason,
+  SeasonEconomicReport,
   SeasonLeaderboardEntry,
   SeasonSnapshot,
 } from "./season-server";
@@ -171,6 +172,7 @@ type AdminOverview = {
     season: PublicSeason | null;
     snapshots: SeasonSnapshot[];
   };
+  seasonReport: SeasonEconomicReport | null;
   settings: AdminRuntimeSettings;
   suspiciousSessions: Array<{
     completedAt: number | null;
@@ -352,6 +354,22 @@ function formatCma(value: number) {
     minimumFractionDigits: 0,
   }).format(Math.abs(value))} CMA`;
 }
+
+function formatSignedNumber(value: number) {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded.toLocaleString("pt-BR")}`;
+}
+
+const seasonReviewChecks: Array<{
+  key: keyof SeasonEconomicReport["checks"];
+  label: string;
+}> = [
+  { key: "seasonClosed", label: "Temporada encerrada" },
+  { key: "enoughPlayers", label: "Ao menos 5 operadores ativos" },
+  { key: "enoughActivity", label: "Atividade mínima por operador" },
+  { key: "enoughSnapshots", label: "Dois pontos de comparação" },
+  { key: "reviewQueueClear", label: "Fila antifraude revisada" },
+];
 
 function formatPower(value: number) {
   if (value >= 1_000_000) {
@@ -1363,6 +1381,187 @@ export function AdminDashboard({
                     ))
                   )}
                 </div>
+
+                {overview.seasonReport && (
+                  <section className="admin-season-report">
+                    <header>
+                      <div>
+                        <span>RELATÓRIO ECONÔMICO DO CICLO</span>
+                        <h3>
+                          {overview.seasonReport.status === "active"
+                            ? "Leitura provisória da temporada"
+                            : "Fechamento preservado da temporada"}
+                        </h3>
+                      </div>
+                      <strong
+                        className={
+                          overview.seasonReport.readyForEconomyReview
+                            ? "ready"
+                            : "waiting"
+                        }
+                      >
+                        {overview.seasonReport.readyForEconomyReview
+                          ? "PRONTO PARA REVISÃO"
+                          : "MANTER ECONOMIA ATUAL"}
+                      </strong>
+                    </header>
+
+                    <div className="admin-season-report-metrics">
+                      <article>
+                        <span>OPERADORES ATIVOS</span>
+                        <strong>
+                          {formatNumber(
+                            overview.seasonReport.metrics.activeOperators,
+                          )}
+                        </strong>
+                        <small>
+                          {formatNumber(
+                            overview.seasonReport.metrics.newPlayers,
+                          )} novos no ciclo
+                        </small>
+                      </article>
+                      <article>
+                        <span>ARCADE VALIDADO</span>
+                        <strong>
+                          {formatNumber(overview.seasonReport.metrics.games)}
+                        </strong>
+                        <small>
+                          {overview.seasonReport.metrics.winRate}% de vitórias
+                        </small>
+                      </article>
+                      <article>
+                        <span>PODER TEMPORÁRIO</span>
+                        <strong>
+                          {formatNumber(
+                            overview.seasonReport.metrics.powerGrantedGh,
+                          )} GH/s
+                        </strong>
+                        <small>Concedido pelos minigames</small>
+                      </article>
+                      <article>
+                        <span>CMA DOS BLOCOS</span>
+                        <strong>
+                          {formatCma(
+                            overview.seasonReport.metrics.cmaBlockCredits,
+                          )}
+                        </strong>
+                        <small>
+                          {formatCma(overview.seasonReport.metrics.cmaSpent)} em
+                          sumidouros
+                        </small>
+                      </article>
+                      <article>
+                        <span>ENERGIA E CAIXAS</span>
+                        <strong>
+                          {formatNumber(
+                            overview.seasonReport.metrics.batteryClaims,
+                          )} baterias
+                        </strong>
+                        <small>
+                          {formatNumber(
+                            overview.seasonReport.metrics.crateOpens,
+                          )} caixas abertas
+                        </small>
+                      </article>
+                      <article>
+                        <span>CRÉDITOS DE TESTE</span>
+                        <strong>
+                          {formatCma(
+                            overview.seasonReport.metrics.cmaTestCredits,
+                          )} CMA
+                        </strong>
+                        <small>Separados da recompensa dos blocos</small>
+                      </article>
+                    </div>
+
+                    <div className="admin-season-review-grid">
+                      <div className="admin-season-checks">
+                        <span>PORTÕES PARA REBALANCEAMENTO</span>
+                        {seasonReviewChecks.map((check) => {
+                          const passed = overview.seasonReport?.checks[check.key];
+                          return (
+                            <div className={passed ? "passed" : "pending"} key={check.key}>
+                              <b>{passed ? "✓" : "○"}</b>
+                              <span>{check.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="admin-season-comparison">
+                        <span>TENDÊNCIA ENTRE SNAPSHOTS</span>
+                        {overview.seasonReport.snapshotComparison ? (
+                          <>
+                            <div>
+                              <small>Jogadores totais</small>
+                              <strong>
+                                {formatSignedNumber(
+                                  overview.seasonReport.snapshotComparison
+                                    .totalPlayersDelta,
+                                )}
+                              </strong>
+                            </div>
+                            <div>
+                              <small>Ativos em 24h</small>
+                              <strong>
+                                {formatSignedNumber(
+                                  overview.seasonReport.snapshotComparison
+                                    .activePlayers24hDelta,
+                                )}
+                              </strong>
+                            </div>
+                            <div>
+                              <small>Partidas em 24h</small>
+                              <strong>
+                                {formatSignedNumber(
+                                  overview.seasonReport.snapshotComparison
+                                    .games24hDelta,
+                                )}
+                              </strong>
+                            </div>
+                            <div>
+                              <small>Poder em 24h</small>
+                              <strong>
+                                {formatSignedNumber(
+                                  overview.seasonReport.snapshotComparison
+                                    .powerGranted24hDelta,
+                                )} GH/s
+                              </strong>
+                            </div>
+                          </>
+                        ) : (
+                          <p>
+                            Registre pelo menos dois snapshots para comparar a
+                            evolução sem alterar a economia real.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <footer>
+                      <strong>
+                        BTC creditado: {formatAtomic(
+                          BigInt(
+                            overview.seasonReport.metrics.btcCreditedAtomic,
+                          ),
+                          8,
+                        )}
+                      </strong>
+                      <strong>
+                        DOGE creditado: {formatAtomic(
+                          BigInt(
+                            overview.seasonReport.metrics.dogeCreditedAtomic,
+                          ),
+                          8,
+                        )}
+                      </strong>
+                      <span>
+                        Nenhum preço ou valor de bloco é alterado por este
+                        relatório.
+                      </span>
+                    </footer>
+                  </section>
+                )}
               </>
             ) : (
               <p className="admin-inline-empty">

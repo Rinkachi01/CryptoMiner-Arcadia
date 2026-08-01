@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   calculateSeasonScore,
+  compareSeasonSnapshots,
   normalizeSeasonDurationDays,
   seasonProgressPercent,
 } from "../app/season-rules.ts";
@@ -17,6 +18,38 @@ test("pontuação da temporada privilegia vitória e dificuldade validada", () =
       calculateSeasonScore({ highestDifficulty: 5, plays: 5, wins: 4 }),
     true,
   );
+});
+
+test("comparação econômica usa o primeiro e o último snapshot", () => {
+  const comparison = compareSeasonSnapshots([
+    {
+      createdAt: 3_000,
+      metrics: {
+        activePlayers24h: 8,
+        games24h: 30,
+        powerGranted24h: 900,
+        totalPlayers: 14,
+      },
+    },
+    {
+      createdAt: 1_000,
+      metrics: {
+        activePlayers24h: 3,
+        games24h: 10,
+        powerGranted24h: 200,
+        totalPlayers: 5,
+      },
+    },
+  ]);
+  assert.deepEqual(comparison, {
+    activePlayers24hDelta: 5,
+    fromAt: 1_000,
+    games24hDelta: 20,
+    powerGranted24hDelta: 700,
+    toAt: 3_000,
+    totalPlayersDelta: 9,
+  });
+  assert.equal(compareSeasonSnapshots([]), null);
 });
 
 test("progresso e duração da temporada respeitam limites seguros", () => {
@@ -43,6 +76,11 @@ test("temporadas e snapshots são persistentes e administrados pelo proprietári
   assert.match(adminRoute, /season_snapshot_created/);
   assert.match(adminRoute, /season_closed/);
   assert.match(dashboard, /SEM PRÊMIO FINANCEIRO/);
+  assert.match(server, /readSeasonEconomicReport/);
+  assert.match(server, /readyForEconomyReview/);
+  assert.match(dashboard, /RELATÓRIO ECONÔMICO DO CICLO/);
+  assert.match(dashboard, /MANTER ECONOMIA ATUAL/);
+  assert.match(dashboard, /Nenhum preço ou valor de bloco é alterado/);
 });
 
 test("ranking competitivo não promete CMA, saque ou retorno financeiro", async () => {

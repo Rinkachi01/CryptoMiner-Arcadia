@@ -11,6 +11,10 @@ const [game, arcade, career, progress, admin, inbox, styles] = await Promise.all
   readFile(new URL("../app/OperatorInbox.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
+const firstDay = await readFile(
+  new URL("../app/FirstDayPanel.tsx", import.meta.url),
+  "utf8",
+);
 
 test("Arcade mostra os jogos sem carregar carreira e temporada antes deles", () => {
   assert.match(arcade, /games-hub-body/);
@@ -58,4 +62,7 @@ test("controles e navegação mantêm áreas de toque acessíveis", () => {
   assert.match(styles, /grid-template-columns: repeat\(6/);
   assert.match(game, /Tamanho do texto/);
   assert.match(admin, /Tamanho do texto/);
+  assert.match(firstDay, /aria-current/);
+  assert.match(firstDay, /Continuar: \$\{nextStepLabel\}/);
+  assert.match(styles, /scroll-snap-type: x proximity/);
 });

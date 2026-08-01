@@ -1,6 +1,7 @@
 import {
   DEFAULT_SEASON_DURATION_DAYS,
   calculateSeasonScore,
+  compareSeasonSnapshots,
   normalizeSeasonDurationDays,
   seasonProgressPercent,
 } from "./season-rules";
@@ -33,6 +34,30 @@ type SnapshotRow = {
   season_id: string;
 };
 
+type SeasonSessionSummaryRow = {
+  active_operators: number;
+  games: number;
+  power_granted_gh: number;
+  wins: number;
+};
+
+type SeasonLedgerSummaryRow = {
+  battery_claims: number;
+  cma_block_micros: number;
+  cma_spent_micros: number;
+  cma_test_micros: number;
+  crate_opens: number;
+};
+
+type SeasonBlockRewardRow = {
+  btc_atomic: number;
+  doge_atomic: number;
+};
+
+type SeasonCountRow = {
+  total: number;
+};
+
 export type PublicSeason = {
   closedAt: number | null;
   createdAt: number;
@@ -59,6 +84,47 @@ export type SeasonSnapshot = {
   id: string;
   metrics: Record<string, number>;
   seasonId: string;
+};
+
+export type SeasonEconomicReport = {
+  checks: {
+    enoughActivity: boolean;
+    enoughPlayers: boolean;
+    enoughSnapshots: boolean;
+    reviewQueueClear: boolean;
+    seasonClosed: boolean;
+  };
+  metrics: {
+    activeOperators: number;
+    batteryClaims: number;
+    btcCreditedAtomic: number;
+    cmaBlockCredits: number;
+    cmaSpent: number;
+    cmaTestCredits: number;
+    crateOpens: number;
+    dogeCreditedAtomic: number;
+    games: number;
+    newPlayers: number;
+    openReviews: number;
+    powerGrantedGh: number;
+    winRate: number;
+    wins: number;
+  };
+  period: {
+    endsAt: number;
+    startsAt: number;
+  };
+  readyForEconomyReview: boolean;
+  seasonId: string;
+  snapshotComparison: {
+    activePlayers24hDelta: number;
+    fromAt: number;
+    games24hDelta: number;
+    powerGranted24hDelta: number;
+    toAt: number;
+    totalPlayersDelta: number;
+  } | null;
+  status: "active" | "closed";
 };
 
 export async function ensureSeasonSchema(db: D1Database) {
@@ -110,6 +176,17 @@ function publicSeason(row: SeasonRow, now: number): PublicSeason {
     startsAt: row.starts_at,
     status: row.status === "active" ? "active" : "closed",
   };
+}
+
+function parseSnapshotMetrics(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, number>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 async function readSeasonRow(db: D1Database) {
@@ -233,19 +310,144 @@ export async function readSeasonOverview(
     leaderboard: leaderboard.slice(0, 25),
     season: publicSeason(row, now),
     snapshots: snapshotRows.results.map((snapshot) => {
-      let metrics: Record<string, number> = {};
-      try {
-        metrics = JSON.parse(snapshot.metrics_json) as Record<string, number>;
-      } catch {
-        metrics = {};
-      }
       return {
         createdAt: snapshot.created_at,
         id: snapshot.id,
-        metrics,
+        metrics: parseSnapshotMetrics(snapshot.metrics_json),
         seasonId: snapshot.season_id,
       };
     }),
+  };
+}
+
+export async function readSeasonEconomicReport(
+  db: D1Database,
+  now: number,
+): Promise<SeasonEconomicReport | null> {
+  await ensureSeasonSchema(db);
+  const season = await readSeasonRow(db);
+  if (!season) return null;
+  const until =
+    season.status === "active"
+      ? Math.min(now, season.ends_at)
+      : (season.closed_at ?? season.ends_at);
+
+  const [
+    newPlayers,
+    sessions,
+    ledger,
+    blockRewards,
+    openReviews,
+    snapshotRows,
+  ] = await Promise.all([
+    db
+      .prepare(
+        `SELECT COUNT(*) AS total
+         FROM game_states
+         WHERE created_at >= ? AND created_at <= ?`,
+      )
+      .bind(season.starts_at, until)
+      .first<SeasonCountRow>(),
+    db
+      .prepare(
+        `SELECT COUNT(*) AS games,
+                COUNT(DISTINCT account_id) AS active_operators,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS wins,
+                COALESCE(SUM(reward_power_gh), 0) AS power_granted_gh
+         FROM game_sessions
+         WHERE started_at >= ? AND started_at <= ?
+           AND status IN ('completed', 'failed')`,
+      )
+      .bind(season.starts_at, until)
+      .first<SeasonSessionSummaryRow>(),
+    db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(CASE WHEN action = 'daily_mission_battery' THEN 1 ELSE 0 END), 0) AS battery_claims,
+           COALESCE(SUM(CASE WHEN action = 'open_supply_crate' THEN 1 ELSE 0 END), 0) AS crate_opens,
+           COALESCE(SUM(CASE WHEN action = 'block_settlement' AND delta_cma_micros > 0 THEN delta_cma_micros ELSE 0 END), 0) AS cma_block_micros,
+           COALESCE(SUM(CASE WHEN action = 'admin_test_cma_grant' AND delta_cma_micros > 0 THEN delta_cma_micros ELSE 0 END), 0) AS cma_test_micros,
+           COALESCE(SUM(CASE WHEN delta_cma_micros < 0 THEN -delta_cma_micros ELSE 0 END), 0) AS cma_spent_micros
+         FROM ledger_entries
+         WHERE created_at >= ? AND created_at <= ?`,
+      )
+      .bind(season.starts_at, until)
+      .first<SeasonLedgerSummaryRow>(),
+    db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.btc') AS INTEGER) ELSE 0 END), 0) AS btc_atomic,
+           COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.doge') AS INTEGER) ELSE 0 END), 0) AS doge_atomic
+         FROM ledger_entries
+         WHERE action = 'block_settlement'
+           AND created_at >= ? AND created_at <= ?`,
+      )
+      .bind(season.starts_at, until)
+      .first<SeasonBlockRewardRow>(),
+    db
+      .prepare(
+        `SELECT COUNT(*) AS total
+         FROM game_sessions AS sessions
+         LEFT JOIN admin_session_reviews AS reviews
+           ON reviews.session_id = sessions.id
+         WHERE sessions.started_at >= ? AND sessions.started_at <= ?
+           AND sessions.risk_level != 'normal'
+           AND reviews.session_id IS NULL`,
+      )
+      .bind(season.starts_at, until)
+      .first<SeasonCountRow>(),
+    db
+      .prepare(
+        `SELECT id, season_id, metrics_json, created_at
+         FROM season_snapshots
+         WHERE season_id = ?
+         ORDER BY created_at ASC
+         LIMIT 120`,
+      )
+      .bind(season.id)
+      .all<SnapshotRow>(),
+  ]);
+
+  const games = Number(sessions?.games ?? 0);
+  const wins = Number(sessions?.wins ?? 0);
+  const activeOperators = Number(sessions?.active_operators ?? 0);
+  const snapshots = (snapshotRows.results ?? []).map((snapshot) => ({
+    createdAt: snapshot.created_at,
+    id: snapshot.id,
+    metrics: parseSnapshotMetrics(snapshot.metrics_json),
+    seasonId: snapshot.season_id,
+  }));
+  const checks = {
+    enoughActivity: games >= Math.max(3, activeOperators * 3),
+    enoughPlayers: activeOperators >= 5,
+    enoughSnapshots: snapshots.length >= 2,
+    reviewQueueClear: Number(openReviews?.total ?? 0) === 0,
+    seasonClosed: season.status !== "active",
+  };
+
+  return {
+    checks,
+    metrics: {
+      activeOperators,
+      batteryClaims: Number(ledger?.battery_claims ?? 0),
+      btcCreditedAtomic: Number(blockRewards?.btc_atomic ?? 0),
+      cmaBlockCredits: Number(ledger?.cma_block_micros ?? 0) / 1_000_000,
+      cmaSpent: Number(ledger?.cma_spent_micros ?? 0) / 1_000_000,
+      cmaTestCredits: Number(ledger?.cma_test_micros ?? 0) / 1_000_000,
+      crateOpens: Number(ledger?.crate_opens ?? 0),
+      dogeCreditedAtomic: Number(blockRewards?.doge_atomic ?? 0),
+      games,
+      newPlayers: Number(newPlayers?.total ?? 0),
+      openReviews: Number(openReviews?.total ?? 0),
+      powerGrantedGh: Number(sessions?.power_granted_gh ?? 0),
+      winRate: games > 0 ? Math.round((wins / games) * 100) : 0,
+      wins,
+    },
+    period: { endsAt: until, startsAt: season.starts_at },
+    readyForEconomyReview: Object.values(checks).every(Boolean),
+    seasonId: season.id,
+    snapshotComparison: compareSeasonSnapshots(snapshots),
+    status: season.status === "active" ? "active" : "closed",
   };
 }
 
