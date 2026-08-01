@@ -338,7 +338,22 @@ Critério de saída: economia estável em uma temporada fechada.
 
 ## Ponto de retomada — próxima semana
 
-Status: kit inicial e mineração global prontos para teste fechado.
+Status: retomada concluída; jornada inicial e rede global preparadas para o
+teste fechado ampliado.
+
+Entregas concluídas na retomada:
+
+- teste automatizado do percurso completo do kit ao primeiro bloco;
+- passagem direta da bateria conquistada para a ativação da sala;
+- identidade do Arcadia centralizada, mantendo ChatGPT no beta privado e o
+  mesmo vínculo de progresso para uma futura conta com e-mail verificado;
+- tela de entrada informa claramente o estágio privado e a futura migração;
+- índice incremental de poder por conta substitui a leitura limitada a 5.000
+  estados completos;
+- contas existentes entram no novo índice por lotes, sem resetar inventário,
+  energia, pools ou saldos;
+- potência instalada e temporária continuam contando somente enquanto a sala
+  estiver energizada.
 
 Decisões consolidadas:
 
@@ -355,16 +370,14 @@ Decisões consolidadas:
 
 Ordem recomendada das próximas entregas:
 
-1. testar o onboarding completo com contas novas e medir onde o jogador para;
-2. polir a passagem Arcade → missão de bateria → ativação da sala em celular;
-3. validar uma temporada econômica fechada antes de alterar preços ou blocos;
-4. preparar autenticação pública com cadastro, e-mail verificado, recuperação
+1. validar uma temporada econômica fechada antes de alterar preços ou blocos;
+2. testar o onboarding em celulares reais e medir onde o jogador para;
+3. escolher a hospedagem e o provedor da autenticação pública;
+4. implementar cadastro, e-mail verificado, recuperação
    de senha, proteção contra múltiplas contas e migração do progresso atual;
-5. substituir a leitura global limitada de contas por agregação incremental da
-   rede antes de abrir o beta para milhares de jogadores;
-6. adicionar monitoramento operacional, recuperação de dados e simulação de
+5. adicionar monitoramento operacional, recuperação de dados e simulação de
    incidentes antes de qualquer recurso financeiro real;
-7. avaliar tarefas e publicidade somente com consentimento, antifraude e
+6. avaliar tarefas e publicidade somente com consentimento, antifraude e
    orçamento separado da recompensa dos blocos.
 
 Polimentos ainda recomendados:

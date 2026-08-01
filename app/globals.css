@@ -11643,7 +11643,26 @@ img {
   display: block;
   margin-top: 15px;
   color: #62717e;
-  font-size: 7px;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.login-access-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 14px;
+  color: #a9b8c2;
+  font-size: 0.76rem;
+}
+
+.login-access-status strong {
+  padding: 4px 7px;
+  border: 1px solid rgba(169, 255, 63, 0.42);
+  color: var(--lime);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
 }
 
 @media (max-width: 1180px) {

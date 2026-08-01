@@ -1,20 +1,20 @@
 import { AdminDashboard } from "../AdminDashboard";
 import {
-  chatGPTSignOutPath,
-  requireChatGPTUser,
-} from "../chatgpt-auth";
+  arcadiaSignOutPath,
+  requireArcadiaUser,
+} from "../identity-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const user = await requireChatGPTUser("/admin");
+  const user = await requireArcadiaUser("/admin");
   return (
     <AdminDashboard
       user={{
         displayName: user.displayName,
         email: user.email,
       }}
-      signOutPath={chatGPTSignOutPath("/")}
+      signOutPath={arcadiaSignOutPath("/")}
     />
   );
 }

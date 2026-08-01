@@ -1,15 +1,15 @@
 import { ArcadiaGame } from "./ArcadiaGame";
 import {
-  chatGPTSignInPath,
-  chatGPTSignOutPath,
-  getChatGPTUser,
-} from "./chatgpt-auth";
+  arcadiaSignInPath,
+  arcadiaSignOutPath,
+  getArcadiaUser,
+} from "./identity-server";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
 
   if (!user) {
     return (
@@ -22,8 +22,15 @@ export default async function Home() {
             Entre com o ChatGPT para manter salas, equipamentos, energia,
             compras, pools e blocos salvos no servidor.
           </p>
-          <a href={chatGPTSignInPath("/")}>ENTRAR COM CHATGPT</a>
-          <small>O navegador não controla mais o saldo ou o inventário.</small>
+          <a href={arcadiaSignInPath("/")}>ENTRAR COM CHATGPT</a>
+          <div className="login-access-status">
+            <strong>BETA PRIVADO</strong>
+            <span>Login atual protegido pelo ChatGPT</span>
+          </div>
+          <small>
+            O cadastro por e-mail será conectado antes do beta público, com
+            migração do progresso desta conta.
+          </small>
         </section>
       </main>
     );
@@ -36,7 +43,7 @@ export default async function Home() {
           displayName: user.displayName,
           email: user.email,
         }}
-        signOutPath={chatGPTSignOutPath("/")}
+        signOutPath={arcadiaSignOutPath("/")}
       />
     </GameErrorBoundary>
   );

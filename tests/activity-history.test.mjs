@@ -34,7 +34,7 @@ test("histórico é pessoal, autenticado e lido de fontes autoritativas", async 
     readFile(new URL("../app/CareerView.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(route, /getChatGPTUser/);
+  assert.match(route, /getArcadiaUser/);
   assert.match(route, /WHERE account_id = \?/);
   assert.match(route, /ledger_entries/);
   assert.match(route, /game_sessions/);

@@ -3,7 +3,7 @@ import {
   presentGameSession,
   presentLedgerActivity,
 } from "../../activity-rules";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 
 export const dynamic = "force-dynamic";
 
@@ -54,14 +54,6 @@ const walletDecimals = {
   BTC: 100_000_000,
   DOGE: 100_000_000,
 } as const;
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -151,7 +143,7 @@ async function ensureReadableHistory(db: D1Database) {
 }
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return json({ error: "Faça login para ver seu histórico." }, 401);
   const db = env.DB;
   if (!db) {
@@ -160,7 +152,7 @@ export async function GET() {
 
   const now = Date.now();
   const since = now - PERIOD_DAYS * 24 * 60 * 60 * 1000;
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   await ensureReadableHistory(db);
 
   const [

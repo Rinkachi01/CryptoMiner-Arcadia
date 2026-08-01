@@ -10,7 +10,7 @@ import {
   type AdminThresholdKey,
 } from "../../admin-settings";
 import { evaluateAdminAlerts } from "../../admin-alert-rules";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import { getMiner, type PoolId } from "../../game-rules";
 import type { PublicGameState } from "../../game-server";
 import {
@@ -141,18 +141,10 @@ function json(value: unknown, status = 200) {
   });
 }
 
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function adminContext() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user || !env.DB) return null;
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   const owner = await claimOrVerifyAdminOwner(
     env.DB,
     accountId,

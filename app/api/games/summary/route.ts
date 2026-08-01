@@ -1,5 +1,8 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  accountIdForUser,
+  getArcadiaUser,
+} from "../../../identity-server";
 import { readAdminRuntimeSettings } from "../../../admin-settings";
 import {
   DAILY_ARCADE_BATTERY_REWARD,
@@ -46,14 +49,6 @@ type ClaimRow = {
   status: string;
   state_version_after: number | null;
 };
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -319,13 +314,13 @@ async function finalizeClaim(
 }
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return json({ error: "Faça login para continuar." }, 401);
   const db = env.DB;
   if (!db) return json({ error: "Telemetria indisponível." }, 503);
 
   const now = Date.now();
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
   await ensureSchema(db);
   const settings = await readAdminRuntimeSettings(db);
@@ -543,7 +538,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return json({ error: "Faça login para continuar." }, 401);
   const db = env.DB;
   if (!db) return json({ error: "Recompensas indisponíveis." }, 503);
@@ -555,7 +550,7 @@ export async function POST(request: Request) {
   }
 
   const now = Date.now();
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
   await ensureSchema(db);
   const playedGames = await completedGamesInWindow(

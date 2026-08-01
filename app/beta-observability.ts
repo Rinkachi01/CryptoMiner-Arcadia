@@ -37,6 +37,7 @@ type SessionActivityRow = {
 
 type OnboardingSessionRow = {
   account_id: string;
+  game_id: string;
 };
 
 type PreferenceCountRow = {
@@ -141,10 +142,17 @@ export function buildOnboardingFunnel(
       // O funil ignora estados antigos malformados.
     }
   }
+  const arcadeGamesByAccount = new Map<string, Set<string>>();
+  for (const row of sessions) {
+    if (!starterAccounts.has(row.account_id)) continue;
+    const games = arcadeGamesByAccount.get(row.account_id) ?? new Set<string>();
+    games.add(row.game_id);
+    arcadeGamesByAccount.set(row.account_id, games);
+  }
   const arcadeRecordedAccounts = new Set(
-    sessions
-      .filter((row) => starterAccounts.has(row.account_id))
-      .map((row) => row.account_id),
+    [...arcadeGamesByAccount.entries()]
+      .filter(([, games]) => games.size >= 3)
+      .map(([accountId]) => accountId),
   );
   const arcadeAccounts = new Set(
     [...arcadeRecordedAccounts].filter((accountId) =>
@@ -421,7 +429,7 @@ export async function readBetaObservability(
       .all<OnboardingLedgerRow>(),
     db
       .prepare(
-        `SELECT DISTINCT account_id
+        `SELECT DISTINCT account_id, game_id
          FROM game_sessions
          WHERE status IN ('completed', 'failed')
          LIMIT 50000`,

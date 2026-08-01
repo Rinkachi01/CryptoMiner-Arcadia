@@ -85,6 +85,13 @@
       "when": 1785275167034,
       "tag": "0011_burly_gunslinger",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1785626278496,
+      "tag": "0012_long_firedrake",
+      "breakpoints": true
     }
   ]
 }

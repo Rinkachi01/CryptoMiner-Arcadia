@@ -642,7 +642,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     return performGameAction("open_supply_crate", { crateId });
   }
 
-  async function useBattery() {
+  async function activateBattery() {
     await performGameAction("use_battery");
   }
 
@@ -961,6 +961,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
 
         {!rackOpen && activeView === "mine" && (
           <FirstDayPanel
+            batteryCount={batteryCount}
             status={onboarding}
             onNavigate={(target) => {
               if (target === "career") setCareerStartTab("missions");
@@ -969,6 +970,9 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             onOpenStarterRack={() => {
               setActiveView("mine");
               openRack("rack-01");
+            }}
+            onActivateEnergy={() => {
+              void activateBattery();
             }}
           />
         )}
@@ -1019,7 +1023,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             onOpenRooms={() => setRoomsOpen(true)}
             onOpenStore={openStore}
             onOpenGames={() => setActiveView("games")}
-            onUseBattery={useBattery}
+            onUseBattery={activateBattery}
           />
         )}
 

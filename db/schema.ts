@@ -270,6 +270,24 @@ export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   updatedBy: text("updated_by"),
 });
 
+export const accountNetworkPower = sqliteTable(
+  "account_network_power",
+  {
+    accountId: text("account_id").primaryKey(),
+    installedPowerGh: integer("installed_power_gh").notNull().default(0),
+    allocationCma: integer("allocation_cma").notNull().default(100),
+    allocationBtc: integer("allocation_btc").notNull().default(0),
+    allocationDoge: integer("allocation_doge").notNull().default(0),
+    energyExpiresAt: integer("energy_expires_at").notNull().default(0),
+    updatedAt: integer("updated_at").notNull().default(0),
+  },
+  (table) => [
+    index("account_network_power_energy_expiry_idx").on(
+      table.energyExpiresAt,
+    ),
+  ],
+);
+
 export const seasons = sqliteTable(
   "seasons",
   {

@@ -3,7 +3,10 @@ import {
   claimOrVerifyAdminOwner,
   readAdminRuntimeSettings,
 } from "../../../admin-settings";
-import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  accountIdForUser,
+  getArcadiaUser,
+} from "../../../identity-server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,14 +33,6 @@ type StateRow = {
   state_json: string;
 };
 
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 function csvCell(value: unknown) {
   const text = String(value ?? "");
   return `"${text.replaceAll('"', '""')}"`;
@@ -48,13 +43,13 @@ function csvRow(...values: unknown[]) {
 }
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   const db = env.DB;
   if (!user || !db) {
     return Response.json({ error: "Faça login para continuar." }, { status: 401 });
   }
   const now = Date.now();
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   const owner = await claimOrVerifyAdminOwner(
     db,
     accountId,

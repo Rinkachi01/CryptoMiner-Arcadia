@@ -48,7 +48,7 @@ test("feedback do beta é autenticado, validado e persistido por conta", async (
   ]);
   assert.equal(isBetaFeedbackStatus("planned"), true);
   assert.equal(isBetaFeedbackStatus("ignored"), false);
-  assert.match(route, /getChatGPTUser/);
+  assert.match(route, /getArcadiaUser/);
   assert.match(route, /message\.length < 10/);
   assert.match(route, /INSERT INTO beta_feedback/);
   assert.match(route, /30_000/);

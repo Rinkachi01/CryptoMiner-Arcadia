@@ -42,10 +42,20 @@ type NetworkStateRow = {
   state_json: string;
 };
 
-type TemporaryPowerRow = {
-  account_id: string;
-  power_gh: number;
+type NetworkPowerTotalsRow = {
+  cma_gh: number;
+  btc_gh: number;
+  doge_gh: number;
 };
+
+export type AccountNetworkContribution = {
+  accountId: string;
+  installedPowerGh: number;
+  allocations: PoolAllocations;
+  energyExpiresAt: number;
+};
+
+const NETWORK_BACKFILL_BATCH_SIZE = 250;
 
 export const DEFAULT_NETWORK_BASE_POWER: NetworkPowerMap = {
   cma: pools.find((pool) => pool.id === "cma")?.networkPowerGh ?? 0,
@@ -110,9 +120,56 @@ export function aggregatePlayerNetworkPower(
   return totals;
 }
 
-export async function ensureNetworkSchema(db: D1Database) {
-  await db
+export function buildAccountNetworkContribution(
+  accountId: string,
+  state: Pick<
+    PublicGameState,
+    "energyExpiresAt" | "poolAllocations" | "rackMiners"
+  >,
+): AccountNetworkContribution {
+  return {
+    accountId,
+    installedPowerGh: getInstalledPower(
+      Object.values(state.rackMiners ?? {}).flat(),
+    ),
+    allocations: validAllocations(state.poolAllocations),
+    energyExpiresAt: safePower(state.energyExpiresAt),
+  };
+}
+
+function contributionUpsert(
+  db: D1Database,
+  contribution: AccountNetworkContribution,
+  updatedAt: number,
+) {
+  return db
     .prepare(
+      `INSERT INTO account_network_power (
+        account_id, installed_power_gh, allocation_cma, allocation_btc,
+        allocation_doge, energy_expires_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(account_id) DO UPDATE SET
+        installed_power_gh = excluded.installed_power_gh,
+        allocation_cma = excluded.allocation_cma,
+        allocation_btc = excluded.allocation_btc,
+        allocation_doge = excluded.allocation_doge,
+        energy_expires_at = excluded.energy_expires_at,
+        updated_at = excluded.updated_at`,
+    )
+    .bind(
+      contribution.accountId,
+      contribution.installedPowerGh,
+      contribution.allocations.cma,
+      contribution.allocations.btc,
+      contribution.allocations.doge,
+      contribution.energyExpiresAt,
+      safePower(updatedAt),
+    );
+}
+
+export async function ensureNetworkSchema(db: D1Database) {
+  await db.batch([
+    db.prepare(
       `CREATE TABLE IF NOT EXISTS network_runtime_settings (
         singleton_id INTEGER PRIMARY KEY NOT NULL,
         base_cma_gh INTEGER DEFAULT 60000000 NOT NULL,
@@ -126,10 +183,23 @@ export async function ensureNetworkSchema(db: D1Database) {
         updated_at INTEGER DEFAULT 0 NOT NULL,
         updated_by TEXT
       )`,
-    )
-    .run();
-  await db
-    .prepare(
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS account_network_power (
+        account_id TEXT PRIMARY KEY NOT NULL,
+        installed_power_gh INTEGER DEFAULT 0 NOT NULL,
+        allocation_cma INTEGER DEFAULT 100 NOT NULL,
+        allocation_btc INTEGER DEFAULT 0 NOT NULL,
+        allocation_doge INTEGER DEFAULT 0 NOT NULL,
+        energy_expires_at INTEGER DEFAULT 0 NOT NULL,
+        updated_at INTEGER DEFAULT 0 NOT NULL
+      )`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS account_network_power_energy_expiry_idx
+       ON account_network_power (energy_expires_at)`,
+    ),
+    db.prepare(
       `INSERT OR IGNORE INTO network_runtime_settings (
         singleton_id, base_cma_gh, base_btc_gh, base_doge_gh,
         reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
@@ -143,8 +213,113 @@ export async function ensureNetworkSchema(db: D1Database) {
       DEFAULT_BLOCK_REWARDS.cma,
       DEFAULT_BLOCK_REWARDS.btc,
       DEFAULT_BLOCK_REWARDS.doge,
-    )
-    .run();
+    ),
+  ]);
+}
+
+export async function syncAccountNetworkPower(
+  db: D1Database,
+  accountId: string,
+  state: Pick<
+    PublicGameState,
+    "energyExpiresAt" | "poolAllocations" | "rackMiners"
+  >,
+  updatedAt: number,
+) {
+  await ensureNetworkSchema(db);
+  await contributionUpsert(
+    db,
+    buildAccountNetworkContribution(accountId, state),
+    updatedAt,
+  ).run();
+}
+
+async function backfillAccountNetworkPower(db: D1Database, now: number) {
+  while (true) {
+    const result = await db
+      .prepare(
+        `SELECT game_states.account_id, game_states.state_json
+         FROM game_states
+         LEFT JOIN account_network_power
+           ON account_network_power.account_id = game_states.account_id
+         WHERE account_network_power.account_id IS NULL
+         ORDER BY game_states.account_id ASC
+         LIMIT ?`,
+      )
+      .bind(NETWORK_BACKFILL_BATCH_SIZE)
+      .all<NetworkStateRow>();
+    const rows = result.results ?? [];
+    if (rows.length === 0) return;
+
+    const statements = rows.flatMap((row) => {
+      try {
+        const state = JSON.parse(row.state_json) as PublicGameState;
+        return [
+          contributionUpsert(
+            db,
+            buildAccountNetworkContribution(row.account_id, state),
+            now,
+          ),
+        ];
+      } catch {
+        return [
+          contributionUpsert(
+            db,
+            {
+              accountId: row.account_id,
+              installedPowerGh: 0,
+              allocations: { cma: 100, btc: 0, doge: 0 },
+              energyExpiresAt: 0,
+            },
+            now,
+          ),
+        ];
+      }
+    });
+    if (statements.length > 0) await db.batch(statements);
+
+    if (rows.length < NETWORK_BACKFILL_BATCH_SIZE) return;
+  }
+}
+
+async function readIndexedPlayerPower(
+  db: D1Database,
+  now: number,
+): Promise<NetworkPowerMap> {
+  const [installed, temporary] = await Promise.all([
+    db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(CAST(installed_power_gh * allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
+           COALESCE(SUM(CAST(installed_power_gh * allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
+           COALESCE(SUM(CAST(installed_power_gh * allocation_doge / 100 AS INTEGER)), 0) AS doge_gh
+         FROM account_network_power
+         WHERE energy_expires_at > ?`,
+      )
+      .bind(now)
+      .first<NetworkPowerTotalsRow>(),
+    db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_doge / 100 AS INTEGER)), 0) AS doge_gh
+         FROM temporary_power_grants AS grants
+         INNER JOIN account_network_power AS accounts
+           ON accounts.account_id = grants.account_id
+         WHERE accounts.energy_expires_at > ?
+           AND grants.starts_at <= ?
+           AND grants.expires_at > ?`,
+      )
+      .bind(now, now, now)
+      .first<NetworkPowerTotalsRow>(),
+  ]);
+
+  return {
+    cma: safePower(installed?.cma_gh) + safePower(temporary?.cma_gh),
+    btc: safePower(installed?.btc_gh) + safePower(temporary?.btc_gh),
+    doge: safePower(installed?.doge_gh) + safePower(temporary?.doge_gh),
+  };
 }
 
 export async function updateNetworkBasePower(
@@ -224,7 +399,8 @@ export async function readNetworkPowerSnapshot(
   now: number,
 ): Promise<NetworkPowerSnapshot> {
   await ensureNetworkSchema(db);
-  const [settings, stateRows, temporaryRows] = await Promise.all([
+  await backfillAccountNetworkPower(db, now);
+  const [settings, playerPowerGh] = await Promise.all([
     db
       .prepare(
         `SELECT base_cma_gh, base_btc_gh, base_doge_gh,
@@ -234,54 +410,8 @@ export async function readNetworkPowerSnapshot(
          WHERE singleton_id = 1`,
       )
       .first<NetworkSettingsRow>(),
-    db
-      .prepare(
-        `SELECT account_id, state_json
-         FROM game_states
-         LIMIT 5000`,
-      )
-      .all<NetworkStateRow>(),
-    db
-      .prepare(
-        `SELECT account_id, COALESCE(SUM(power_gh), 0) AS power_gh
-         FROM temporary_power_grants
-         WHERE starts_at <= ? AND expires_at > ?
-         GROUP BY account_id`,
-      )
-      .bind(now, now)
-      .all<TemporaryPowerRow>(),
+    readIndexedPlayerPower(db, now),
   ]);
-
-  const states: Array<{
-    accountId: string;
-    state: Pick<
-      PublicGameState,
-      "energyExpiresAt" | "poolAllocations" | "rackMiners"
-    >;
-  }> = [];
-  for (const row of stateRows.results ?? []) {
-    try {
-      const state = JSON.parse(row.state_json) as PublicGameState;
-      states.push({
-        accountId: row.account_id,
-        state,
-      });
-    } catch {
-      // Estados legados inválidos não participam do poder vivo.
-    }
-  }
-
-  const temporaryPower = new Map(
-    (temporaryRows.results ?? []).map((row) => [
-      row.account_id,
-      safePower(row.power_gh),
-    ]),
-  );
-  const playerPowerGh = aggregatePlayerNetworkPower(
-    states,
-    temporaryPower,
-    now,
-  );
   const basePowerGh: NetworkPowerMap = {
     cma: safePower(settings?.base_cma_gh),
     btc: safePower(settings?.base_btc_gh),

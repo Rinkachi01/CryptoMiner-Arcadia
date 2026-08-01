@@ -7,7 +7,10 @@ import {
   pools,
 } from "../app/game-rules.ts";
 import { createInitialGameState } from "../app/game-server.ts";
-import { aggregatePlayerNetworkPower } from "../app/network-server.ts";
+import {
+  aggregatePlayerNetworkPower,
+  buildAccountNetworkContribution,
+} from "../app/network-server.ts";
 
 test("rede viva soma apenas equipamentos energizados e respeita alocações", () => {
   const now = 1_800_000_000_000;
@@ -51,6 +54,36 @@ test("bloco total fica fixo enquanto o poder altera apenas a participação", ()
   assert.equal(soloLarge, cma.rewardAtomic);
   assert.equal(firstShare, doubledFirstShare);
   assert.ok(firstShare + secondShare <= cma.rewardAtomic);
+});
+
+test("índice incremental preserva potência, alocação e validade da energia", () => {
+  const now = 1_800_000_000_000;
+  let state = createInitialGameState(now);
+  state.rackMiners["rack-01"] = [
+    {
+      instanceId: state.minerInventory[0].instanceId,
+      minerId: "byte-spark",
+      slotIndex: 0,
+    },
+  ];
+  state.poolAllocations = { cma: 20, btc: 30, doge: 50 };
+  state.energyExpiresAt = now + 12 * 60 * 60 * 1000;
+
+  const contribution = buildAccountNetworkContribution("operator", state);
+  assert.equal(contribution.accountId, "operator");
+  assert.equal(contribution.installedPowerGh, getInstalledPower(state.rackMiners["rack-01"]));
+  assert.deepEqual(contribution.allocations, state.poolAllocations);
+  assert.equal(contribution.energyExpiresAt, state.energyExpiresAt);
+});
+
+test("rede global não possui mais teto silencioso de cinco mil contas", async () => {
+  const source = await readFile(
+    new URL("../app/network-server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /account_network_power/);
+  assert.match(source, /backfillAccountNetworkPower/);
+  assert.doesNotMatch(source, /FROM game_states\s+LIMIT 5000/);
 });
 
 test("laboratório do proprietário é limitado, reversível e auditado", async () => {

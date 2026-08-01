@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
   isPartnerTaskMode,
   readTaskPreference,
@@ -7,14 +7,6 @@ import {
 } from "../../task-preferences";
 
 export const dynamic = "force-dynamic";
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -24,11 +16,11 @@ function json(value: unknown, status = 200) {
 }
 
 async function preferenceContext() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return null;
   if (!env.DB) throw new Error("Preferências temporariamente indisponíveis.");
   return {
-    accountId: await accountIdFor(user.email),
+    accountId: await accountIdForUser(user),
     db: env.DB,
   };
 }

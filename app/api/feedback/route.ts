@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
   ensureBetaFeedbackSchema,
   readPersonalBetaFeedback,
@@ -7,14 +7,6 @@ import {
 import { isBetaFeedbackCategory } from "../../feedback-rules";
 
 export const dynamic = "force-dynamic";
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -24,13 +16,13 @@ function json(value: unknown, status = 200) {
 }
 
 async function feedbackContext() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return null;
   const db = env.DB;
   if (!db) throw new Error("Banco autoritativo indisponível.");
   await ensureBetaFeedbackSchema(db);
   return {
-    accountId: await accountIdFor(user.email),
+    accountId: await accountIdForUser(user),
     db,
   };
 }

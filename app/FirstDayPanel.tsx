@@ -11,9 +11,11 @@ import type {
 type FirstDayTarget = "mine" | "pools" | "games" | "career";
 
 type FirstDayPanelProps = {
+  batteryCount: number;
   status: OnboardingStatus | null;
   onNavigate: (target: FirstDayTarget) => void;
   onOpenStarterRack: () => void;
+  onActivateEnergy: () => void;
 };
 
 const stepDefinitions: Array<{
@@ -61,9 +63,11 @@ const stepDefinitions: Array<{
 ];
 
 export function FirstDayPanel({
+  batteryCount,
   status,
   onNavigate,
   onOpenStarterRack,
+  onActivateEnergy,
 }: FirstDayPanelProps) {
   if (!status?.eligible || status.completed) return null;
 
@@ -82,8 +86,21 @@ export function FirstDayPanel({
       onOpenStarterRack();
       return;
     }
+    if (id === "energyOnline" && batteryCount > 0) {
+      onActivateEnergy();
+      return;
+    }
     onNavigate(target);
   }
+
+  const nextStepLabel =
+    nextStep.id === "energyOnline" && batteryCount > 0
+      ? "Ative a sala"
+      : nextStep.label;
+  const nextStepShort =
+    nextStep.id === "energyOnline" && batteryCount > 0
+      ? "Use agora a bateria conquistada"
+      : nextStep.short;
 
   return (
     <section className="first-day-panel" aria-labelledby="first-day-title">
@@ -113,8 +130,8 @@ export function FirstDayPanel({
 
       <div className="first-day-next">
         <span>PRÓXIMA AÇÃO</span>
-        <strong>{nextStep.label}</strong>
-        <small>{nextStep.short}</small>
+        <strong>{nextStepLabel}</strong>
+        <small>{nextStepShort}</small>
         <button
           type="button"
           onClick={() => openStep(nextStep.id, nextStep.target)}

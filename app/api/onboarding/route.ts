@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import type { PublicGameState } from "../../game-server";
 import {
   buildOnboardingStatus,
@@ -20,14 +20,6 @@ type LedgerRow = {
 type CountRow = {
   total: number;
 };
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function parseMetadata(value: string) {
   try {
@@ -89,7 +81,7 @@ async function ensureOnboardingSchema(db: D1Database) {
 }
 
 export async function GET() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) {
     return Response.json(
       { error: "Faça login para ver seu primeiro dia." },
@@ -105,7 +97,7 @@ export async function GET() {
   }
 
   await ensureOnboardingSchema(db);
-  const accountId = await accountIdFor(user.email);
+  const accountId = await accountIdForUser(user);
   const [stateRow, ledgerRows, sessionCount] = await Promise.all([
     db
       .prepare(`SELECT state_json FROM game_states WHERE account_id = ?`)

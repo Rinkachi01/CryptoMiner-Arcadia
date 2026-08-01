@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "../../chatgpt-auth";
+import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import { readAdminRuntimeSettings } from "../../admin-settings";
 import { BLOCK_INTERVAL_SECONDS } from "../../game-rules";
 import {
@@ -14,6 +14,7 @@ import {
 import { getSupplyCrate } from "../../supply-crate-rules";
 import {
   readNetworkPowerSnapshot,
+  syncAccountNetworkPower,
   type NetworkPowerSnapshot,
 } from "../../network-server";
 import { STARTER_KIT_VERSION } from "../../onboarding-rules";
@@ -29,14 +30,6 @@ type StoredRow = {
   created_at: number;
   updated_at: number;
 };
-
-async function accountIdFor(email: string) {
-  const bytes = new TextEncoder().encode(email.trim().toLowerCase());
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function json(
   value: unknown,
@@ -284,11 +277,12 @@ async function createAccount(
     .run();
   const persisted = await readState(db, accountId);
   if (!persisted) throw new Error("Não foi possível criar a conta.");
+  await syncAccountNetworkPower(db, accountId, state, now);
   return persisted;
 }
 
 async function authenticatedContext() {
-  const user = await getChatGPTUser();
+  const user = await getArcadiaUser();
   if (!user) return null;
   const db = env.DB;
   if (!db) throw new Error("Banco autoritativo indisponível.");
@@ -296,7 +290,7 @@ async function authenticatedContext() {
   return {
     db,
     user,
-    accountId: await accountIdFor(user.email),
+    accountId: await accountIdForUser(user),
   };
 }
 
@@ -344,6 +338,12 @@ export async function GET() {
     now,
   );
   const state = parseState(row);
+  await syncAccountNetworkPower(
+    context.db,
+    context.accountId,
+    state,
+    now,
+  );
   const network = await readNetworkPowerSnapshot(context.db, now);
   const eligibleTemporaryPowerGh = await settlementTemporaryPower(
     context.db,
@@ -466,6 +466,12 @@ export async function POST(request: Request) {
     now,
   );
   const eligibleTemporaryPowerGh = await settlementTemporaryPower(
+    context.db,
+    context.accountId,
+    parseState(row),
+    now,
+  );
+  await syncAccountNetworkPower(
     context.db,
     context.accountId,
     parseState(row),
@@ -651,6 +657,12 @@ export async function POST(request: Request) {
     version: nextVersion,
     updated_at: now,
   };
+  await syncAccountNetworkPower(
+    context.db,
+    context.accountId,
+    result.state,
+    now,
+  );
   network = await readNetworkPowerSnapshot(context.db, now);
   return json({
     ...responsePayload(

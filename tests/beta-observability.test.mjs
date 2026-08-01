@@ -66,7 +66,7 @@ test("preferência de tarefas aceita somente escolhas sem ativação automática
   assert.deepEqual(partnerTaskModes, ["ask", "disabled"]);
   assert.equal(isPartnerTaskMode("ask"), true);
   assert.equal(isPartnerTaskMode("enabled"), false);
-  assert.match(api, /getChatGPTUser/);
+  assert.match(api, /getArcadiaUser/);
   assert.match(api, /saveTaskPreference/);
   assert.match(tasks, /Parceiro conectado: <b>NÃO<\/b>/);
   assert.match(tasks, /Esta escolha prepara o beta/);

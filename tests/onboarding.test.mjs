@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createInitialGameState } from "../app/game-server.ts";
+import {
+  applyGameAction,
+  createInitialGameState,
+} from "../app/game-server.ts";
 import {
   buildOnboardingStatus,
   STARTER_KIT_VERSION,
@@ -103,7 +106,11 @@ test("funil do proprietário usa somente contas do kit atual", () => {
   const funnel = buildOnboardingFunnel(
     accounts,
     ledger,
-    [{ account_id: "new" }],
+    [
+      { account_id: "new", game_id: "packet-catch" },
+      { account_id: "new", game_id: "hash-match" },
+      { account_id: "new", game_id: "circuit-rush" },
+    ],
     NOW,
   );
 
@@ -112,6 +119,38 @@ test("funil do proprietário usa somente contas do kit atual", () => {
     funnel.stages.map((stage) => stage.accounts),
     [1, 1, 1, 1, 1, 1],
   );
+});
+
+test("funil só considera o Arcade concluído após os três jogos", () => {
+  const accounts = [
+    {
+      account_id: "partial",
+      created_at: NOW,
+      updated_at: NOW,
+      state_json: JSON.stringify({
+        rackMiners: { "rack-01": [{ minerId: "byte-spark" }] },
+      }),
+    },
+  ];
+  const ledger = [
+    {
+      account_id: "partial",
+      action: "starter_kit_granted",
+      metadata_json: JSON.stringify({ version: STARTER_KIT_VERSION }),
+      created_at: NOW,
+    },
+  ];
+  const funnel = buildOnboardingFunnel(
+    accounts,
+    ledger,
+    [
+      { account_id: "partial", game_id: "packet-catch" },
+      { account_id: "partial", game_id: "hash-match" },
+    ],
+    NOW,
+  );
+  assert.equal(funnel.stages[1].accounts, 1);
+  assert.equal(funnel.stages[2].accounts, 0);
 });
 
 test("conta nova não importa saldo nem energia local", async () => {
@@ -133,4 +172,49 @@ test("conta nova não importa saldo nem energia local", async () => {
   assert.match(panel, /Jogue os três minigames/);
   assert.match(panel, /Receba o primeiro bloco/);
   assert.match(summaryRoute, /starter_kit_granted/);
+});
+
+test("jornada completa exige instalar, jogar, resgatar, energizar e minerar", () => {
+  let state = createInitialGameState(NOW);
+  const events = [
+    {
+      action: "starter_kit_granted",
+      metadata: { version: STARTER_KIT_VERSION },
+    },
+  ];
+
+  state = applyGameAction(
+    state,
+    "install_miner",
+    {
+      rackId: "rack-01",
+      instanceId: state.minerInventory[0].instanceId,
+      slotIndex: 0,
+    },
+    NOW,
+  ).state;
+  events.push({ action: "install_miner", metadata: {} });
+  let status = buildOnboardingStatus(state, events, 3, NOW);
+  assert.equal(status.milestones.arcadeCompleted, true);
+  assert.equal(status.milestones.energyOnline, false);
+
+  state.batteryCount = 1;
+  state = applyGameAction(state, "use_battery", {}, NOW).state;
+  events.push({ action: "use_battery", metadata: {} });
+  state = applyGameAction(
+    state,
+    "apply_allocations",
+    { allocations: { cma: 60, btc: 20, doge: 20 } },
+    NOW,
+  ).state;
+  events.push({ action: "apply_allocations", metadata: {} });
+  events.push({
+    action: "block_settlement",
+    metadata: { rewards: { cma: 1, btc: 0, doge: 0 } },
+  });
+
+  status = buildOnboardingStatus(state, events, 3, NOW);
+  assert.equal(status.completed, true);
+  assert.equal(state.batteryCount, 0);
+  assert.equal(state.cmaBalance, 0);
 });
