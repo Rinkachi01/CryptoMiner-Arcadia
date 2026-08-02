@@ -120,11 +120,15 @@ const requiredTables = [
   "beta_accessibility_reviews",
   "task_preferences",
   "task_preference_events",
+  "arcade_security_passes",
+  "security_rate_windows",
+  "security_events",
   "operational_checkpoints",
 ] as const;
 
 const tableLimits: Record<(typeof requiredTables)[number], number> = {
   account_network_power: 10_000,
+  arcade_security_passes: 10_000,
   beta_accessibility_reviews: 50_000,
   beta_device_profiles: 10_000,
   admin_audit_log: 50_000,
@@ -142,6 +146,8 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   operational_checkpoints: 10_000,
   season_snapshots: 10_000,
   seasons: 1_000,
+  security_events: 100_000,
+  security_rate_windows: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
   temporary_power_grants: 100_000,

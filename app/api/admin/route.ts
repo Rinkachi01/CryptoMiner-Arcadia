@@ -50,6 +50,10 @@ import {
   readSeasonEconomicReport,
   readSeasonOverview,
 } from "../../season-server";
+import {
+  ensureSecuritySchema,
+  readSecurityOverview,
+} from "../../security-server";
 
 export const dynamic = "force-dynamic";
 
@@ -555,6 +559,7 @@ export async function GET() {
     ensureAdminSchema(context.db),
     ensureNetworkSchema(context.db),
     ensureOperationsSchema(context.db),
+    ensureSecuritySchema(context.db),
   ]);
   const now = Date.now();
   const bucket = recoveryBucketFromEnv(env);
@@ -566,6 +571,7 @@ export async function GET() {
     beta,
     operations,
     recovery,
+    security,
   ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
@@ -574,6 +580,7 @@ export async function GET() {
     readBetaObservability(context.db, now),
     readOperationalHealth(context.db, now),
     readRecoveryOverview(context.db, bucket, now),
+    readSecurityOverview(context.db, env, now),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -604,6 +611,7 @@ export async function GET() {
     beta,
     operations,
     recovery,
+    security,
     ...overview,
     serverTime: now,
   });

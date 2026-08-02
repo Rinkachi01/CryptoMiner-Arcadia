@@ -16,6 +16,11 @@ import {
   type CircuitEvent,
 } from "../../../circuit-rush-rules";
 import { MAX_GAME_DIFFICULTY } from "../../../packet-catch-rules";
+import {
+  detectAutomationPattern,
+  guardArcadeAction,
+  rejectAutomatedSession,
+} from "../../../security-server";
 
 export const dynamic = "force-dynamic";
 
@@ -205,6 +210,14 @@ export async function POST(request: Request) {
   }
 
   const now = Date.now();
+  const gate = await guardArcadeAction(
+    current.db,
+    current.accountId,
+    body.action === "start" ? "start" : "submit",
+    env,
+    now,
+  );
+  if (!gate.allowed) return json(gate, gate.status);
   if (body.action === "start") {
     await current.db
       .prepare(
@@ -326,6 +339,20 @@ export async function POST(request: Request) {
   const events = body.events as CircuitEvent[];
   const result = validateCircuitRush(session.seed, session.difficulty, events);
   if (!result.valid) return json({ error: result.reason }, 400);
+  const automationReason = detectAutomationPattern(
+    events.map((event) => event.atMs),
+  );
+  if (automationReason) {
+    await rejectAutomatedSession(
+      current.db,
+      current.accountId,
+      session.id,
+      durationMs,
+      automationReason,
+      now,
+    );
+    return json({ error: automationReason, review: true }, 400);
+  }
   if (result.lastEventAt > durationMs + 250) {
     return json({ error: "O relógio não corresponde aos cliques enviados." }, 400);
   }

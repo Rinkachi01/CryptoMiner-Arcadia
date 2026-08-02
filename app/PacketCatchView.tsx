@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ArcadeHumanGate from "./ArcadeHumanGate";
 import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
@@ -374,7 +375,8 @@ export function PacketCatchView({
           </button>
         </nav>
 
-        <div className="active-game-stage">
+        <ArcadeHumanGate>
+          <div className="active-game-stage">
           {activeGame === "packet" && (
             <div className="packet-catch-shell">
         <header>
@@ -529,7 +531,7 @@ export function PacketCatchView({
               {limits.dayRemaining} partidas disponíveis nas últimas 24h.
             </small>
           </aside>
-        </div>
+          </div>
             </div>
           )}
 
@@ -540,7 +542,8 @@ export function PacketCatchView({
           {activeGame === "circuit" && (
             <CircuitRushView onRefreshAccount={refreshArcadeAccount} />
           )}
-        </div>
+          </div>
+        </ArcadeHumanGate>
       </div>
     </section>
   );

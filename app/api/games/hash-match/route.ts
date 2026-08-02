@@ -17,6 +17,11 @@ import {
   type HashMatchProof,
 } from "../../../hash-match-rules";
 import { MAX_GAME_DIFFICULTY } from "../../../packet-catch-rules";
+import {
+  detectAutomationPattern,
+  guardArcadeAction,
+  rejectAutomatedSession,
+} from "../../../security-server";
 
 export const dynamic = "force-dynamic";
 
@@ -217,6 +222,14 @@ export async function POST(request: Request) {
   }
 
   const now = Date.now();
+  const gate = await guardArcadeAction(
+    current.db,
+    current.accountId,
+    body.action === "start" ? "start" : "submit",
+    env,
+    now,
+  );
+  if (!gate.allowed) return json(gate, gate.status);
   if (body.action === "start") {
     await current.db
       .prepare(
@@ -359,7 +372,9 @@ export async function POST(request: Request) {
   if (typeof body.cardId !== "string") {
     return json({ error: "Carta inválida." }, 400);
   }
-  const proof = JSON.parse(session.proof_json) as HashMatchProof;
+  const proof = JSON.parse(session.proof_json) as HashMatchProof & {
+    securityFlipTimes?: number[];
+  };
   const originalProofJson = session.proof_json;
   if (
     now - proof.lastFlipAt < 90 ||
@@ -371,6 +386,7 @@ export async function POST(request: Request) {
   const revealed = revealHashCard(proof, body.cardId);
   if (!revealed) return json({ error: "Carta não pertence ao tabuleiro." }, 400);
   proof.lastFlipAt = now;
+  proof.securityFlipTimes = [...(proof.securityFlipTimes ?? []), now].slice(-32);
 
   if (!proof.openCardId) {
     proof.openCardId = body.cardId;
@@ -401,6 +417,21 @@ export async function POST(request: Request) {
   }
   proof.openCardId = null;
   const completed = proof.matchedCardIds.length === proof.deck.length;
+
+  if (completed) {
+    const automationReason = detectAutomationPattern(proof.securityFlipTimes ?? []);
+    if (automationReason) {
+      await rejectAutomatedSession(
+        current.db,
+        current.accountId,
+        session.id,
+        now - session.started_at,
+        automationReason,
+        now,
+      );
+      return json({ error: automationReason, review: true }, 400);
+    }
+  }
 
   if (!completed) {
     const update = await current.db

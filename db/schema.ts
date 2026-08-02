@@ -340,6 +340,55 @@ export const taskPreferenceEvents = sqliteTable(
   ],
 );
 
+export const arcadeSecurityPasses = sqliteTable(
+  "arcade_security_passes",
+  {
+    accountId: text("account_id").primaryKey(),
+    verifiedAt: integer("verified_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [index("arcade_security_passes_expiry_idx").on(table.expiresAt)],
+);
+
+export const securityRateWindows = sqliteTable(
+  "security_rate_windows",
+  {
+    accountId: text("account_id").notNull(),
+    action: text("action").notNull(),
+    windowKey: text("window_key").notNull(),
+    count: integer("count").notNull().default(0),
+    expiresAt: integer("expires_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("security_rate_window_unique").on(
+      table.accountId,
+      table.action,
+      table.windowKey,
+    ),
+    index("security_rate_windows_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const securityEvents = sqliteTable(
+  "security_events",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    category: text("category").notNull(),
+    reason: text("reason").notNull(),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("security_events_created_at_idx").on(table.createdAt),
+    index("security_events_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   singletonId: integer("singleton_id").primaryKey(),
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),

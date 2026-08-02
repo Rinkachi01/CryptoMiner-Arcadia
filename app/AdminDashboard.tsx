@@ -25,6 +25,7 @@ import type {
   RecoveryDrillChecks,
   RecoveryOverview,
 } from "./recovery-server";
+import type { SecurityOverview } from "./security-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
@@ -203,6 +204,7 @@ type AdminOverview = {
   };
   operations: OperationalHealthReport;
   recovery: RecoveryOverview;
+  security: SecurityOverview;
   recentCrates: Array<{
     crateId: string;
     createdAt: number;
@@ -777,6 +779,80 @@ export function AdminDashboard({
           <strong>{formatNumber(overview.metrics.batteryClaims24h)}</strong>
           <small>{overview.inventory.playersWithEnergy} contas energizadas</small>
         </article>
+      </section>
+
+      <section className="admin-panel admin-launch-readiness">
+        <div className="admin-panel-heading">
+          <div>
+            <span>PRÉ-LANÇAMENTO PÚBLICO · SEGURANÇA E FINANÇAS</span>
+            <h2>Portões antes de abrir o Arcadia</h2>
+          </div>
+          <small>DINHEIRO REAL E SAQUES CONTINUAM DESATIVADOS</small>
+        </div>
+
+        <div className="admin-launch-grid">
+          <article className="ready">
+            <b>01</b>
+            <span>SERVIDOR AUTORITATIVO</span>
+            <strong>PRONTO</strong>
+            <p>Sessões, placar, recompensas e limites são conferidos no servidor.</p>
+          </article>
+          <article className="ready">
+            <b>02</b>
+            <span>ANTI-AUTOMAÇÃO</span>
+            <strong>ATIVO</strong>
+            <p>Limite global por conta e padrões impossíveis entram em revisão.</p>
+          </article>
+          <article className={overview.security.configured ? "ready" : "pending"}>
+            <b>03</b>
+            <span>DESAFIO HUMANO</span>
+            <strong>
+              {overview.security.required
+                ? "OBRIGATÓRIO"
+                : overview.security.configured
+                  ? "PREPARADO"
+                  : "AGUARDA CHAVES"}
+            </strong>
+            <p>Turnstile opcional, validado no servidor e com passe de 12 horas.</p>
+          </article>
+          <article className="pending">
+            <b>04</b>
+            <span>LOGIN PÚBLICO</span>
+            <strong>PENDENTE</strong>
+            <p>Escolher provedor, recuperação de senha e MFA do proprietário.</p>
+          </article>
+          <article className="pending">
+            <b>05</b>
+            <span>PAGAMENTOS</span>
+            <strong>BLOQUEADOS</strong>
+            <p>CMA permanece moeda virtual fechada, sem saque nem conversão real.</p>
+          </article>
+          <article className="pending">
+            <b>06</b>
+            <span>ABERTURA PÚBLICA</span>
+            <strong>EXIGE APROVAÇÃO</strong>
+            <p>Domínio, termos, privacidade, teste de carga e recuperação primeiro.</p>
+          </article>
+        </div>
+
+        <div className="admin-security-summary">
+          <div>
+            <span>EVENTOS DE SEGURANÇA · 24H</span>
+            <strong>{formatNumber(overview.security.events24h)}</strong>
+          </div>
+          <div>
+            <span>CONTAS LIMITADAS · 24H</span>
+            <strong>{formatNumber(overview.security.blockedAccounts24h)}</strong>
+          </div>
+          <div>
+            <span>PASSES HUMANOS ATIVOS</span>
+            <strong>{formatNumber(overview.security.activePasses)}</strong>
+          </div>
+          <div>
+            <span>PRÓXIMA DECISÃO</span>
+            <strong>DOMÍNIO + LOGIN</strong>
+          </div>
+        </div>
       </section>
 
       <section className="admin-panel admin-beta-observability">
