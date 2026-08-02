@@ -2,13 +2,23 @@
 
 Este roteiro é para retirar a dependência do endereço `chatgpt.site`. O código
 já é compilado como Cloudflare Worker e usa os mesmos nomes lógicos do ambiente
-atual.
+atual. A conta Cloudflare foi conectada em 2 de agosto de 2026.
+
+## Estado atual da conta externa
+
+- subdomínio gratuito: `criptomineracardia.workers.dev`;
+- banco D1 criado e com as 19 migrações aplicadas:
+  `crypto-miner-arcadia-production` (região ENAM);
+- configuração pronta em `wrangler.production.jsonc`;
+- R2 ainda precisa ser habilitado uma vez no painel Cloudflare;
+- domínio `cryptominearcadia.com` ainda não aparece como zona da conta;
+- Worker será publicado somente depois do R2 existir, para não lançar sem backup.
 
 ## O que criar no Cloudflare
 
 1. Um Worker chamado `crypto-miner-arcadia`.
-2. Um banco D1 de produção para progresso, livro-razão e auditoria.
-3. Um bucket R2 de produção para arquivos de recuperação.
+2. O banco D1 de produção já criado para progresso, livro-razão e auditoria.
+3. Um bucket R2 `crypto-miner-arcadia-recovery` para arquivos de recuperação.
 4. Os bindings do Worker:
    - `DB` → banco D1;
    - `RECOVERY_ARCHIVE` → bucket R2;

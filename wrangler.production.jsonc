@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crypto-miner-arcadia",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crypto-miner-arcadia-production",
+      "database_id": "ca81b9d2-167f-4b81-9d1a-2422cb09b04a",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY_ARCHIVE",
+      "bucket_name": "crypto-miner-arcadia-recovery"
+    }
+  ],
+  "vars": {
+    "PUBLIC_BASE_URL": "https://crypto-miner-arcadia.criptomineracardia.workers.dev",
+    "SUPABASE_URL": "https://tgsofsumjyvrjohlghay.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_D-zur7SjizAWlwxf_0rD3Q_Xh7lJvrq",
+    "PUBLIC_LOGIN_ENABLED": "true",
+    "CRYPTO_DEPOSITS_ENABLED": "false",
+    "TURNSTILE_REQUIRED": "false"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -302,6 +302,9 @@ O Arcadia só está pronto para ficar público quando domínio/HTTPS, login púb
 ## Sequência exata para o proprietário
 
 1. No Cloudflare, adicionar ou registrar `cryptominearcadia.com` e ativar MFA.
+   A conta já possui `criptomineracardia.workers.dev`; o D1 de produção foi
+   criado e migrado. Ainda é necessário habilitar R2 no painel antes da primeira
+   publicação.
 2. No Cloudflare Email Routing, verificar uma caixa de destino e criar
    `support@cryptominearcadia.com`, `privacy@...` e `security@...`.
 3. No Resend, adicionar o domínio, copiar os registros SPF/DKIM/DMARC para o
