@@ -416,6 +416,9 @@ export const conversionQuotes = sqliteTable(
     feeCmaMicros: integer("fee_cma_micros").notNull(),
     netCmaMicros: integer("net_cma_micros").notNull(),
     status: text("status").notNull().default("preview"),
+    consumptionKey: text("consumption_key"),
+    consumedAt: integer("consumed_at"),
+    stateVersion: integer("state_version"),
     expiresAt: integer("expires_at").notNull(),
     createdAt: integer("created_at").notNull(),
   },
@@ -427,6 +430,77 @@ export const conversionQuotes = sqliteTable(
     index("conversion_quotes_status_expiry_idx").on(
       table.status,
       table.expiresAt,
+    ),
+  ],
+);
+
+export const playerWalletAccounts = sqliteTable(
+  "player_wallet_accounts",
+  {
+    accountId: text("account_id").primaryKey(),
+    ledgerModel: text("ledger_model").notNull().default("individual"),
+    custodyMode: text("custody_mode").notNull().default("provider_invoice"),
+    depositStatus: text("deposit_status").notNull().default("awaiting_provider"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("player_wallet_accounts_deposit_status_idx").on(table.depositStatus),
+  ],
+);
+
+export const walletDepositIntents = sqliteTable(
+  "wallet_deposit_intents",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    asset: text("asset").notNull(),
+    provider: text("provider").notNull(),
+    providerReference: text("provider_reference"),
+    checkoutUrl: text("checkout_url"),
+    depositAddress: text("deposit_address"),
+    requestedUsdMicros: integer("requested_usd_micros").notNull(),
+    receivedAtomic: integer("received_atomic").notNull().default(0),
+    status: text("status").notNull().default("awaiting_provider"),
+    expiresAt: integer("expires_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("wallet_deposit_intents_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("wallet_deposit_intents_provider_reference_idx").on(
+      table.provider,
+      table.providerReference,
+    ),
+    index("wallet_deposit_intents_status_expiry_idx").on(
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const walletProviderEvents = sqliteTable(
+  "wallet_provider_events",
+  {
+    id: text("id").primaryKey(),
+    provider: text("provider").notNull(),
+    providerEventId: text("provider_event_id").notNull(),
+    depositIntentId: text("deposit_intent_id"),
+    payloadHash: text("payload_hash").notNull(),
+    status: text("status").notNull().default("received"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("wallet_provider_events_provider_event_unique").on(
+      table.provider,
+      table.providerEventId,
+    ),
+    index("wallet_provider_events_intent_created_idx").on(
+      table.depositIntentId,
+      table.createdAt,
     ),
   ],
 );

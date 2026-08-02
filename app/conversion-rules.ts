@@ -71,3 +71,38 @@ export function calculateConversionQuote(
     netCma,
   };
 }
+
+export function applyInternalConversionBalances(input: {
+  asset: "BTC" | "DOGE";
+  assetAmountAtomic: number;
+  btcBalanceAtomic: number;
+  cmaBalance: number;
+  dogeBalanceAtomic: number;
+  netCmaMicros: number;
+}) {
+  if (
+    !Number.isSafeInteger(input.assetAmountAtomic) ||
+    input.assetAmountAtomic <= 0 ||
+    !Number.isSafeInteger(input.netCmaMicros) ||
+    input.netCmaMicros <= 0
+  ) {
+    throw new Error("Conversão interna inválida.");
+  }
+  const available =
+    input.asset === "BTC" ? input.btcBalanceAtomic : input.dogeBalanceAtomic;
+  if (available < input.assetAmountAtomic) {
+    throw new Error(`Saldo ${input.asset} insuficiente para esta conversão.`);
+  }
+  const currentCmaMicros = Math.round(input.cmaBalance * 1_000_000);
+  return {
+    btcBalanceAtomic:
+      input.asset === "BTC"
+        ? input.btcBalanceAtomic - input.assetAmountAtomic
+        : input.btcBalanceAtomic,
+    cmaBalance: (currentCmaMicros + input.netCmaMicros) / 1_000_000,
+    dogeBalanceAtomic:
+      input.asset === "DOGE"
+        ? input.dogeBalanceAtomic - input.assetAmountAtomic
+        : input.dogeBalanceAtomic,
+  };
+}

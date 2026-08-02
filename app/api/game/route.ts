@@ -18,6 +18,11 @@ import {
   type NetworkPowerSnapshot,
 } from "../../network-server";
 import { STARTER_KIT_VERSION } from "../../onboarding-rules";
+import {
+  ensurePlayerWalletAccount,
+  ensureWalletSchema,
+  walletProviderReadiness,
+} from "../../wallet-server";
 
 export const dynamic = "force-dynamic";
 
@@ -222,6 +227,7 @@ async function createAccount(
   displayName: string,
   now: number,
 ) {
+  await ensureWalletSchema(db);
   const state = createInitialGameState(now);
   await db
     .prepare(
@@ -238,6 +244,12 @@ async function createAccount(
       now,
     )
     .run();
+  await ensurePlayerWalletAccount(
+    db,
+    accountId,
+    walletProviderReadiness(env).depositsEnabled,
+    now,
+  );
   await db
     .prepare(
       `INSERT OR IGNORE INTO ledger_entries (

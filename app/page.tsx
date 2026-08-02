@@ -19,17 +19,21 @@ export default async function Home() {
           <span>CRYPTO MINER ARCADIA</span>
           <h1>Sua operação começa com uma conta protegida.</h1>
           <p>
-            Entre com o ChatGPT para manter salas, equipamentos, energia,
-            compras, pools e blocos salvos no servidor.
+            Entre na sua operação ou crie uma conta nova. Durante a beta privada,
+            as duas opções usam a proteção de identidade do ChatGPT.
           </p>
-          <a href={arcadiaSignInPath("/")}>ENTRAR COM CHATGPT</a>
+          <div className="login-actions">
+            <a href={arcadiaSignInPath("/")}>ENTRAR</a>
+            <a className="secondary" href={arcadiaSignInPath("/")}>CRIAR CONTA</a>
+          </div>
           <div className="login-access-status">
             <strong>BETA PRIVADO</strong>
-            <span>Login atual protegido pelo ChatGPT</span>
+            <span>Entrar com ChatGPT · conta criada no primeiro acesso</span>
           </div>
           <small>
-            O cadastro por e-mail será conectado antes do beta público, com
-            migração do progresso desta conta.
+            Uma conta nova recebe somente o rack e o minerador inicial. Nenhum CMA,
+            bateria ou energia é concedido no cadastro. O cadastro por e-mail será
+            conectado antes da abertura pública, com migração do progresso da beta.
           </small>
         </section>
       </main>

@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
+  ConversionExecutionError,
   createConversionQuote,
+  executeConversionQuote,
   readMarketRates,
 } from "../../conversion-server";
 import {
@@ -40,7 +42,7 @@ export async function GET() {
         name: asset.name,
         decimals: Math.log10(asset.atomicScale),
       })),
-      conversionEnabled: false,
+      conversionEnabled: true,
       policy: {
         cmaUsdReference: CMA_USD_REFERENCE,
         feeBps: CONVERSION_FEE_BPS,
@@ -62,14 +64,53 @@ export async function POST(request: Request) {
   const current = await conversionContext();
   if (!current) return json({ error: "Faça login para gerar uma cotação." }, 401);
   const body = (await request.json().catch(() => null)) as
-    | { amount?: unknown; asset?: unknown }
+    | {
+        action?: unknown;
+        amount?: unknown;
+        asset?: unknown;
+        expectedVersion?: unknown;
+        idempotencyKey?: unknown;
+        quoteId?: unknown;
+      }
     | null;
-  if (!body || typeof body.amount !== "string") {
+  if (!body) {
+    return json({ error: "Dados da cotação inválidos." }, 400);
+  }
+
+  if (body.action === "execute") {
+    if (
+      typeof body.quoteId !== "string" ||
+      typeof body.idempotencyKey !== "string" ||
+      typeof body.expectedVersion !== "number"
+    ) {
+      return json({ error: "Dados da confirmação inválidos." }, 400);
+    }
+    try {
+      return json({
+        conversionEnabled: true,
+        ...(await executeConversionQuote({
+          accountId: current.accountId,
+          db: current.db,
+          expectedVersion: body.expectedVersion,
+          idempotencyKey: body.idempotencyKey,
+          quoteId: body.quoteId,
+        })),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Conversão recusada.";
+      const status =
+        error instanceof ConversionExecutionError ? error.status : 500;
+      return json({ error: message }, status);
+    }
+  }
+
+  if (typeof body.amount !== "string") {
     return json({ error: "Dados da cotação inválidos." }, 400);
   }
   try {
     return json({
-      conversionEnabled: false,
+      conversionEnabled: true,
       quote: await createConversionQuote({
         accountId: current.accountId,
         amount: body.amount,

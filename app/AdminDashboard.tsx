@@ -823,11 +823,11 @@ export function AdminDashboard({
             <strong>PENDENTE</strong>
             <p>Escolher provedor, recuperação de senha e MFA do proprietário.</p>
           </article>
-          <article className="pending">
+          <article className="ready">
             <b>05</b>
             <span>CONVERSÃO PARA CMA</span>
-            <strong>PRÉVIA ATIVA</strong>
-            <p>1 CMA referencia US$ 1; depósito e crédito aguardam provedor.</p>
+            <strong>BTC / DOGE ATIVO</strong>
+            <p>Conversão interna registrada; depósitos continuam bloqueados até o provedor.</p>
           </article>
           <article className="pending">
             <b>06</b>
@@ -851,8 +851,8 @@ export function AdminDashboard({
             <strong>{formatNumber(overview.security.activePasses)}</strong>
           </div>
           <div>
-            <span>PRÉVIAS DE CONVERSÃO · 24H</span>
-            <strong>{formatNumber(overview.conversion.previews24h)}</strong>
+            <span>CONVERSÕES CONCLUÍDAS · 24H</span>
+            <strong>{formatNumber(overview.conversion.conversions24h)}</strong>
           </div>
         </div>
       </section>

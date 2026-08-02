@@ -116,7 +116,7 @@ const navigation: Array<{
 }> = [
   { id: "mine", label: "Sala de mineração", shortLabel: "Sala", glyph: "M" },
   { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P" },
-  { id: "conversion", label: "Conversão", shortLabel: "Câmbio", glyph: "X" },
+  { id: "conversion", label: "Carteira", shortLabel: "Carteira", glyph: "W" },
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
@@ -848,8 +848,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                 }}
               >
                 <span>⇄</span>
-                <strong>CONVERTER PARA CMA</strong>
-                <em>PRÉVIA</em>
+                <strong>ABRIR CARTEIRA</strong>
+                <em>CONVERTER</em>
               </button>
             </div>
           )}
@@ -927,7 +927,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               ) : activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
               ) : activeView === "conversion" ? (
-                <>CENTRAL DE CONVERSÃO <i /> COTAÇÃO DE MERCADO</>
+                <>CARTEIRA DO OPERADOR <i /> SALDOS E CONVERSÃO</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
               ) : activeView === "tasks" ? (
@@ -948,7 +948,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                   : activeView === "pools"
                     ? "Pools de mineração"
                     : activeView === "conversion"
-                      ? "Conversão para CMA"
+                      ? "Carteira e conversão"
                     : activeView === "inventory"
                       ? "Inventário de equipamentos"
                       : activeView === "shop"
@@ -1082,7 +1082,15 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           />
         )}
 
-        {!rackOpen && activeView === "conversion" && <ConversionView />}
+        {!rackOpen && activeView === "conversion" && (
+          <ConversionView
+            btcBalanceAtomic={btcBalanceAtomic}
+            cmaBalance={cmaBalance}
+            dogeBalanceAtomic={dogeBalanceAtomic}
+            onRefreshAccount={refreshServerState}
+            serverVersion={serverVersion}
+          />
+        )}
 
         {!rackOpen && activeView === "inventory" && (
           <InventoryView

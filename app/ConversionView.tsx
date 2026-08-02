@@ -6,6 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import type { ConversionAssetId } from "./conversion-rules";
 
+type ConvertibleAsset = "BTC" | "DOGE";
+type WalletTab = "convert" | "deposit";
+
 type MarketRate = {
   asset: ConversionAssetId;
   observedAt: number;
@@ -17,6 +20,7 @@ type MarketRate = {
 type Quote = {
   asset: ConversionAssetId;
   assetAmount: number;
+  assetAmountAtomic: number;
   createdAt: number;
   eligible: boolean;
   expiresAt: number;
@@ -31,8 +35,9 @@ type Quote = {
 };
 
 type ConversionResponse = {
-  conversionEnabled: false;
+  conversionEnabled: true;
   error?: string;
+  message?: string;
   policy?: {
     cmaUsdReference: number;
     feeBps: number;
@@ -42,12 +47,35 @@ type ConversionResponse = {
   };
   quote?: Quote;
   rates?: MarketRate[];
+  version?: number;
 };
 
-const assetVisuals: Record<ConversionAssetId, { asset: string; name: string }> = {
+type WalletResponse = {
+  account?: {
+    custodyMode: "provider_invoice";
+    depositStatus: "awaiting_provider" | "ready";
+    ledgerModel: "individual";
+  };
+  deposits?: {
+    assets: ["BTC", "DOGE"];
+    enabled: boolean;
+    provider: "bitpay";
+    providerReady: boolean;
+  };
+  error?: string;
+};
+
+type ConversionViewProps = {
+  btcBalanceAtomic: number;
+  cmaBalance: number;
+  dogeBalanceAtomic: number;
+  onRefreshAccount: () => Promise<boolean>;
+  serverVersion: number;
+};
+
+const assetVisuals: Record<ConvertibleAsset, { asset: string; name: string }> = {
   BTC: { asset: assetsManifest.bitcoin.path, name: "Bitcoin" },
   DOGE: { asset: assetsManifest.dogecoin.path, name: "Dogecoin" },
-  LTC: { asset: assetsManifest.litecoin.path, name: "Litecoin" },
 };
 
 function formatUsd(value: number) {
@@ -66,33 +94,57 @@ function formatCma(value: number) {
   });
 }
 
-export function ConversionView() {
-  const [asset, setAsset] = useState<ConversionAssetId>("BTC");
+function formatCryptoAtomic(value: number, digits = 8) {
+  return (value / 100_000_000).toLocaleString("pt-BR", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: 0,
+  });
+}
+
+export function ConversionView({
+  btcBalanceAtomic,
+  cmaBalance,
+  dogeBalanceAtomic,
+  onRefreshAccount,
+  serverVersion,
+}: ConversionViewProps) {
+  const [tab, setTab] = useState<WalletTab>("convert");
+  const [asset, setAsset] = useState<ConvertibleAsset>("BTC");
   const [amount, setAmount] = useState("0.0001");
   const [rates, setRates] = useState<MarketRate[]>([]);
   const [policy, setPolicy] = useState<ConversionResponse["policy"]>();
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [quoting, setQuoting] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     let active = true;
-    fetch("/api/conversion", { cache: "no-store" })
-      .then(async (response) => {
+    Promise.all([
+      fetch("/api/conversion", { cache: "no-store" }).then(async (response) => {
         const payload = (await response.json()) as ConversionResponse;
         if (!response.ok || !payload.rates || !payload.policy) {
           throw new Error(payload.error ?? "Não foi possível consultar o mercado.");
         }
         return payload;
-      })
-      .then((payload) => {
+      }),
+      fetch("/api/wallet", { cache: "no-store" }).then(async (response) => {
+        const payload = (await response.json()) as WalletResponse;
+        if (!response.ok) throw new Error(payload.error ?? "Carteira indisponível.");
+        return payload;
+      }),
+    ])
+      .then(([conversionPayload, walletPayload]) => {
         if (!active) return;
-        setRates(payload.rates!);
-        setPolicy(payload.policy);
+        setRates(conversionPayload.rates!);
+        setPolicy(conversionPayload.policy);
+        setWallet(walletPayload);
       })
       .catch((reason: Error) => {
-        if (active) setError(reason.message || "Cotação indisponível.");
+        if (active) setError(reason.message || "Carteira indisponível.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -106,14 +158,17 @@ export function ConversionView() {
     () => rates.find((rate) => rate.asset === asset),
     [asset, rates],
   );
+  const selectedBalanceAtomic =
+    asset === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
 
   async function requestQuote() {
     setQuoting(true);
     setQuote(null);
     setError("");
+    setSuccess("");
     try {
       const response = await fetch("/api/conversion", {
-        body: JSON.stringify({ amount, asset }),
+        body: JSON.stringify({ action: "quote", amount, asset }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
@@ -129,151 +184,257 @@ export function ConversionView() {
     }
   }
 
+  async function executeQuote() {
+    if (!quote) return;
+    setConverting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/api/conversion", {
+        body: JSON.stringify({
+          action: "execute",
+          expectedVersion: serverVersion,
+          idempotencyKey: crypto.randomUUID(),
+          quoteId: quote.id,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as ConversionResponse;
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Conversão recusada pelo servidor.");
+      }
+      await onRefreshAccount();
+      setQuote(null);
+      setSuccess(payload.message ?? "Conversão concluída e registrada na carteira.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Conversão recusada.");
+    } finally {
+      setConverting(false);
+    }
+  }
+
+  function useFullBalance() {
+    setAmount((selectedBalanceAtomic / 100_000_000).toFixed(8));
+    setQuote(null);
+    setError("");
+  }
+
   return (
-    <section className="conversion-center">
+    <section className="conversion-center wallet-center">
       <header className="conversion-hero">
         <div>
-          <span>CENTRAL DE CONVERSÃO · PRÉVIA PROTEGIDA</span>
-          <h2>Transforme valor de mercado em CMA</h2>
+          <span>CARTEIRA INDIVIDUAL · LIVRO-RAZÃO DO SERVIDOR</span>
+          <h2>Seus saldos e sua conversão para CMA</h2>
           <p>
-            O CMA usa a referência econômica interna de <strong>1 CMA = US$ 1</strong>.
-            Ele serve para compras dentro do Arcadia e não pode ser sacado.
+            BTC e DOGE pertencem ao registro individual desta conta. A conversão é
+            confirmada pelo servidor, usa uma cotação de cinco minutos e só acontece
+            uma vez.
           </p>
         </div>
-        <aside>
-          <b>SIMULAÇÃO ATIVA</b>
-          <strong>DEPÓSITOS BLOQUEADOS</strong>
-          <small>Nenhum saldo é movimentado nesta fase.</small>
+        <aside className="wallet-status-card">
+          <b>CONVERSÃO INTERNA</b>
+          <strong>ATIVA E REGISTRADA</strong>
+          <small>Depósitos reais aguardam o provedor regulado.</small>
         </aside>
       </header>
 
-      <div className="conversion-rate-strip" aria-live="polite">
-        {(["BTC", "DOGE", "LTC"] as ConversionAssetId[]).map((id) => {
-          const rate = rates.find((item) => item.asset === id);
-          return (
-            <button
-              className={asset === id ? "active" : ""}
-              type="button"
-              key={id}
-              onClick={() => {
-                setAsset(id);
-                setQuote(null);
-              }}
-            >
-              <img src={assetVisuals[id].asset} alt="" />
-              <span>
-                <small>{assetVisuals[id].name}</small>
-                <strong>{loading || !rate ? "CONSULTANDO…" : formatUsd(rate.usdPrice)}</strong>
-              </span>
-              {rate?.stale && <em>ÚLTIMA COTAÇÃO</em>}
-            </button>
-          );
-        })}
+      <div className="wallet-balance-overview" aria-label="Saldos da carteira">
+        <article>
+          <img src={assetsManifest.cmaCoin.path} alt="" />
+          <span><small>SALDO INTERNO</small><strong>{formatCma(cmaBalance)} CMA</strong></span>
+          <em>NÃO SACÁVEL</em>
+        </article>
+        <article>
+          <img src={assetsManifest.bitcoin.path} alt="" />
+          <span><small>BITCOIN</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></span>
+          <em>CONVERSÍVEL</em>
+        </article>
+        <article>
+          <img src={assetsManifest.dogecoin.path} alt="" />
+          <span><small>DOGECOIN</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></span>
+          <em>CONVERSÍVEL</em>
+        </article>
       </div>
 
-      <div className="conversion-layout">
-        <section className="conversion-form-card">
-          <span>01 · INFORME A QUANTIDADE</span>
-          <div className="conversion-input-row">
-            <img src={assetVisuals[asset].asset} alt="" />
-            <label>
-              <small>QUANTIDADE EM {asset}</small>
-              <input
-                inputMode="decimal"
-                value={amount}
-                onChange={(event) => {
-                  setAmount(event.target.value);
-                  setQuote(null);
-                }}
-                aria-label={`Quantidade em ${asset}`}
-              />
-            </label>
-            <b>{asset}</b>
+      <div className="wallet-tabs" role="tablist" aria-label="Ações da carteira">
+        <button
+          className={tab === "convert" ? "active" : ""}
+          role="tab"
+          aria-selected={tab === "convert"}
+          type="button"
+          onClick={() => setTab("convert")}
+        >
+          CONVERTER PARA CMA
+        </button>
+        <button
+          className={tab === "deposit" ? "active" : ""}
+          role="tab"
+          aria-selected={tab === "deposit"}
+          type="button"
+          onClick={() => setTab("deposit")}
+        >
+          DEPOSITAR BTC / DOGE
+        </button>
+      </div>
+
+      {tab === "convert" ? (
+        <>
+          <div className="conversion-rate-strip" aria-live="polite">
+            {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => {
+              const rate = rates.find((item) => item.asset === id);
+              const balance = id === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
+              return (
+                <button
+                  className={asset === id ? "active" : ""}
+                  type="button"
+                  key={id}
+                  onClick={() => {
+                    setAsset(id);
+                    setQuote(null);
+                    setSuccess("");
+                  }}
+                >
+                  <img src={assetVisuals[id].asset} alt="" />
+                  <span>
+                    <small>{assetVisuals[id].name} · saldo {formatCryptoAtomic(balance)}</small>
+                    <strong>{loading || !rate ? "CONSULTANDO…" : formatUsd(rate.usdPrice)}</strong>
+                  </span>
+                  {rate?.stale && <em>ÚLTIMA COTAÇÃO</em>}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="conversion-rule-summary">
-            <div>
-              <span>REFERÊNCIA CMA</span>
-              <strong>US$ {policy?.cmaUsdReference.toFixed(2) ?? "1.00"}</strong>
-            </div>
-            <div>
-              <span>RESERVA ECONÔMICA</span>
-              <strong>{((policy?.feeBps ?? 300) / 100).toFixed(2)}%</strong>
-            </div>
-            <div>
-              <span>MÍNIMO DA PRÉVIA</span>
-              <strong>{formatUsd(policy?.minimumUsd ?? 1)}</strong>
-            </div>
-          </div>
-
-          <button
-            className="conversion-quote-button"
-            type="button"
-            disabled={loading || quoting || !selectedRate}
-            onClick={() => void requestQuote()}
-          >
-            {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 5 MINUTOS"}
-          </button>
-          {error && <p className="conversion-error">{error}</p>}
-        </section>
-
-        <section className={`conversion-receipt ${quote ? "ready" : ""}`}>
-          <span>02 · RESULTADO DA PRÉVIA</span>
-          {!quote ? (
-            <div className="conversion-empty">
-              <b>CMA</b>
-              <strong>Aguardando quantidade</strong>
-              <p>A cotação será calculada e registrada pelo servidor.</p>
-            </div>
-          ) : (
-            <>
-              <div className="conversion-receipt-main">
-                <small>VOCÊ RECEBERIA</small>
-                <strong>{formatCma(quote.netCma)} CMA</strong>
-                <span>cotação válida até {new Date(quote.expiresAt).toLocaleTimeString("pt-BR")}</span>
+          <div className="conversion-layout">
+            <section className="conversion-form-card">
+              <span>01 · INFORME A QUANTIDADE</span>
+              <div className="conversion-input-row">
+                <img src={assetVisuals[asset].asset} alt="" />
+                <label>
+                  <small>QUANTIDADE EM {asset}</small>
+                  <input
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(event) => {
+                      setAmount(event.target.value);
+                      setQuote(null);
+                      setSuccess("");
+                    }}
+                    aria-label={`Quantidade em ${asset}`}
+                  />
+                </label>
+                <b>{asset}</b>
               </div>
-              <dl>
-                <div>
-                  <dt>Valor de mercado</dt>
-                  <dd>{formatUsd(quote.grossUsd)}</dd>
-                </div>
-                <div>
-                  <dt>CMA bruto</dt>
-                  <dd>{formatCma(quote.grossCma)} CMA</dd>
-                </div>
-                <div>
-                  <dt>Reserva de {(quote.feeBps / 100).toFixed(2)}%</dt>
-                  <dd>-{formatCma(quote.feeCma)} CMA</dd>
-                </div>
-                <div>
-                  <dt>Cotação usada</dt>
-                  <dd>1 {quote.asset} = {formatUsd(quote.rateUsd)}</dd>
-                </div>
-              </dl>
-              <button type="button" disabled>
-                CONVERTER — AGUARDANDO PROVEDOR
+              <button className="conversion-use-balance" type="button" onClick={useFullBalance}>
+                USAR SALDO TOTAL · {formatCryptoAtomic(selectedBalanceAtomic)} {asset}
               </button>
-              {!quote.eligible && (
-                <p className="conversion-error">A prévia está abaixo do mínimo econômico.</p>
+
+              <div className="conversion-rule-summary">
+                <div>
+                  <span>REFERÊNCIA CMA</span>
+                  <strong>US$ {policy?.cmaUsdReference.toFixed(2) ?? "1.00"}</strong>
+                </div>
+                <div>
+                  <span>RESERVA ECONÔMICA</span>
+                  <strong>{((policy?.feeBps ?? 300) / 100).toFixed(2)}%</strong>
+                </div>
+                <div>
+                  <span>MÍNIMO</span>
+                  <strong>{formatUsd(policy?.minimumUsd ?? 1)}</strong>
+                </div>
+              </div>
+
+              <button
+                className="conversion-quote-button"
+                type="button"
+                disabled={loading || quoting || converting || !selectedRate}
+                onClick={() => void requestQuote()}
+              >
+                {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 5 MINUTOS"}
+              </button>
+              {error && <p className="conversion-error" role="alert">{error}</p>}
+              {success && <p className="conversion-success" role="status">{success}</p>}
+            </section>
+
+            <section className={`conversion-receipt ${quote ? "ready" : ""}`}>
+              <span>02 · CONFIRMAÇÃO</span>
+              {!quote ? (
+                <div className="conversion-empty">
+                  <b>CMA</b>
+                  <strong>Aguardando cotação</strong>
+                  <p>Nenhum saldo muda antes da sua confirmação.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="conversion-receipt-main">
+                    <small>VOCÊ RECEBERÁ</small>
+                    <strong>{formatCma(quote.netCma)} CMA</strong>
+                    <span>válida até {new Date(quote.expiresAt).toLocaleTimeString("pt-BR")}</span>
+                  </div>
+                  <dl>
+                    <div><dt>Valor de mercado</dt><dd>{formatUsd(quote.grossUsd)}</dd></div>
+                    <div><dt>CMA bruto</dt><dd>{formatCma(quote.grossCma)} CMA</dd></div>
+                    <div><dt>Reserva de {(quote.feeBps / 100).toFixed(2)}%</dt><dd>-{formatCma(quote.feeCma)} CMA</dd></div>
+                    <div><dt>Cotação usada</dt><dd>1 {quote.asset} = {formatUsd(quote.rateUsd)}</dd></div>
+                  </dl>
+                  <button
+                    type="button"
+                    disabled={!quote.eligible || converting}
+                    onClick={() => void executeQuote()}
+                  >
+                    {converting ? "CONFIRMANDO NO SERVIDOR…" : "CONFIRMAR CONVERSÃO"}
+                  </button>
+                  {!quote.eligible && (
+                    <p className="conversion-error">A cotação está abaixo do mínimo econômico.</p>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </section>
+          </div>
+        </>
+      ) : (
+        <section className="wallet-deposit-panel">
+          <header>
+            <span>DEPÓSITOS REAIS · ESTRUTURA PREPARADA</span>
+            <h3>Uma fatura única para cada depósito</h3>
+            <p>
+              O Arcadia não guardará chaves privadas. Quando o provedor for aprovado e
+              conectado, ele criará uma fatura/endereço para a operação e o servidor
+              creditará o saldo individual somente após confirmação na rede.
+            </p>
+          </header>
+          <div className="wallet-deposit-assets">
+            {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => (
+              <article key={id}>
+                <img src={assetVisuals[id].asset} alt="" />
+                <div>
+                  <small>REDE SUPORTADA</small>
+                  <strong>{assetVisuals[id].name}</strong>
+                  <span>{id === "BTC" ? "Rede Bitcoin" : "Rede Dogecoin"}</span>
+                </div>
+                <button type="button" disabled>
+                  {wallet?.deposits?.enabled ? "CRIAR FATURA" : "AGUARDANDO PROVEDOR"}
+                </button>
+              </article>
+            ))}
+          </div>
+          <div className="wallet-deposit-flow">
+            <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
+            <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>O aviso externo é conferido novamente no provedor.</small></span></article>
+            <article><b>3</b><span><strong>CRÉDITO</strong><small>BTC ou DOGE entra uma única vez no seu livro-razão.</small></span></article>
+          </div>
+          <p className="wallet-provider-notice">
+            <strong>DEPÓSITO AINDA DESATIVADO.</strong> Nunca envie criptomoeda para um
+            endereço que não tenha sido gerado dentro desta tela após a ativação oficial.
+          </p>
         </section>
-      </div>
+      )}
 
       <footer className="conversion-safety-note">
-        <div>
-          <b>UMA ÚNICA DIREÇÃO</b>
-          <p>BTC, DOGE ou LTC → CMA. Não existe conversão de CMA para cripto.</p>
-        </div>
-        <div>
-          <b>SEM SAQUE DE CMA</b>
-          <p>O CMA só compra mineradores, racks, energia, salas e itens internos.</p>
-        </div>
-        <div>
-          <b>COTAÇÃO DO SERVIDOR</b>
-          <p>Preço de referência do CoinGecko, com cache e validade limitada.</p>
-        </div>
+        <div><b>UMA ÚNICA DIREÇÃO</b><p>BTC ou DOGE → CMA. CMA não volta para cripto.</p></div>
+        <div><b>SEM SAQUE DE CMA</b><p>O CMA compra somente itens e serviços internos.</p></div>
+        <div><b>REGISTRO INDIVIDUAL</b><p>Cada conta tem saldos e histórico separados no servidor.</p></div>
         <a href="https://www.coingecko.com" target="_blank" rel="noreferrer">
           DADOS DE MERCADO: COINGECKO
         </a>

@@ -1,3 +1,6 @@
+import { ensureConversionSchema } from "./conversion-server.ts";
+import { ensureWalletSchema } from "./wallet-server.ts";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_ARCHIVE_BYTES = 24 * 1024 * 1024;
 const ARCHIVE_SCHEMA_VERSION = "arcadia-recovery-v1";
@@ -125,6 +128,9 @@ const requiredTables = [
   "security_events",
   "market_price_snapshots",
   "conversion_quotes",
+  "player_wallet_accounts",
+  "wallet_deposit_intents",
+  "wallet_provider_events",
   "operational_checkpoints",
 ] as const;
 
@@ -145,6 +151,7 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   game_states: 10_000,
   ledger_entries: 100_000,
   market_price_snapshots: 20,
+  player_wallet_accounts: 10_000,
   network_runtime_settings: 10,
   operational_checkpoints: 10_000,
   season_snapshots: 10_000,
@@ -152,6 +159,8 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   security_events: 100_000,
   security_rate_windows: 100_000,
   conversion_quotes: 100_000,
+  wallet_deposit_intents: 100_000,
+  wallet_provider_events: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
   temporary_power_grants: 100_000,
@@ -175,6 +184,8 @@ export function recoveryBucketFromEnv(value: unknown) {
 }
 
 export async function ensureRecoverySchema(db: D1Database) {
+  await ensureConversionSchema(db);
+  await ensureWalletSchema(db);
   await db.batch([
     db.prepare(
       `CREATE TABLE IF NOT EXISTS recovery_archives (

@@ -1,10 +1,10 @@
 # Arcadia — guia de pré-lançamento público
 
-Atualizado em 1º de agosto de 2026.
+Atualizado em 2 de agosto de 2026.
 
 ## Decisão recomendada
 
-Não abrir depósitos ou saques na primeira versão pública. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A única conversão planejada é BTC, DOGE ou LTC para CMA, nunca CMA para cripto. Os saldos exibidos continuam virtuais até existir contrato com provedor, operação aprovada e revisão jurídica.
+Não abrir depósitos ou saques na primeira versão pública. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna ativada no beta é somente BTC ou DOGE para CMA, nunca CMA para cripto. Esses saldos vêm das recompensas simuladas do jogo; depósitos externos continuam bloqueados até existir contrato com provedor, operação aprovada e revisão jurídica.
 
 O caminho de menor risco e custo é:
 
@@ -120,11 +120,12 @@ Fontes oficiais:
 ```text
 Jogador escolhe pacote → servidor cria invoice no provedor
 → jogador paga ao provedor → provedor confirma na blockchain
-→ webhook assinado chega ao servidor → servidor valida assinatura, moeda,
-valor, invoice e idempotência → razão contábil credita CMA/itens
+→ notificação chega ao servidor → servidor busca novamente a invoice na API
+do provedor → valida estado final, moeda, valor, invoice e idempotência
+→ razão contábil credita BTC/DOGE uma única vez
 ```
 
-O navegador nunca confirma pagamento. O saldo só muda depois do webhook final e idempotente. Reembolsos, chargebacks, pagamento insuficiente/excessivo e expiração precisam de estados próprios.
+O navegador nunca confirma pagamento. No caso do BitPay, a notificação IPN não é assinada e deve ser usada apenas como gatilho: o servidor precisa consultar a invoice novamente na API e só aceitar `confirmed` ou `complete`. Reembolsos, pagamento insuficiente/excessivo e expiração precisam de estados próprios.
 
 BitPay é um candidato porque suas invoices aceitam BTC e DOGE e o comerciante pode receber liquidação em cripto, conforme disponibilidade e aprovação da conta. A faixa pública abaixo de US$ 500 mil por mês custa 2% + US$ 0,25 por transação; contas de produção passam por análise de conformidade. Confirmar se a operação e o modelo Arcadia são aceitos no Brasil antes de integrar.
 
@@ -135,13 +136,25 @@ Fontes oficiais:
 - https://support.bitpay.com/hc/en-us/articles/203411543-What-cryptocurrencies-can-I-use-to-pay-a-BitPay-Invoice
 - https://support.bitpay.com/hc/en-us/articles/201890513-What-are-my-options-for-settlement
 
-### Conversão de BTC, DOGE ou LTC para CMA
+### Modelo de carteira escolhido
 
-A prévia de cotação já pode funcionar no beta: o servidor consulta BTC/USD, DOGE/USD e LTC/USD, fixa a cotação por cinco minutos e mostra CMA bruto, reserva econômica e CMA líquido. Nenhum saldo é movimentado nesta etapa. Depois da revisão jurídica e da escolha do provedor, a conversão poderá ser ativada em uma única direção. Toda execução deverá gerar duas partidas imutáveis no razão contábil e uma referência do provedor. Os saldos visuais não podem ser confundidos com cripto real sacável.
+O RollerCoin apresenta um endereço de depósito ligado à conta do jogador. Para o Arcadia, a interface será parecida, mas a arquitetura não terá chaves no servidor do jogo:
+
+- cada jogador possui um livro-razão individual no D1, com saldos separados de CMA, BTC e DOGE;
+- cada depósito real cria uma invoice/endereço único no processador, ligado ao identificador interno do jogador;
+- o processador administra a recepção e liquidação em uma estrutura de custódia/conta comercial maior;
+- o Arcadia credita o livro-razão apenas depois de consultar e validar o estado final da invoice;
+- seed phrase, chave privada e carteira quente não entram no código, banco ou navegador do Arcadia.
+
+As tabelas de contas de carteira, intenções de depósito e eventos do provedor já estão preparadas. A criação de invoices permanece desligada por configuração até o contrato e as credenciais de produção existirem.
+
+### Conversão de BTC ou DOGE para CMA
+
+A conversão interna já funciona no beta: o servidor consulta BTC/USD e DOGE/USD, fixa a cotação por cinco minutos e mostra CMA bruto, reserva econômica e CMA líquido. A confirmação debita o saldo interno da moeda, credita CMA, consome a cotação uma única vez e grava uma entrada imutável no histórico financeiro. Litecoin continua apenas na fonte de preço e não é conversível enquanto não existir pool/carteira LTC no jogo.
 
 A regra econômica inicial da prévia é 1 CMA por US$ 1 de valor de mercado, com reserva de 3% e mínimo equivalente a US$ 1. Esses parâmetros devem ser revistos com os custos reais do processador antes da ativação.
 
-Para os testes privados, a fonte pública sem chave do CoinGecko é suficiente. Antes do beta público, criar uma chave gratuita Demo e configurar `COINGECKO_API_KEY` no ambiente hospedado; a aplicação continuará consultando somente pelo servidor e nunca exporá a chave ao navegador. As prévias ficam registradas por até 30 dias para análise de procura, sem movimentar saldo.
+Para os testes privados, a fonte pública sem chave do CoinGecko é suficiente. Antes do beta público, criar uma chave gratuita Demo e configurar `COINGECKO_API_KEY` no ambiente hospedado; a aplicação continuará consultando somente pelo servidor e nunca exporá a chave ao navegador. As prévias e execuções ficam registradas por até 30 dias para auditoria.
 
 ### Saque
 
@@ -175,7 +188,7 @@ Fontes oficiais:
 - [ ] Criar backup, baixar uma cópia e executar um ensaio de recuperação.
 - [ ] Abrir beta público sem dinheiro real e observar pelo menos duas semanas.
 - [ ] Escolher processador e concluir aprovação antes de programar depósitos.
-- [ ] Manter depósito, crédito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente BTC/DOGE/LTC → CMA.
+- [ ] Manter depósito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente depósitos BTC/DOGE → saldo interno → CMA.
 
 ## Critério de abertura
 
