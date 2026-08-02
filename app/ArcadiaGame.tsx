@@ -793,6 +793,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
           <button
             className="wallet-trigger"
             type="button"
+            title="Abrir carteira virtual e escolher a moeda exibida"
+            aria-label={`Abrir carteira virtual. Saldo exibido: ${displayedBalance.symbol} ${displayedBalance.value}`}
             aria-expanded={walletOpen}
             aria-controls="wallet-menu"
             onClick={() => setWalletOpen((open) => !open)}
@@ -821,6 +823,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                     displayedBalanceSymbol === balance.symbol ? "selected" : ""
                   }`}
                   key={balance.symbol}
+                  title={`Exibir ${balance.symbol} no topo`}
                   onClick={() => {
                     void performGameAction("set_wallet_symbol", {
                       symbol: balance.symbol,
@@ -841,6 +844,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <button
                 type="button"
                 className="wallet-conversion-link"
+                title="Abrir a carteira completa e a conversão para CMA"
                 onClick={() => {
                   setRackOpen(false);
                   setWalletOpen(false);

@@ -837,6 +837,82 @@ export function AdminDashboard({
           </article>
         </div>
 
+        <section className="owner-launch-checklist" aria-labelledby="owner-next-actions">
+          <header>
+            <div>
+              <span>PRÓXIMAS AÇÕES DO PROPRIETÁRIO</span>
+              <h3 id="owner-next-actions">O que você precisa providenciar</h3>
+            </div>
+            <strong>BETA PÚBLICO PRIMEIRO · DINHEIRO REAL DEPOIS</strong>
+          </header>
+          <div>
+            <article className="next">
+              <b>1</b>
+              <div>
+                <span>DOMÍNIO E CONTATO</span>
+                <strong>Registrar o domínio oficial</strong>
+                <p>
+                  Escolha o endereço do Arcadia e crie um e-mail administrativo
+                  separado da conta dos jogadores. O HTTPS será configurado na
+                  hospedagem, sem comprar certificado à parte.
+                </p>
+              </div>
+              <em>VOCÊ</em>
+            </article>
+            <article className="next">
+              <b>2</b>
+              <div>
+                <span>CADASTRO E LOGIN</span>
+                <strong>Escolher o serviço de contas públicas</strong>
+                <p>
+                  Precisamos de e-mail verificado, recuperação de senha, sessões
+                  seguras e autenticação reforçada na conta do proprietário.
+                </p>
+              </div>
+              <em>VOCÊ + ARCADIA</em>
+            </article>
+            <article className="blocked">
+              <b>3</b>
+              <div>
+                <span>BASE LEGAL</span>
+                <strong>Validar empresa, termos e privacidade</strong>
+                <p>
+                  Antes de aceitar dinheiro real, confirme o modelo com contador e
+                  assessoria jurídica, incluindo LGPD, política de reembolso e idade
+                  mínima.
+                </p>
+              </div>
+              <em>EXTERNO</em>
+            </article>
+            <article className="blocked">
+              <b>4</b>
+              <div>
+                <span>DEPÓSITOS BTC / DOGE</span>
+                <strong>Contratar um provedor aprovado</strong>
+                <p>
+                  A estrutura individual e o histórico já existem. A cobrança só
+                  será liberada depois da aprovação do provedor, credenciais de
+                  produção e validação do pagamento no servidor.
+                </p>
+              </div>
+              <em>AGUARDA CONTRATO</em>
+            </article>
+            <article className="later">
+              <b>5</b>
+              <div>
+                <span>SAQUES</span>
+                <strong>Fase posterior e separada</strong>
+                <p>
+                  CMA continuará não sacável. Saques de BTC ou DOGE exigirão KYC,
+                  controles contra fraude, limites, reservas e um provedor de payout
+                  autorizado.
+                </p>
+              </div>
+              <em>NÃO LIBERAR AGORA</em>
+            </article>
+          </div>
+        </section>
+
         <div className="admin-security-summary">
           <div>
             <span>EVENTOS DE SEGURANÇA · 24H</span>
