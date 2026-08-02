@@ -222,6 +222,40 @@ export const operationalCheckpoints = sqliteTable(
   ],
 );
 
+export const recoveryArchives = sqliteTable(
+  "recovery_archives",
+  {
+    id: text("id").primaryKey(),
+    objectKey: text("object_key").notNull().unique(),
+    checksumSha256: text("checksum_sha256"),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    rowCount: integer("row_count").notNull().default(0),
+    status: text("status").notNull().default("preparing"),
+    errorMessage: text("error_message"),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("recovery_archives_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const recoveryDrills = sqliteTable(
+  "recovery_drills",
+  {
+    id: text("id").primaryKey(),
+    archiveId: text("archive_id").notNull(),
+    status: text("status").notNull(),
+    checksJson: text("checks_json").notNull().default("{}"),
+    createdBy: text("created_by").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("recovery_drills_created_at_idx").on(table.createdAt),
+    index("recovery_drills_archive_idx").on(table.archiveId),
+  ],
+);
+
 export const betaFeedback = sqliteTable(
   "beta_feedback",
   {

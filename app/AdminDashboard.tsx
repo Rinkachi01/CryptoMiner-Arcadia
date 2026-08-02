@@ -21,6 +21,10 @@ import type {
 } from "./season-server";
 import type { NetworkPowerSnapshot } from "./network-server";
 import type { OperationalHealthReport } from "./operations-server";
+import type {
+  RecoveryDrillChecks,
+  RecoveryOverview,
+} from "./recovery-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
@@ -158,6 +162,7 @@ type AdminOverview = {
     email: string;
   };
   operations: OperationalHealthReport;
+  recovery: RecoveryOverview;
   recentCrates: Array<{
     crateId: string;
     createdAt: number;
@@ -357,6 +362,18 @@ function formatCma(value: number) {
   }).format(Math.abs(value))} CMA`;
 }
 
+function formatBytes(value: number) {
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toLocaleString("pt-BR", {
+      maximumFractionDigits: 1,
+    })} MB`;
+  }
+  if (value >= 1024) {
+    return `${Math.round(value / 1024).toLocaleString("pt-BR")} KB`;
+  }
+  return `${Math.max(0, value).toLocaleString("pt-BR")} bytes`;
+}
+
 function formatSignedNumber(value: number) {
   const rounded = Math.round(value);
   return `${rounded > 0 ? "+" : ""}${rounded.toLocaleString("pt-BR")}`;
@@ -371,6 +388,21 @@ const seasonReviewChecks: Array<{
   { key: "enoughActivity", label: "Atividade mínima por operador" },
   { key: "enoughSnapshots", label: "Dois pontos de comparação" },
   { key: "reviewQueueClear", label: "Fila antifraude revisada" },
+];
+
+const recoveryDrillLabels: Array<{
+  key: keyof RecoveryDrillChecks;
+  label: string;
+}> = [
+  { key: "storageObjectReadable", label: "Arquivo externo legível" },
+  { key: "checksumMatches", label: "Checksum íntegro" },
+  { key: "schemaRecognized", label: "Versão reconhecida" },
+  { key: "payloadComplete", label: "Tabelas essenciais presentes" },
+  { key: "accountStatesReadable", label: "Estados de conta reconstruíveis" },
+  { key: "ledgerAccountsPresent", label: "Ledger vinculado às contas" },
+  { key: "ledgerVersionsSafe", label: "Versões do ledger consistentes" },
+  { key: "networkAccountsPresent", label: "Índice ligado às contas" },
+  { key: "archiveFresh", label: "Cópia dentro da janela de 7 dias" },
 ];
 
 function formatPower(value: number) {
@@ -1774,6 +1806,216 @@ export function AdminDashboard({
                     </dl>
                   </article>
                 ))}
+              </div>
+            </section>
+          </section>
+
+          <section className="admin-panel admin-recovery-panel">
+            <div className="admin-panel-heading">
+              <div>
+                <span>CONTINUIDADE DO PROJETO</span>
+                <h2>Backup e restauração</h2>
+              </div>
+              <strong className={`admin-recovery-status ${overview.recovery.status}`}>
+                {overview.recovery.status === "stable"
+                  ? "RECUPERAÇÃO PRONTA"
+                  : overview.recovery.status === "critical"
+                    ? "PROTEÇÃO INCOMPLETA"
+                    : "PREPARAÇÃO PENDENTE"}
+              </strong>
+            </div>
+
+            <div className="admin-recovery-summary">
+              <article>
+                <span>ARMAZENAMENTO EXTERNO</span>
+                <strong>
+                  {overview.recovery.storageConnected ? "CONECTADO" : "INDISPONÍVEL"}
+                </strong>
+                <small>Separado do banco operacional</small>
+              </article>
+              <article>
+                <span>ÚLTIMA CÓPIA COMPLETA</span>
+                <strong>{formatDate(overview.recovery.latestArchive?.createdAt ?? null)}</strong>
+                <small>
+                  {overview.recovery.latestArchive
+                    ? `${formatNumber(overview.recovery.latestArchive.rowCount)} registros`
+                    : "Nenhuma cópia criada"}
+                </small>
+              </article>
+              <article>
+                <span>TAMANHO DO PACOTE</span>
+                <strong>
+                  {overview.recovery.latestArchive
+                    ? formatBytes(overview.recovery.latestArchive.sizeBytes)
+                    : "—"}
+                </strong>
+                <small>Limite seguro atual: 24 MB</small>
+              </article>
+              <article>
+                <span>ÚLTIMO ENSAIO</span>
+                <strong>
+                  {overview.recovery.latestDrill?.status === "passed"
+                    ? "APROVADO"
+                    : overview.recovery.latestDrill
+                      ? "REPROVADO"
+                      : "NÃO EXECUTADO"}
+                </strong>
+                <small>{formatDate(overview.recovery.latestDrill?.createdAt ?? null)}</small>
+              </article>
+            </div>
+
+            <div className="admin-recovery-actions">
+              <div>
+                <span>PACOTE COMPLETO E SENSÍVEL</span>
+                <p>
+                  A cópia inclui contas, inventários, ledger e configurações. Ela fica
+                  fora do banco principal e deve ser baixada apenas para armazenamento
+                  seguro do proprietário.
+                </p>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  disabled={Boolean(busyAction) || !overview.recovery.storageConnected}
+                  onClick={() =>
+                    void runAdminAction("create-recovery-archive", {
+                      action: "create-recovery-archive",
+                    })
+                  }
+                >
+                  {busyAction === "create-recovery-archive"
+                    ? "CRIANDO CÓPIA…"
+                    : "CRIAR CÓPIA EXTERNA"}
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={
+                    Boolean(busyAction) ||
+                    !overview.recovery.storageConnected ||
+                    !overview.recovery.latestArchive
+                  }
+                  onClick={() =>
+                    void runAdminAction("run-recovery-drill", {
+                      action: "run-recovery-drill",
+                    })
+                  }
+                >
+                  {busyAction === "run-recovery-drill"
+                    ? "VALIDANDO…"
+                    : "SIMULAR RESTAURAÇÃO"}
+                </button>
+                {overview.recovery.latestArchive &&
+                overview.recovery.storageConnected ? (
+                  <a href="/api/admin/recovery/latest">BAIXAR ÚLTIMA CÓPIA</a>
+                ) : (
+                  <span className="disabled">DOWNLOAD APÓS A PRIMEIRA CÓPIA</span>
+                )}
+              </div>
+            </div>
+
+            <div className="admin-recovery-body">
+              <section className="admin-recovery-gates">
+                <header>
+                  <span>PORTÕES DE RECUPERAÇÃO</span>
+                  <small>{overview.recovery.gates.filter((gate) => gate.passed).length}/4 prontos</small>
+                </header>
+                {overview.recovery.gates.map((gate) => (
+                  <article className={gate.passed ? "passed" : "pending"} key={gate.id}>
+                    <b>{gate.passed ? "✓" : "○"}</b>
+                    <span>{gate.label}</span>
+                  </article>
+                ))}
+              </section>
+
+              <section className="admin-recovery-drill">
+                <header>
+                  <span>VALIDAÇÃO DA ÚLTIMA CÓPIA</span>
+                  <small>NENHUMA CONTA É SOBRESCRITA</small>
+                </header>
+                {recoveryDrillLabels.map((check) => {
+                  const passed = overview.recovery.latestDrill?.checks[check.key] === true;
+                  return (
+                    <article className={passed ? "passed" : "pending"} key={check.key}>
+                      <i />
+                      <span>{check.label}</span>
+                    </article>
+                  );
+                })}
+              </section>
+            </div>
+
+            <div className="admin-recovery-history">
+              <header>
+                <div>
+                  <span>HISTÓRICO DE CÓPIAS</span>
+                  <strong>{overview.recovery.archives.length} tentativas recentes</strong>
+                </div>
+                <small>RETENÇÃO SEM EXCLUSÃO AUTOMÁTICA</small>
+              </header>
+              {overview.recovery.archives.length === 0 ? (
+                <p>A primeira cópia completa ainda precisa ser criada.</p>
+              ) : (
+                <div>
+                  {overview.recovery.archives.map((archive) => (
+                    <article className={archive.status} key={archive.id}>
+                      <i />
+                      <div>
+                        <strong>{formatDate(archive.createdAt)}</strong>
+                        <small>{shortId(archive.id)}</small>
+                      </div>
+                      <span>
+                        {archive.status === "ready"
+                          ? `${formatBytes(archive.sizeBytes)} · ${formatNumber(archive.rowCount)} linhas`
+                          : archive.errorMessage ?? "Preparando pacote"}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <section className="admin-release-readiness">
+              <header>
+                <span>PRÓXIMAS FASES ACELERADAS</span>
+                <h3>Prontidão para ampliar o beta</h3>
+              </header>
+              <div>
+                <article className={overview.operations.status === "stable" ? "ready" : "waiting"}>
+                  <b>{overview.operations.status === "stable" ? "✓" : "1"}</b>
+                  <div>
+                    <strong>Integridade operacional</strong>
+                    <span>Central sem sinais críticos e checkpoint recente.</span>
+                  </div>
+                </article>
+                <article className={overview.recovery.status === "stable" ? "ready" : "waiting"}>
+                  <b>{overview.recovery.status === "stable" ? "✓" : "2"}</b>
+                  <div>
+                    <strong>Recuperação comprovada</strong>
+                    <span>Cópia externa recente e ensaio aprovado.</span>
+                  </div>
+                </article>
+                <article className={overview.seasonReport?.readyForEconomyReview ? "ready" : "waiting"}>
+                  <b>{overview.seasonReport?.readyForEconomyReview ? "✓" : "3"}</b>
+                  <div>
+                    <strong>Temporada econômica</strong>
+                    <span>Os cinco portões precisam encerrar verdes.</span>
+                  </div>
+                </article>
+                <article className="external">
+                  <b>4</b>
+                  <div>
+                    <strong>Autenticação pública</strong>
+                    <span>Depende da escolha do provedor e da hospedagem final.</span>
+                  </div>
+                </article>
+                <article className="external">
+                  <b>5</b>
+                  <div>
+                    <strong>Teste com jogadores reais</strong>
+                    <span>Leitura, toque e onboarding precisam de validação externa.</span>
+                  </div>
+                </article>
               </div>
             </section>
           </section>

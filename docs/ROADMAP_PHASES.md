@@ -383,6 +383,22 @@ Entregas concluídas na etapa de operações e integridade:
 - nenhum saldo, preço, bloco ou recompensa é modificado pelo diagnóstico;
 - histórico recente de checkpoints preservado no banco do servidor.
 
+Entregas concluídas na etapa de recuperação e continuidade:
+
+- armazenamento de recuperação separado do banco operacional;
+- pacote completo e versionado com contas, inventários, ledger, partidas,
+  energia, rede, temporadas e configurações administrativas;
+- checksum SHA-256 calculado antes da gravação externa;
+- limite explícito de 24 MB e limites por tabela para impedir exportações
+  incompletas silenciosas;
+- histórico persistente de cópias concluídas e falhas;
+- download exclusivo e auditado para o proprietário;
+- ensaio de restauração que relê a cópia externa e valida checksum, versão,
+  tabelas essenciais, estados de conta, ledger e índice da rede;
+- nenhuma conta é sobrescrita durante o ensaio;
+- painel de prontidão reúne integridade, recuperação, temporada econômica,
+  autenticação futura e validação com jogadores reais.
+
 Decisões consolidadas:
 
 - conta nova recebe somente um rack instalado e um Byte Spark no inventário;
@@ -403,8 +419,8 @@ Ordem recomendada das próximas entregas:
 3. escolher a hospedagem e o provedor da autenticação pública;
 4. implementar cadastro, e-mail verificado, recuperação
    de senha, proteção contra múltiplas contas e migração do progresso atual;
-5. executar um exercício controlado com a nova Central de Operações e definir
-   uma estratégia externa de backup e restauração;
+5. criar a primeira cópia externa e executar o ensaio controlado na Central do
+   Proprietário;
 6. avaliar tarefas e publicidade somente com consentimento, antifraude e
    orçamento separado da recompensa dos blocos.
 

@@ -37,6 +37,12 @@ import {
   readOperationalHealth,
 } from "../../operations-server";
 import {
+  createRecoveryArchive,
+  readRecoveryOverview,
+  recoveryBucketFromEnv,
+  runRecoveryDrill,
+} from "../../recovery-server";
+import {
   closeActiveSeason,
   createSeason,
   createSeasonSnapshot,
@@ -551,13 +557,23 @@ export async function GET() {
     ensureOperationsSchema(context.db),
   ]);
   const now = Date.now();
-  const [settings, overview, network, feedback, beta, operations] = await Promise.all([
+  const bucket = recoveryBucketFromEnv(env);
+  const [
+    settings,
+    overview,
+    network,
+    feedback,
+    beta,
+    operations,
+    recovery,
+  ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
     readNetworkPowerSnapshot(context.db, now),
     readAdminBetaFeedback(context.db, now),
     readBetaObservability(context.db, now),
     readOperationalHealth(context.db, now),
+    readRecoveryOverview(context.db, bucket, now),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -587,6 +603,7 @@ export async function GET() {
     feedback,
     beta,
     operations,
+    recovery,
     ...overview,
     serverTime: now,
   });
@@ -618,6 +635,74 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "create-recovery-archive") {
+    try {
+      const archive = await createRecoveryArchive(
+        context.db,
+        recoveryBucketFromEnv(env),
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "recovery_archive_created",
+        archive,
+        now,
+      );
+      return json({
+        message: `Cópia externa concluída: ${archive.rowCount.toLocaleString("pt-BR")} registros verificados.`,
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível criar a cópia externa.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (body?.action === "run-recovery-drill") {
+    try {
+      const drill = await runRecoveryDrill(
+        context.db,
+        recoveryBucketFromEnv(env),
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "recovery_drill_completed",
+        {
+          archiveStatus: drill.status,
+          drillId: drill.id,
+        },
+        now,
+      );
+      return json({
+        message:
+          drill.status === "passed"
+            ? "Ensaio aprovado. A cópia atual pode ser lida e reconstruída sem tocar nas contas ativas."
+            : "O ensaio encontrou inconsistências. Nenhuma conta foi alterada; revise os indicadores.",
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível executar o ensaio.",
+        },
+        409,
+      );
+    }
+  }
 
   if (body?.action === "create-operations-checkpoint") {
     const checkpoint = await createOperationalCheckpoint(
