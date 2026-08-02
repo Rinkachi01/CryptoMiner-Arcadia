@@ -422,7 +422,8 @@ Ordem recomendada das próximas entregas:
 3. ~~escolher a hospedagem e o provedor da autenticação pública;~~ concluído
    com Cloudflare Workers, D1, R2 e Supabase Auth;
 4. ~~implementar cadastro, e-mail verificado, recuperação de senha e migração
-   do progresso atual;~~ fluxo implementado e URLs externas autorizadas;
+   do progresso atual;~~ fluxo implementado, URLs externas autorizadas e conta
+   fundadora migrada com 429 registros auditados;
 5. criar a primeira cópia externa e executar o ensaio controlado na Central do
    Proprietário;
 6. avaliar tarefas e publicidade somente com consentimento, antifraude e

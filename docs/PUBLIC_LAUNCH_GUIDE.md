@@ -185,8 +185,14 @@ também ser cadastrado como segredo do Worker e o desafio do Arcade ser testado.
 - nenhuma outra conta pode ocupar o painel quando o banco público ainda está
   vazio;
 - o D1 público e o D1 privado são bancos diferentes. Criar o usuário no
-  Supabase com o mesmo e-mail libera a identidade do fundador, mas a cópia do
-  inventário e do ledger deve ser feita uma única vez, com backup verificado;
+  Supabase com o mesmo e-mail libera a identidade do fundador;
+- em 2 de agosto de 2026, a conta fundadora foi migrada uma única vez para o
+  D1 público: 429 registros verificados, versão 370, 2.433,840661 CMA, duas
+  salas, 24 racks no total e 1.335.760 GH/s instalados. A cópia privada foi
+  preservada;
+- a migração usa pacote compactado, assinatura HMAC, validade de 24 horas,
+  vínculo à mesma identidade e bloqueio de repetição. O destino precisa estar
+  no estado inicial para impedir sobrescrita de progresso;
 - poder-base de rede é não remunerado e deve continuar existindo no servidor
   para que o primeiro jogador público não receba sozinho todos os blocos.
 
@@ -317,6 +323,8 @@ Fontes oficiais:
 - [ ] Configurar limites de borda, alertas e painel de erros.
 - [ ] Rodar teste de carga e teste de abuso com contas de ensaio.
 - [x] Criar backup completo do ambiente privado e executar um ensaio de recuperação.
+- [x] Migrar a conta fundadora verificada para o D1 público e validar saldo,
+      inventário, rede e auditoria.
 - [ ] Abrir beta público sem dinheiro real e observar pelo menos duas semanas.
 - [ ] Escolher processador e concluir aprovação antes de programar depósitos.
 - [ ] Manter depósito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente depósitos BTC/DOGE → saldo interno → CMA.

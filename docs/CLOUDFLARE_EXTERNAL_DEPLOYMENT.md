@@ -92,6 +92,9 @@ adicional, não como substituto deste backup SQL.
 Em 2 de agosto de 2026, a conta histórica do Sites foi verificada com saldo,
 inventário, 12 racks na sala 2 e acesso à Central do Proprietário. Um pacote
 completo de 204 KB e 452 registros foi criado no armazenamento separado; o
-ensaio de reconstrução terminou aprovado em 4/4 portões. A conta pública ainda
-não foi criada no D1 externo. O vínculo administrativo externo já está preso à
-identidade fundadora e não pode ser reivindicado pelo primeiro visitante.
+ensaio de reconstrução terminou aprovado em 4/4 portões. A conta pública foi
+criada com o mesmo e-mail verificado e recebeu 429 registros por migração
+assinada e compactada. O D1 externo confirmou a versão 370, 2.433,840661 CMA,
+duas salas, 24 racks, 1.335.760 GH/s e um único registro de transferência. A
+cópia privada permanece preservada, e o vínculo administrativo externo não pode
+ser reivindicado por outro visitante.
