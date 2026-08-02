@@ -4,7 +4,7 @@ Atualizado em 1º de agosto de 2026.
 
 ## Decisão recomendada
 
-Não abrir depósitos, conversão ou saques na primeira versão pública. O lançamento inicial deve usar CMA como crédito virtual fechado: não sacável, não transferível e sem promessa de paridade com dólar ou criptoativo. BTC e DOGE exibidos no jogo também continuam saldos virtuais de simulação até existir contrato com provedor, operação aprovada e revisão jurídica.
+Não abrir depósitos ou saques na primeira versão pública. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A única conversão planejada é BTC, DOGE ou LTC para CMA, nunca CMA para cripto. Os saldos exibidos continuam virtuais até existir contrato com provedor, operação aprovada e revisão jurídica.
 
 O caminho de menor risco e custo é:
 
@@ -111,7 +111,7 @@ Fontes oficiais:
 - não gerar endereços de depósito diretamente no servidor do jogo;
 - não guardar seed phrase ou chave privada;
 - não creditar saldo apenas porque uma transação apareceu no mempool;
-- não converter automaticamente BTC/DOGE em CMA por taxa inventada;
+- não converter BTC/DOGE/LTC em CMA sem cotação de mercado válida, taxa transparente e confirmação autoritativa;
 - não prometer “1 CMA = US$ 1” nem rentabilidade;
 - não liberar saque com uma simples chamada de API do cliente.
 
@@ -135,9 +135,13 @@ Fontes oficiais:
 - https://support.bitpay.com/hc/en-us/articles/203411543-What-cryptocurrencies-can-I-use-to-pay-a-BitPay-Invoice
 - https://support.bitpay.com/hc/en-us/articles/201890513-What-are-my-options-for-settlement
 
-### Conversão entre BTC/DOGE e CMA
+### Conversão de BTC, DOGE ou LTC para CMA
 
-Na primeira versão, não oferecer. Depois da revisão jurídica, o servidor poderá usar uma cotação bloqueada por poucos minutos, com spread e taxa transparentes. Toda conversão deve gerar duas partidas imutáveis no razão contábil e uma referência do provedor. O saldo visual de BTC/DOGE não pode ser confundido com cripto real sacável.
+A prévia de cotação já pode funcionar no beta: o servidor consulta BTC/USD, DOGE/USD e LTC/USD, fixa a cotação por cinco minutos e mostra CMA bruto, reserva econômica e CMA líquido. Nenhum saldo é movimentado nesta etapa. Depois da revisão jurídica e da escolha do provedor, a conversão poderá ser ativada em uma única direção. Toda execução deverá gerar duas partidas imutáveis no razão contábil e uma referência do provedor. Os saldos visuais não podem ser confundidos com cripto real sacável.
+
+A regra econômica inicial da prévia é 1 CMA por US$ 1 de valor de mercado, com reserva de 3% e mínimo equivalente a US$ 1. Esses parâmetros devem ser revistos com os custos reais do processador antes da ativação.
+
+Para os testes privados, a fonte pública sem chave do CoinGecko é suficiente. Antes do beta público, criar uma chave gratuita Demo e configurar `COINGECKO_API_KEY` no ambiente hospedado; a aplicação continuará consultando somente pelo servidor e nunca exporá a chave ao navegador. As prévias ficam registradas por até 30 dias para análise de procura, sem movimentar saldo.
 
 ### Saque
 
@@ -171,7 +175,7 @@ Fontes oficiais:
 - [ ] Criar backup, baixar uma cópia e executar um ensaio de recuperação.
 - [ ] Abrir beta público sem dinheiro real e observar pelo menos duas semanas.
 - [ ] Escolher processador e concluir aprovação antes de programar depósitos.
-- [ ] Manter conversão e saque desativados até parecer jurídico e provedor regulado.
+- [ ] Manter depósito, crédito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente BTC/DOGE/LTC → CMA.
 
 ## Critério de abertura
 

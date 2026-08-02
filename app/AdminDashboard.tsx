@@ -26,6 +26,7 @@ import type {
   RecoveryOverview,
 } from "./recovery-server";
 import type { SecurityOverview } from "./security-server";
+import type { ConversionOverview } from "./conversion-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
@@ -140,6 +141,7 @@ type AdminOverview = {
     };
     windowDays: number;
   };
+  conversion: ConversionOverview;
   games: Array<{
     gameId: string;
     plays: number;
@@ -823,9 +825,9 @@ export function AdminDashboard({
           </article>
           <article className="pending">
             <b>05</b>
-            <span>PAGAMENTOS</span>
-            <strong>BLOQUEADOS</strong>
-            <p>CMA permanece moeda virtual fechada, sem saque nem conversão real.</p>
+            <span>CONVERSÃO PARA CMA</span>
+            <strong>PRÉVIA ATIVA</strong>
+            <p>1 CMA referencia US$ 1; depósito e crédito aguardam provedor.</p>
           </article>
           <article className="pending">
             <b>06</b>
@@ -849,8 +851,8 @@ export function AdminDashboard({
             <strong>{formatNumber(overview.security.activePasses)}</strong>
           </div>
           <div>
-            <span>PRÓXIMA DECISÃO</span>
-            <strong>DOMÍNIO + LOGIN</strong>
+            <span>PRÉVIAS DE CONVERSÃO · 24H</span>
+            <strong>{formatNumber(overview.conversion.previews24h)}</strong>
           </div>
         </div>
       </section>

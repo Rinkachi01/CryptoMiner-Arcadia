@@ -389,6 +389,48 @@ export const securityEvents = sqliteTable(
   ],
 );
 
+export const marketPriceSnapshots = sqliteTable(
+  "market_price_snapshots",
+  {
+    asset: text("asset").primaryKey(),
+    usdPriceMicros: integer("usd_price_micros").notNull(),
+    provider: text("provider").notNull(),
+    observedAt: integer("observed_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("market_price_snapshots_observed_idx").on(table.observedAt),
+  ],
+);
+
+export const conversionQuotes = sqliteTable(
+  "conversion_quotes",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    asset: text("asset").notNull(),
+    assetAmountAtomic: integer("asset_amount_atomic").notNull(),
+    usdRateMicros: integer("usd_rate_micros").notNull(),
+    grossCmaMicros: integer("gross_cma_micros").notNull(),
+    feeBps: integer("fee_bps").notNull(),
+    feeCmaMicros: integer("fee_cma_micros").notNull(),
+    netCmaMicros: integer("net_cma_micros").notNull(),
+    status: text("status").notNull().default("preview"),
+    expiresAt: integer("expires_at").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("conversion_quotes_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("conversion_quotes_status_expiry_idx").on(
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   singletonId: integer("singleton_id").primaryKey(),
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),

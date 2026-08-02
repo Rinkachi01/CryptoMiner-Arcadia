@@ -54,6 +54,10 @@ import {
   ensureSecuritySchema,
   readSecurityOverview,
 } from "../../security-server";
+import {
+  ensureConversionSchema,
+  readConversionOverview,
+} from "../../conversion-server";
 
 export const dynamic = "force-dynamic";
 
@@ -560,6 +564,7 @@ export async function GET() {
     ensureNetworkSchema(context.db),
     ensureOperationsSchema(context.db),
     ensureSecuritySchema(context.db),
+    ensureConversionSchema(context.db),
   ]);
   const now = Date.now();
   const bucket = recoveryBucketFromEnv(env);
@@ -572,6 +577,7 @@ export async function GET() {
     operations,
     recovery,
     security,
+    conversion,
   ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
@@ -581,6 +587,7 @@ export async function GET() {
     readOperationalHealth(context.db, now),
     readRecoveryOverview(context.db, bucket, now),
     readSecurityOverview(context.db, env, now),
+    readConversionOverview(context.db, now),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -612,6 +619,7 @@ export async function GET() {
     operations,
     recovery,
     security,
+    conversion,
     ...overview,
     serverTime: now,
   });

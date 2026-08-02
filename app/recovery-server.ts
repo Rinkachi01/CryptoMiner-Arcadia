@@ -123,6 +123,8 @@ const requiredTables = [
   "arcade_security_passes",
   "security_rate_windows",
   "security_events",
+  "market_price_snapshots",
+  "conversion_quotes",
   "operational_checkpoints",
 ] as const;
 
@@ -142,12 +144,14 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   game_sessions: 100_000,
   game_states: 10_000,
   ledger_entries: 100_000,
+  market_price_snapshots: 20,
   network_runtime_settings: 10,
   operational_checkpoints: 10_000,
   season_snapshots: 10_000,
   seasons: 1_000,
   security_events: 100_000,
   security_rate_windows: 100_000,
+  conversion_quotes: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
   temporary_power_grants: 100_000,

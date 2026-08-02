@@ -7,6 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
+import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { TasksView } from "./TasksView";
@@ -56,6 +57,7 @@ import {
 type ViewId =
   | "mine"
   | "pools"
+  | "conversion"
   | "inventory"
   | "shop"
   | "games"
@@ -114,6 +116,7 @@ const navigation: Array<{
 }> = [
   { id: "mine", label: "Sala de mineração", shortLabel: "Sala", glyph: "M" },
   { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P" },
+  { id: "conversion", label: "Conversão", shortLabel: "Câmbio", glyph: "X" },
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
@@ -835,6 +838,19 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                   </em>
                 </button>
               ))}
+              <button
+                type="button"
+                className="wallet-conversion-link"
+                onClick={() => {
+                  setRackOpen(false);
+                  setWalletOpen(false);
+                  setActiveView("conversion");
+                }}
+              >
+                <span>⇄</span>
+                <strong>CONVERTER PARA CMA</strong>
+                <em>PRÉVIA</em>
+              </button>
             </div>
           )}
         </div>
@@ -910,6 +926,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                 </>
               ) : activeView === "shop" ? (
                 <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
+              ) : activeView === "conversion" ? (
+                <>CENTRAL DE CONVERSÃO <i /> COTAÇÃO DE MERCADO</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
               ) : activeView === "tasks" ? (
@@ -929,6 +947,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                   ? "Sua sala de mineração"
                   : activeView === "pools"
                     ? "Pools de mineração"
+                    : activeView === "conversion"
+                      ? "Conversão para CMA"
                     : activeView === "inventory"
                       ? "Inventário de equipamentos"
                       : activeView === "shop"
@@ -1061,6 +1081,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
             onApplyAllocations={applyPoolAllocations}
           />
         )}
+
+        {!rackOpen && activeView === "conversion" && <ConversionView />}
 
         {!rackOpen && activeView === "inventory" && (
           <InventoryView
