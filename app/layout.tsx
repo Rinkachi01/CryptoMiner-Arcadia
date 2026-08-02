@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+const publicBaseUrl =
+  process.env.PUBLIC_BASE_URL ??
+  "https://crypto-miner-arcadia.criptomineracardia.workers.dev";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site",
-  ),
+  metadataBase: new URL(publicBaseUrl),
   title: "Crypto Miner Arcadia",
   description:
     "Mineração virtual com beta observável, seis salas, blocos fixos, três pools e economia controlada pelo servidor.",
@@ -20,7 +22,7 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     images: [
       {
-        url: "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
+        url: "/og.png",
         width: 1672,
         height: 941,
         alt: "Crypto Miner Arcadia — beta observável com retenção, energia e Arcade",
@@ -32,9 +34,7 @@ export const metadata: Metadata = {
     title: "Crypto Miner Arcadia",
     description:
       "Nova fase de beta observável com consentimento preparado e dados de retenção.",
-    images: [
-      "https://crypto-miner-arcadia-game.mateusmoraes12345678.chatgpt.site/og.png",
-    ],
+    images: ["/og.png"],
   },
 };
 

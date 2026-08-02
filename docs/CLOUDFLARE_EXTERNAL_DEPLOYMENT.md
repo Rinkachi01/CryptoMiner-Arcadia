@@ -10,16 +10,16 @@ atual. A conta Cloudflare foi conectada em 2 de agosto de 2026.
 - banco D1 criado e com as 19 migrações aplicadas:
   `crypto-miner-arcadia-production` (região ENAM);
 - configuração pronta em `wrangler.production.jsonc`;
-- R2 ainda precisa ser habilitado uma vez no painel Cloudflare;
+- R2 habilitado e bucket `crypto-miner-arcadia-recovery` criado na região ENAM;
 - domínio `cryptominearcadia.com` ainda não aparece como zona da conta;
-- Worker será publicado somente depois do R2 existir, para não lançar sem backup.
+- Worker pode ser publicado com D1 e R2 vinculados, sem depender do ambiente Sites.
 
-## O que criar no Cloudflare
+## Recursos Cloudflare
 
-1. Um Worker chamado `crypto-miner-arcadia`.
-2. O banco D1 de produção já criado para progresso, livro-razão e auditoria.
-3. Um bucket R2 `crypto-miner-arcadia-recovery` para arquivos de recuperação.
-4. Os bindings do Worker:
+1. Worker `crypto-miner-arcadia`, criado na primeira publicação.
+2. Banco D1 de produção já criado para progresso, livro-razão e auditoria.
+3. Bucket R2 `crypto-miner-arcadia-recovery` já criado para recuperação.
+4. Bindings do Worker:
    - `DB` → banco D1;
    - `RECOVERY_ARCHIVE` → bucket R2;
    - `ASSETS` → arquivos estáticos gerados pela publicação.
@@ -39,7 +39,9 @@ no D1 e a autorização ocorre no servidor.
 
 ## Ordem segura de publicação
 
-1. Publicar em um subdomínio de homologação, como `beta.cryptominearcadia.com`.
+1. Publicar primeiro no subdomínio gratuito
+   `crypto-miner-arcadia.criptomineracardia.workers.dev`; após a compra do
+   domínio, usar `beta.cryptominearcadia.com` para homologação.
 2. Rodar as migrações do D1 antes de permitir contas reais.
 3. Testar criação de conta, confirmação de e-mail, login, sair e recuperação.
 4. Testar kit inicial, racks, compras, energia, pools, blocos e minigames.
@@ -60,3 +62,12 @@ no D1 e a autorização ocorre no servidor.
 Quando o volume exigir, o primeiro upgrade provável é Workers Paid (mínimo de
 US$ 5/mês) e depois Supabase Pro (a partir de US$ 25/mês). O painel de consumo
 deve ter alertas antes de qualquer upgrade automático.
+
+## Decisão sobre VPS
+
+O beta permanece em Workers + D1 + R2. Uma VPS só passa a ser indicada quando
+o jogo exigir processos continuamente ativos, software de servidor incompatível
+com Workers, conexões persistentes específicas ou quando medições reais mostrarem
+que o custo do Worker superou o de uma instância administrada. Antes disso, uma
+VPS acrescentaria atualizações do sistema, firewall, proxy, TLS, backups,
+monitoramento e recuperação sob responsabilidade direta do proprietário.

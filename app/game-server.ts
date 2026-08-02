@@ -129,7 +129,8 @@ function isAllocation(value: unknown): value is PoolAllocations {
         Number.isInteger(item) &&
         item >= 0 &&
         item <= 100,
-    ) && values.reduce((sum, item) => sum + (item ?? 0), 0) === 100
+    ) &&
+    values.reduce<number>((sum, item) => sum + (item ?? 0), 0) === 100
   );
 }
 
@@ -397,7 +398,10 @@ export function settleMiningBlocks(
   return { state: next, settledBlocks, rewards };
 }
 
-function requirePositiveInteger(value: unknown, maximum: number) {
+function requirePositiveInteger(
+  value: unknown,
+  maximum: number,
+): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&

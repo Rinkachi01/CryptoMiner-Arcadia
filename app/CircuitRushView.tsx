@@ -276,7 +276,6 @@ export function CircuitRushView({
                 onClick={startGame}
                 disabled={
                   phase === "loading" ||
-                  phase === "finishing" ||
                   cooldownSeconds > 0 ||
                   limits.hourRemaining === 0 ||
                   limits.dayRemaining === 0
@@ -284,11 +283,9 @@ export function CircuitRushView({
               >
                 {phase === "loading"
                   ? "SINCRONIZANDO..."
-                  : phase === "finishing"
-                    ? "VALIDANDO..."
-                    : cooldownSeconds > 0
-                      ? `RECARGA ${cooldownSeconds}s`
-                      : "INICIAR CIRCUIT RUSH"}
+                  : cooldownSeconds > 0
+                    ? `RECARGA ${cooldownSeconds}s`
+                    : "INICIAR CIRCUIT RUSH"}
               </button>
             </div>
           )}

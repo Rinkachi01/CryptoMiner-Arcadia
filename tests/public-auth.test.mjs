@@ -36,3 +36,14 @@ test("fluxo público inclui sessão SSR, confirmação, recuperação e document
   assert.match(source, /nunca solicita sua chave privada/i);
   assert.match(source, /Todos os direitos reservados/i);
 });
+
+test("metadados públicos acompanham o endereço externo configurado", async () => {
+  const layout = await readFile(
+    new URL("../app/layout.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(layout, /process\.env\.PUBLIC_BASE_URL/);
+  assert.match(layout, /crypto-miner-arcadia\.criptomineracardia\.workers\.dev/);
+  assert.doesNotMatch(layout, /mateusmoraes12345678\.chatgpt\.site/);
+});
