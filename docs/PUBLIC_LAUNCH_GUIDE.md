@@ -2,6 +2,22 @@
 
 Atualizado em 2 de agosto de 2026.
 
+## Arquitetura escolhida nesta fase
+
+- **Hospedagem e servidor:** manter Sites/Cloudflare. O projeto já usa Worker,
+  D1 e R2; migrar para Firebase duplicaria ou substituiria essa estrutura sem
+  benefício para o beta.
+- **Cadastro público:** Supabase Auth para e-mail verificado, recuperação de
+  senha e sessão. A conta do proprietário deve usar MFA e ficar separada.
+- **Progresso do jogo:** continua no D1, sempre conferido pelo servidor.
+- **Carteira:** livro-razão individual por jogador, com custódia e endereços
+  administrados pelo provedor de pagamento. O Arcadia não guarda seed phrase ou
+  chave privada.
+- **Depósitos:** fatura única BTC/DOGE vinculada à conta; o navegador nunca
+  confirma o crédito.
+- **Saques:** etapa posterior. CMA não é sacável; BTC/DOGE exigem KYC, limites,
+  reserva e provedor de payout aprovado.
+
 ## Decisão recomendada
 
 Não abrir depósitos ou saques na primeira versão pública. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna ativada no beta é somente BTC ou DOGE para CMA, nunca CMA para cripto. Esses saldos vêm das recompensas simuladas do jogo; depósitos externos continuam bloqueados até existir contrato com provedor, operação aprovada e revisão jurídica.
@@ -54,6 +70,13 @@ Se for necessária uma identidade independente, uma opção econômica é Supaba
 - Pro começa em US$ 25/mês.
 
 Fonte oficial: https://supabase.com/pricing
+
+Para preparar o Arcadia serão usados `SUPABASE_URL` e
+`SUPABASE_PUBLISHABLE_KEY`. A chave publicável identifica o projeto e pode ser
+usada pelo cliente. `SUPABASE_SECRET_KEY`, `service_role` e qualquer segredo de
+administração nunca devem ser colocados no navegador nem enviados em conversa.
+Mesmo com os dois valores configurados, `PUBLIC_LOGIN_ENABLED` permanece falso
+até os testes de migração de conta e recuperação de senha terminarem.
 
 Requisitos mínimos do login público:
 
@@ -127,12 +150,17 @@ do provedor → valida estado final, moeda, valor, invoice e idempotência
 
 O navegador nunca confirma pagamento. No caso do BitPay, a notificação IPN não é assinada e deve ser usada apenas como gatilho: o servidor precisa consultar a invoice novamente na API e só aceitar `confirmed` ou `complete`. Reembolsos, pagamento insuficiente/excessivo e expiração precisam de estados próprios.
 
-BitPay é um candidato porque suas invoices aceitam BTC e DOGE e o comerciante pode receber liquidação em cripto, conforme disponibilidade e aprovação da conta. A faixa pública abaixo de US$ 500 mil por mês custa 2% + US$ 0,25 por transação; contas de produção passam por análise de conformidade. Confirmar se a operação e o modelo Arcadia são aceitos no Brasil antes de integrar.
+BitPay é um candidato porque suas invoices aceitam BTC e DOGE e seu produto de
+payout documenta BTC e DOGE, conforme disponibilidade e aprovação da conta. A
+tarifa pública de processamento está na faixa de 1% a 2% + US$ 0,25 por
+transação; contas de produção passam por análise de conformidade. Confirmar se
+a operação e o modelo Arcadia são aceitos no Brasil antes de integrar.
 
 Fontes oficiais:
 
 - https://www.bitpay.com/pricing
 - https://developer.bitpay.com/docs/integration-1
+- https://developer.bitpay.com/reference/payouts
 - https://support.bitpay.com/hc/en-us/articles/203411543-What-cryptocurrencies-can-I-use-to-pay-a-BitPay-Invoice
 - https://support.bitpay.com/hc/en-us/articles/201890513-What-are-my-options-for-settlement
 

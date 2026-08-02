@@ -58,6 +58,7 @@ import {
   ensureConversionSchema,
   readConversionOverview,
 } from "../../conversion-server";
+import { readPublicLaunchReadiness } from "../../public-launch-server";
 
 export const dynamic = "force-dynamic";
 
@@ -553,7 +554,7 @@ function economicSnapshot(
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const context = await adminContext();
   if (!context) return json({ error: "Faça login para continuar." }, 401);
   if (context.forbidden) {
@@ -620,6 +621,7 @@ export async function GET() {
     recovery,
     security,
     conversion,
+    launch: readPublicLaunchReadiness(env, request.url),
     ...overview,
     serverTime: now,
   });

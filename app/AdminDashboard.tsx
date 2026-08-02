@@ -27,6 +27,7 @@ import type {
 } from "./recovery-server";
 import type { SecurityOverview } from "./security-server";
 import type { ConversionOverview } from "./conversion-server";
+import type { PublicLaunchReadiness } from "./public-launch-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
@@ -188,6 +189,7 @@ type AdminOverview = {
     cmaDelta: number;
     count: number;
   }>;
+  launch: PublicLaunchReadiness;
   metrics: {
     activePlayers24h: number;
     batteryClaims24h: number;
@@ -817,11 +819,22 @@ export function AdminDashboard({
             </strong>
             <p>Turnstile opcional, validado no servidor e com passe de 12 horas.</p>
           </article>
-          <article className="pending">
+          <article
+            className={overview.launch.identity.projectConfigured ? "ready" : "pending"}
+          >
             <b>04</b>
             <span>LOGIN PÚBLICO</span>
-            <strong>PENDENTE</strong>
-            <p>Escolher provedor, recuperação de senha e MFA do proprietário.</p>
+            <strong>
+              {overview.launch.identity.publicLoginEnabled
+                ? "ATIVO"
+                : overview.launch.identity.projectConfigured
+                  ? "SUPABASE PREPARADO"
+                  : "AGUARDA PROJETO"}
+            </strong>
+            <p>
+              Supabase foi escolhido. A abertura exige URL, chave publicável,
+              recuperação de senha e MFA do proprietário.
+            </p>
           </article>
           <article className="ready">
             <b>05</b>
@@ -837,6 +850,80 @@ export function AdminDashboard({
           </article>
         </div>
 
+        <section className="launch-architecture" aria-labelledby="launch-architecture-title">
+          <header>
+            <div>
+              <span>ARQUITETURA RECOMENDADA</span>
+              <h3 id="launch-architecture-title">Uma função clara para cada serviço</h3>
+            </div>
+            <strong>SEM MIGRAR PARA FIREBASE</strong>
+          </header>
+          <div>
+            <article className="ready">
+              <b>01</b>
+              <span>HOSPEDAGEM E SERVIDOR</span>
+              <strong>Sites + Cloudflare</strong>
+              <p>
+                Executa o jogo, APIs, blocos e proteção. D1 continua guardando o
+                progresso e R2 mantém as cópias de recuperação.
+              </p>
+              <em>{overview.launch.hosting.https ? "HTTPS ATIVO" : "AGUARDA HTTPS"}</em>
+            </article>
+            <article
+              className={overview.launch.identity.projectConfigured ? "ready" : "waiting"}
+            >
+              <b>02</b>
+              <span>CADASTRO E LOGIN</span>
+              <strong>Supabase Auth</strong>
+              <p>
+                Usado somente para conta pública, confirmação de e-mail,
+                recuperação de senha e sessão do jogador.
+              </p>
+              <em>
+                {overview.launch.identity.projectConfigured
+                  ? "PROJETO CONECTADO"
+                  : "FALTAM URL E CHAVE PUBLICÁVEL"}
+              </em>
+            </article>
+            <article className="ready">
+              <b>03</b>
+              <span>CARTEIRA DO JOGADOR</span>
+              <strong>Livro-razão individual</strong>
+              <p>
+                Cada usuário possui saldo e histórico próprios, mas o Arcadia não
+                cria, recebe ou armazena seed phrase e chave privada.
+              </p>
+              <em>ESTRUTURA PRONTA</em>
+            </article>
+            <article className={overview.launch.deposits.configured ? "ready" : "waiting"}>
+              <b>04</b>
+              <span>DEPÓSITOS BTC / DOGE</span>
+              <strong>Fatura do provedor</strong>
+              <p>
+                O provedor cria uma cobrança única vinculada à conta. Somente uma
+                confirmação consultada pelo servidor pode creditar o saldo.
+              </p>
+              <em>
+                {overview.launch.deposits.enabled
+                  ? "ATIVO"
+                  : overview.launch.deposits.configured
+                    ? "CONFIGURADO, MAS BLOQUEADO"
+                    : "BITPAY EM AVALIAÇÃO"}
+              </em>
+            </article>
+            <article className="blocked">
+              <b>05</b>
+              <span>SAQUES</span>
+              <strong>Provedor de payout + KYC</strong>
+              <p>
+                Fase separada. CMA nunca será sacável; BTC e DOGE dependerão de
+                contrato, identidade verificada, limites e reserva financeira.
+              </p>
+              <em>NÃO ATIVAR AGORA</em>
+            </article>
+          </div>
+        </section>
+
         <section className="owner-launch-checklist" aria-labelledby="owner-next-actions">
           <header>
             <div>
@@ -850,26 +937,30 @@ export function AdminDashboard({
               <b>1</b>
               <div>
                 <span>DOMÍNIO E CONTATO</span>
-                <strong>Registrar o domínio oficial</strong>
+                <strong>Conectar o domínio oficial ao Cloudflare</strong>
                 <p>
                   Escolha o endereço do Arcadia e crie um e-mail administrativo
                   separado da conta dos jogadores. O HTTPS será configurado na
                   hospedagem, sem comprar certificado à parte.
                 </p>
               </div>
-              <em>VOCÊ</em>
+              <em>{overview.launch.hosting.customDomain ? "CONCLUÍDO" : "VOCÊ"}</em>
             </article>
             <article className="next">
               <b>2</b>
               <div>
                 <span>CADASTRO E LOGIN</span>
-                <strong>Escolher o serviço de contas públicas</strong>
+                <strong>Conectar o projeto do Supabase</strong>
                 <p>
                   Precisamos de e-mail verificado, recuperação de senha, sessões
                   seguras e autenticação reforçada na conta do proprietário.
                 </p>
               </div>
-              <em>VOCÊ + ARCADIA</em>
+              <em>
+                {overview.launch.identity.projectConfigured
+                  ? "CONFIGURADO"
+                  : "VOCÊ + ARCADIA"}
+              </em>
             </article>
             <article className="blocked">
               <b>3</b>
@@ -895,7 +986,11 @@ export function AdminDashboard({
                   produção e validação do pagamento no servidor.
                 </p>
               </div>
-              <em>AGUARDA CONTRATO</em>
+              <em>
+                {overview.launch.deposits.configured
+                  ? "CONTA CONECTADA"
+                  : "AGUARDA CONTRATO"}
+              </em>
             </article>
             <article className="later">
               <b>5</b>
