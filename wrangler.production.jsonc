@@ -25,10 +25,12 @@
   ],
   "vars": {
     "PUBLIC_BASE_URL": "https://crypto-miner-arcadia.criptomineracardia.workers.dev",
+    "PUBLIC_INDEXING_ENABLED": "false",
     "SUPABASE_URL": "https://tgsofsumjyvrjohlghay.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_D-zur7SjizAWlwxf_0rD3Q_Xh7lJvrq",
     "PUBLIC_LOGIN_ENABLED": "true",
     "CRYPTO_DEPOSITS_ENABLED": "false",
+    "AUTH_CAPTCHA_REQUIRED": "false",
     "TURNSTILE_REQUIRED": "false"
   },
   "observability": {

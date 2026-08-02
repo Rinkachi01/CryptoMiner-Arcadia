@@ -108,6 +108,11 @@ Requisitos mínimos do login público:
 
 ### Configuração obrigatória no painel do Supabase
 
+Status em 2 de agosto de 2026: Site URL e as duas Redirect URLs do endereço
+`crypto-miner-arcadia.criptomineracardia.workers.dev` foram configuradas pelo
+proprietário. O endpoint público confirma cadastro por e-mail habilitado,
+cadastro aberto e confirmação automática desabilitada.
+
 Em **Authentication → URL Configuration**:
 
 - Site URL de homologação: URL privada atual;
@@ -160,6 +165,7 @@ Criar um widget Turnstile e cadastrar o domínio. Configurar estes segredos/vari
 TURNSTILE_SITE_KEY=<chave pública>
 TURNSTILE_SECRET=<segredo>
 TURNSTILE_HOSTNAME=<domínio exato>
+AUTH_CAPTCHA_REQUIRED=true
 TURNSTILE_REQUIRED=true
 ```
 
@@ -286,7 +292,7 @@ Fontes oficiais:
 - [ ] Configurar SMTP do Resend no Supabase e testar confirmação/recuperação.
 - [ ] Publicar Termos, Privacidade, Cookies, regras do jogo e política de reembolso.
 - [ ] Confirmar LGPD, classificação etária e implicações de loot boxes.
-- [ ] Escolher e configurar login público; manter a conta do proprietário separada.
+- [x] Escolher e configurar login público; manter a conta do proprietário separada.
 - [ ] Cadastrar Turnstile e ativar `TURNSTILE_REQUIRED=true` somente após teste.
 - [ ] Configurar limites de borda, alertas e painel de erros.
 - [ ] Rodar teste de carga e teste de abuso com contas de ensaio.

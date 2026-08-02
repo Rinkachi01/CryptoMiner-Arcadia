@@ -16174,6 +16174,22 @@ img {
   color: #84e9fa;
 }
 
+.public-auth-captcha {
+  display: grid;
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid rgba(169, 255, 63, 0.22);
+  background: rgba(169, 255, 63, 0.035);
+  place-items: center;
+  gap: 7px;
+}
+
+.public-auth-captcha > small {
+  color: #91a4af;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
 .public-auth-message {
   padding: 12px 13px;
   border: 1px solid rgba(54, 216, 242, 0.36);

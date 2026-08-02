@@ -416,13 +416,31 @@ Ordem recomendada das próximas entregas:
 
 1. coletar uma temporada completa até os cinco portões ficarem verdes;
 2. testar o onboarding em celulares reais com jogadores do beta;
-3. escolher a hospedagem e o provedor da autenticação pública;
-4. implementar cadastro, e-mail verificado, recuperação
-   de senha, proteção contra múltiplas contas e migração do progresso atual;
+3. ~~escolher a hospedagem e o provedor da autenticação pública;~~ concluído
+   com Cloudflare Workers, D1, R2 e Supabase Auth;
+4. ~~implementar cadastro, e-mail verificado, recuperação de senha e migração
+   do progresso atual;~~ fluxo implementado e URLs externas autorizadas;
 5. criar a primeira cópia externa e executar o ensaio controlado na Central do
    Proprietário;
 6. avaliar tarefas e publicidade somente com consentimento, antifraude e
    orçamento separado da recompensa dos blocos.
+
+### Fase 5.5 — endurecimento do acesso público
+
+Status: estrutura implementada; ativação do Turnstile aguarda a criação das
+chaves pelo proprietário.
+
+- cadastro, entrada e recuperação aceitam token Turnstile validado pelo
+  próprio Supabase;
+- o formulário falha fechado se a proteção for exigida sem chave pública;
+- mutações da API vindas de outra origem são recusadas antes de alcançar a
+  economia do jogo;
+- respostas recebem proteção contra iframe, interpretação incorreta de tipo,
+  vazamento excessivo de referência e acesso a câmera, microfone, localização,
+  pagamento e USB;
+- HTTPS recebe HSTS sem reivindicar os demais subdomínios de `workers.dev`;
+- a prévia externa permanece fora da indexação dos buscadores até o domínio e
+  o beta público serem aprovados.
 
 Polimentos ainda recomendados:
 

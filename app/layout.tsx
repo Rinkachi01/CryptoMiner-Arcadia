@@ -4,12 +4,19 @@ import "./globals.css";
 const publicBaseUrl =
   process.env.PUBLIC_BASE_URL ??
   "https://crypto-miner-arcadia.criptomineracardia.workers.dev";
+const publicIndexingEnabled =
+  process.env.PUBLIC_INDEXING_ENABLED?.trim().toLowerCase() === "true";
 
 export const metadata: Metadata = {
   metadataBase: new URL(publicBaseUrl),
   title: "Crypto Miner Arcadia",
   description:
     "Mineração virtual com beta observável, seis salas, blocos fixos, três pools e economia controlada pelo servidor.",
+  robots: {
+    follow: publicIndexingEnabled,
+    index: publicIndexingEnabled,
+    noarchive: !publicIndexingEnabled,
+  },
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",

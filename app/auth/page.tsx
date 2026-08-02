@@ -26,11 +26,13 @@ export default async function AuthPage({ searchParams }: AuthPageProps) {
     <main className="public-page-shell">
       {config?.enabled ? (
         <AuthForm
+          captchaRequired={config.captchaRequired}
           initialError={params.error}
           initialMode={mode}
           publishableKey={config.publishableKey}
           returnTo={returnTo}
           supabaseUrl={config.url}
+          turnstileSiteKey={config.turnstileSiteKey}
         />
       ) : (
         <section className="public-status-card">
@@ -51,4 +53,3 @@ export default async function AuthPage({ searchParams }: AuthPageProps) {
     </main>
   );
 }
-

@@ -1,12 +1,16 @@
 export type SupabaseAuthEnvironment = {
+  AUTH_CAPTCHA_REQUIRED?: string;
   PUBLIC_LOGIN_ENABLED?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   SUPABASE_URL?: string;
+  TURNSTILE_SITE_KEY?: string;
 };
 
 export type SupabaseAuthConfig = {
+  captchaRequired: boolean;
   enabled: boolean;
   publishableKey: string;
+  turnstileSiteKey: string | null;
   url: string;
 };
 
@@ -42,9 +46,10 @@ export function readSupabaseAuthConfig(
   }
 
   return {
+    captchaRequired: enabled(source.AUTH_CAPTCHA_REQUIRED),
     enabled: enabled(source.PUBLIC_LOGIN_ENABLED),
     publishableKey: source.SUPABASE_PUBLISHABLE_KEY!.trim(),
+    turnstileSiteKey: source.TURNSTILE_SITE_KEY?.trim() || null,
     url: source.SUPABASE_URL!.trim(),
   };
 }
-

@@ -2,15 +2,18 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { FormEvent, useMemo, useState } from "react";
+import { TurnstileWidget } from "../TurnstileWidget";
 
 type AuthMode = "reset" | "signin" | "signup";
 
 type AuthFormProps = {
+  captchaRequired: boolean;
   initialError?: string;
   initialMode: AuthMode;
   publishableKey: string;
   returnTo: string;
   supabaseUrl: string;
+  turnstileSiteKey: string | null;
 };
 
 function friendlyError(message: string) {
@@ -28,11 +31,13 @@ function friendlyError(message: string) {
 }
 
 export function AuthForm({
+  captchaRequired,
   initialError,
   initialMode,
   publishableKey,
   returnTo,
   supabaseUrl,
+  turnstileSiteKey,
 }: AuthFormProps) {
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, publishableKey),
@@ -40,6 +45,8 @@ export function AuthForm({
   );
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [busy, setBusy] = useState(false);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [message, setMessage] = useState(initialError ?? "");
@@ -49,17 +56,26 @@ export function AuthForm({
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage("");
+    setCaptchaToken("");
+    setCaptchaReset((current) => current + 1);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
+    let submittedToAuth = false;
 
     try {
+      if (captchaRequired && !captchaToken) {
+        setMessage("Confirme a verificação humana para continuar.");
+        return;
+      }
       if (mode === "reset") {
         const redirectTo = `${window.location.origin}/auth/callback?next=/auth/update-password`;
+        submittedToAuth = true;
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          captchaToken: captchaToken || undefined,
           redirectTo,
         });
         if (error) throw error;
@@ -79,10 +95,12 @@ export function AuthForm({
           return;
         }
         const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
+        submittedToAuth = true;
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            captchaToken: captchaToken || undefined,
             data: { full_name: fullName.trim() },
             emailRedirectTo,
           },
@@ -98,8 +116,10 @@ export function AuthForm({
         return;
       }
 
+      submittedToAuth = true;
       const { error } = await supabase.auth.signInWithPassword({
         email,
+        options: { captchaToken: captchaToken || undefined },
         password,
       });
       if (error) throw error;
@@ -109,6 +129,10 @@ export function AuthForm({
         friendlyError(error instanceof Error ? error.message : String(error)),
       );
     } finally {
+      if (captchaRequired && submittedToAuth) {
+        setCaptchaToken("");
+        setCaptchaReset((current) => current + 1);
+      }
       setBusy(false);
     }
   }
@@ -214,9 +238,35 @@ export function AuthForm({
             </label>
           )}
 
+          {captchaRequired && turnstileSiteKey && (
+            <div className="public-auth-captcha">
+              <TurnstileWidget
+                action={`auth_${mode}`}
+                onError={setMessage}
+                onToken={setCaptchaToken}
+                resetSignal={captchaReset}
+                siteKey={turnstileSiteKey}
+              />
+              <small>A resposta confirma presença humana e não fica armazenada.</small>
+            </div>
+          )}
+
+          {captchaRequired && !turnstileSiteKey && (
+            <div className="public-auth-message" role="alert">
+              Cadastro temporariamente pausado enquanto a proteção humana é configurada.
+            </div>
+          )}
+
           {message && <div className="public-auth-message" role="status">{message}</div>}
 
-          <button className="public-auth-submit" disabled={busy} type="submit">
+          <button
+            className="public-auth-submit"
+            disabled={
+              busy ||
+              (captchaRequired && (!turnstileSiteKey || !captchaToken))
+            }
+            type="submit"
+          >
             {busy
               ? "PROCESSANDO..."
               : mode === "signin"
@@ -245,4 +295,3 @@ export function AuthForm({
     </div>
   );
 }
-

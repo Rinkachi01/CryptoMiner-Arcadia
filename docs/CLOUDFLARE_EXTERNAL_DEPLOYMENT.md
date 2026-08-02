@@ -71,3 +71,16 @@ com Workers, conexões persistentes específicas ou quando medições reais most
 que o custo do Worker superou o de uma instância administrada. Antes disso, uma
 VPS acrescentaria atualizações do sistema, firewall, proxy, TLS, backups,
 monitoramento e recuperação sob responsabilidade direta do proprietário.
+
+## Primeira cópia operacional
+
+Em 2 de agosto de 2026, o banco D1 externo foi exportado integralmente e a
+cópia SQL foi gravada no R2 em
+`manual/d1/arcadia-d1-2026-08-02.sql`. A leitura de volta preservou exatamente
+os 16.799 bytes e o SHA-256
+`D661E03EA6CDB885244E5A1824EE165A32A0E38BEC3D2F787F98CA2AF7F92AB1`, cobrindo
+32 tabelas. O teste foi somente leitura e não sobrescreveu nenhuma conta.
+
+Essa cópia independente protege a infraestrutura externa. O pacote JSON do
+painel do proprietário e seu ensaio lógico continuam como uma verificação
+adicional, não como substituto deste backup SQL.
