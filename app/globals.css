@@ -17,6 +17,103 @@
   --font-mono: "Lucida Console", "Courier New", monospace;
 }
 
+.founder-transfer-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 5vw, 72px);
+  background:
+    radial-gradient(circle at 15% 10%, rgba(157, 255, 47, 0.09), transparent 34%),
+    #070c12;
+  color: #f4f8fb;
+}
+
+.founder-transfer-card {
+  width: min(880px, 100%);
+  padding: clamp(24px, 4vw, 48px);
+  border: 1px solid #304151;
+  background: #0c141d;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+}
+
+.founder-transfer-card > span,
+.founder-transfer-card label,
+.founder-transfer-card small {
+  color: #9dff2f;
+  font-family: var(--font-geist-mono), monospace;
+  letter-spacing: 0.08em;
+}
+
+.founder-transfer-card h1 {
+  margin: 12px 0;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+}
+
+.founder-transfer-card p,
+.founder-transfer-card small {
+  line-height: 1.65;
+}
+
+.founder-transfer-card label {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.founder-transfer-card textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 16px;
+  border: 1px solid #344a5c;
+  background: #060b10;
+  color: #d8e5ee;
+  font: 0.78rem/1.45 var(--font-geist-mono), monospace;
+}
+
+.founder-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 8px;
+}
+
+.founder-transfer-card button,
+.founder-transfer-card a {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 1px solid #9dff2f;
+  background: #9dff2f;
+  color: #071005;
+  font: 700 0.82rem var(--font-geist-mono), monospace;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.founder-transfer-card a {
+  background: transparent;
+  color: #dfffc0;
+}
+
+.founder-transfer-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.founder-transfer-import {
+  width: 100%;
+  margin: 14px 0;
+}
+
+.founder-transfer-message {
+  margin: 12px 0;
+  padding: 14px;
+  border-left: 3px solid #9dff2f;
+  background: rgba(157, 255, 47, 0.08);
+}
+
 * {
   box-sizing: border-box;
 }

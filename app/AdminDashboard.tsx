@@ -724,6 +724,7 @@ export function AdminDashboard({
           <a href="/api/admin/export" download>
             EXPORTAR CSV
           </a>
+          <a href="/admin/transfer">MIGRAR CONTA</a>
           <Link href="/">VOLTAR AO JOGO</Link>
           <a href={signOutPath}>SAIR</a>
         </nav>
