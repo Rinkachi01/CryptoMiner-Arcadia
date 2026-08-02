@@ -826,14 +826,14 @@ export function AdminDashboard({
             <span>LOGIN PÚBLICO</span>
             <strong>
               {overview.launch.identity.publicLoginEnabled
-                ? "ATIVO"
+                ? "EM HOMOLOGAÇÃO"
                 : overview.launch.identity.projectConfigured
                   ? "SUPABASE PREPARADO"
                   : "AGUARDA PROJETO"}
             </strong>
             <p>
-              Supabase foi escolhido. A abertura exige URL, chave publicável,
-              recuperação de senha e MFA do proprietário.
+              Supabase conectado com confirmação e recuperação. SMTP, domínio
+              e teste completo ainda bloqueiam a abertura pública.
             </p>
           </article>
           <article className="ready">
@@ -856,7 +856,7 @@ export function AdminDashboard({
               <span>ARQUITETURA RECOMENDADA</span>
               <h3 id="launch-architecture-title">Uma função clara para cada serviço</h3>
             </div>
-            <strong>SEM MIGRAR PARA FIREBASE</strong>
+              <strong>CLOUDFLARE + SUPABASE · SEM MIGRAR PARA FIREBASE</strong>
           </header>
           <div>
             <article className="ready">
@@ -2934,6 +2934,10 @@ export function AdminDashboard({
           Proprietário registrado em {formatDate(overview.owner.claimedAt)} ·{" "}
           {user.email}
         </small>
+        <nav>
+          <a href="/support">SUPORTE</a>
+          <a href="/legal">DOCUMENTOS PÚBLICOS</a>
+        </nav>
       </footer>
     </main>
   );

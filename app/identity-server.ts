@@ -2,13 +2,19 @@ import {
   chatGPTSignInPath,
   chatGPTSignOutPath,
   getChatGPTUser,
-  requireChatGPTUser,
   type ChatGPTUser,
 } from "./chatgpt-auth.ts";
+import { redirect } from "next/navigation";
 import {
   accountIdForVerifiedEmail,
   CURRENT_IDENTITY_PROVIDER,
+  PUBLIC_IDENTITY_PROVIDER,
+  safeArcadiaReturnPath,
 } from "./identity-rules.ts";
+import {
+  createSupabaseServerClient,
+  publicLoginConfig,
+} from "./supabase-server.ts";
 
 export {
   accountIdForVerifiedEmail,
@@ -16,13 +22,44 @@ export {
   PUBLIC_ACCOUNT_STATUS,
 } from "./identity-rules.ts";
 
-export type ArcadiaUser = ChatGPTUser & {
-  provider: typeof CURRENT_IDENTITY_PROVIDER;
+export type ArcadiaUser = {
+  displayName: string;
+  email: string;
+  fullName: string | null;
+  provider:
+    | typeof CURRENT_IDENTITY_PROVIDER
+    | typeof PUBLIC_IDENTITY_PROVIDER;
   providerSubject: string;
+  userId: string;
   verifiedEmail: string;
 };
 
-function toArcadiaUser(user: ChatGPTUser): ArcadiaUser {
+async function getSupabaseUser(): Promise<ArcadiaUser | null> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user?.email || !user.email_confirmed_at) return null;
+
+  const fullName =
+    typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name.trim() || null
+      : null;
+  const verifiedEmail = user.email.trim().toLowerCase();
+  return {
+    displayName: fullName ?? verifiedEmail,
+    email: verifiedEmail,
+    fullName,
+    provider: PUBLIC_IDENTITY_PROVIDER,
+    providerSubject: user.id,
+    userId: user.id,
+    verifiedEmail,
+  };
+}
+
+function toChatGPTArcadiaUser(user: ChatGPTUser): ArcadiaUser {
   return {
     ...user,
     provider: CURRENT_IDENTITY_PROVIDER,
@@ -33,20 +70,37 @@ function toArcadiaUser(user: ChatGPTUser): ArcadiaUser {
 
 export async function getArcadiaUser(): Promise<ArcadiaUser | null> {
   const user = await getChatGPTUser();
-  return user ? toArcadiaUser(user) : null;
+  if (user) return toChatGPTArcadiaUser(user);
+  return getSupabaseUser();
 }
 
 export async function requireArcadiaUser(
   returnTo: string,
 ): Promise<ArcadiaUser> {
-  return toArcadiaUser(await requireChatGPTUser(returnTo));
+  const user = await getArcadiaUser();
+  if (user) return user;
+  redirect(arcadiaSignInPath(returnTo));
 }
 
-export function arcadiaSignInPath(returnTo: string): string {
+export function arcadiaSignInPath(
+  returnTo: string,
+  mode: "signin" | "signup" | "reset" = "signin",
+): string {
+  if (publicLoginConfig()?.enabled) {
+    const safeReturnTo = safeArcadiaReturnPath(returnTo);
+    return `/auth?mode=${mode}&return_to=${encodeURIComponent(safeReturnTo)}`;
+  }
   return chatGPTSignInPath(returnTo);
 }
 
-export function arcadiaSignOutPath(returnTo = "/"): string {
+export function arcadiaSignOutPath(
+  returnTo = "/",
+  provider: ArcadiaUser["provider"] = CURRENT_IDENTITY_PROVIDER,
+): string {
+  if (provider === PUBLIC_IDENTITY_PROVIDER) {
+    const safeReturnTo = safeArcadiaReturnPath(returnTo);
+    return `/auth/signout?return_to=${encodeURIComponent(safeReturnTo)}`;
+  }
   return chatGPTSignOutPath(returnTo);
 }
 

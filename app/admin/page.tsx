@@ -14,7 +14,7 @@ export default async function AdminPage() {
         displayName: user.displayName,
         email: user.email,
       }}
-      signOutPath={arcadiaSignOutPath("/")}
+      signOutPath={arcadiaSignOutPath("/", user.provider)}
     />
   );
 }

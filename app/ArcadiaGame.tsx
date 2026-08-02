@@ -917,6 +917,10 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
         <div className="simulation-note">
           <span>SIMULAÇÃO VIRTUAL</span>
           <p>Sem mineração real, depósito ou saque nesta fase.</p>
+          <div className="sidebar-public-links">
+            <a href="/support">SUPORTE</a>
+            <a href="/legal">TERMOS E PRIVACIDADE</a>
+          </div>
         </div>
       </aside>
 

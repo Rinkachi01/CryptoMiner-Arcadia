@@ -26,7 +26,7 @@ O caminho de menor risco e custo é:
 
 1. terminar o beta privado no Sites;
 2. comprar somente o domínio;
-3. confirmar qual caminho de autenticação pública será suportado pela plataforma;
+3. validar o cadastro Supabase já implementado, o SMTP e os redirecionamentos;
 4. ativar Cloudflare Turnstile e limites de borda;
 5. abrir um beta público sem dinheiro real;
 6. adicionar compra de itens/CMA em sentido único por um processador aprovado;
@@ -38,7 +38,7 @@ O caminho de menor risco e custo é:
 
 Manter o projeto no OpenAI Sites durante a validação privada. O projeto já usa banco D1 e arquivo R2 administrados pela plataforma. Antes de torná-lo público, confirmar no painel do Sites a disponibilidade de domínio próprio, autenticação externa, limites e preço do plano público. A abertura pública exige aprovação explícita do proprietário.
 
-### Opção B — melhor custo-benefício para uma operação pública pequena
+### Opção B — recomendada para a operação pública
 
 Migrar a mesma arquitetura para Cloudflare Workers com ativos estáticos, D1 e R2:
 
@@ -51,6 +51,18 @@ Migrar a mesma arquitetura para Cloudflare Workers com ativos estáticos, D1 e R
 
 O único gasto obrigatório tende a ser o domínio. O Cloudflare Registrar vende e renova a preço de custo do registro e inclui DNSSEC.
 
+Cloudflare não é apenas proteção. Neste projeto ele pode exercer cinco papéis:
+
+1. **DNS:** publica o domínio e os registros de e-mail;
+2. **CDN/proxy:** aproxima os arquivos do usuário e absorve tráfego malicioso;
+3. **segurança:** HTTPS, DDoS, WAF, Turnstile e limites de frequência;
+4. **hospedagem:** o Worker executa o site e as APIs na borda;
+5. **dados:** D1 guarda o jogo e R2 guarda arquivos de recuperação.
+
+O Supabase permanece separado e cuida somente de identidade. Firebase Hosting
+não é necessário: ele repetiria a hospedagem e exigiria migração da estrutura
+Cloudflare já usada pelo servidor autoritativo.
+
 Fontes oficiais:
 
 - https://developers.cloudflare.com/workers/platform/pricing/
@@ -61,7 +73,11 @@ Fontes oficiais:
 
 ### Login público
 
-O login atual pertence ao ambiente privado do ChatGPT/Sites. Não tratar isso como login final do público. A plataforma de hospedagem deve confirmar primeiro o caminho de identidade externa.
+O login atual do site privado continua aceitando a identidade do ChatGPT. Para
+o domínio público, o fluxo de e-mail e senha do Supabase já foi implementado com
+cookies de sessão, renovação no servidor, confirmação de e-mail, recuperação de
+senha e vínculo por e-mail verificado. Assim, o mesmo e-mail usado na beta
+preserva o progresso.
 
 Se for necessária uma identidade independente, uma opção econômica é Supabase Auth:
 
@@ -75,18 +91,50 @@ Para preparar o Arcadia serão usados `SUPABASE_URL` e
 `SUPABASE_PUBLISHABLE_KEY`. A chave publicável identifica o projeto e pode ser
 usada pelo cliente. `SUPABASE_SECRET_KEY`, `service_role` e qualquer segredo de
 administração nunca devem ser colocados no navegador nem enviados em conversa.
-Mesmo com os dois valores configurados, `PUBLIC_LOGIN_ENABLED` permanece falso
-até os testes de migração de conta e recuperação de senha terminarem.
+Os valores públicos enviados pelo proprietário foram validados no endpoint de
+configuração do projeto. E-mail está habilitado, cadastro está permitido e a
+confirmação de e-mail é obrigatória. `PUBLIC_LOGIN_ENABLED=true` pode ser usado
+na homologação; o acesso público ainda depende de SMTP e URLs de redirecionamento.
 
 Requisitos mínimos do login público:
 
 - e-mail verificado;
 - redefinição de senha segura;
 - MFA obrigatório para o proprietário;
-- sessão revogável e cookies `Secure`, `HttpOnly` e `SameSite`;
+- sessão revogável, cookies `Secure`/`SameSite` e validação do token no servidor;
 - limite por conta e por borda;
 - trilha de auditoria das ações administrativas;
-- política de exclusão/exportação de dados compatível com LGPD.
+- política de exclusão/exportação compatível com as leis aplicáveis aos usuários.
+
+### Configuração obrigatória no painel do Supabase
+
+Em **Authentication → URL Configuration**:
+
+- Site URL de homologação: URL privada atual;
+- Site URL de produção: `https://cryptominearcadia.com` depois de o domínio existir;
+- Redirect URLs: adicionar a origem de homologação e produção com
+  `/auth/callback` e `/auth/update-password`;
+- não usar curingas amplos em produção.
+
+Em **Authentication → Email**:
+
+- manter confirmação de e-mail ativada;
+- personalizar confirmação e recuperação com a marca Arcadia;
+- conectar SMTP próprio antes de convidar o público.
+
+O SMTP padrão do Supabase serve apenas para testes com endereços autorizados da
+equipe e possui limite muito baixo. A opção inicial recomendada é Resend Free:
+3 mil e-mails/mês e 100/dia. Para receber suporte sem pagar caixa postal,
+Cloudflare Email Routing pode encaminhar `support@cryptominearcadia.com` para
+uma caixa pessoal verificada. Envio transacional continua no Resend/Supabase.
+
+Fontes oficiais:
+
+- https://supabase.com/docs/guides/auth/passwords
+- https://supabase.com/docs/guides/auth/auth-smtp
+- https://supabase.com/docs/guides/auth/redirect-urls
+- https://resend.com/docs/knowledge-base/what-is-resend-pricing
+- https://developers.cloudflare.com/email-service/
 
 ## Anti-bot e anti-automação
 
@@ -156,6 +204,21 @@ tarifa pública de processamento está na faixa de 1% a 2% + US$ 0,25 por
 transação; contas de produção passam por análise de conformidade. Confirmar se
 a operação e o modelo Arcadia são aceitos no Brasil antes de integrar.
 
+Comparação prática:
+
+- **BitPay:** melhor encaixe técnico atual para BTC e DOGE e para o modelo de
+  fatura sob custódia do provedor; no menor volume cobra 2% + US$ 0,25 e exige
+  aprovação comercial/compliance.
+- **CoinGate:** tarifa pública de 1%, mas suporte aos países, ao modelo de jogo,
+  moedas, liquidação e payout precisa ser confirmado na aprovação da empresa.
+- **NOWPayments:** tarifa pública menor (0,5% em pagamento sem conversão), porém
+  o fluxo padrão é não custodial e envia para carteira do comerciante. Isso
+  transfere mais responsabilidade de chaves e conciliação para o Arcadia e não é
+  a primeira escolha de segurança.
+
+Escolher pelo contrato e pela aprovação da operação, não apenas pela menor taxa.
+Nenhuma credencial financeira deve ser criada em nome pessoal para produção.
+
 Fontes oficiais:
 
 - https://www.bitpay.com/pricing
@@ -196,7 +259,17 @@ Saque é a última etapa. Ele exige, no mínimo:
 - provedor de payout com contrato e aprovação para o Brasil;
 - conciliação, impostos, suporte e política de contestação.
 
-No Brasil, as Resoluções BCB 519, 520 e 521 passaram a produzir efeitos em 2 de fevereiro de 2026 e disciplinam autorização, AML, governança, segurança e transparência para prestadores de serviços de ativos virtuais. Antes de custódia, conversão ou saque, contratar advogado/contador especializados e usar instituição autorizada.
+“Operar globalmente” não torna o projeto livre de regulação. A empresa continua
+sujeita ao país em que é constituída, aos países de onde é administrada, aos
+termos dos provedores e às regras dos locais onde aceita usuários. Isso pode
+exigir bloqueio de países, KYC, AML, sanções, proteção de dados, idade mínima,
+tributação e licenças. Escolher uma jurisdição apenas para evitar regras não
+elimina o risco e pode criar obrigações em vários países ao mesmo tempo.
+
+Se a operação for administrada do Brasil ou atender o mercado brasileiro, as
+Resoluções BCB 519, 520 e 521, com efeitos desde 2 de fevereiro de 2026, podem
+ser relevantes para serviços de ativos virtuais. Antes de custódia, conversão
+ou saque, contratar advogado/contador especializados e usar instituição aprovada.
 
 Fontes oficiais:
 
@@ -207,6 +280,10 @@ Fontes oficiais:
 
 - [ ] Definir nome empresarial, CNPJ e conta bancária empresarial.
 - [ ] Comprar o domínio e proteger a conta do registrador com MFA.
+- [ ] Confirmar se `cryptominearcadia.com` foi realmente registrado; hoje não foi detectado DNS ativo.
+- [ ] Criar `support@`, `privacy@` e `security@` no Email Routing.
+- [ ] Criar domínio no Resend e configurar SPF, DKIM e DMARC no Cloudflare.
+- [ ] Configurar SMTP do Resend no Supabase e testar confirmação/recuperação.
 - [ ] Publicar Termos, Privacidade, Cookies, regras do jogo e política de reembolso.
 - [ ] Confirmar LGPD, classificação etária e implicações de loot boxes.
 - [ ] Escolher e configurar login público; manter a conta do proprietário separada.
@@ -221,3 +298,22 @@ Fontes oficiais:
 ## Critério de abertura
 
 O Arcadia só está pronto para ficar público quando domínio/HTTPS, login público, MFA administrativo, Turnstile obrigatório, limite de borda, termos/LGPD, monitoramento e ensaio de recuperação estiverem aprovados. Dinheiro real continua em um portão separado.
+
+## Sequência exata para o proprietário
+
+1. No Cloudflare, adicionar ou registrar `cryptominearcadia.com` e ativar MFA.
+2. No Cloudflare Email Routing, verificar uma caixa de destino e criar
+   `support@cryptominearcadia.com`, `privacy@...` e `security@...`.
+3. No Resend, adicionar o domínio, copiar os registros SPF/DKIM/DMARC para o
+   DNS do Cloudflare e obter as credenciais SMTP.
+4. No Supabase, configurar SMTP, Site URL e Redirect URLs; testar cadastro,
+   confirmação, login, sair e recuperação usando uma conta de ensaio.
+5. Criar no Cloudflare um Worker, um banco D1 e um bucket R2. Conectar os
+   bindings `DB` e `RECOVERY_ARCHIVE` e cadastrar as variáveis públicas do
+   Supabase. Segredos são cadastrados no painel, nunca no código.
+6. Conectar `cryptominearcadia.com` ao Worker. O Cloudflare cria DNS e HTTPS.
+7. Ativar Turnstile e regras de frequência somente após testar login e jogos.
+8. Abrir primeiro um beta público sem depósito e sem saque.
+9. Criar uma empresa e solicitar conta comercial no provedor financeiro.
+10. Somente depois de aprovação, revisão jurídica e testes de reconciliação,
+    cadastrar o token secreto do provedor e ativar depósitos gradualmente.
