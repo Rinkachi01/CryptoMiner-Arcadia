@@ -19,8 +19,8 @@ test("beta e login público preservam a conta pelo e-mail verificado", async () 
     readFile(new URL("../app/identity-rules.ts", import.meta.url), "utf8"),
   ]);
   assert.match(page, /ACESSO PROTEGIDO/);
-  assert.match(page, /Supabase/i);
-  assert.match(page, /preserva a migração do progresso/i);
+  assert.match(page, /e-mail confirmado/i);
+  assert.match(page, /progresso no servidor/i);
   assert.match(identity, /CURRENT_IDENTITY_PROVIDER = "chatgpt"/);
   assert.match(identity, /PUBLIC_IDENTITY_PROVIDER = "supabase"/);
   assert.match(identity, /accountIdForVerifiedEmail/);

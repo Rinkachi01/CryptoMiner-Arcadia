@@ -16,28 +16,60 @@ export default async function Home() {
     return (
       <main className="login-shell public-page-shell">
         <div className="login-shell-content">
-          <section className="login-card">
-            <div className="login-brand-mark">CMA</div>
-            <span>CRYPTO MINER ARCADIA</span>
-            <h1>Sua operação começa com uma conta protegida.</h1>
-            <p>
-              Entre na sua operação ou crie uma conta nova. No ambiente público,
-              o e-mail confirmado passa a proteger o seu progresso.
-            </p>
-            <div className="login-actions">
-              <a href={arcadiaSignInPath("/", "signin")}>ENTRAR</a>
-              <a className="secondary" href={arcadiaSignInPath("/", "signup")}>CRIAR CONTA</a>
-            </div>
-            <div className="login-access-status">
-              <strong>ACESSO PROTEGIDO</strong>
-              <span>Beta privada no ChatGPT · Supabase preparado para o site público</span>
-            </div>
-            <small>
-              Uma conta nova recebe somente o rack e o minerador inicial. Nenhum CMA,
-              bateria ou energia é concedido no cadastro. O mesmo e-mail verificado
-              preserva a migração do progresso da beta.
-            </small>
-          </section>
+          <div className="login-entry-layout">
+            <section className="login-showcase">
+              <span className="login-kicker">BETA TÉCNICA · ECONOMIA CONTROLADA</span>
+              <h1>Construa sua operação. Dispute blocos globais.</h1>
+              <p>
+                Monte salas, organize racks, energize seus mineradores e divida
+                seu poder entre CMA, Bitcoin e Dogecoin. Todas as recompensas são
+                conferidas pelo servidor.
+              </p>
+              <div className="login-feature-grid">
+                <article>
+                  <b>03</b>
+                  <strong>POOLS GLOBAIS</strong>
+                  <span>CMA, BTC e DOGE com distribuição livre de poder.</span>
+                </article>
+                <article>
+                  <b>10m</b>
+                  <strong>BLOCO FIXO</strong>
+                  <span>Mais poder altera a participação, não a emissão total.</span>
+                </article>
+                <article>
+                  <b>12h</b>
+                  <strong>CICLO DE ENERGIA</strong>
+                  <span>Baterias e Arcade mantêm a operação ativa.</span>
+                </article>
+              </div>
+              <div className="login-beta-note">
+                <span />
+                Beta sem depósito ou saque · progresso salvo por conta
+              </div>
+            </section>
+
+            <section className="login-card">
+              <div className="login-brand-mark">CMA</div>
+              <span>CRYPTO MINER ARCADIA</span>
+              <h2>Sua operação começa com uma conta protegida.</h2>
+              <p>
+                Entre na sua operação ou crie uma conta. O e-mail confirmado
+                protege o seu progresso em qualquer dispositivo.
+              </p>
+              <div className="login-actions">
+                <a href={arcadiaSignInPath("/", "signin")}>ENTRAR</a>
+                <a className="secondary" href={arcadiaSignInPath("/", "signup")}>CRIAR CONTA</a>
+              </div>
+              <div className="login-access-status">
+                <strong>ACESSO PROTEGIDO</strong>
+                <span>Conta verificada · progresso no servidor</span>
+              </div>
+              <small>
+                Uma conta nova recebe somente um rack e o minerador inicial.
+                Nenhum CMA, bateria ou energia é concedido no cadastro.
+              </small>
+            </section>
+          </div>
         </div>
         <PublicSiteFooter />
       </main>
