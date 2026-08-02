@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
@@ -10,6 +10,7 @@ import { CareerView } from "./CareerView";
 import { FirstDayPanel } from "./FirstDayPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { TasksView } from "./TasksView";
+import { readClientBetaDeviceProfile } from "./beta-device-client";
 import {
   BATTERY_HOURS,
   BATTERY_PRICE_CMA,
@@ -299,6 +300,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
   const [actionPending, setActionPending] = useState(false);
   const [toast, setToast] = useState("");
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
+  const lastBetaProfileKey = useRef("");
 
   const selectedPool =
     pools.find((pool) => pool.id === selectedPoolId) ?? pools[0];
@@ -487,6 +489,30 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || serverStatus !== "online" || !onboarding) return;
+    const profile = readClientBetaDeviceProfile(textScale);
+    const profileKey = [
+      profile.viewport,
+      profile.inputMode,
+      profile.textScale,
+      onboarding.completedCount,
+    ].join(":");
+    if (lastBetaProfileKey.current === profileKey) return;
+    lastBetaProfileKey.current = profileKey;
+    void fetch("/api/beta-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "record-profile",
+        onboardingStage: onboarding.completedCount,
+        ...profile,
+      }),
+    }).catch(() => {
+      lastBetaProfileKey.current = "";
+    });
+  }, [hydrated, onboarding, serverStatus, textScale]);
 
   useEffect(() => {
     if (
@@ -1078,6 +1104,8 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
 
         {!rackOpen && activeView === "tasks" && (
           <TasksView
+            onboardingStage={onboarding?.completedCount ?? 0}
+            textScale={textScale}
             onNavigate={(target) => {
               setRackOpen(false);
               if (target === "career") setCareerStartTab("overview");

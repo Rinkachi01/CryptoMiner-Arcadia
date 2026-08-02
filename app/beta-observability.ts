@@ -1,5 +1,6 @@
 import { ensureTaskPreferenceSchema } from "./task-preferences.ts";
 import { STARTER_KIT_VERSION } from "./onboarding-rules.ts";
+import { ensureBetaDeviceSchema } from "./beta-device-server.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const COHORT_DAYS = 7;
@@ -47,6 +48,22 @@ type PreferenceCountRow = {
 
 type CountRow = {
   total: number;
+};
+
+type DeviceProfileRow = {
+  account_id: string;
+  first_input_mode: string;
+  first_viewport: string;
+  text_scale: string;
+};
+
+type AccessibilityReviewRow = {
+  controls_easy: number;
+  input_mode: string;
+  motion_comfortable: number;
+  rack_clear: number;
+  text_readable: number;
+  viewport_bucket: string;
 };
 
 type ActivityEvent = {
@@ -225,6 +242,79 @@ export function buildOnboardingFunnel(
   };
 }
 
+export function buildDeviceOnboardingBreakdown(
+  accounts: StateRow[],
+  ledger: OnboardingLedgerRow[],
+  sessions: OnboardingSessionRow[],
+  profiles: DeviceProfileRow[],
+  now: number,
+) {
+  const profileByAccount = new Map(
+    profiles.map((profile) => [profile.account_id, profile]),
+  );
+  const fullFunnel = buildOnboardingFunnel(accounts, ledger, sessions, now);
+  const starterAccounts = new Set(
+    ledger
+      .filter(
+        (row) =>
+          row.action === "starter_kit_granted" &&
+          starterKitVersion(row.metadata_json) === STARTER_KIT_VERSION,
+      )
+      .map((row) => row.account_id),
+  );
+  const profiled = [...starterAccounts].filter((accountId) =>
+    profileByAccount.has(accountId),
+  ).length;
+
+  const groupBy = (
+    dimension: "first_viewport" | "first_input_mode",
+    groups: Array<{ id: string; label: string }>,
+  ) =>
+    groups.map((group) => {
+      const ids = new Set(
+        accounts
+          .filter((account) => {
+            const profile = profileByAccount.get(account.account_id);
+            return group.id === "unclassified"
+              ? !profile
+              : profile?.[dimension] === group.id;
+          })
+          .map((account) => account.account_id),
+      );
+      const funnel = buildOnboardingFunnel(
+        accounts.filter((account) => ids.has(account.account_id)),
+        ledger.filter((row) => ids.has(row.account_id)),
+        sessions.filter((row) => ids.has(row.account_id)),
+        now,
+      );
+      return {
+        ...group,
+        totalStarted: funnel.totalStarted,
+        stages: funnel.stages,
+      };
+    });
+
+  return {
+    coverage: {
+      percent: percent(profiled, fullFunnel.totalStarted),
+      profiled,
+      total: fullFunnel.totalStarted,
+    },
+    inputModes: groupBy("first_input_mode", [
+      { id: "touch", label: "Toque" },
+      { id: "pointer", label: "Mouse/ponteiro" },
+      { id: "hybrid", label: "Híbrido" },
+      { id: "unclassified", label: "Sem perfil" },
+    ]),
+    viewports: groupBy("first_viewport", [
+      { id: "small", label: "Tela pequena" },
+      { id: "medium", label: "Tela média" },
+      { id: "large", label: "Tela grande" },
+      { id: "unclassified", label: "Sem perfil" },
+    ]),
+  };
+}
+
 function behaviorComparison(
   accounts: StateRow[],
   eventsByAccount: Map<string, ActivityEvent[]>,
@@ -336,7 +426,10 @@ export function buildRetentionCohorts(
 }
 
 export async function ensureBetaObservabilitySchema(db: D1Database) {
-  await ensureTaskPreferenceSchema(db);
+  await Promise.all([
+    ensureTaskPreferenceSchema(db),
+    ensureBetaDeviceSchema(db),
+  ]);
 }
 
 export async function readBetaObservability(
@@ -356,6 +449,8 @@ export async function readBetaObservability(
     archivedProofs,
     onboardingLedgerRows,
     onboardingSessionRows,
+    deviceProfileRows,
+    accessibilityReviewRows,
   ] = await Promise.all([
     db
       .prepare(
@@ -435,6 +530,24 @@ export async function readBetaObservability(
          LIMIT 50000`,
       )
       .all<OnboardingSessionRow>(),
+    db
+      .prepare(
+        `SELECT account_id, first_viewport, first_input_mode, text_scale
+         FROM beta_device_profiles
+         LIMIT 10000`,
+      )
+      .all<DeviceProfileRow>(),
+    db
+      .prepare(
+        `SELECT viewport_bucket, input_mode, text_readable, controls_easy,
+                motion_comfortable, rack_clear
+         FROM beta_accessibility_reviews
+         WHERE created_at >= ?
+         ORDER BY created_at DESC
+         LIMIT 10000`,
+      )
+      .bind(now - 30 * DAY_MS)
+      .all<AccessibilityReviewRow>(),
   ]);
 
   const accounts = accountRows.results ?? [];
@@ -500,8 +613,33 @@ export async function readBetaObservability(
     },
     { ask: 0, disabled: 0 },
   );
+  const deviceProfiles = deviceProfileRows.results ?? [];
+  const accessibilityReviews = accessibilityReviewRows.results ?? [];
+  const accessibilityRate = (key: keyof Pick<
+    AccessibilityReviewRow,
+    "controls_easy" | "motion_comfortable" | "rack_clear" | "text_readable"
+  >) =>
+    percent(
+      accessibilityReviews.filter((review) => Number(review[key]) === 1)
+        .length,
+      accessibilityReviews.length,
+    );
 
   return {
+    accessibility: {
+      controlsEasyRate: accessibilityRate("controls_easy"),
+      largeTextProfiles: deviceProfiles.filter(
+        (profile) => profile.text_scale !== "comfortable",
+      ).length,
+      motionComfortableRate: accessibilityRate("motion_comfortable"),
+      rackClearRate: accessibilityRate("rack_clear"),
+      reviews30d: accessibilityReviews.length,
+      textReadableRate: accessibilityRate("text_readable"),
+      touchReviews: accessibilityReviews.filter(
+        (review) =>
+          review.input_mode === "touch" || review.input_mode === "hybrid",
+      ).length,
+    },
     behaviorSignals: {
       arcade: behaviorComparison(accounts, eventsByAccount, now, "arcade"),
       energy: behaviorComparison(accounts, eventsByAccount, now, "energy"),
@@ -515,6 +653,13 @@ export async function readBetaObservability(
       returned:
         "Conta criada antes da janela atual e com atividade nos últimos 7 dias.",
     },
+    deviceFunnel: buildDeviceOnboardingBreakdown(
+      accounts,
+      onboardingLedgerRows.results ?? [],
+      onboardingSessionRows.results ?? [],
+      deviceProfiles,
+      now,
+    ),
     maintenance: {
       archivedProofs: Number(archivedProofs?.total ?? 0),
       eligibleProofs: Number(eligibleProofs?.total ?? 0),

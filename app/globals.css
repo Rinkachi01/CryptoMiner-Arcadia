@@ -6608,6 +6608,218 @@ img {
   line-height: 1.5;
 }
 
+.admin-device-lab {
+  padding: 20px;
+  border: 1px solid rgba(85, 219, 244, 0.28);
+  background:
+    linear-gradient(145deg, rgba(54, 216, 242, 0.045), transparent 42%),
+    #081219;
+}
+
+.admin-device-lab > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.admin-device-lab > header span,
+.admin-device-section-heading > span {
+  color: var(--cyan);
+  font: 850 0.73rem/1.2 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.admin-device-lab > header h3 {
+  margin: 6px 0 8px;
+  color: #edf7f9;
+  font: 800 1.15rem/1.2 var(--font-display);
+  text-transform: uppercase;
+}
+
+.admin-device-lab > header p {
+  max-width: 720px;
+  margin: 0;
+  color: #9fb2bc;
+  line-height: 1.55;
+}
+
+.admin-device-lab > header > strong {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid rgba(169, 255, 63, 0.4);
+  color: var(--admin-accent);
+  font: 850 0.72rem/1 var(--font-mono);
+}
+
+.admin-device-sections {
+  display: grid;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.admin-device-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.admin-device-section-heading small {
+  color: #8197a3;
+}
+
+.admin-device-groups {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-device-groups > article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #2b424d;
+  background: rgba(9, 21, 29, 0.9);
+}
+
+.admin-device-groups article > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.admin-device-groups article > div:first-child strong {
+  color: #e6f0f2;
+  font-size: 0.85rem;
+}
+
+.admin-device-groups article > div:first-child span {
+  color: #8298a3;
+  font-size: 0.7rem;
+}
+
+.admin-device-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+
+.admin-device-stage > span {
+  overflow: hidden;
+  color: #9bb0b9;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-device-stage > b {
+  color: #cfecf0;
+  font-size: 0.68rem;
+}
+
+.admin-device-stage > i {
+  height: 4px;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  background: #1e313a;
+}
+
+.admin-device-stage > i > em {
+  display: block;
+  min-width: 1px;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+}
+
+.admin-device-stage.featured {
+  margin-top: 18px;
+}
+
+.admin-accessibility-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(180px, 1.2fr);
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #29404a;
+}
+
+.admin-accessibility-summary > article,
+.admin-accessibility-summary > aside {
+  padding: 13px;
+  border: 1px solid #2a414c;
+  background: #0a161e;
+}
+
+.admin-accessibility-summary article span {
+  display: block;
+  min-height: 28px;
+  color: #91a7b1;
+  font: 750 0.67rem/1.3 var(--font-mono);
+}
+
+.admin-accessibility-summary article strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--admin-accent);
+  font: 900 1.65rem/1 var(--font-display);
+}
+
+.admin-accessibility-summary > aside {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 9px;
+}
+
+.admin-accessibility-summary aside > b {
+  grid-row: 1 / 3;
+  color: var(--cyan);
+  font: 900 2rem/1 var(--font-display);
+}
+
+.admin-accessibility-summary aside > span {
+  color: #e0eaed;
+  font-weight: 800;
+}
+
+.admin-accessibility-summary aside > small {
+  color: #8fa3ad;
+  line-height: 1.35;
+}
+
+@media (max-width: 1100px) {
+  .admin-device-groups,
+  .admin-accessibility-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-accessibility-summary > aside {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .admin-device-lab > header,
+  .admin-device-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-device-groups,
+  .admin-accessibility-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-accessibility-summary > aside {
+    grid-column: auto;
+  }
+}
+
 .admin-beta-analysis dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13056,6 +13268,17 @@ img {
   object-fit: contain;
 }
 
+.task-feature-grid .task-accessibility-glyph {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border: 1px solid rgba(169, 255, 63, 0.48);
+  background: rgba(169, 255, 63, 0.08);
+  color: var(--lime);
+  font: 800 1.15rem/1 var(--font-display);
+}
+
 .task-feature-grid .task-lock {
   border: 1px solid #394857;
   background: #0b1219;
@@ -13417,6 +13640,228 @@ img {
   color: #70818e;
 }
 
+.accessibility-test-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.75fr);
+  border: 1px solid #30414d;
+  background: #0a121a;
+}
+
+.accessibility-test-layout > form {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 3vw, 32px);
+}
+
+.accessibility-test-layout form > header > span,
+.accessibility-test-layout > aside > span {
+  color: var(--lime);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.accessibility-test-layout h3 {
+  margin: 7px 0 9px;
+  color: #f3f8fa;
+  font: 800 clamp(1.3rem, 2.4vw, 2rem)/1.1 var(--font-display);
+}
+
+.accessibility-test-layout form > header p,
+.accessibility-test-layout > aside p {
+  max-width: 760px;
+  margin: 0;
+  color: #a7b8c1;
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.accessibility-checklist {
+  display: grid;
+  gap: 10px;
+}
+
+.accessibility-checklist fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.8fr);
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #2e414d;
+  background: #0d1821;
+}
+
+.accessibility-checklist legend {
+  display: contents;
+}
+
+.accessibility-checklist legend > b {
+  display: none;
+}
+
+.accessibility-checklist legend > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.accessibility-checklist legend strong {
+  color: #eaf2f5;
+  font-size: 1rem;
+}
+
+.accessibility-checklist legend small {
+  color: #8fa2ad;
+  font-size: 0.82rem;
+}
+
+.accessibility-checklist fieldset > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.accessibility-checklist button {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #415461;
+  background: #101e28;
+  color: #aebdc5;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.accessibility-checklist button.selected {
+  border-color: var(--lime);
+  background: rgba(169, 255, 63, 0.12);
+  color: var(--lime);
+}
+
+.accessibility-checklist button.selected.negative {
+  border-color: #ffbd61;
+  background: rgba(255, 189, 97, 0.11);
+  color: #ffd194;
+}
+
+.accessibility-notes {
+  display: grid;
+  gap: 8px;
+  color: #dce8eb;
+  font-weight: 800;
+}
+
+.accessibility-notes textarea {
+  min-height: 105px;
+  resize: vertical;
+  padding: 13px;
+  border: 1px solid #3d5260;
+  background: #071017;
+  color: #eff7f8;
+  font: inherit;
+}
+
+.accessibility-notes small {
+  justify-self: end;
+  color: #879ba6;
+}
+
+.accessibility-test-layout form > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #2d3f4a;
+}
+
+.accessibility-test-layout form > footer > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accessibility-test-layout form > footer strong {
+  color: var(--cyan);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+}
+
+.accessibility-test-layout form > footer small {
+  color: #8fa1ab;
+}
+
+.accessibility-test-layout form > footer button {
+  min-width: 170px;
+  min-height: 48px;
+  border: 0;
+  background: var(--lime);
+  color: #071006;
+  cursor: pointer;
+  font-weight: 950;
+}
+
+.accessibility-test-layout form > footer button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.accessibility-response {
+  margin: 0;
+  padding: 11px 13px;
+  border-left: 3px solid var(--cyan);
+  background: rgba(54, 216, 242, 0.07);
+  color: #c8e9ef;
+}
+
+.accessibility-test-layout > aside {
+  padding: clamp(20px, 3vw, 30px);
+  border-left: 1px solid #30414d;
+  background:
+    linear-gradient(145deg, rgba(54, 216, 242, 0.07), transparent 56%),
+    #0c1620;
+}
+
+.accessibility-test-layout > aside h3 {
+  font-size: 1.2rem;
+}
+
+.accessibility-test-layout > aside dl {
+  display: grid;
+  gap: 1px;
+  margin: 20px 0;
+  background: #344650;
+}
+
+.accessibility-test-layout > aside dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: #0a131b;
+}
+
+.accessibility-test-layout > aside dt {
+  color: #8ca1ad;
+}
+
+.accessibility-test-layout > aside dd {
+  margin: 0;
+  color: #f0f7f8;
+  font-weight: 850;
+}
+
+.accessibility-test-layout > aside > small {
+  display: block;
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid rgba(255, 189, 97, 0.28);
+  color: #ffd194;
+  line-height: 1.5;
+}
+
 @media (max-width: 1180px) {
   .task-feature-grid,
   .task-readiness {
@@ -13444,7 +13889,8 @@ img {
   }
 
   .tasks-hero,
-  .beta-feedback-layout {
+  .beta-feedback-layout,
+  .accessibility-test-layout {
     grid-template-columns: 1fr;
   }
 
@@ -13459,6 +13905,15 @@ img {
     border: 0;
     border-top: 1px solid #2d3b48;
   }
+
+  .accessibility-test-layout > aside {
+    border-top: 1px solid #30414d;
+    border-left: 0;
+  }
+
+  .accessibility-checklist fieldset {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -13467,7 +13922,8 @@ img {
   }
 
   .task-feature-grid article > img,
-  .task-feature-grid .task-lock {
+  .task-feature-grid .task-lock,
+  .task-feature-grid .task-accessibility-glyph {
     width: 48px;
     height: 48px;
   }
@@ -13490,6 +13946,15 @@ img {
   }
 
   .beta-feedback-layout form > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .accessibility-checklist fieldset > div {
+    grid-template-columns: 1fr;
+  }
+
+  .accessibility-test-layout form > footer {
     align-items: stretch;
     flex-direction: column;
   }

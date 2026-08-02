@@ -277,6 +277,43 @@ export const betaFeedback = sqliteTable(
   ],
 );
 
+export const betaDeviceProfiles = sqliteTable("beta_device_profiles", {
+  accountId: text("account_id").primaryKey(),
+  firstViewport: text("first_viewport").notNull(),
+  currentViewport: text("current_viewport").notNull(),
+  firstInputMode: text("first_input_mode").notNull(),
+  currentInputMode: text("current_input_mode").notNull(),
+  textScale: text("text_scale").notNull().default("comfortable"),
+  onboardingStage: integer("onboarding_stage").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const betaAccessibilityReviews = sqliteTable(
+  "beta_accessibility_reviews",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    windowKey: text("window_key").notNull(),
+    viewportBucket: text("viewport_bucket").notNull(),
+    inputMode: text("input_mode").notNull(),
+    textScale: text("text_scale").notNull().default("comfortable"),
+    textReadable: integer("text_readable").notNull(),
+    controlsEasy: integer("controls_easy").notNull(),
+    motionComfortable: integer("motion_comfortable").notNull(),
+    rackClear: integer("rack_clear").notNull(),
+    notes: text("notes").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("beta_accessibility_account_window_unique").on(
+      table.accountId,
+      table.windowKey,
+    ),
+    index("beta_accessibility_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const taskPreferences = sqliteTable("task_preferences", {
   accountId: text("account_id").primaryKey(),
   partnerTasksMode: text("partner_tasks_mode").notNull().default("ask"),

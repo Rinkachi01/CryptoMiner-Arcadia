@@ -4,6 +4,13 @@
 
 import { useEffect, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
+import { readClientBetaDeviceProfile } from "./beta-device-client";
+import type {
+  AccessibilityAnswers,
+  AccessibilityReview,
+  BetaDeviceProfile,
+  BetaTextScale,
+} from "./beta-device-server";
 import {
   betaFeedbackCategories,
   type BetaFeedbackCategory,
@@ -13,7 +20,15 @@ import type {
   PublicTaskPreference,
 } from "./task-preferences";
 
-type TaskTab = "wall" | "mine" | "surveys" | "guide" | "feedback";
+type TaskTab =
+  | "wall"
+  | "mine"
+  | "surveys"
+  | "guide"
+  | "accessibility"
+  | "feedback";
+
+type AccessibilityDraft = Record<keyof AccessibilityAnswers, boolean | null>;
 
 type PersonalFeedback = {
   category: string;
@@ -40,9 +55,13 @@ const feedbackStatusLabels: Record<string, string> = {
 };
 
 export function TasksView({
+  onboardingStage,
   onNavigate,
+  textScale,
 }: {
+  onboardingStage: number;
   onNavigate: (target: "career" | "games") => void;
+  textScale: BetaTextScale;
 }) {
   const [tab, setTab] = useState<TaskTab>("wall");
   const [category, setCategory] =
@@ -60,6 +79,22 @@ export function TasksView({
     "idle" | "loading" | "saving"
   >("loading");
   const [preferenceMessage, setPreferenceMessage] = useState("");
+  const [deviceProfile, setDeviceProfile] =
+    useState<BetaDeviceProfile | null>(null);
+  const [accessibilityReview, setAccessibilityReview] =
+    useState<AccessibilityReview | null>(null);
+  const [accessibilityAnswers, setAccessibilityAnswers] =
+    useState<AccessibilityDraft>({
+      controlsEasy: null,
+      motionComfortable: null,
+      rackClear: null,
+      textReadable: null,
+    });
+  const [accessibilityNotes, setAccessibilityNotes] = useState("");
+  const [accessibilityState, setAccessibilityState] = useState<
+    "idle" | "loading" | "saving"
+  >("loading");
+  const [accessibilityMessage, setAccessibilityMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -83,6 +118,48 @@ export function TasksView({
       })
       .finally(() => {
         if (active) setFeedbackState("idle");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/beta-device", { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json()) as {
+          error?: string;
+          profile?: BetaDeviceProfile | null;
+          review?: AccessibilityReview | null;
+        };
+        if (!response.ok) {
+          throw new Error(data.error ?? "Teste de acesso indisponível.");
+        }
+        if (!active) return;
+        setDeviceProfile(data.profile ?? null);
+        setAccessibilityReview(data.review ?? null);
+        if (data.review) {
+          setAccessibilityAnswers({
+            controlsEasy: data.review.controlsEasy,
+            motionComfortable: data.review.motionComfortable,
+            rackClear: data.review.rackClear,
+            textReadable: data.review.textReadable,
+          });
+          setAccessibilityNotes(data.review.notes);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setAccessibilityMessage(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível abrir o teste de acesso.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setAccessibilityState("idle");
       });
     return () => {
       active = false;
@@ -182,6 +259,51 @@ export function TasksView({
     }
   }
 
+  async function submitAccessibilityReview(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const entries = Object.entries(accessibilityAnswers);
+    if (entries.some(([, answer]) => answer === null)) {
+      setAccessibilityMessage("Responda os quatro itens antes de salvar.");
+      return;
+    }
+    setAccessibilityState("saving");
+    setAccessibilityMessage("");
+    try {
+      const profile = readClientBetaDeviceProfile(textScale);
+      const response = await fetch("/api/beta-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submit-accessibility-review",
+          answers: accessibilityAnswers,
+          notes: accessibilityNotes,
+          onboardingStage,
+          ...profile,
+        }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        message?: string;
+        profile?: BetaDeviceProfile | null;
+        review?: AccessibilityReview | null;
+      };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Teste recusado pelo servidor.");
+      }
+      setDeviceProfile(data.profile ?? null);
+      setAccessibilityReview(data.review ?? null);
+      setAccessibilityMessage(data.message ?? "Teste salvo.");
+    } catch (error) {
+      setAccessibilityMessage(
+        error instanceof Error ? error.message : "Não foi possível salvar.",
+      );
+    } finally {
+      setAccessibilityState("idle");
+    }
+  }
+
   return (
     <section className="tasks-view">
       <div className="tasks-hero">
@@ -213,6 +335,7 @@ export function TasksView({
           ["mine", "Minhas tarefas", "✓"],
           ["surveys", "Pesquisas", "▤"],
           ["guide", "Como funciona", "?"],
+          ["accessibility", "Teste de acesso", "A"],
           ["feedback", "Feedback beta", "✦"],
         ].map(([id, label, glyph]) => (
           <button
@@ -259,6 +382,20 @@ export function TasksView({
               </div>
               <button type="button" onClick={() => setTab("feedback")}>
                 AVALIAR
+              </button>
+            </article>
+            <article>
+              <span className="task-accessibility-glyph" aria-hidden="true">
+                Aa
+              </span>
+              <div>
+                <span>LABORATÓRIO DO BETA</span>
+                <h4>Teste de leitura e controle</h4>
+                <p>Confira texto, botões, movimento e montagem dos racks.</p>
+                <small>Sem prêmio · perfil técnico mínimo salvo por conta</small>
+              </div>
+              <button type="button" onClick={() => setTab("accessibility")}>
+                TESTAR ACESSO
               </button>
             </article>
             <article className="locked">
@@ -456,6 +593,180 @@ export function TasksView({
               <p>{copy}</p>
             </article>
           ))}
+        </div>
+      )}
+
+      {tab === "accessibility" && (
+        <div className="accessibility-test-layout">
+          <form onSubmit={submitAccessibilityReview}>
+            <header>
+              <span>LABORATÓRIO DO BETA · SEM RECOMPENSA</span>
+              <h3>O Arcadia está fácil de ler e controlar?</h3>
+              <p>
+                Responda com base no aparelho que está usando agora. Isso nos
+                ajuda a corrigir problemas de celular, mouse e toque antes de
+                ampliar o beta.
+              </p>
+            </header>
+
+            <div className="accessibility-checklist">
+              {([
+                [
+                  "textReadable",
+                  "Os textos e números estão fáceis de ler?",
+                  "Observe o menu, os saldos, o poder e as descrições.",
+                ],
+                [
+                  "controlsEasy",
+                  "Os botões estão fáceis de localizar e apertar?",
+                  "Inclua navegação, loja, pools e telas dos minigames.",
+                ],
+                [
+                  "motionComfortable",
+                  "As animações estão confortáveis?",
+                  "Considere velocidade, flashes e transições do Arcade.",
+                ],
+                [
+                  "rackClear",
+                  "A montagem do rack está clara?",
+                  "Verifique seleção, slots livres e encaixe dos mineradores.",
+                ],
+              ] as Array<[keyof AccessibilityAnswers, string, string]>).map(
+                ([key, label, hint], index) => (
+                  <fieldset key={key}>
+                    <legend>
+                      <b>{String(index + 1).padStart(2, "0")}</b>
+                      <span>
+                        <strong>{label}</strong>
+                        <small>{hint}</small>
+                      </span>
+                    </legend>
+                    <div>
+                      <button
+                        className={
+                          accessibilityAnswers[key] === true ? "selected" : ""
+                        }
+                        type="button"
+                        aria-pressed={accessibilityAnswers[key] === true}
+                        onClick={() =>
+                          setAccessibilityAnswers((current) => ({
+                            ...current,
+                            [key]: true,
+                          }))
+                        }
+                      >
+                        SIM, ESTÁ BOM
+                      </button>
+                      <button
+                        className={
+                          accessibilityAnswers[key] === false
+                            ? "selected negative"
+                            : ""
+                        }
+                        type="button"
+                        aria-pressed={accessibilityAnswers[key] === false}
+                        onClick={() =>
+                          setAccessibilityAnswers((current) => ({
+                            ...current,
+                            [key]: false,
+                          }))
+                        }
+                      >
+                        NÃO, PRECISA MELHORAR
+                      </button>
+                    </div>
+                  </fieldset>
+                ),
+              )}
+            </div>
+
+            <label className="accessibility-notes">
+              O que mais atrapalhou?
+              <textarea
+                maxLength={500}
+                value={accessibilityNotes}
+                onChange={(event) => setAccessibilityNotes(event.target.value)}
+                placeholder="Opcional: diga em qual tela aconteceu e o que ficou difícil."
+              />
+              <small>{accessibilityNotes.length}/500 caracteres</small>
+            </label>
+
+            <footer>
+              <div>
+                <strong>
+                  {accessibilityReview
+                    ? "ÚLTIMO TESTE SALVO"
+                    : "AINDA NÃO RESPONDIDO"}
+                </strong>
+                <small>
+                  {accessibilityReview
+                    ? new Intl.DateTimeFormat("pt-BR", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      }).format(new Date(accessibilityReview.createdAt))
+                    : "As quatro respostas são obrigatórias."}
+                </small>
+              </div>
+              <button
+                type="submit"
+                disabled={accessibilityState !== "idle"}
+              >
+                {accessibilityState === "saving"
+                  ? "SALVANDO..."
+                  : "SALVAR TESTE"}
+              </button>
+            </footer>
+            {accessibilityMessage && (
+              <p className="accessibility-response" role="status">
+                {accessibilityMessage}
+              </p>
+            )}
+          </form>
+
+          <aside>
+            <span>PRIVACIDADE DO TESTE</span>
+            <h3>O que é registrado</h3>
+            <dl>
+              <div>
+                <dt>Tela</dt>
+                <dd>
+                  {deviceProfile?.currentViewport === "small"
+                    ? "Pequena"
+                    : deviceProfile?.currentViewport === "medium"
+                      ? "Média"
+                      : "Grande"}
+                </dd>
+              </div>
+              <div>
+                <dt>Controle</dt>
+                <dd>
+                  {deviceProfile?.currentInputMode === "touch"
+                    ? "Toque"
+                    : deviceProfile?.currentInputMode === "hybrid"
+                      ? "Híbrido"
+                      : "Mouse/ponteiro"}
+                </dd>
+              </div>
+              <div>
+                <dt>Texto</dt>
+                <dd>
+                  {textScale === "extra"
+                    ? "Extragrande"
+                    : textScale === "large"
+                      ? "Grande"
+                      : "Confortável"}
+                </dd>
+              </div>
+            </dl>
+            <p>
+              Não coletamos IP, modelo do aparelho, impressão digital,
+              localização ou rastreador de terceiros. O painel do proprietário
+              mostra somente grupos e totais.
+            </p>
+            <small>
+              Este teste não paga CMA, BTC, DOGE, energia ou poder temporário.
+            </small>
+          </aside>
         </div>
       )}
 

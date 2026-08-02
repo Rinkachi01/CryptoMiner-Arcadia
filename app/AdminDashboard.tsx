@@ -35,6 +35,15 @@ type AdminOverview = {
     metadata: Record<string, unknown>;
   }>;
   beta: {
+    accessibility: {
+      controlsEasyRate: number;
+      largeTextProfiles: number;
+      motionComfortableRate: number;
+      rackClearRate: number;
+      reviews30d: number;
+      textReadableRate: number;
+      touchReviews: number;
+    };
     behaviorSignals: {
       arcade: {
         deltaPercentagePoints: number;
@@ -66,6 +75,37 @@ type AdminOverview = {
     definitions: {
       active: string;
       returned: string;
+    };
+    deviceFunnel: {
+      coverage: {
+        percent: number;
+        profiled: number;
+        total: number;
+      };
+      inputModes: Array<{
+        id: string;
+        label: string;
+        totalStarted: number;
+        stages: Array<{
+          id: string;
+          label: string;
+          accounts: number;
+          conversionFromStart: number;
+          dropoffFromPrevious: number;
+        }>;
+      }>;
+      viewports: Array<{
+        id: string;
+        label: string;
+        totalStarted: number;
+        stages: Array<{
+          id: string;
+          label: string;
+          accounts: number;
+          conversionFromStart: number;
+          dropoffFromPrevious: number;
+        }>;
+      }>;
     };
     maintenance: {
       archivedProofs: number;
@@ -821,6 +861,113 @@ export function AdminDashboard({
               ))}
             </div>
           )}
+        </section>
+
+        <section className="admin-device-lab">
+          <header>
+            <div>
+              <span>LABORATÓRIO DE TELA E CONTROLE</span>
+              <h3>Onde cada tipo de jogador interrompe o primeiro dia</h3>
+              <p>
+                Usa somente categorias amplas salvas na conta. Não há IP,
+                localização, modelo do aparelho ou impressão digital.
+              </p>
+            </div>
+            <strong>
+              {overview.beta.deviceFunnel.coverage.percent}% COBERTO ·{" "}
+              {overview.beta.deviceFunnel.coverage.profiled}/
+              {overview.beta.deviceFunnel.coverage.total} PERFIS
+            </strong>
+          </header>
+
+          <div className="admin-device-sections">
+            <section>
+              <div className="admin-device-section-heading">
+                <span>POR TAMANHO DE TELA</span>
+                <small>Categoria registrada na primeira visita</small>
+              </div>
+              <div className="admin-device-groups">
+                {overview.beta.deviceFunnel.viewports.map((group) => (
+                  <article key={group.id}>
+                    <div>
+                      <strong>{group.label}</strong>
+                      <span>{group.totalStarted} conta(s)</span>
+                    </div>
+                    {group.stages.map((stage) => (
+                      <div className="admin-device-stage" key={stage.id}>
+                        <span>{stage.label}</span>
+                        <b>{stage.conversionFromStart}%</b>
+                        <i>
+                          <em style={{ width: `${stage.conversionFromStart}%` }} />
+                        </i>
+                      </div>
+                    ))}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="admin-device-section-heading">
+                <span>POR FORMA DE CONTROLE</span>
+                <small>Toque, ponteiro ou aparelho híbrido</small>
+              </div>
+              <div className="admin-device-groups compact">
+                {overview.beta.deviceFunnel.inputModes.map((group) => {
+                  const lastStage = group.stages.at(-1);
+                  return (
+                    <article key={group.id}>
+                      <div>
+                        <strong>{group.label}</strong>
+                        <span>{group.totalStarted} conta(s)</span>
+                      </div>
+                      <div className="admin-device-stage featured">
+                        <span>Chegaram ao primeiro bloco</span>
+                        <b>{lastStage?.conversionFromStart ?? 0}%</b>
+                        <i>
+                          <em
+                            style={{
+                              width: `${lastStage?.conversionFromStart ?? 0}%`,
+                            }}
+                          />
+                        </i>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+
+          <div className="admin-accessibility-summary">
+            <article>
+              <span>LEITURA APROVADA</span>
+              <strong>{overview.beta.accessibility.textReadableRate}%</strong>
+            </article>
+            <article>
+              <span>CONTROLES APROVADOS</span>
+              <strong>{overview.beta.accessibility.controlsEasyRate}%</strong>
+            </article>
+            <article>
+              <span>MOVIMENTO CONFORTÁVEL</span>
+              <strong>
+                {overview.beta.accessibility.motionComfortableRate}%
+              </strong>
+            </article>
+            <article>
+              <span>RACK CLARO</span>
+              <strong>{overview.beta.accessibility.rackClearRate}%</strong>
+            </article>
+            <aside>
+              <b>{overview.beta.accessibility.reviews30d}</b>
+              <span>teste(s) em 30 dias</span>
+              <small>
+                {overview.beta.accessibility.touchReviews} por toque/híbrido ·{" "}
+                {overview.beta.accessibility.largeTextProfiles} perfil(is) com
+                texto ampliado
+              </small>
+            </aside>
+          </div>
         </section>
 
         <div className="admin-beta-analysis">

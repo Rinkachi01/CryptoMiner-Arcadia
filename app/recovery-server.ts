@@ -116,6 +116,8 @@ const requiredTables = [
   "admin_session_reviews",
   "admin_audit_log",
   "beta_feedback",
+  "beta_device_profiles",
+  "beta_accessibility_reviews",
   "task_preferences",
   "task_preference_events",
   "operational_checkpoints",
@@ -123,6 +125,8 @@ const requiredTables = [
 
 const tableLimits: Record<(typeof requiredTables)[number], number> = {
   account_network_power: 10_000,
+  beta_accessibility_reviews: 50_000,
+  beta_device_profiles: 10_000,
   admin_audit_log: 50_000,
   admin_owners: 10,
   admin_runtime_settings: 10,

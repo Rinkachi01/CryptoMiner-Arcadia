@@ -436,6 +436,28 @@ Polimentos ainda recomendados:
 - revisão jurídica antes de usar linguagem de investimento, ROI, saque ou
   rendimento.
 
+## Laboratório do Beta — dispositivo e acessibilidade
+
+Status: implementado para o beta privado.
+
+- perfil técnico mínimo por conta, limitado a tela pequena, média ou grande,
+  controle por toque, ponteiro ou híbrido e escala de texto escolhida;
+- nenhuma coleta de IP, localização, modelo do aparelho, impressão digital ou
+  rastreador de terceiros;
+- funil do primeiro dia separado por tamanho de tela e forma de controle na
+  Central do Proprietário;
+- cobertura dos perfis exibida para impedir conclusões com dados incompletos;
+- teste voluntário de leitura, controles, movimento e montagem dos racks;
+- observação opcional limitada a 500 caracteres e uma resposta atualizável por
+  conta a cada dia;
+- respostas do teste não entregam CMA, BTC, DOGE, energia, bateria ou poder;
+- painel agregado de aprovação dos quatro critérios nos últimos 30 dias;
+- tabelas do laboratório incluídas na cópia externa de recuperação.
+
+Critério de saída: testar com jogadores reais em celulares e computadores,
+investigar as etapas com maior abandono e corrigir problemas confirmados antes
+de ampliar o beta.
+
 ## Fase 6 — recursos financeiros reais
 
 Status: bloqueada até decisão formal.
