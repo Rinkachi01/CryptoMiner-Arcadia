@@ -20,6 +20,7 @@ import type {
   SeasonSnapshot,
 } from "./season-server";
 import type { NetworkPowerSnapshot } from "./network-server";
+import type { OperationalHealthReport } from "./operations-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
 
 type AdminOverview = {
@@ -156,6 +157,7 @@ type AdminOverview = {
     displayName: string;
     email: string;
   };
+  operations: OperationalHealthReport;
   recentCrates: Array<{
     crateId: string;
     createdAt: number;
@@ -1607,6 +1609,173 @@ export function AdminDashboard({
                 </button>
               </div>
             )}
+          </section>
+
+          <section className="admin-panel admin-operations-panel">
+            <div className="admin-panel-heading">
+              <div>
+                <span>INTEGRIDADE DO SERVIDOR</span>
+                <h2>Central de Operações</h2>
+              </div>
+              <strong className={`admin-operations-status ${overview.operations.status}`}>
+                {overview.operations.status === "stable"
+                  ? "SISTEMA SAUDÁVEL"
+                  : overview.operations.status === "critical"
+                    ? "AÇÃO CRÍTICA"
+                    : "EXIGE ATENÇÃO"}
+              </strong>
+            </div>
+
+            <div className="admin-operations-summary">
+              <article>
+                <span>CONTAS MONITORADAS</span>
+                <strong>{formatNumber(overview.operations.metrics.totalAccounts)}</strong>
+                <small>Estados persistidos no servidor</small>
+              </article>
+              <article>
+                <span>ESTADOS ILEGÍVEIS</span>
+                <strong>{formatNumber(overview.operations.metrics.invalidStateRows)}</strong>
+                <small>Linhas que não passam na validação</small>
+              </article>
+              <article>
+                <span>ÍNDICE DA REDE</span>
+                <strong>
+                  {formatNumber(
+                    overview.operations.metrics.missingNetworkIndexes +
+                      overview.operations.metrics.staleNetworkIndexes,
+                  )}
+                </strong>
+                <small>
+                  {overview.operations.metrics.missingNetworkIndexes} ausentes ·{" "}
+                  {overview.operations.metrics.staleNetworkIndexes} atrasados
+                </small>
+              </article>
+              <article>
+                <span>SESSÕES EXPIRADAS</span>
+                <strong>{formatNumber(overview.operations.metrics.stuckGameSessions)}</strong>
+                <small>Partidas ainda marcadas como ativas</small>
+              </article>
+              <article>
+                <span>RESGATES INTERROMPIDOS</span>
+                <strong>
+                  {formatNumber(overview.operations.metrics.reservedMissionClaims)}
+                </strong>
+                <small>Reservados há mais de 30 minutos</small>
+              </article>
+              <article>
+                <span>REVISÕES ANTIFRAUDE</span>
+                <strong>{formatNumber(overview.operations.metrics.openRiskReviews)}</strong>
+                <small>Sessões preservadas aguardando decisão</small>
+              </article>
+            </div>
+
+            <div className="admin-operations-body">
+              <section className="admin-integrity-checklist">
+                <header>
+                  <div>
+                    <span>DIAGNÓSTICO ATUAL</span>
+                    <strong>{formatDate(overview.operations.checkedAt)}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={Boolean(busyAction)}
+                    onClick={() =>
+                      void runAdminAction("operations-checkpoint", {
+                        action: "create-operations-checkpoint",
+                      })
+                    }
+                  >
+                    {busyAction === "operations-checkpoint"
+                      ? "REGISTRANDO…"
+                      : "REGISTRAR CHECKPOINT"}
+                  </button>
+                </header>
+                <div>
+                  {overview.operations.findings.map((finding) => (
+                    <article className={finding.severity} key={finding.id}>
+                      <i aria-hidden="true" />
+                      <div>
+                        <strong>{finding.label}</strong>
+                        <p>{finding.description}</p>
+                      </div>
+                      <span>
+                        {finding.severity === "stable"
+                          ? "SAUDÁVEL"
+                          : finding.severity === "critical"
+                            ? "CRÍTICO"
+                            : "ATENÇÃO"}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <aside className="admin-checkpoint-history">
+                <header>
+                  <span>CHECKPOINTS RECENTES</span>
+                  <small>Últimos {overview.operations.checkpoints.length} registros</small>
+                </header>
+                {overview.operations.checkpoints.length === 0 ? (
+                  <p>
+                    Ainda não há fotografia de comparação. O primeiro registro não
+                    altera nenhum dado do jogo.
+                  </p>
+                ) : (
+                  overview.operations.checkpoints.map((checkpoint) => (
+                    <article key={checkpoint.id}>
+                      <i className={checkpoint.status} />
+                      <div>
+                        <strong>{formatDate(checkpoint.createdAt)}</strong>
+                        <small>{shortId(checkpoint.id)}</small>
+                      </div>
+                      <span>{checkpoint.status.toUpperCase()}</span>
+                    </article>
+                  ))
+                )}
+                <footer>
+                  <strong>Checkpoint não é backup.</strong>
+                  <span>
+                    Ele preserva métricas e alertas para comparação e auditoria.
+                  </span>
+                </footer>
+              </aside>
+            </div>
+
+            <section className="admin-incident-runbook">
+              <header>
+                <div>
+                  <span>SIMULAÇÃO DE INCIDENTES</span>
+                  <h3>Plano de resposta segura</h3>
+                </div>
+                <small>NÃO ALTERA DADOS REAIS</small>
+              </header>
+              <div>
+                {overview.operations.runbook.map((scenario) => (
+                  <article className={scenario.status} key={scenario.id}>
+                    <header>
+                      <span>
+                        {scenario.status === "triggered" ? "SINAL ATIVO" : "PRONTO"}
+                      </span>
+                      <strong>{scenario.title}</strong>
+                    </header>
+                    <dl>
+                      <div>
+                        <dt>GATILHO</dt>
+                        <dd>{scenario.trigger}</dd>
+                      </div>
+                      <div>
+                        <dt>IMPACTO</dt>
+                        <dd>{scenario.impact}</dd>
+                      </div>
+                      <div>
+                        <dt>AÇÃO SEGURA</dt>
+                        <dd>{scenario.safeAction}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </section>
           </section>
 
           <section className="admin-panel admin-alerts-panel">

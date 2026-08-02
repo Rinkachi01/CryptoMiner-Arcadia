@@ -370,6 +370,19 @@ Entregas concluídas na etapa de validação da temporada:
 - guia do primeiro dia em celular usa cartões horizontais, etapa atual marcada
   e ação principal com leitura ampliada.
 
+Entregas concluídas na etapa de operações e integridade:
+
+- Central de Operações exclusiva do proprietário, separada dos alertas
+  econômicos;
+- validação de estados persistidos, índice global de poder, sessões expiradas,
+  resgates interrompidos e fila antifraude;
+- checkpoints de integridade auditáveis para comparar diagnósticos ao longo do
+  tempo, identificados claramente como fotografias e não como backups;
+- simulação de quatro incidentes com gatilho, impacto e resposta segura, sem
+  executar reparos ou alterar dados reais;
+- nenhum saldo, preço, bloco ou recompensa é modificado pelo diagnóstico;
+- histórico recente de checkpoints preservado no banco do servidor.
+
 Decisões consolidadas:
 
 - conta nova recebe somente um rack instalado e um Byte Spark no inventário;
@@ -390,8 +403,8 @@ Ordem recomendada das próximas entregas:
 3. escolher a hospedagem e o provedor da autenticação pública;
 4. implementar cadastro, e-mail verificado, recuperação
    de senha, proteção contra múltiplas contas e migração do progresso atual;
-5. adicionar monitoramento operacional, recuperação de dados e simulação de
-   incidentes antes de qualquer recurso financeiro real;
+5. executar um exercício controlado com a nova Central de Operações e definir
+   uma estratégia externa de backup e restauração;
 6. avaliar tarefas e publicidade somente com consentimento, antifraude e
    orçamento separado da recompensa dos blocos.
 

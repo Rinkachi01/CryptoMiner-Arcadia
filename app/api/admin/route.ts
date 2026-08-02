@@ -25,11 +25,17 @@ import {
 import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
+  ensureNetworkSchema,
   readNetworkPowerSnapshot,
   updateBlockRewardBonus,
   updateBlockRewards,
   updateNetworkBasePower,
 } from "../../network-server";
+import {
+  createOperationalCheckpoint,
+  ensureOperationsSchema,
+  readOperationalHealth,
+} from "../../operations-server";
 import {
   closeActiveSeason,
   createSeason,
@@ -539,14 +545,19 @@ export async function GET() {
   if (context.forbidden) {
     return json({ error: "Este painel pertence ao proprietário do projeto." }, 403);
   }
-  await ensureAdminSchema(context.db);
+  await Promise.all([
+    ensureAdminSchema(context.db),
+    ensureNetworkSchema(context.db),
+    ensureOperationsSchema(context.db),
+  ]);
   const now = Date.now();
-  const [settings, overview, network, feedback, beta] = await Promise.all([
+  const [settings, overview, network, feedback, beta, operations] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
     readNetworkPowerSnapshot(context.db, now),
     readAdminBetaFeedback(context.db, now),
     readBetaObservability(context.db, now),
+    readOperationalHealth(context.db, now),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -575,6 +586,7 @@ export async function GET() {
     network,
     feedback,
     beta,
+    operations,
     ...overview,
     serverTime: now,
   });
@@ -606,6 +618,28 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "create-operations-checkpoint") {
+    const checkpoint = await createOperationalCheckpoint(
+      context.db,
+      context.accountId,
+      now,
+    );
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "operational_checkpoint_created",
+      {
+        checkpointId: checkpoint.id,
+        status: checkpoint.status,
+      },
+      now,
+    );
+    return json({
+      message:
+        "Checkpoint de integridade registrado. Ele preserva o diagnóstico, mas não substitui um backup.",
+    });
+  }
 
   if (body?.action === "compact-game-proofs") {
     const result = await compactEligibleGameProofs(context.db, now);

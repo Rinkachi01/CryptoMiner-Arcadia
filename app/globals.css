@@ -5324,6 +5324,374 @@ img {
   }
 }
 
+/* Central de integridade: leitura operacional sem ações destrutivas. */
+.admin-operations-status {
+  padding: 8px 11px;
+  border: 1px solid rgba(169, 255, 63, 0.34);
+  background: rgba(169, 255, 63, 0.06);
+  color: var(--admin-lime);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.admin-operations-status.attention {
+  border-color: rgba(255, 189, 73, 0.45);
+  background: rgba(255, 189, 73, 0.08);
+  color: #ffbd49;
+}
+
+.admin-operations-status.critical {
+  border-color: rgba(255, 104, 104, 0.5);
+  background: rgba(255, 104, 104, 0.08);
+  color: #ff7979;
+}
+
+.admin-operations-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--admin-border);
+}
+
+.admin-operations-summary article {
+  min-width: 0;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(43, 211, 255, 0.06), transparent 8rem),
+    #091219;
+}
+
+.admin-operations-summary span,
+.admin-operations-summary strong,
+.admin-operations-summary small {
+  display: block;
+}
+
+.admin-operations-summary span {
+  color: #73dff2;
+  letter-spacing: 0.08em;
+}
+
+.admin-operations-summary strong {
+  margin: 8px 0 5px;
+  color: #f1f7f8;
+  font: 700 1.45rem/1 var(--font-display);
+}
+
+.admin-operations-summary small {
+  color: #8599a4;
+}
+
+.admin-operations-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+  gap: 1px;
+  background: var(--admin-border);
+}
+
+.admin-integrity-checklist,
+.admin-checkpoint-history {
+  min-width: 0;
+  padding: 18px;
+  background: #091118;
+}
+
+.admin-integrity-checklist > header,
+.admin-checkpoint-history > header,
+.admin-incident-runbook > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-integrity-checklist > header > div,
+.admin-checkpoint-history > header,
+.admin-incident-runbook > header > div {
+  min-width: 0;
+}
+
+.admin-integrity-checklist > header span,
+.admin-checkpoint-history > header span,
+.admin-incident-runbook > header span {
+  display: block;
+  color: #70deef;
+  letter-spacing: 0.09em;
+}
+
+.admin-integrity-checklist > header strong {
+  display: block;
+  margin-top: 4px;
+  color: #9babb3;
+}
+
+.admin-integrity-checklist > header button {
+  flex: 0 0 auto;
+  padding: 0 16px;
+  border: 1px solid rgba(169, 255, 63, 0.4);
+  background: rgba(169, 255, 63, 0.07);
+  color: var(--admin-lime);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.admin-integrity-checklist > header button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.admin-integrity-checklist > div {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-integrity-checklist article {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid #22343f;
+  background: #0c171f;
+}
+
+.admin-integrity-checklist article > i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--admin-lime);
+  box-shadow: 0 0 9px rgba(169, 255, 63, 0.65);
+}
+
+.admin-integrity-checklist article.attention > i {
+  background: #ffbd49;
+  box-shadow: 0 0 9px rgba(255, 189, 73, 0.6);
+}
+
+.admin-integrity-checklist article.critical > i {
+  background: #ff7171;
+  box-shadow: 0 0 9px rgba(255, 113, 113, 0.62);
+}
+
+.admin-integrity-checklist article strong {
+  color: #e8f1f3;
+}
+
+.admin-integrity-checklist article p {
+  margin: 3px 0 0;
+  color: #8ca0aa;
+}
+
+.admin-integrity-checklist article > span {
+  padding: 5px 8px;
+  border: 1px solid rgba(169, 255, 63, 0.28);
+  color: #c6ef9c;
+  letter-spacing: 0.07em;
+}
+
+.admin-integrity-checklist article.attention > span {
+  border-color: rgba(255, 189, 73, 0.38);
+  color: #ffd079;
+}
+
+.admin-integrity-checklist article.critical > span {
+  border-color: rgba(255, 113, 113, 0.42);
+  color: #ff9a9a;
+}
+
+.admin-checkpoint-history {
+  background: #081017;
+}
+
+.admin-checkpoint-history > header small {
+  color: #718690;
+}
+
+.admin-checkpoint-history > p {
+  margin: 18px 0;
+  padding: 15px;
+  border: 1px dashed #30434e;
+  color: #8ea0aa;
+}
+
+.admin-checkpoint-history > article {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #1b2b35;
+}
+
+.admin-checkpoint-history article > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--admin-lime);
+}
+
+.admin-checkpoint-history article > i.attention {
+  background: #ffbd49;
+}
+
+.admin-checkpoint-history article > i.critical {
+  background: #ff7171;
+}
+
+.admin-checkpoint-history article strong,
+.admin-checkpoint-history article small {
+  display: block;
+}
+
+.admin-checkpoint-history article strong {
+  color: #e7eff2;
+}
+
+.admin-checkpoint-history article small,
+.admin-checkpoint-history article > span {
+  color: #788d98;
+}
+
+.admin-checkpoint-history footer {
+  margin-top: 16px;
+  padding: 13px;
+  border-left: 3px solid #2bd3ff;
+  background: rgba(43, 211, 255, 0.045);
+}
+
+.admin-checkpoint-history footer strong,
+.admin-checkpoint-history footer span {
+  display: block;
+}
+
+.admin-checkpoint-history footer strong {
+  color: #75def0;
+}
+
+.admin-checkpoint-history footer span {
+  margin-top: 4px;
+  color: #879ba5;
+}
+
+.admin-incident-runbook {
+  padding: 18px;
+  border-top: 1px solid var(--admin-border);
+  background: #0a131b;
+}
+
+.admin-incident-runbook > header h3 {
+  margin: 5px 0 0;
+  color: #eef5f7;
+  font: 700 1.05rem/1.1 var(--font-display);
+  text-transform: uppercase;
+}
+
+.admin-incident-runbook > header > small {
+  padding: 6px 9px;
+  border: 1px solid rgba(43, 211, 255, 0.32);
+  color: #71ddf0;
+  letter-spacing: 0.08em;
+}
+
+.admin-incident-runbook > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.admin-incident-runbook article {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #263844;
+  background: #0d1820;
+}
+
+.admin-incident-runbook article.triggered {
+  border-color: rgba(255, 189, 73, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 189, 73, 0.065), transparent 58%),
+    #0d171e;
+}
+
+.admin-incident-runbook article > header span {
+  color: var(--admin-lime);
+}
+
+.admin-incident-runbook article.triggered > header span {
+  color: #ffbd49;
+}
+
+.admin-incident-runbook article > header strong {
+  display: block;
+  margin-top: 6px;
+  color: #edf4f5;
+}
+
+.admin-incident-runbook dl {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.admin-incident-runbook dl > div {
+  padding-top: 9px;
+  border-top: 1px solid #20313b;
+}
+
+.admin-incident-runbook dt {
+  color: #6ed9ec;
+  letter-spacing: 0.07em;
+}
+
+.admin-incident-runbook dd {
+  margin: 4px 0 0;
+  color: #91a4ae;
+}
+
+@media (max-width: 900px) {
+  .admin-operations-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-operations-body,
+  .admin-incident-runbook > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-panel-heading:has(+ .admin-operations-summary) {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-block: 14px;
+  }
+
+  .admin-operations-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-integrity-checklist > header,
+  .admin-incident-runbook > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-integrity-checklist > header button {
+    width: 100%;
+  }
+
+  .admin-integrity-checklist article {
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .admin-integrity-checklist article > span {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 /* Primeiro dia: kit inicial e percurso curto até o primeiro bloco. */
 .first-day-panel {
   position: relative;

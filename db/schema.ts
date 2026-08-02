@@ -207,6 +207,21 @@ export const adminAuditLog = sqliteTable(
   ],
 );
 
+export const operationalCheckpoints = sqliteTable(
+  "operational_checkpoints",
+  {
+    id: text("id").primaryKey(),
+    actorAccountId: text("actor_account_id").notNull(),
+    status: text("status").notNull(),
+    metricsJson: text("metrics_json").notNull().default("{}"),
+    findingsJson: text("findings_json").notNull().default("[]"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("operational_checkpoints_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const betaFeedback = sqliteTable(
   "beta_feedback",
   {
