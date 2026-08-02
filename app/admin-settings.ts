@@ -39,6 +39,20 @@ type OwnerRow = {
   created_at: number;
 };
 
+export function adminOwnerAccountIdFromEnv(value: unknown) {
+  const candidate = (value as { ARCADIA_OWNER_ACCOUNT_ID?: unknown } | null)
+    ?.ARCADIA_OWNER_ACCOUNT_ID;
+  return typeof candidate === "string" ? candidate.trim().toLowerCase() : "";
+}
+
+export function isConfiguredAdminOwner(
+  accountId: string,
+  expectedOwnerAccountId?: string | null,
+) {
+  const expectedOwner = expectedOwnerAccountId?.trim().toLowerCase() ?? "";
+  return Boolean(expectedOwner) && expectedOwner === accountId.toLowerCase();
+}
+
 const DEFAULT_SETTINGS: AdminRuntimeSettings = {
   crateAlertCount: 20,
   cratesEnabled: true,
@@ -124,8 +138,42 @@ export async function claimOrVerifyAdminOwner(
   accountId: string,
   email: string,
   now: number,
+  expectedOwnerAccountId?: string | null,
 ) {
   await ensureAdminSchema(db);
+  const existingOwner = await db
+    .prepare(
+      `SELECT account_id, email, created_at
+       FROM admin_owners WHERE singleton_id = 1`,
+    )
+    .first<OwnerRow>();
+  if (existingOwner) {
+    if (existingOwner.account_id === accountId) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail && existingOwner.email !== normalizedEmail) {
+        await db
+          .prepare(
+            `UPDATE admin_owners SET email = ?
+             WHERE singleton_id = 1 AND account_id = ?`,
+          )
+          .bind(normalizedEmail, accountId)
+          .run();
+        return {
+          allowed: true,
+          owner: { ...existingOwner, email: normalizedEmail },
+        };
+      }
+    }
+    return {
+      allowed: existingOwner.account_id === accountId,
+      owner: existingOwner,
+    };
+  }
+
+  if (!isConfiguredAdminOwner(accountId, expectedOwnerAccountId)) {
+    return { allowed: false, owner: null };
+  }
+
   await db
     .prepare(
       `INSERT OR IGNORE INTO admin_owners (

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {
+  adminOwnerAccountIdFromEnv,
+  isConfiguredAdminOwner,
+} from "../app/admin-settings.ts";
 
 const files = await Promise.all(
   [
@@ -24,9 +28,19 @@ const [
   migrationSource,
 ] = files;
 
-test("o primeiro proprietário fica travado no servidor", () => {
+test("somente a identidade fundadora configurada pode ocupar o painel", () => {
   assert.match(settingsSource, /INSERT OR IGNORE INTO admin_owners/);
+  assert.match(settingsSource, /expectedOwnerAccountId/);
+  assert.equal(isConfiguredAdminOwner("founder", null), false);
+  assert.equal(isConfiguredAdminOwner("intruder", "founder"), false);
+  assert.equal(isConfiguredAdminOwner("FOUNDER", "founder"), true);
+  assert.equal(
+    adminOwnerAccountIdFromEnv({ ARCADIA_OWNER_ACCOUNT_ID: " FOUNDER " }),
+    "founder",
+  );
   assert.match(settingsSource, /owner\?\.account_id === accountId/);
+  assert.match(settingsSource, /ARCADIA_OWNER_ACCOUNT_ID/);
+  assert.match(apiSource, /adminOwnerAccountIdFromEnv\(env\)/);
   assert.match(apiSource, /Ação permitida apenas ao proprietário/);
   assert.doesNotMatch(
     dashboardSource,

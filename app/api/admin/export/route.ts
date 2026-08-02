@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import {
+  adminOwnerAccountIdFromEnv,
   claimOrVerifyAdminOwner,
   readAdminRuntimeSettings,
 } from "../../../admin-settings";
@@ -55,6 +56,7 @@ export async function GET() {
     accountId,
     user.email,
     now,
+    adminOwnerAccountIdFromEnv(env),
   );
   if (!owner.allowed) {
     return Response.json(

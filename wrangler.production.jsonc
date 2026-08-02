@@ -30,7 +30,8 @@
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_D-zur7SjizAWlwxf_0rD3Q_Xh7lJvrq",
     "PUBLIC_LOGIN_ENABLED": "true",
     "CRYPTO_DEPOSITS_ENABLED": "false",
-    "AUTH_CAPTCHA_REQUIRED": "false",
+    "AUTH_CAPTCHA_REQUIRED": "true",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAEEpj8fea0Bp_Y3_",
     "TURNSTILE_REQUIRED": "false"
   },
   "observability": {

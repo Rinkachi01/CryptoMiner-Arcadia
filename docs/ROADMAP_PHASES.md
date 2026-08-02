@@ -136,13 +136,15 @@ Próxima atualização:
 
 ## Fase 4.5 — conta externa
 
-Status: futura; depende da decisão de onde o site público será hospedado.
+Status: autenticação implementada e ambiente público em homologação.
 
 - manter a entrada com ChatGPT durante o teste privado;
 - escolher um provedor de identidade para cadastro público;
 - cadastro, login, verificação de e-mail e recuperação de senha;
 - sessões seguras, limitação de tentativas e proteção contra contas múltiplas;
-- migração da conta de teste para a identidade pública sem perder o progresso.
+- identidade fundadora pública presa ao mesmo e-mail verificado;
+- migração única do inventário e ledger privado após a criação da conta no
+  Supabase, sempre a partir de uma cópia aprovada.
 
 Critério de saída: o jogo funciona fora do ChatGPT sem armazenar senhas de forma
 improvisada.
@@ -188,8 +190,9 @@ Entregas concluídas nesta quinta etapa:
 Entregas concluídas nesta sexta etapa:
 
 - Central do Proprietário protegida pela conta autenticada;
-- primeiro proprietário do site privado registrado no servidor e bloqueado
-  contra substituição por outra conta;
+- proprietário do site privado preservado e identidade fundadora pública
+  configurada no servidor; um banco vazio não permite que o primeiro visitante
+  reivindique o painel;
 - métricas de jogadores, partidas, vitórias, poder, caixas e baterias em 24h;
 - desempenho individual dos três minigames;
 - concentração de mineradores, racks instalados e estoque de baterias;

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import {
+  adminOwnerAccountIdFromEnv,
   claimOrVerifyAdminOwner,
   ensureAdminSchema,
   readAdminRuntimeSettings,
@@ -172,6 +173,7 @@ async function adminContext() {
     accountId,
     user.email,
     Date.now(),
+    adminOwnerAccountIdFromEnv(env),
   );
   if (!owner.allowed) return { forbidden: true as const, user };
   return {

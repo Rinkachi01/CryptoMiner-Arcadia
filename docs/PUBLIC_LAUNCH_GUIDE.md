@@ -171,6 +171,25 @@ TURNSTILE_REQUIRED=true
 
 O servidor valida a ação `arcade_access`, o hostname, uso único e validade do token. Nunca enviar `TURNSTILE_SECRET` ao navegador. A validação no servidor é obrigatória; o token dura cinco minutos e só pode ser usado uma vez.
 
+Em 2 de agosto de 2026, a chave pública do widget foi instalada no Worker e
+`AUTH_CAPTCHA_REQUIRED=true` foi ativado para cadastro, login e recuperação do
+Supabase. `TURNSTILE_REQUIRED` permanece desligado nos minigames até o segredo
+também ser cadastrado como segredo do Worker e o desafio do Arcade ser testado.
+
+### Continuidade da conta fundadora
+
+- a conta antiga do preview privado continua no D1 do Sites e não é removida
+  por uma nova publicação;
+- a identidade fundadora é vinculada no servidor pelo hash do mesmo e-mail
+  verificado, armazenado como `ARCADIA_OWNER_ACCOUNT_ID`;
+- nenhuma outra conta pode ocupar o painel quando o banco público ainda está
+  vazio;
+- o D1 público e o D1 privado são bancos diferentes. Criar o usuário no
+  Supabase com o mesmo e-mail libera a identidade do fundador, mas a cópia do
+  inventário e do ledger deve ser feita uma única vez, com backup verificado;
+- poder-base de rede é não remunerado e deve continuar existindo no servidor
+  para que o primeiro jogador público não receba sozinho todos os blocos.
+
 Fonte oficial: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
 
 Na borda, criar regras de limite para login, registro, recuperação de senha, início/finalização de partidas, compra e webhooks. Bot Fight Mode é gratuito, mas atua no domínio inteiro e não permite exceções; testar com cuidado porque pode afetar APIs.
@@ -293,10 +312,11 @@ Fontes oficiais:
 - [ ] Publicar Termos, Privacidade, Cookies, regras do jogo e política de reembolso.
 - [ ] Confirmar LGPD, classificação etária e implicações de loot boxes.
 - [x] Escolher e configurar login público; manter a conta do proprietário separada.
-- [ ] Cadastrar Turnstile e ativar `TURNSTILE_REQUIRED=true` somente após teste.
+- [x] Cadastrar a chave pública do Turnstile e proteger o fluxo do Supabase.
+- [ ] Cadastrar o segredo também no Worker e ativar `TURNSTILE_REQUIRED=true` nos jogos somente após teste.
 - [ ] Configurar limites de borda, alertas e painel de erros.
 - [ ] Rodar teste de carga e teste de abuso com contas de ensaio.
-- [ ] Criar backup, baixar uma cópia e executar um ensaio de recuperação.
+- [x] Criar backup completo do ambiente privado e executar um ensaio de recuperação.
 - [ ] Abrir beta público sem dinheiro real e observar pelo menos duas semanas.
 - [ ] Escolher processador e concluir aprovação antes de programar depósitos.
 - [ ] Manter depósito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente depósitos BTC/DOGE → saldo interno → CMA.

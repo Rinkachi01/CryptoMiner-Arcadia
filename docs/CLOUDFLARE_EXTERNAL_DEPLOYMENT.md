@@ -27,8 +27,10 @@ atual. A conta Cloudflare foi conectada em 2 de agosto de 2026.
    - `PUBLIC_BASE_URL`;
    - `SUPABASE_URL`;
    - `SUPABASE_PUBLISHABLE_KEY`;
-   - `PUBLIC_LOGIN_ENABLED=true` após o teste do SMTP.
+   - `PUBLIC_LOGIN_ENABLED=true` após o teste do SMTP;
+   - `TURNSTILE_SITE_KEY` e `AUTH_CAPTCHA_REQUIRED=true` no login público.
 6. Segredos, somente quando existirem:
+   - `ARCADIA_OWNER_ACCOUNT_ID`, vínculo exclusivo da conta fundadora;
    - `TURNSTILE_SECRET`;
    - `BITPAY_TOKEN` ou token do provedor aprovado;
    - `COINGECKO_API_KEY`.
@@ -84,3 +86,12 @@ os 16.799 bytes e o SHA-256
 Essa cópia independente protege a infraestrutura externa. O pacote JSON do
 painel do proprietário e seu ensaio lógico continuam como uma verificação
 adicional, não como substituto deste backup SQL.
+
+## Conta fundadora privada
+
+Em 2 de agosto de 2026, a conta histórica do Sites foi verificada com saldo,
+inventário, 12 racks na sala 2 e acesso à Central do Proprietário. Um pacote
+completo de 204 KB e 452 registros foi criado no armazenamento separado; o
+ensaio de reconstrução terminou aprovado em 4/4 portões. A conta pública ainda
+não foi criada no D1 externo. O vínculo administrativo externo já está preso à
+identidade fundadora e não pode ser reivindicado pelo primeiro visitante.
