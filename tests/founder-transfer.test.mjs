@@ -36,6 +36,9 @@ test("pacote é assinado, limitado, vinculado ao fundador e auditado", async () 
     readFile(new URL("../app/FounderTransferPanel.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(server, /HMAC/);
+  assert.match(server, /CompressionStream/);
+  assert.match(server, /DecompressionStream/);
+  assert.match(server, /arcadia-transfer-gzip-v1/);
   assert.match(server, /MAX_TRANSFER_AGE_MS/);
   assert.match(server, /payload\.accountId !== accountId/);
   assert.match(server, /founder_account_transfers/);

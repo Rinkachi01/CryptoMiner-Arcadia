@@ -4,6 +4,7 @@ import { syncAccountNetworkPower } from "./network-server.ts";
 const BLOCK_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_TRANSFER_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_TRANSFER_BYTES = 2 * 1024 * 1024;
+const COMPRESSED_TRANSFER_PREFIX = "arcadia-transfer-gzip-v1:";
 
 type TransferStateRow = {
   created_at: number;
@@ -207,6 +208,31 @@ function bytesToHex(bytes: ArrayBuffer) {
     .join("");
 }
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 32_768) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 32_768));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+async function transformBytes(
+  bytes: Uint8Array,
+  stream: CompressionStream | DecompressionStream,
+) {
+  const output = new Blob([bytes]).stream().pipeThrough(stream);
+  return new Uint8Array(await new Response(output).arrayBuffer());
+}
+
 function constantTimeEqual(left: string, right: string) {
   if (left.length !== right.length) return false;
   let difference = 0;
@@ -327,11 +353,42 @@ export async function createFounderTransferEnvelope(
   return { envelope, rowCount };
 }
 
-function parseEnvelope(value: unknown): FounderTransferEnvelope {
+export async function serializeFounderTransferEnvelope(
+  envelope: FounderTransferEnvelope,
+) {
+  const raw = new TextEncoder().encode(JSON.stringify(envelope));
+  if (raw.byteLength > MAX_TRANSFER_BYTES) {
+    throw new Error("O pacote excedeu 2 MB e precisa ser dividido.");
+  }
+  const compressed = await transformBytes(raw, new CompressionStream("gzip"));
+  return `${COMPRESSED_TRANSFER_PREFIX}${bytesToBase64(compressed)}`;
+}
+
+async function parseEnvelope(value: unknown): Promise<FounderTransferEnvelope> {
   let parsed = value;
   if (typeof value === "string") {
-    if (value.length > MAX_TRANSFER_BYTES) throw new Error("Pacote muito grande.");
-    parsed = JSON.parse(value);
+    if (value.length > MAX_TRANSFER_BYTES * 2) {
+      throw new Error("Pacote muito grande.");
+    }
+    if (value.startsWith(COMPRESSED_TRANSFER_PREFIX)) {
+      const compressed = base64ToBytes(value.slice(COMPRESSED_TRANSFER_PREFIX.length));
+      if (compressed.byteLength > MAX_TRANSFER_BYTES) {
+        throw new Error("Pacote compactado muito grande.");
+      }
+      const raw = await transformBytes(
+        compressed,
+        new DecompressionStream("gzip"),
+      );
+      if (raw.byteLength > MAX_TRANSFER_BYTES) {
+        throw new Error("Pacote descompactado muito grande.");
+      }
+      parsed = JSON.parse(new TextDecoder().decode(raw));
+    } else {
+      if (new TextEncoder().encode(value).byteLength > MAX_TRANSFER_BYTES) {
+        throw new Error("Pacote muito grande.");
+      }
+      parsed = JSON.parse(value);
+    }
   }
   if (!parsed || typeof parsed !== "object") throw new Error("Pacote inválido.");
   const envelope = parsed as Partial<FounderTransferEnvelope>;
@@ -363,7 +420,7 @@ export async function importFounderTransferEnvelope(
 ) {
   if (!secret) throw new Error("O segredo de migração ainda não foi configurado.");
   await ensureFounderTransferSchema(db);
-  const envelope = parseEnvelope(rawEnvelope);
+  const envelope = await parseEnvelope(rawEnvelope);
   const { payload } = envelope;
   if (
     payload.format !== "arcadia-founder-transfer" ||

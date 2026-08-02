@@ -8,6 +8,7 @@ import {
   createFounderTransferEnvelope,
   founderTransferSecretFromEnv,
   importFounderTransferEnvelope,
+  serializeFounderTransferEnvelope,
 } from "../../../founder-transfer-server";
 import { accountIdForUser, getArcadiaUser } from "../../../identity-server";
 
@@ -48,7 +49,7 @@ export async function GET() {
     );
     return json({
       rowCount: result.rowCount,
-      transferPackage: JSON.stringify(result.envelope),
+      transferPackage: await serializeFounderTransferEnvelope(result.envelope),
     });
   } catch (error) {
     return json(
