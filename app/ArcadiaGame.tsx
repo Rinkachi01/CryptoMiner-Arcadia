@@ -89,6 +89,7 @@ type ArcadiaGameProps = {
     displayName: string;
     email: string;
   };
+  isOwner: boolean;
   signOutPath: string;
 };
 
@@ -248,7 +249,7 @@ function rackMinerPosition(slotIndex: number): React.CSSProperties {
   };
 }
 
-export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
+export function ArcadiaGame({ user, isOwner, signOutPath }: ArcadiaGameProps) {
   const [activeView, setActiveView] = useState<ViewId>("mine");
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
@@ -907,11 +908,13 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
               <span>{item.label}</span>
             </button>
           ))}
-          <a className="admin-nav-link" href="/admin">
-            <span className="nav-glyph">C</span>
-            <span>Central do proprietário</span>
-            <small>OWNER</small>
-          </a>
+          {isOwner ? (
+            <a className="admin-nav-link" href="/admin">
+              <span className="nav-glyph">C</span>
+              <span>Central do proprietário</span>
+              <small>OWNER</small>
+            </a>
+          ) : null}
         </nav>
 
         <div className="simulation-note">

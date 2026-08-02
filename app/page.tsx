@@ -1,5 +1,11 @@
+import { env } from "cloudflare:workers";
+import {
+  adminOwnerAccountIdFromEnv,
+  isConfiguredAdminOwner,
+} from "./admin-settings";
 import { ArcadiaGame } from "./ArcadiaGame";
 import {
+  accountIdForUser,
   arcadiaSignInPath,
   arcadiaSignOutPath,
   getArcadiaUser,
@@ -76,6 +82,12 @@ export default async function Home() {
     );
   }
 
+  const accountId = accountIdForUser(user);
+  const isOwner = isConfiguredAdminOwner(
+    accountId,
+    adminOwnerAccountIdFromEnv(env),
+  );
+
   return (
     <GameErrorBoundary>
       <ArcadiaGame
@@ -83,6 +95,7 @@ export default async function Home() {
           displayName: user.displayName,
           email: user.email,
         }}
+        isOwner={isOwner}
         signOutPath={arcadiaSignOutPath("/", user.provider)}
       />
     </GameErrorBoundary>

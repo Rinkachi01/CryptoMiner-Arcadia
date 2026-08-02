@@ -10,6 +10,9 @@ const files = await Promise.all(
   [
     "../app/admin-settings.ts",
     "../app/api/admin/route.ts",
+    "../app/admin/page.tsx",
+    "../app/page.tsx",
+    "../app/ArcadiaGame.tsx",
     "../app/AdminDashboard.tsx",
     "../app/game-emission-budget.ts",
     "../app/api/game/route.ts",
@@ -21,6 +24,9 @@ const files = await Promise.all(
 const [
   settingsSource,
   apiSource,
+  adminPageSource,
+  homePageSource,
+  gameSource,
   dashboardSource,
   budgetSource,
   gameRouteSource,
@@ -41,6 +47,11 @@ test("somente a identidade fundadora configurada pode ocupar o painel", () => {
   assert.match(settingsSource, /owner\?\.account_id === accountId/);
   assert.match(settingsSource, /ARCADIA_OWNER_ACCOUNT_ID/);
   assert.match(apiSource, /adminOwnerAccountIdFromEnv\(env\)/);
+  assert.match(homePageSource, /isConfiguredAdminOwner/);
+  assert.match(homePageSource, /isOwner=\{isOwner\}/);
+  assert.match(gameSource, /\{isOwner \? \(/);
+  assert.match(adminPageSource, /isConfiguredAdminOwner/);
+  assert.match(adminPageSource, /redirect\("\/"\)/);
   assert.match(apiSource, /Ação permitida apenas ao proprietário/);
   assert.doesNotMatch(
     dashboardSource,
