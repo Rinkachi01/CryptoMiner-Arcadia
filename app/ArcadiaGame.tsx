@@ -833,7 +833,7 @@ export function ArcadiaGame({ user, signOutPath }: ArcadiaGameProps) {
                 >
                   <img src={balance.asset} alt={balance.alt} />
                   <span>{balance.symbol}</span>
-                  <strong>{balance.value}</strong>
+                  <strong title={balance.value}>{balance.value}</strong>
                   <em>
                     {displayedBalanceSymbol === balance.symbol
                       ? "EXIBINDO"

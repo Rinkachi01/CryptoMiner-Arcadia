@@ -15491,6 +15491,7 @@ img {
 
 .wallet-menu {
   display: grid;
+  width: min(320px, calc(100vw - 24px));
   max-height: min(540px, calc(100vh - 94px));
   gap: 2px;
   overflow-x: hidden;
@@ -15508,6 +15509,14 @@ img {
   background: rgba(169, 255, 63, 0.13);
   box-shadow: inset 3px 0 0 var(--lime);
   transform: translateX(2px);
+}
+
+.wallet-balance-row strong {
+  min-width: 0;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wallet-balance-row em {

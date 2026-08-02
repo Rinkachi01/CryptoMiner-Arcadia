@@ -27,6 +27,7 @@ test("carteira comunica interação e preserva o acesso à conversão", async ()
   assert.match(styles, /\.wallet-trigger:hover/);
   assert.match(styles, /\.wallet-conversion-link:hover/);
   assert.match(styles, /\.wallet-menu\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /\.wallet-balance-row strong\s*\{[\s\S]*?text-overflow:\s*ellipsis/);
 });
 
 test("central do proprietário separa publicação, depósitos e saques", async () => {
