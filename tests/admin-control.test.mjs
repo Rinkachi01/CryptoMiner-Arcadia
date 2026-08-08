@@ -48,9 +48,17 @@ test("somente a identidade fundadora configurada pode ocupar o painel", () => {
   assert.match(settingsSource, /ARCADIA_OWNER_ACCOUNT_ID/);
   assert.match(apiSource, /adminOwnerAccountIdFromEnv\(env\)/);
   assert.match(homePageSource, /isConfiguredAdminOwner/);
+  assert.match(
+    homePageSource,
+    /const accountId = await accountIdForUser\(user\)/,
+  );
   assert.match(homePageSource, /isOwner=\{isOwner\}/);
   assert.match(gameSource, /\{isOwner \? \(/);
   assert.match(adminPageSource, /isConfiguredAdminOwner/);
+  assert.match(
+    adminPageSource,
+    /const accountId = await accountIdForUser\(user\)/,
+  );
   assert.match(adminPageSource, /redirect\("\/"\)/);
   assert.match(apiSource, /Ação permitida apenas ao proprietário/);
   assert.doesNotMatch(

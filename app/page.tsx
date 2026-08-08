@@ -82,7 +82,7 @@ export default async function Home() {
     );
   }
 
-  const accountId = accountIdForUser(user);
+  const accountId = await accountIdForUser(user);
   const isOwner = isConfiguredAdminOwner(
     accountId,
     adminOwnerAccountIdFromEnv(env),

@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const user = await requireArcadiaUser("/admin");
-  const accountId = accountIdForUser(user);
+  const accountId = await accountIdForUser(user);
   if (!isConfiguredAdminOwner(accountId, adminOwnerAccountIdFromEnv(env))) {
     redirect("/");
   }
