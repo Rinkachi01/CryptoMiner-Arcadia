@@ -3,6 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ArcadeStartNotice } from "./ArcadeStartNotice";
+import { describeArcadeStart } from "./arcade-start-rules";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 
@@ -249,6 +251,13 @@ export function HashMatchView({
     0,
     Math.ceil(((session?.durationMs ?? 0) - elapsedMs) / 1000),
   );
+  const startState = describeArcadeStart({
+    cooldownSeconds,
+    limits,
+    loading: phase === "loading",
+    loadingLabel: "MONTANDO...",
+    readyLabel: "INICIAR HASH MATCH",
+  });
 
   return (
     <section className="hash-match-shell">
@@ -321,21 +330,13 @@ export function HashMatchView({
                   : "Encontre os pares"}
               </strong>
               <p>{message}</p>
+              <ArcadeStartNotice state={startState} />
               <button
                 type="button"
                 onClick={startGame}
-                disabled={
-                  phase === "loading" ||
-                  cooldownSeconds > 0 ||
-                  limits.hourRemaining === 0 ||
-                  limits.dayRemaining === 0
-                }
+                disabled={startState.disabled}
               >
-                {phase === "loading"
-                  ? "MONTANDO..."
-                  : cooldownSeconds > 0
-                    ? `RECARGA ${cooldownSeconds}s`
-                    : "INICIAR HASH MATCH"}
+                {startState.label}
               </button>
             </div>
           )}

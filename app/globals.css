@@ -11002,6 +11002,112 @@ img {
   color: var(--lime);
 }
 
+.arcade-quick-guide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #334451;
+  background: #0b1219;
+}
+
+.arcade-quick-guide div {
+  min-width: 0;
+  padding: 11px 12px;
+  border-left: 2px solid #4b5e6c;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.arcade-quick-guide div:first-child {
+  border-left-color: var(--cyan);
+}
+
+.arcade-quick-guide div:nth-child(2) {
+  border-left-color: #ff6b61;
+}
+
+.arcade-quick-guide div:nth-child(3) {
+  border-left-color: var(--lime);
+}
+
+.arcade-quick-guide div:nth-child(4) {
+  border-left-color: var(--amber);
+}
+
+.arcade-quick-guide span {
+  display: block;
+  margin-bottom: 5px;
+  color: #a8bac7;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.arcade-quick-guide p {
+  margin: 0;
+  color: #e1e9ed;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.arcade-start-notice {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  width: min(100%, 520px);
+  margin: 12px auto;
+  padding: 10px 12px;
+  border: 1px solid #3d505e;
+  background: rgba(7, 13, 19, 0.92);
+  color: #dce7ec;
+  text-align: left;
+}
+
+.arcade-start-notice i {
+  width: 8px;
+  height: 8px;
+  margin-top: 0.35em;
+  border-radius: 50%;
+  background: #7f909c;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.arcade-start-notice span {
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.arcade-start-notice.ready {
+  border-color: rgba(169, 255, 63, 0.48);
+}
+
+.arcade-start-notice.ready i {
+  background: var(--lime);
+  color: var(--lime);
+}
+
+.arcade-start-notice.cooldown,
+.arcade-start-notice.loading {
+  border-color: rgba(54, 216, 242, 0.45);
+}
+
+.arcade-start-notice.cooldown i,
+.arcade-start-notice.loading i {
+  background: var(--cyan);
+  color: var(--cyan);
+}
+
+.arcade-start-notice.limited {
+  border-color: rgba(255, 107, 97, 0.52);
+}
+
+.arcade-start-notice.limited i {
+  background: #ff6b61;
+  color: #ff6b61;
+}
+
 .active-game-stage {
   min-width: 0;
 }
@@ -11403,6 +11509,10 @@ img {
     position: static;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .arcade-quick-guide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -11444,6 +11554,19 @@ img {
 
   .game-selector-list button {
     min-height: 76px;
+  }
+
+  .arcade-quick-guide {
+    grid-template-columns: 1fr;
+    padding: 9px;
+  }
+
+  .arcade-quick-guide div {
+    padding: 9px 10px;
+  }
+
+  .arcade-start-notice {
+    font-size: 0.9rem;
   }
 
   .falling-target {

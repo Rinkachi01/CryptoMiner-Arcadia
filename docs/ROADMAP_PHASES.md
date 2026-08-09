@@ -451,12 +451,18 @@ Polimentos ainda recomendados:
 - teste real de toque e leitura em celulares pequenos;
 - revisão visual final de todos os encaixes de mineradores nos quatro níveis do
   rack;
-- tutorial curto dentro de cada minigame;
-- mensagens mais claras quando energia, recarga ou orçamento diário bloquearem
-  uma ação;
 - comparação do funil do primeiro dia por dispositivo e tamanho de tela;
 - revisão jurídica antes de usar linguagem de investimento, ROI, saque ou
   rendimento.
+
+Entrega de clareza do Arcade concluída:
+
+- tutorial rápido sempre visível e adaptado ao Packet Catch, Hash Match e
+  Circuit Rush;
+- motivo explícito para bloqueios por recarga, limite da hora e limite de 24
+  horas;
+- contagem de recarga em minutos e segundos quando necessário;
+- aviso uniforme de que o servidor valida o resultado antes de liberar poder.
 
 ## Laboratório do Beta — dispositivo e acessibilidade
 

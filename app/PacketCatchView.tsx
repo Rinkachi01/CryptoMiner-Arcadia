@@ -4,6 +4,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ArcadeHumanGate from "./ArcadeHumanGate";
+import { ArcadeStartNotice } from "./ArcadeStartNotice";
+import { describeArcadeStart } from "./arcade-start-rules";
 import { CircuitRushView } from "./CircuitRushView";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
@@ -23,6 +25,24 @@ type GameSession = {
   difficulty: number;
   targets: PacketTarget[];
 };
+
+const arcadeGuides = {
+  packet: {
+    avoid: "Não toque na bomba e não deixe três moedas chegarem ao chão.",
+    goal: "Clique nas moedas enquanto elas atravessam a tela.",
+    win: "Permaneça com ao menos uma vida até o cronômetro terminar.",
+  },
+  hash: {
+    avoid: "Evite jogadas extras: elas reduzem a eficiência da recompensa.",
+    goal: "Vire duas cartas por vez e memorize a posição das moedas.",
+    win: "Encontre todos os pares antes de o tempo acabar.",
+  },
+  circuit: {
+    avoid: "Qualquer núcleo vermelho encerra a rodada imediatamente.",
+    goal: "Siga somente os núcleos verdes na ordem indicada.",
+    win: "Complete toda a sequência dentro do tempo do servidor.",
+  },
+} as const;
 
 function formatPower(powerGh: number) {
   if (powerGh >= 1000) {
@@ -317,6 +337,14 @@ export function PacketCatchView({
     0,
     Math.ceil((nextPlayAt - clockNow) / 1000),
   );
+  const packetStartState = describeArcadeStart({
+    cooldownSeconds,
+    limits,
+    loading: phase === "loading",
+    loadingLabel: "CONECTANDO...",
+    readyLabel: "INICIAR PARTIDA",
+  });
+  const activeGuide = arcadeGuides[activeGame];
 
   return (
     <section className="games-view">
@@ -332,7 +360,7 @@ export function PacketCatchView({
         <div className="games-balance-seal live">
           <strong>{formatPower(temporaryPowerGh)}</strong>
           <span>PODER TEMPORÁRIO ATIVO</span>
-          <small>Packet Catch + Hash Match</small>
+          <small>3 MINIGAMES CONECTADOS</small>
         </div>
       </div>
 
@@ -377,8 +405,37 @@ export function PacketCatchView({
 
         <ArcadeHumanGate>
           <div className="active-game-stage">
-          {activeGame === "packet" && (
-            <div className="packet-catch-shell">
+            <section
+              className="arcade-quick-guide"
+              aria-label={`Tutorial rápido do ${
+                activeGame === "packet"
+                  ? "Packet Catch"
+                  : activeGame === "hash"
+                    ? "Hash Match"
+                    : "Circuit Rush"
+              }`}
+            >
+              <div>
+                <span>01 · OBJETIVO</span>
+                <p>{activeGuide.goal}</p>
+              </div>
+              <div>
+                <span>02 · EVITE</span>
+                <p>{activeGuide.avoid}</p>
+              </div>
+              <div>
+                <span>03 · VITÓRIA</span>
+                <p>{activeGuide.win}</p>
+              </div>
+              <div>
+                <span>04 · VALIDAÇÃO</span>
+                <p>
+                  O navegador não entrega poder; o servidor confere o resultado.
+                </p>
+              </div>
+            </section>
+            {activeGame === "packet" && (
+              <div className="packet-catch-shell">
         <header>
           <div>
             <span>MINIGAME 01 · CAÇA-MOEDAS</span>
@@ -476,21 +533,13 @@ export function PacketCatchView({
                       : "Capture as moedas"}
                 </strong>
                 <p>{message}</p>
+                <ArcadeStartNotice state={packetStartState} />
                 <button
                   type="button"
                   onClick={startGame}
-                  disabled={
-                    phase === "loading" ||
-                    cooldownSeconds > 0 ||
-                    limits.hourRemaining === 0 ||
-                    limits.dayRemaining === 0
-                  }
+                  disabled={packetStartState.disabled}
                 >
-                  {phase === "loading"
-                    ? "CONECTANDO..."
-                    : cooldownSeconds > 0
-                      ? `RECARGA ${cooldownSeconds}s`
-                      : "INICIAR PARTIDA"}
+                  {packetStartState.label}
                 </button>
               </div>
             )}
@@ -532,8 +581,8 @@ export function PacketCatchView({
             </small>
           </aside>
           </div>
-            </div>
-          )}
+              </div>
+            )}
 
           {activeGame === "hash" && (
             <HashMatchView onRefreshAccount={refreshArcadeAccount} />
