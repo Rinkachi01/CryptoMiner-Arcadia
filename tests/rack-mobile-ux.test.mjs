@@ -51,3 +51,16 @@ test("regra visual final mantém a sala em uma coluna no celular", async () => {
   assert.match(mobileRules, /\.room-card,[\s\S]*?width:\s*100%/);
   assert.match(mobileRules, /\.room-stage\s*\{[\s\S]*?min-height:\s*280px/);
 });
+
+test("celular mantém troca e compra de salas acessíveis sem cobrir os racks", async () => {
+  const [source, styles] = await Promise.all([
+    readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  const finalMobileRules = styles.slice(styles.lastIndexOf("@media (max-width: 620px)"));
+
+  assert.doesNotMatch(source, /<div className="room-mode-badge">/);
+  assert.match(finalMobileRules, /\.room-toolbar > div button:last-child\s*\{\s*display:\s*flex/);
+  assert.match(finalMobileRules, /\.rooms-modal\s*\{[\s\S]*?min-height:\s*100dvh/);
+  assert.match(finalMobileRules, /\.room-store-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+});

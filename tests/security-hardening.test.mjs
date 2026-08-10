@@ -39,17 +39,18 @@ test("Turnstile só fica configurado com as duas chaves e falha fechado quando e
   );
 });
 
-test("os três jogos passam pelo mesmo limite no servidor e o navegador não confirma prêmio", async () => {
-  const [packet, hash, circuit, gate, widget, security, route] = await Promise.all([
+test("os quatro jogos passam pelo mesmo limite no servidor e o navegador não confirma prêmio", async () => {
+  const [packet, hash, circuit, link, gate, widget, security, route] = await Promise.all([
     readFile(new URL("../app/api/games/packet-catch/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/games/hash-match/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/games/circuit-rush/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/games/coin-link/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/ArcadeHumanGate.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/TurnstileWidget.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/security-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/security/route.ts", import.meta.url), "utf8"),
   ]);
-  for (const source of [packet, hash, circuit]) {
+  for (const source of [packet, hash, circuit, link]) {
     assert.match(source, /guardArcadeAction/);
     assert.match(source, /rejectAutomatedSession/);
   }

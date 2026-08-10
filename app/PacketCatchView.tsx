@@ -7,6 +7,7 @@ import ArcadeHumanGate from "./ArcadeHumanGate";
 import { ArcadeStartNotice } from "./ArcadeStartNotice";
 import { describeArcadeStart } from "./arcade-start-rules";
 import { CircuitRushView } from "./CircuitRushView";
+import { CoinLinkView } from "./CoinLinkView";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
@@ -42,6 +43,11 @@ const arcadeGuides = {
     goal: "Siga somente os núcleos verdes na ordem indicada.",
     win: "Complete toda a sequência dentro do tempo do servidor.",
   },
+  link: {
+    avoid: "Trocas sem formar uma linha não avançam o tabuleiro.",
+    goal: "Combine três ou mais moedas iguais e provoque cascatas.",
+    win: "Alcance a meta de pontos antes do tempo ou das jogadas acabarem.",
+  },
 } as const;
 
 function formatPower(powerGh: number) {
@@ -61,7 +67,7 @@ export function PacketCatchView({
   onRefreshAccount: () => Promise<boolean>;
 }) {
   const [activeGame, setActiveGame] = useState<
-    "packet" | "hash" | "circuit"
+    "packet" | "hash" | "circuit" | "link"
   >("packet");
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<GameSession | null>(null);
@@ -360,7 +366,7 @@ export function PacketCatchView({
         <div className="games-balance-seal live">
           <strong>{formatPower(temporaryPowerGh)}</strong>
           <span>PODER TEMPORÁRIO ATIVO</span>
-          <small>3 MINIGAMES CONECTADOS</small>
+          <small>4 MINIGAMES CONECTADOS</small>
         </div>
       </div>
 
@@ -401,6 +407,17 @@ export function PacketCatchView({
             <small>Siga o pulso e evite bloqueios</small>
             <b>NOVO</b>
           </button>
+          <button
+            type="button"
+            className={activeGame === "link" ? "active link" : "link"}
+            onClick={() => setActiveGame("link")}
+            aria-pressed={activeGame === "link"}
+          >
+            <span>04</span>
+            <strong>Coin Cascade</strong>
+            <small>Combine moedas e crie cascatas</small>
+            <b>NOVO</b>
+          </button>
         </nav>
 
         <ArcadeHumanGate>
@@ -412,7 +429,9 @@ export function PacketCatchView({
                   ? "Packet Catch"
                   : activeGame === "hash"
                     ? "Hash Match"
-                    : "Circuit Rush"
+                    : activeGame === "circuit"
+                      ? "Circuit Rush"
+                      : "Coin Cascade"
               }`}
             >
               <div>
@@ -590,6 +609,10 @@ export function PacketCatchView({
 
           {activeGame === "circuit" && (
             <CircuitRushView onRefreshAccount={refreshArcadeAccount} />
+          )}
+
+          {activeGame === "link" && (
+            <CoinLinkView onRefreshAccount={refreshArcadeAccount} />
           )}
           </div>
         </ArcadeHumanGate>

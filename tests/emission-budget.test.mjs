@@ -21,9 +21,9 @@ test("janela de emissão reinicia no próximo dia UTC", () => {
   assert.equal(window.resetAt, Date.UTC(2026, 6, 29));
 });
 
-test("os três minigames reservam poder no orçamento global", async () => {
+test("os quatro minigames reservam poder no orçamento global", async () => {
   const sources = await Promise.all(
-    ["packet-catch", "hash-match", "circuit-rush"].map((game) =>
+    ["packet-catch", "hash-match", "circuit-rush", "coin-link"].map((game) =>
       readFile(
         new URL(`../app/api/games/${game}/route.ts`, import.meta.url),
         "utf8",

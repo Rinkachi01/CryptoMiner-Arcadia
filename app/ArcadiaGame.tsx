@@ -1362,22 +1362,6 @@ function MiningRoom({
             );
           })}
 
-          <div className="room-mode-badge">
-            {editMode ? (
-              <>
-                <span>EDITANDO LAYOUT</span>
-                {rackInventoryCount > 0
-                  ? `${rackInventoryCount} rack disponível · escolha uma posição`
-                  : "Compre um rack na loja e escolha uma posição gratuita"}
-              </>
-            ) : (
-              <>
-                <span>SALA ATIVA</span>
-                Clique em um rack para adicionar mineradores
-              </>
-            )}
-          </div>
-
           <div className="room-coordinates">
             {ROOM_RACK_CAPACITY} POSIÇÕES GRATUITAS · LAYOUT V.03
           </div>

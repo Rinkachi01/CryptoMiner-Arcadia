@@ -42,20 +42,23 @@ test("estado do Arcade explica recarga e limites antes de desativar o botão", (
   assert.equal(daily.label, "LIMITE DIÁRIO ATINGIDO");
 });
 
-test("Arcade mostra tutorial rápido e usa o mesmo aviso nos três jogos", async () => {
-  const [packet, hash, circuit, notice] = await Promise.all([
+test("Arcade mostra tutorial rápido e usa o mesmo aviso nos quatro jogos", async () => {
+  const [packet, hash, circuit, link, notice] = await Promise.all([
     readFile(new URL("../app/PacketCatchView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/HashMatchView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/CircuitRushView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/CoinLinkView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/ArcadeStartNotice.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(packet, /arcade-quick-guide/);
   assert.match(packet, /01 · OBJETIVO/);
   assert.match(packet, /04 · VALIDAÇÃO/);
-  for (const source of [packet, hash, circuit]) {
+  for (const source of [packet, hash, circuit, link]) {
     assert.match(source, /ArcadeStartNotice/);
     assert.match(source, /describeArcadeStart/);
   }
+  assert.match(packet, /4 MINIGAMES CONECTADOS/);
+  assert.match(packet, /Coin Cascade/);
   assert.match(notice, /aria-live="polite"/);
 });
