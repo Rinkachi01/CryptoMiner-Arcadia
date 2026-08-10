@@ -840,7 +840,7 @@ export function AdminDashboard({
             <span>PRÉ-LANÇAMENTO PÚBLICO · SEGURANÇA E FINANÇAS</span>
             <h2>Portões antes de abrir o Arcadia</h2>
           </div>
-          <small>DINHEIRO REAL E SAQUES CONTINUAM DESATIVADOS</small>
+          <small>DEPÓSITOS REAIS EM HOMOLOGAÇÃO · SAQUES CONTINUAM DESATIVADOS</small>
         </div>
 
         <div className="admin-launch-grid">
@@ -889,7 +889,7 @@ export function AdminDashboard({
             <b>05</b>
             <span>CONVERSÃO PARA CMA</span>
             <strong>BTC / DOGE ATIVO</strong>
-            <p>Conversão interna registrada; depósitos continuam bloqueados até o provedor.</p>
+            <p>Conversão interna registrada; depósitos entram em BTC ou DOGE e só viram CMA por decisão do jogador.</p>
           </article>
           <article className="pending">
             <b>06</b>
@@ -985,7 +985,7 @@ export function AdminDashboard({
               <span>PRÓXIMAS AÇÕES DO PROPRIETÁRIO</span>
               <h3 id="owner-next-actions">O que você precisa providenciar</h3>
             </div>
-            <strong>BETA PÚBLICO PRIMEIRO · DINHEIRO REAL DEPOIS</strong>
+            <strong>DEPÓSITOS EM HOMOLOGAÇÃO · SAQUES REAIS DEPOIS</strong>
           </header>
           <div>
             <article className="next">
@@ -1034,11 +1034,11 @@ export function AdminDashboard({
               <b>4</b>
               <div>
                 <span>DEPÓSITOS BTC / DOGE</span>
-                <strong>Contratar um provedor aprovado</strong>
+                  <strong>Monitorar o provedor conectado</strong>
                 <p>
-                  A estrutura individual e o histórico já existem. A cobrança só
-                  será liberada depois da aprovação do provedor, credenciais de
-                  produção e validação do pagamento no servidor.
+                  A estrutura individual, o histórico e as faturas de produção estão
+                  conectados. Confira diariamente IPNs, liquidação, saldos internos e
+                  cobertura da tesouraria antes de ampliar os limites.
                 </p>
               </div>
               <em>

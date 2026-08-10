@@ -58,6 +58,8 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(server, /ledger_model.*individual/s);
+  assert.match(server, /CRYPTO_LIVE_DEPOSITS_OWNER_ONLY/);
+  assert.match(server, /homologação exclusiva da conta fundadora/);
   assert.match(server, /custody_mode.*provider_invoice/s);
   assert.doesNotMatch(server, /private_key|seed_phrase|mnemonic/i);
   assert.match(route, /getArcadiaUser/);

@@ -58,6 +58,7 @@ type WalletResponse = {
   };
   deposits?: {
     assets: ["BTC", "DOGE"];
+    accessAllowed: boolean;
     activationRequested: boolean;
     enabled: boolean;
     liveActivationRequested: boolean;
@@ -65,6 +66,7 @@ type WalletResponse = {
     provider: "nowpayments";
     providerReady: boolean;
     providerSandbox: boolean;
+    ownerOnly: boolean;
     missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     sandboxEnabled: boolean;
     recent: Array<{
@@ -573,7 +575,9 @@ export function ConversionView({
                   ? wallet.deposits.mode === "sandbox"
                     ? "Conectado ao ambiente de testes. Não envie criptomoeda real."
                     : "Conta comercial conectada. Faturas de produção disponíveis."
-                  : wallet?.deposits?.missingSetup?.includes("api_key")
+                  : wallet?.deposits?.ownerOnly && !wallet.deposits.accessAllowed
+                    ? "Faturas reais estão em homologação exclusiva da conta fundadora."
+                    : wallet?.deposits?.missingSetup?.includes("api_key")
                     ? "Falta uma chave de API válida no segredo NOWPAYMENTS_API_KEY."
                     : wallet?.deposits?.missingSetup?.includes("ipn_secret")
                       ? "Falta um segredo IPN com pelo menos 16 caracteres."

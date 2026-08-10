@@ -21,6 +21,7 @@ import {
 type WalletEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
   CRYPTO_LIVE_DEPOSITS_ENABLED?: string;
+  CRYPTO_LIVE_DEPOSITS_OWNER_ONLY?: string;
   CRYPTO_SANDBOX_ENABLED?: string;
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
@@ -80,6 +81,8 @@ export type WalletOverview = {
   deposits: {
     assets: ["BTC", "DOGE"];
     enabled: boolean;
+    accessAllowed: boolean;
+    ownerOnly: boolean;
     activationRequested: boolean;
     liveActivationRequested: boolean;
     provider: "nowpayments";
@@ -116,6 +119,29 @@ export type WalletOverview = {
 
 function cleanEnvironment(environment: unknown) {
   return (environment ?? {}) as WalletEnvironment;
+}
+
+function liveDepositsOwnerOnly(environment: unknown) {
+  return cleanEnvironment(environment).CRYPTO_LIVE_DEPOSITS_OWNER_ONLY
+    ?.trim()
+    .toLowerCase() === "true";
+}
+
+async function accountMayCreateLiveDeposit(
+  db: D1Database,
+  accountId: string,
+  environment: unknown,
+) {
+  const config = readNowPaymentsConfig(environment);
+  if (config.sandbox || !liveDepositsOwnerOnly(environment)) return true;
+  try {
+    const owner = await db
+      .prepare(`SELECT account_id FROM admin_owners WHERE singleton_id = 1`)
+      .first<{ account_id: string }>();
+    return owner?.account_id === accountId;
+  } catch {
+    return false;
+  }
 }
 
 export function walletProviderReadiness(environment: unknown) {
@@ -251,6 +277,9 @@ export async function createProviderDepositIntent(input: {
   const config = readNowPaymentsConfig(input.environment);
   if (!config.depositsEnabled) {
     throw new Error("Depósitos reais ainda aguardam a conta comercial do provedor.");
+  }
+  if (!(await accountMayCreateLiveDeposit(input.db, input.accountId, input.environment))) {
+    throw new Error("Depósitos reais estão em homologação exclusiva da conta fundadora.");
   }
   if (!isNowPaymentsAsset(input.asset)) {
     throw new Error("Escolha BTC ou DOGE para o depósito.");
@@ -779,6 +808,11 @@ export async function readWalletOverview(input: {
   const now = input.now ?? Date.now();
   await ensureWalletSchema(input.db);
   const readiness = walletProviderReadiness(input.environment);
+  const accessAllowed = await accountMayCreateLiveDeposit(
+    input.db,
+    input.accountId,
+    input.environment,
+  );
   const [account, game, intents, withdrawals] = await Promise.all([
     ensurePlayerWalletAccount(
       input.db,
@@ -820,12 +854,14 @@ export async function readWalletOverview(input: {
     deposits: {
       assets: ["BTC", "DOGE"],
       activationRequested: readiness.activationRequested,
-      enabled: readiness.depositsEnabled,
+      accessAllowed,
+      enabled: readiness.depositsEnabled && accessAllowed,
       liveActivationRequested: readiness.liveActivationRequested,
       mode: readiness.mode,
       provider: readiness.provider,
       providerReady: readiness.providerReady,
       providerSandbox: readiness.providerSandbox,
+      ownerOnly: liveDepositsOwnerOnly(input.environment),
       missingSetup: readiness.missingSetup,
       sandboxEnabled: readiness.sandboxEnabled,
       recent: (intents.results ?? []).map((intent) => ({
