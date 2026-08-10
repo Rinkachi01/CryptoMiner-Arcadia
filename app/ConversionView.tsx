@@ -544,6 +544,9 @@ export function ConversionView({
         </>
       ) : (
         <section className="wallet-deposit-panel">
+          {!wallet && error && (
+            <p className="conversion-error" role="alert">{error}</p>
+          )}
           <header>
             <span>
               {wallet?.deposits?.mode === "sandbox"

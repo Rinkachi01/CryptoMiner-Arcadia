@@ -28,7 +28,11 @@ export async function GET() {
         environment: env,
       }),
     );
-  } catch {
+  } catch (error) {
+    console.error(
+      "wallet_overview_failed",
+      error instanceof Error ? error.message : "unknown_error",
+    );
     return json({ error: "Não foi possível preparar a carteira agora." }, 503);
   }
 }
