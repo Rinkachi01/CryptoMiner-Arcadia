@@ -32,10 +32,11 @@
     "CRYPTO_DEPOSITS_ENABLED": "false",
     "AUTH_CAPTCHA_REQUIRED": "true",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEEpj8fea0Bp_Y3_",
-    "TURNSTILE_REQUIRED": "false",
+    "TURNSTILE_HOSTNAME": "crypto-miner-arcadia.criptomineracardia.workers.dev",
+    "TURNSTILE_REQUIRED": "true",
     "EMAIL_PROVIDER": "google_apps_script",
     "GOOGLE_MAIL_WEBHOOK_URL": "https://script.google.com/macros/s/AKfycbxL3adoOmYzRwR0ylImzpPFI074_GQn2zIn58Rh_p3M3r6o2qtp-CYjKJarfgzPK_RlIA/exec",
-    "SUPPORT_EMAIL_TO": "criptomineracardia@gmail.com",
+    "SUPPORT_EMAIL_TO": "cryptominerarcadia.support@gmail.com",
     "TRANSACTIONAL_EMAIL_ENABLED": "true"
   },
   "observability": {
