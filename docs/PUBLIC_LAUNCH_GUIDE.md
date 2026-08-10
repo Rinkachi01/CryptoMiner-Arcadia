@@ -232,36 +232,28 @@ do provedor → valida estado final, moeda, valor, invoice e idempotência
 → razão contábil credita BTC/DOGE uma única vez
 ```
 
-O navegador nunca confirma pagamento. No caso do BitPay, a notificação IPN não é assinada e deve ser usada apenas como gatilho: o servidor precisa consultar a invoice novamente na API e só aceitar `confirmed` ou `complete`. Reembolsos, pagamento insuficiente/excessivo e expiração precisam de estados próprios.
+O navegador nunca confirma pagamento. O fluxo adotado usa uma fatura hospedada
+do NOWPayments. A notificação IPN precisa apresentar HMAC SHA-512 válido e o
+servidor confere moeda, identificador, valor, estado final e idempotência antes
+de alterar o livro-razão. Pagamento parcial, falha, reembolso e expiração possuem
+estados próprios.
 
-BitPay é um candidato porque suas invoices aceitam BTC e DOGE e seu produto de
-payout documenta BTC e DOGE, conforme disponibilidade e aprovação da conta. A
-tarifa pública de processamento está na faixa de 1% a 2% + US$ 0,25 por
-transação; contas de produção passam por análise de conformidade. Confirmar se
-a operação e o modelo Arcadia são aceitos no Brasil antes de integrar.
+O NOWPayments foi escolhido para a primeira integração porque oferece BTC,
+DOGE, faturas hospedadas, IPN assinado e ambiente sandbox. O provedor recebe o
+pagamento e encaminha a liquidação para a carteira comercial cadastrada pelo
+proprietário. O Arcadia não guarda seed phrase ou chave privada.
 
-Comparação prática:
-
-- **BitPay:** melhor encaixe técnico atual para BTC e DOGE e para o modelo de
-  fatura sob custódia do provedor; no menor volume cobra 2% + US$ 0,25 e exige
-  aprovação comercial/compliance.
-- **CoinGate:** tarifa pública de 1%, mas suporte aos países, ao modelo de jogo,
-  moedas, liquidação e payout precisa ser confirmado na aprovação da empresa.
-- **NOWPayments:** tarifa pública menor (0,5% em pagamento sem conversão), porém
-  o fluxo padrão é não custodial e envia para carteira do comerciante. Isso
-  transfere mais responsabilidade de chaves e conciliação para o Arcadia e não é
-  a primeira escolha de segurança.
-
-Escolher pelo contrato e pela aprovação da operação, não apenas pela menor taxa.
-Nenhuma credencial financeira deve ser criada em nome pessoal para produção.
+Essa escolha não elimina aprovação comercial, KYC/AML, restrições geográficas,
+política de reembolso, registros contábeis ou obrigações da jurisdição aplicável.
+Nenhuma credencial financeira deve ser criada em nome de um jogador ou enviada
+ao navegador.
 
 Fontes oficiais:
 
-- https://www.bitpay.com/pricing
-- https://developer.bitpay.com/docs/integration-1
-- https://developer.bitpay.com/reference/payouts
-- https://support.bitpay.com/hc/en-us/articles/203411543-What-cryptocurrencies-can-I-use-to-pay-a-BitPay-Invoice
-- https://support.bitpay.com/hc/en-us/articles/201890513-What-are-my-options-for-settlement
+- https://nowpayments.io/api
+- https://nowpayments.io/help/what-is/what-is-ipn
+- https://documenter.getpostman.com/view/7907941/2s93JusNJt
+- https://nowpayments.io/blog/how-to-use-the-sandbox-a-guide
 
 ### Modelo de carteira escolhido
 
@@ -273,7 +265,10 @@ O RollerCoin apresenta um endereço de depósito ligado à conta do jogador. Par
 - o Arcadia credita o livro-razão apenas depois de consultar e validar o estado final da invoice;
 - seed phrase, chave privada e carteira quente não entram no código, banco ou navegador do Arcadia.
 
-As tabelas de contas de carteira, intenções de depósito e eventos do provedor já estão preparadas. A criação de invoices permanece desligada por configuração até o contrato e as credenciais de produção existirem.
+As tabelas de contas de carteira, intenções de depósito e eventos do provedor,
+o webhook assinado e o crédito idempotente já estão preparados. A criação de
+faturas reais permanece desligada até a conta comercial, a carteira de
+recebimento e os testes de sandbox serem aprovados.
 
 ### Conversão de BTC ou DOGE para CMA
 
@@ -331,7 +326,8 @@ Fontes oficiais:
 - [x] Migrar a conta fundadora verificada para o D1 público e validar saldo,
       inventário, rede e auditoria.
 - [ ] Abrir beta público sem dinheiro real e observar pelo menos duas semanas.
-- [ ] Escolher processador e concluir aprovação antes de programar depósitos.
+- [x] Escolher processador e preparar o adaptador seguro de depósitos.
+- [ ] Concluir aprovação comercial e ensaio sandbox do NOWPayments.
 - [ ] Manter depósito e saque desativados até parecer jurídico e provedor aprovado; liberar primeiro somente depósitos BTC/DOGE → saldo interno → CMA.
 
 ## Critério de abertura

@@ -21,7 +21,8 @@ test("pré-lançamento falha fechado sem serviços externos", () => {
 test("configuração prepara login e depósito sem ativá-los implicitamente", () => {
   const readiness = readPublicLaunchReadiness(
     {
-      BITPAY_TOKEN: "token-producao",
+      NOWPAYMENTS_API_KEY: "api-key-producao-comprida",
+      NOWPAYMENTS_IPN_SECRET: "segredo-ipn-producao",
       CRYPTO_DEPOSITS_ENABLED: "false",
       PUBLIC_BASE_URL: "https://jogar.arcadia.example",
       PUBLIC_LOGIN_ENABLED: "false",

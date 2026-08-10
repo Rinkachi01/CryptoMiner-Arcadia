@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
+  createProviderDepositIntent,
   createSandboxDepositIntent,
   createSandboxWithdrawalIntent,
   readWalletOverview,
@@ -46,6 +47,18 @@ export async function POST(request: Request) {
       return json({
         message: "Fatura simulada criada. Nenhum dinheiro ou cripto foi movimentado.",
         simulation: await createSandboxDepositIntent({
+          accountId,
+          asset: body.asset,
+          db: env.DB,
+          environment: env,
+          usdAmount: body.usdAmount,
+        }),
+      });
+    }
+    if (body.action === "create-deposit") {
+      return json({
+        message: "Fatura criada pelo provedor. O saldo só será liberado após confirmação na rede.",
+        deposit: await createProviderDepositIntent({
           accountId,
           asset: body.asset,
           db: env.DB,

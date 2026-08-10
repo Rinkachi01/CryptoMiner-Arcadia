@@ -312,7 +312,7 @@ export function normalizeBootstrapState(
       : "CMA",
     cmaBalance: safeNumber(candidate.cmaBalance, 86.4, 0, 100),
     btcBalanceAtomic: Math.floor(
-      safeNumber(candidate.btcBalanceAtomic, 1284, 0, 1_000_000),
+      safeNumber(candidate.btcBalanceAtomic, 1284, 0, 10_000_000_000),
     ),
     dogeBalanceAtomic: Math.floor(
       safeNumber(candidate.dogeBalanceAtomic, 642_000_000, 0, 1_000_000_000_000),

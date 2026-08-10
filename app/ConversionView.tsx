@@ -59,14 +59,16 @@ type WalletResponse = {
   deposits?: {
     assets: ["BTC", "DOGE"];
     enabled: boolean;
-    provider: "bitpay";
+    provider: "nowpayments";
     providerReady: boolean;
     sandboxEnabled: boolean;
     recent: Array<{
       asset: string;
+      checkoutUrl: string | null;
       createdAt: number;
       expiresAt: number | null;
       id: string;
+      provider: string;
       requestedUsd: number;
       status: string;
     }>;
@@ -96,6 +98,20 @@ type SandboxResponse = {
     requestedUsd?: number;
     status: "simulation_only";
   };
+};
+
+type DepositResponse = {
+  deposit?: {
+    asset: ConvertibleAsset;
+    checkoutUrl: string;
+    expiresAt: number;
+    id: string;
+    provider: "nowpayments";
+    requestedUsd: number;
+    status: "waiting";
+  };
+  error?: string;
+  message?: string;
 };
 
 type ConversionViewProps = {
@@ -159,6 +175,9 @@ export function ConversionView({
   const [sandboxError, setSandboxError] = useState("");
   const [sandboxMessage, setSandboxMessage] = useState("");
   const [sandboxUsd, setSandboxUsd] = useState("10");
+  const [depositUsd, setDepositUsd] = useState("10");
+  const [depositBusy, setDepositBusy] = useState<ConvertibleAsset | null>(null);
+  const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -299,6 +318,32 @@ export function ConversionView({
     }
   }
 
+  async function createDeposit(assetId: ConvertibleAsset) {
+    setDepositBusy(assetId);
+    setDepositError("");
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify({
+          action: "create-deposit",
+          asset: assetId,
+          usdAmount: depositUsd,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as DepositResponse;
+      if (!response.ok || !payload.deposit?.checkoutUrl) {
+        throw new Error(payload.error ?? "O provedor não criou a fatura.");
+      }
+      window.location.assign(payload.deposit.checkoutUrl);
+    } catch (reason) {
+      setDepositError(
+        reason instanceof Error ? reason.message : "Não foi possível criar a fatura.",
+      );
+      setDepositBusy(null);
+    }
+  }
+
   return (
     <section className="conversion-center wallet-center">
       <header className="conversion-hero">
@@ -314,7 +359,7 @@ export function ConversionView({
         <aside className="wallet-status-card">
           <b>CONVERSÃO INTERNA</b>
           <strong>ATIVA E REGISTRADA</strong>
-          <small>Depósitos reais aguardam o provedor regulado.</small>
+          <small>Depósitos reais usam fatura externa e confirmação assinada.</small>
         </aside>
       </header>
 
@@ -475,14 +520,35 @@ export function ConversionView({
       ) : (
         <section className="wallet-deposit-panel">
           <header>
-            <span>DEPÓSITOS REAIS · ESTRUTURA PREPARADA</span>
+            <span>DEPÓSITOS REAIS · NOWPAYMENTS</span>
             <h3>Uma fatura única para cada depósito</h3>
             <p>
-              O Arcadia não guardará chaves privadas. Quando o provedor for aprovado e
-              conectado, ele criará uma fatura/endereço para a operação e o servidor
-              creditará o saldo individual somente após confirmação na rede.
+              O Arcadia não guarda chaves privadas. O provedor cria uma fatura única e
+              envia uma confirmação assinada; o servidor credita BTC ou DOGE uma única
+              vez somente quando o pagamento chega ao estado concluído.
             </p>
           </header>
+          <div className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
+            <div>
+              <small>PROVEDOR DE ENTRADA</small>
+              <strong>NOWPayments · somente depósitos</strong>
+              <span>
+                {wallet?.deposits?.enabled
+                  ? "Conta comercial conectada. Faturas reais disponíveis."
+                  : "Integração pronta; falta cadastrar a chave da conta comercial e a carteira de recebimento."}
+              </span>
+            </div>
+            <label>
+              VALOR DA FATURA EM USD
+              <input
+                inputMode="decimal"
+                value={depositUsd}
+                onChange={(event) => setDepositUsd(event.target.value)}
+              />
+              <small>Mínimo local US$ 5 · máximo US$ 1.000</small>
+            </label>
+          </div>
+          {depositError && <p className="conversion-error" role="alert">{depositError}</p>}
           {wallet?.deposits?.sandboxEnabled && (
             <section className="wallet-sandbox-lab" aria-labelledby="wallet-sandbox-title">
               <header>
@@ -571,20 +637,47 @@ export function ConversionView({
                   <strong>{assetVisuals[id].name}</strong>
                   <span>{id === "BTC" ? "Rede Bitcoin" : "Rede Dogecoin"}</span>
                 </div>
-                <button type="button" disabled>
-                  {wallet?.deposits?.enabled ? "CRIAR FATURA" : "AGUARDANDO PROVEDOR"}
+                <button
+                  type="button"
+                  disabled={!wallet?.deposits?.enabled || depositBusy !== null}
+                  onClick={() => void createDeposit(id)}
+                >
+                  {depositBusy === id
+                    ? "CRIANDO FATURA…"
+                    : wallet?.deposits?.enabled
+                      ? "CRIAR FATURA SEGURA"
+                      : "AGUARDANDO CONEXÃO"}
                 </button>
               </article>
             ))}
           </div>
+          {wallet?.deposits?.recent.some((item) => item.provider === "nowpayments") && (
+            <div className="wallet-live-history">
+              <span>FATURAS RECENTES</span>
+              {wallet.deposits.recent
+                .filter((item) => item.provider === "nowpayments")
+                .slice(0, 4)
+                .map((item) => (
+                  <article key={item.id}>
+                    <b>{item.asset}</b>
+                    <span>{formatUsd(item.requestedUsd)}</span>
+                    <em>{item.status.replaceAll("_", " ").toUpperCase()}</em>
+                    {item.checkoutUrl && item.status !== "credited" && (
+                      <a href={item.checkoutUrl} rel="noreferrer">ABRIR FATURA</a>
+                    )}
+                  </article>
+                ))}
+            </div>
+          )}
           <div className="wallet-deposit-flow">
             <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
             <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>O aviso externo é conferido novamente no provedor.</small></span></article>
             <article><b>3</b><span><strong>CRÉDITO</strong><small>BTC ou DOGE entra uma única vez no seu livro-razão.</small></span></article>
           </div>
           <p className="wallet-provider-notice">
-            <strong>DEPÓSITO AINDA DESATIVADO.</strong> Nunca envie criptomoeda para um
-            endereço que não tenha sido gerado dentro desta tela após a ativação oficial.
+            <strong>{wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
+            Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
+            dentro desta tela após a ativação oficial.
           </p>
         </section>
       )}

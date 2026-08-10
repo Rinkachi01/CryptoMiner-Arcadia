@@ -1,8 +1,9 @@
 import { walletProviderReadiness } from "./wallet-server.ts";
 
 type PublicLaunchEnvironment = {
-  BITPAY_TOKEN?: string;
   CRYPTO_DEPOSITS_ENABLED?: string;
+  NOWPAYMENTS_API_KEY?: string;
+  NOWPAYMENTS_IPN_SECRET?: string;
   PUBLIC_BASE_URL?: string;
   PUBLIC_LOGIN_ENABLED?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
@@ -14,7 +15,7 @@ export type PublicLaunchReadiness = {
     configured: boolean;
     enabled: boolean;
     model: "provider_invoice";
-    provider: "bitpay_candidate";
+    provider: "nowpayments";
     sandboxEnabled: boolean;
   };
   hosting: {
@@ -100,7 +101,7 @@ export function readPublicLaunchReadiness(
       configured: deposits.providerReady,
       enabled: deposits.depositsEnabled,
       model: "provider_invoice",
-      provider: "bitpay_candidate",
+      provider: "nowpayments",
       sandboxEnabled: deposits.sandboxEnabled,
     },
     hosting: hostingStatus(requestUrl ?? source.PUBLIC_BASE_URL),

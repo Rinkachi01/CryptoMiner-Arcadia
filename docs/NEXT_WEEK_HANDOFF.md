@@ -57,18 +57,19 @@ automatizadas não concede poder nem altera o inventário.
 
 Objetivo: concluir o livro-razão e a cotação antes de aceitar dinheiro real.
 
-Já existe: carteira interna, saldo atômico, prévia de cotação, validade, taxa e
-execução autoritativa de conversão.
+Já existe: carteira interna, saldo atômico, prévia de cotação, validade, taxa,
+execução autoritativa de conversão e adaptador NOWPayments para faturas
+BTC/DOGE com IPN assinado, idempotência e crédito confirmado pelo servidor. O
+adaptador permanece desligado até a aprovação comercial e o ensaio no sandbox.
 
 Ainda falta:
 
-1. escolher um provedor custodial/comercial aprovado para endereços de
-   depósito e webhooks;
+1. abrir e obter aprovação da conta comercial NOWPayments;
 2. decidir jurisdição, empresa, KYC/AML e política de reembolso;
-3. obter cotação de mercado redundante e registrar a fonte usada;
-4. definir confirmações mínimas separadas para BTC e DOGE;
+3. cadastrar as credenciais do sandbox diretamente como segredos do Worker;
+4. validar fatura, pagamento parcial, expiração, confirmação e repetição de IPN;
 5. reconciliar depósito, crédito, conversão, estorno e exceções;
-6. testar tudo em sandbox antes de ativar qualquer credencial real.
+6. executar revisão jurídica e operacional antes de qualquer credencial real.
 
 Regras fixas: CMA é saldo interno e não possui saque; depósito não guarda seed
 phrase no Arcadia; nenhum crédito nasce de informação enviada pelo navegador.

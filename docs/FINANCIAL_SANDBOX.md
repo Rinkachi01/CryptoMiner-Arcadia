@@ -15,7 +15,7 @@ criptomoeda, não debita saldo e não concede CMA.
 ## O que permanece bloqueado
 
 - endereço real de depósito;
-- webhook ou confirmação de blockchain;
+- webhook real ou confirmação de blockchain;
 - crédito de BTC, DOGE ou CMA;
 - qualquer saque ou transferência;
 - custódia de seed phrase ou chave privada.
@@ -26,3 +26,7 @@ Antes de trocar o laboratório por um provedor, o proprietário precisa concluir
 contrato com uma empresa de pagamentos/custódia, KYC/AML, limites, política de
 reembolso, reserva, revisão jurídica e testes de webhook idempotente. O CMA
 continua sendo crédito interno não sacável.
+
+O adaptador escolhido é o NOWPayments. A integração real fica atrás de três
+segredos/configurações do servidor: chave de API, segredo IPN e ativação
+explícita. Sem os três, nenhuma fatura real pode ser criada.

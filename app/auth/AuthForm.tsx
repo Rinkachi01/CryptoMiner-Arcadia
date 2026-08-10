@@ -30,6 +30,16 @@ function friendlyError(message: string) {
   if (normalized.includes("email not confirmed")) {
     return "Confirme seu e-mail antes de entrar. Você pode reenviar a confirmação pelo cadastro.";
   }
+  if (
+    normalized.includes("error sending confirmation email") ||
+    normalized.includes("unexpected_failure") ||
+    normalized.includes("unexpected failure")
+  ) {
+    return "O cadastro foi pausado porque o serviço de e-mail está indisponível. Nenhuma conta foi criada. Tente novamente mais tarde ou abra um chamado.";
+  }
+  if (normalized.includes("captcha") || normalized.includes("turnstile")) {
+    return "A verificação humana expirou. Confirme novamente e repita o envio.";
+  }
   return "Não foi possível concluir agora. Revise os dados e tente novamente.";
 }
 

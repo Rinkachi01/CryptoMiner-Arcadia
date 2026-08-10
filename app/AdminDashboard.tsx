@@ -959,7 +959,7 @@ export function AdminDashboard({
                     ? "CONFIGURADO, MAS BLOQUEADO"
                     : overview.launch.deposits.sandboxEnabled
                       ? "LABORATÓRIO SEM DINHEIRO ATIVO"
-                    : "BITPAY EM AVALIAÇÃO"}
+                    : "NOWPAYMENTS AGUARDANDO CONTA"}
               </em>
             </article>
             <article className="blocked">

@@ -32,7 +32,7 @@ atual. A conta Cloudflare foi conectada em 2 de agosto de 2026.
 6. Segredos, somente quando existirem:
    - `ARCADIA_OWNER_ACCOUNT_ID`, vínculo exclusivo da conta fundadora;
    - `TURNSTILE_SECRET`;
-   - `BITPAY_TOKEN` ou token do provedor aprovado;
+   - `NOWPAYMENTS_API_KEY` e `NOWPAYMENTS_IPN_SECRET` do provedor aprovado;
    - `COINGECKO_API_KEY`.
 
 Nunca cadastrar `service_role`/secret key do Supabase no navegador. O Arcadia
