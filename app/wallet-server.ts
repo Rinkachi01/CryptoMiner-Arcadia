@@ -81,6 +81,7 @@ export type WalletOverview = {
     enabled: boolean;
     provider: "nowpayments";
     providerReady: boolean;
+    missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     mode: "disabled" | "live" | "sandbox";
     sandboxEnabled: boolean;
     recent: Array<{
@@ -120,6 +121,11 @@ export function walletProviderReadiness(environment: unknown) {
     depositsEnabled: config.depositsEnabled,
     provider: "nowpayments" as const,
     providerReady: config.providerReady,
+    missingSetup: [
+      ...(!config.apiKeyConfigured ? (["api_key"] as const) : []),
+      ...(!config.ipnSecretConfigured ? (["ipn_secret"] as const) : []),
+      ...(!config.publicBaseUrlConfigured ? (["public_url"] as const) : []),
+    ],
     mode: config.depositsEnabled
       ? config.sandbox
         ? ("sandbox" as const)
@@ -831,6 +837,7 @@ export async function readWalletOverview(input: {
       mode: readiness.mode,
       provider: readiness.provider,
       providerReady: readiness.providerReady,
+      missingSetup: readiness.missingSetup,
       sandboxEnabled: readiness.sandboxEnabled,
       recent: (intents.results ?? []).map((intent) => ({
         asset: intent.asset,

@@ -62,6 +62,7 @@ type WalletResponse = {
     mode: "disabled" | "live" | "sandbox";
     provider: "nowpayments";
     providerReady: boolean;
+    missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     sandboxEnabled: boolean;
     recent: Array<{
       asset: string;
@@ -548,7 +549,13 @@ export function ConversionView({
                   ? wallet.deposits.mode === "sandbox"
                     ? "Conectado ao ambiente de testes. Não envie criptomoeda real."
                     : "Conta comercial conectada. Faturas de produção disponíveis."
-                  : "Integração pronta; falta cadastrar a chave da conta comercial e a carteira de recebimento."}
+                  : wallet?.deposits?.missingSetup?.includes("api_key")
+                    ? "Falta uma chave de API válida no segredo NOWPAYMENTS_API_KEY."
+                    : wallet?.deposits?.missingSetup?.includes("ipn_secret")
+                      ? "Falta um segredo IPN com pelo menos 16 caracteres."
+                      : wallet?.deposits?.missingSetup?.includes("public_url")
+                        ? "Falta configurar a URL pública HTTPS do Arcadia."
+                        : "O provedor está configurado, mas a ativação permanece bloqueada."}
               </span>
             </div>
             <label>

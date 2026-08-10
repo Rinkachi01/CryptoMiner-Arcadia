@@ -6,6 +6,7 @@ import { walletProviderReadiness } from "../app/wallet-server.ts";
 test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
   assert.deepEqual(walletProviderReadiness({}), {
     depositsEnabled: false,
+    missingSetup: ["api_key", "ipn_secret", "public_url"],
     mode: "disabled",
     provider: "nowpayments",
     providerReady: false,
@@ -20,6 +21,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
     }),
     {
       depositsEnabled: false,
+      missingSetup: [],
       mode: "disabled",
       provider: "nowpayments",
       providerReady: true,

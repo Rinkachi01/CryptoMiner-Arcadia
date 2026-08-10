@@ -37,13 +37,15 @@ export function readNowPaymentsConfig(environment: unknown) {
   const requestedApiBase = clean(source.NOWPAYMENTS_API_BASE_URL);
   const apiBaseUrl =
     requestedApiBase === SANDBOX_API ? SANDBOX_API : PRODUCTION_API;
+  const apiKeyConfigured = apiKey.length >= 24;
+  const ipnSecretConfigured = ipnSecret.length >= 16;
+  const publicBaseUrlConfigured = validPublicBaseUrl(publicBaseUrl);
   const providerReady = Boolean(
-    apiKey.length >= 24 &&
-      ipnSecret.length >= 16 &&
-      validPublicBaseUrl(publicBaseUrl),
+    apiKeyConfigured && ipnSecretConfigured && publicBaseUrlConfigured,
   );
   return {
     apiBaseUrl,
+    apiKeyConfigured,
     apiKey,
     depositsEnabled:
       providerReady &&
@@ -51,8 +53,10 @@ export function readNowPaymentsConfig(environment: unknown) {
       (apiBaseUrl === SANDBOX_API ||
         enabled(source.CRYPTO_LIVE_DEPOSITS_ENABLED)),
     ipnSecret,
+    ipnSecretConfigured,
     providerReady,
     publicBaseUrl,
+    publicBaseUrlConfigured,
     sandbox: apiBaseUrl === SANDBOX_API,
   };
 }
