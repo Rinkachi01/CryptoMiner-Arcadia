@@ -2,9 +2,9 @@ import {
   CONVERSION_FEE_BPS,
   CONVERSION_MIN_USD,
   CONVERSION_QUOTE_TTL_MS,
-  amountToAtomic,
   applyInternalConversionBalances,
-  calculateConversionQuote,
+  calculateCmaPurchaseQuote,
+  cmaUnitsFromInput,
   conversionAssets,
   getConversionAsset,
   isConversionAsset,
@@ -90,6 +90,7 @@ export type ConversionQuote = {
   netCma: number;
   rateUsd: number;
   status: "preview";
+  targetCma: number;
 };
 
 export type ConversionOverview = {
@@ -311,19 +312,19 @@ export async function readMarketRates(
 
 export async function createConversionQuote(input: {
   accountId: string;
-  amount: string;
   asset: unknown;
   db: D1Database;
   environment: unknown;
   now?: number;
+  targetCma: unknown;
 }) {
   const now = input.now ?? Date.now();
   await ensureConversionSchema(input.db);
   if (!isConversionAsset(input.asset)) {
     throw new Error("Moeda de conversão inválida.");
   }
-  const amountAtomic = amountToAtomic(input.amount, input.asset);
-  if (!amountAtomic) throw new Error("Informe uma quantidade válida, com até 8 casas decimais.");
+  const targetCma = cmaUnitsFromInput(input.targetCma);
+  if (!targetCma) throw new Error("Escolha uma quantidade inteira de CMA, a partir de 1.");
 
   const recent = await input.db
     .prepare(`SELECT COUNT(*) AS total FROM conversion_quotes
@@ -343,11 +344,12 @@ export async function createConversionQuote(input: {
   if (rate.stale) {
     throw new Error("Cotação atual indisponível. Aguarde alguns instantes e tente novamente.");
   }
-  const calculated = calculateConversionQuote(
+  const calculated = calculateCmaPurchaseQuote(
     input.asset,
-    amountAtomic,
+    targetCma,
     rate.usdPrice,
   );
+  const amountAtomic = calculated.assetAmountAtomic;
   const id = crypto.randomUUID();
   const expiresAt = now + CONVERSION_QUOTE_TTL_MS;
   await input.db
@@ -387,6 +389,7 @@ export async function createConversionQuote(input: {
     netCma: calculated.netCma,
     rateUsd: rate.usdPrice,
     status: "preview",
+    targetCma,
   };
   return quote;
 }
@@ -501,7 +504,10 @@ export async function executeConversionQuote(input: {
   if (quote.asset !== "BTC" && quote.asset !== "DOGE") {
     throw new ConversionExecutionError("Somente BTC e DOGE podem ser convertidos nesta fase.");
   }
-  if (quote.gross_cma_micros < CONVERSION_MIN_USD * 1_000_000) {
+  if (
+    quote.net_cma_micros < CONVERSION_MIN_USD * 1_000_000 ||
+    quote.net_cma_micros % 1_000_000 !== 0
+  ) {
     throw new ConversionExecutionError("A conversão está abaixo do mínimo econômico.");
   }
 
@@ -526,6 +532,7 @@ export async function executeConversionQuote(input: {
     feeCmaMicros: quote.fee_cma_micros,
     grossCmaMicros: quote.gross_cma_micros,
     netCmaMicros: quote.net_cma_micros,
+    targetCma: quote.net_cma_micros / 1_000_000,
     oneWayOnly: true,
     quoteId: quote.id,
     source: "internal_wallet",

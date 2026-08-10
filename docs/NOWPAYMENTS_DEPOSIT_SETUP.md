@@ -3,8 +3,9 @@
 O Arcadia usa o NOWPayments somente como porta de entrada. Cada compra de saldo
 gera uma fatura única. O usuário paga em BTC ou DOGE; o provedor liquida a
 tesouraria em USDT TRC20 e envia um IPN assinado. Depois dessas conferências, o
-servidor credita CMA líquido no livro-razão individual. O CMA continua interno
-e não sacável.
+servidor credita exatamente BTC ou DOGE no livro-razão individual. O jogador
+decide depois quantas unidades inteiras de CMA quer comprar. O CMA continua
+interno e não sacável.
 
 ## O que o proprietário precisa criar
 
@@ -31,12 +32,14 @@ NOWPAYMENTS_API_KEY
 NOWPAYMENTS_IPN_SECRET
 ```
 
-Durante os testes, manter o endpoint sandbox e a trava de produção:
+Na homologação atual, a produção permanece restrita à conta fundadora:
 
 ```text
-NOWPAYMENTS_API_BASE_URL=https://api-sandbox.nowpayments.io/v1
+NOWPAYMENTS_API_BASE_URL=https://api.nowpayments.io/v1
 CRYPTO_DEPOSITS_ENABLED=true
-CRYPTO_LIVE_DEPOSITS_ENABLED=false
+CRYPTO_LIVE_DEPOSITS_ENABLED=true
+CRYPTO_LIVE_DEPOSITS_OWNER_ONLY=true
+CRYPTO_SANDBOX_ENABLED=false
 ```
 
 O callback que deve ser autorizado no provedor é:
@@ -56,15 +59,16 @@ seed phrase ou chave privada ao Arcadia.
 - pagamento parcial sem crédito completo;
 - assinatura IPN adulterada recusada;
 - repetição do mesmo IPN sem crédito duplicado;
-- pagamento BTC liquidado em USDT TRC20 e creditado uma única vez em CMA;
-- pagamento DOGE liquidado em USDT TRC20 e creditado uma única vez em CMA;
-- valor liquidado abaixo do CMA líquido encaminhado para revisão, sem crédito;
+- pagamento BTC liquidado em USDT TRC20 e creditado uma única vez em BTC;
+- pagamento DOGE liquidado em USDT TRC20 e creditado uma única vez em DOGE;
+- depósito confirmado não cria CMA automaticamente;
+- compra manual de 1, 2 e 3 CMA debita somente a cripto calculada na cotação;
+- valor liquidado divergente encaminhado para revisão, sem crédito indevido;
 - reembolso e exceção encaminhados para revisão administrativa.
 
-Somente depois desses testes, de uma credencial de produção nova e de revisão
-jurídica/contábil, o proprietário pode trocar o endpoint para produção e alterar
-`CRYPTO_LIVE_DEPOSITS_ENABLED` para `true`. A primeira ativação deve usar limites
-baixos e poucas contas autorizadas.
+Somente depois desses testes e de revisão jurídica/contábil o proprietário pode
+retirar `CRYPTO_LIVE_DEPOSITS_OWNER_ONLY`. A ampliação deve usar limites baixos,
+poucas contas autorizadas e reconciliação diária da tesouraria.
 
 ## Saques manuais
 

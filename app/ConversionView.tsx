@@ -32,6 +32,7 @@ type Quote = {
   netCma: number;
   rateUsd: number;
   status: "preview";
+  targetCma: number;
 };
 
 type ConversionResponse = {
@@ -168,7 +169,7 @@ export function ConversionView({
 }: ConversionViewProps) {
   const [tab, setTab] = useState<WalletTab>("deposit");
   const [asset, setAsset] = useState<ConvertibleAsset>("BTC");
-  const [amount, setAmount] = useState("0.0001");
+  const [targetCma, setTargetCma] = useState("1");
   const [rates, setRates] = useState<MarketRate[]>([]);
   const [policy, setPolicy] = useState<ConversionResponse["policy"]>();
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
@@ -241,6 +242,38 @@ export function ConversionView({
   );
   const selectedBalanceAtomic =
     asset === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
+  const targetCmaUnits = /^\d+$/.test(targetCma) ? Number(targetCma) : 0;
+  const estimatedAssetAtomic = useMemo(() => {
+    if (
+      !selectedRate ||
+      !policy ||
+      !Number.isSafeInteger(targetCmaUnits) ||
+      targetCmaUnits < 1 ||
+      targetCmaUnits > 1_000_000
+    ) {
+      return 0;
+    }
+    const grossCma = targetCmaUnits / (1 - policy.feeBps / 10_000);
+    return Math.ceil(
+      ((grossCma * policy.cmaUsdReference) / selectedRate.usdPrice) * 100_000_000,
+    );
+  }, [policy, selectedRate, targetCmaUnits]);
+  const maximumCmaUnits = useMemo(() => {
+    if (!selectedRate || !policy || selectedBalanceAtomic <= 0) return 0;
+    const availableUsd = (selectedBalanceAtomic / 100_000_000) * selectedRate.usdPrice;
+    let maximum = Math.floor(
+      (availableUsd / policy.cmaUsdReference) * (1 - policy.feeBps / 10_000),
+    );
+    while (maximum > 0) {
+      const grossCma = maximum / (1 - policy.feeBps / 10_000);
+      const requiredAtomic = Math.ceil(
+        ((grossCma * policy.cmaUsdReference) / selectedRate.usdPrice) * 100_000_000,
+      );
+      if (requiredAtomic <= selectedBalanceAtomic) break;
+      maximum -= 1;
+    }
+    return Math.max(0, maximum);
+  }, [policy, selectedBalanceAtomic, selectedRate]);
   async function requestQuote() {
     setQuoting(true);
     setQuote(null);
@@ -248,7 +281,7 @@ export function ConversionView({
     setSuccess("");
     try {
       const response = await fetch("/api/conversion", {
-        body: JSON.stringify({ action: "quote", amount, asset }),
+        body: JSON.stringify({ action: "quote", asset, targetCma }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
@@ -294,10 +327,24 @@ export function ConversionView({
     }
   }
 
-  function useFullBalance() {
-    setAmount((selectedBalanceAtomic / 100_000_000).toFixed(8));
+  function changeTargetCma(delta: number) {
+    const current = Number.isSafeInteger(targetCmaUnits) && targetCmaUnits >= 1
+      ? targetCmaUnits
+      : 1;
+    setTargetCma(String(Math.min(1_000_000, Math.max(1, current + delta))));
     setQuote(null);
     setError("");
+  }
+
+  function useMaximumCma() {
+    setQuote(null);
+    setSuccess("");
+    if (maximumCmaUnits < 1) {
+      setError(`Seu saldo em ${asset} ainda não compra 1 CMA.`);
+      return;
+    }
+    setError("");
+    setTargetCma(String(maximumCmaUnits));
   }
 
   async function runSandbox(action: "deposit" | "withdrawal") {
@@ -463,26 +510,42 @@ export function ConversionView({
 
           <div className="conversion-layout">
             <section className="conversion-form-card">
-              <span>01 · INFORME A QUANTIDADE</span>
-              <div className="conversion-input-row">
-                <img src={assetVisuals[asset].asset} alt="" />
-                <label>
-                  <small>QUANTIDADE EM {asset}</small>
-                  <input
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(event) => {
-                      setAmount(event.target.value);
-                      setQuote(null);
-                      setSuccess("");
-                    }}
-                    aria-label={`Quantidade em ${asset}`}
-                  />
-                </label>
-                <b>{asset}</b>
+              <span>01 · ESCOLHA QUANTOS CMA COMPRAR</span>
+              <div className="conversion-input-row conversion-cma-target">
+                <img src={assetsManifest.cmaCoin.path} alt="" />
+                <div>
+                  <small>QUANTIDADE INTEIRA DE CMA</small>
+                  <span className="conversion-unit-stepper">
+                    <button type="button" aria-label="Diminuir um CMA" onClick={() => changeTargetCma(-1)}>−</button>
+                    <input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={targetCma}
+                      onChange={(event) => {
+                        setTargetCma(event.target.value.replace(/\D/g, "").slice(0, 7));
+                        setQuote(null);
+                        setSuccess("");
+                      }}
+                      aria-label="Quantidade inteira de CMA"
+                    />
+                    <button type="button" aria-label="Adicionar um CMA" onClick={() => changeTargetCma(1)}>+</button>
+                  </span>
+                </div>
+                <b>CMA</b>
               </div>
-              <button className="conversion-use-balance" type="button" onClick={useFullBalance}>
-                USAR SALDO TOTAL · {formatCryptoAtomic(selectedBalanceAtomic)} {asset}
+              <div className="conversion-cost-preview" aria-live="polite">
+                <img src={assetVisuals[asset].asset} alt="" />
+                <span>
+                  <small>VOCÊ PAGARÁ APROXIMADAMENTE</small>
+                  <strong>
+                    {estimatedAssetAtomic > 0
+                      ? `${formatCryptoAtomic(estimatedAssetAtomic)} ${asset}`
+                      : `Aguardando quantidade e cotação de ${asset}`}
+                  </strong>
+                </span>
+              </div>
+              <button className="conversion-use-balance" type="button" onClick={useMaximumCma}>
+                COMPRAR O MÁXIMO INTEIRO · {maximumCmaUnits.toLocaleString("pt-BR")} CMA
               </button>
 
               <div className="conversion-rule-summary">
@@ -503,7 +566,15 @@ export function ConversionView({
               <button
                 className="conversion-quote-button"
                 type="button"
-                disabled={loading || quoting || converting || !selectedRate}
+                disabled={
+                  loading ||
+                  quoting ||
+                  converting ||
+                  !selectedRate ||
+                  !Number.isSafeInteger(targetCmaUnits) ||
+                  targetCmaUnits < 1 ||
+                  targetCmaUnits > 1_000_000
+                }
                 onClick={() => void requestQuote()}
               >
                 {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 2 MINUTOS"}
@@ -524,12 +595,13 @@ export function ConversionView({
                 <>
                   <div className="conversion-receipt-main">
                     <small>VOCÊ RECEBERÁ</small>
-                    <strong>{formatCma(quote.netCma)} CMA</strong>
+                    <strong>{quote.targetCma.toLocaleString("pt-BR")} CMA</strong>
                     <span>válida até {new Date(quote.expiresAt).toLocaleTimeString("pt-BR")}</span>
                   </div>
                   <dl>
+                    <div><dt>Você paga</dt><dd>{formatCryptoAtomic(quote.assetAmountAtomic)} {quote.asset}</dd></div>
                     <div><dt>Valor de mercado</dt><dd>{formatUsd(quote.grossUsd)}</dd></div>
-                    <div><dt>CMA bruto</dt><dd>{formatCma(quote.grossCma)} CMA</dd></div>
+                    <div><dt>CMA comprado</dt><dd>{quote.targetCma.toLocaleString("pt-BR")} CMA</dd></div>
                     <div><dt>Reserva de {(quote.feeBps / 100).toFixed(2)}%</dt><dd>-{formatCma(quote.feeCma)} CMA</dd></div>
                     <div><dt>Cotação usada</dt><dd>1 {quote.asset} = {formatUsd(quote.rateUsd)}</dd></div>
                   </dl>

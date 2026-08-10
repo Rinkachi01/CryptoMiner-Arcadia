@@ -66,11 +66,11 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
     | {
         action?: unknown;
-        amount?: unknown;
         asset?: unknown;
         expectedVersion?: unknown;
         idempotencyKey?: unknown;
         quoteId?: unknown;
+        targetCma?: unknown;
       }
     | null;
   if (!body) {
@@ -105,18 +105,15 @@ export async function POST(request: Request) {
     }
   }
 
-  if (typeof body.amount !== "string") {
-    return json({ error: "Dados da cotação inválidos." }, 400);
-  }
   try {
     return json({
       conversionEnabled: true,
       quote: await createConversionQuote({
         accountId: current.accountId,
-        amount: body.amount,
         asset: body.asset,
         db: current.db,
         environment: env,
+        targetCma: body.targetCma,
       }),
     });
   } catch (error) {

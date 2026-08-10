@@ -1,6 +1,7 @@
 export const CMA_USD_REFERENCE = 1;
 export const CONVERSION_FEE_BPS = 300;
 export const CONVERSION_MIN_USD = 1;
+export const CONVERSION_MAX_CMA_UNITS = 1_000_000;
 export const CONVERSION_QUOTE_TTL_MS = 2 * 60 * 1000;
 
 export type ConversionAssetId = "BTC" | "DOGE" | "LTC";
@@ -49,6 +50,53 @@ export function amountToAtomic(value: string, assetId: ConversionAssetId) {
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) return null;
   const atomic = Math.round(amount * asset.atomicScale);
   return Number.isSafeInteger(atomic) && atomic > 0 ? atomic : null;
+}
+
+export function cmaUnitsFromInput(value: unknown) {
+  const normalized = typeof value === "number" ? String(value) : String(value ?? "").trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  const units = Number(normalized);
+  return Number.isSafeInteger(units) && units >= 1 && units <= CONVERSION_MAX_CMA_UNITS
+    ? units
+    : null;
+}
+
+export function calculateCmaPurchaseQuote(
+  assetId: ConversionAssetId,
+  targetCma: number,
+  usdRate: number,
+) {
+  if (
+    !Number.isSafeInteger(targetCma) ||
+    targetCma < 1 ||
+    targetCma > CONVERSION_MAX_CMA_UNITS ||
+    !Number.isFinite(usdRate) ||
+    usdRate <= 0
+  ) {
+    throw new Error("Compra de CMA inválida.");
+  }
+  const asset = getConversionAsset(assetId);
+  const netCmaMicros = targetCma * 1_000_000;
+  const grossCmaMicros = Math.ceil(
+    (netCmaMicros * 10_000) / (10_000 - CONVERSION_FEE_BPS),
+  );
+  const feeCmaMicros = grossCmaMicros - netCmaMicros;
+  const requiredUsd = (grossCmaMicros / 1_000_000) * CMA_USD_REFERENCE;
+  const assetAmountAtomic = Math.ceil((requiredUsd / usdRate) * asset.atomicScale);
+  if (!Number.isSafeInteger(assetAmountAtomic) || assetAmountAtomic <= 0) {
+    throw new Error("Quantidade de cripto fora do limite seguro.");
+  }
+  const assetAmount = assetAmountAtomic / asset.atomicScale;
+  return {
+    assetAmount,
+    assetAmountAtomic,
+    eligible: requiredUsd >= CONVERSION_MIN_USD,
+    feeCma: feeCmaMicros / 1_000_000,
+    grossCma: grossCmaMicros / 1_000_000,
+    grossUsd: assetAmount * usdRate,
+    netCma: targetCma,
+    targetCma,
+  };
 }
 
 export function calculateConversionQuote(

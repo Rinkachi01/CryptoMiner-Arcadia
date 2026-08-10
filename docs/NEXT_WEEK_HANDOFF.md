@@ -1,6 +1,6 @@
 # Crypto Miner Arcadia — retomada da próxima semana
 
-Atualizado em 9 de agosto de 2026.
+Atualizado em 10 de agosto de 2026.
 
 ## Estado seguro deixado nesta rodada
 
@@ -18,13 +18,42 @@ Atualizado em 9 de agosto de 2026.
 - mineração, inventário, energia, compras, blocos e minigames continuam
   autoritativos no servidor;
 - a conta fundadora foi migrada e permanece separada das contas de teste;
-- depósitos e saques continuam desligados;
+- depósitos reais estão em homologação exclusiva da conta fundadora; saques
+  continuam totalmente desligados;
+- cada depósito confirmado credita BTC ou DOGE no saldo interno, sem criar CMA;
+- a compra de CMA agora parte de unidades inteiras (1, 2, 3...) e calcula a
+  quantidade necessária de BTC ou DOGE pela cotação vigente;
 - o front recebeu uma nova hierarquia visual, entrada pública mais clara,
   tipografia maior, cartões com mais contraste e navegação mais legível.
 
 ## Ordem de execução recomendada
 
-### 1. E-mail transacional e domínio
+### 1. Fechar a homologação financeira da conta fundadora
+
+Objetivo: comprovar o caminho completo sem abrir depósitos para outras contas.
+
+1. Criar uma fatura mínima de BTC e outra de DOGE pela conta fundadora.
+2. Conferir expiração, pagamento parcial, pagamento concluído e repetição do IPN.
+3. Confirmar que o depósito altera somente BTC/DOGE e mantém CMA inalterado.
+4. Comprar 1, 2 e 3 CMA manualmente e conferir o débito exato da cripto.
+5. Reconciliar o valor recebido na NOWPayments, a liquidação em USDT TRC20 e a
+   obrigação interna registrada em BTC/DOGE.
+6. Registrar divergências em uma fila administrativa, sem correção automática.
+
+Pronto quando: duas moedas percorrem fatura → IPN → saldo cripto → compra inteira
+de CMA, sem crédito duplicado ou diferença de livro-razão.
+
+### 2. Tesouraria e fila operacional de saques
+
+Objetivo: preparar controles sem ativar transferências para jogadores.
+
+1. Criar visão de cobertura da tesouraria por ativo e em USDT.
+2. Separar saldo disponível, saldo comprometido e divergência de liquidação.
+3. Projetar solicitação de saque com revisão manual, 2FA, limites e auditoria.
+4. Manter o botão público de saque bloqueado até KYC/AML, termos e operação
+   estarem definidos.
+
+### 3. E-mail transacional e domínio
 
 Objetivo: substituir o envio limitado de teste do Supabase por e-mails próprios.
 
@@ -39,7 +68,7 @@ Objetivo: substituir o envio limitado de teste do Supabase por e-mails próprios
 Pronto quando: os quatro fluxos chegam em Gmail e Outlook, sem cair em spam, e
 nenhuma credencial aparece no navegador ou no repositório.
 
-### 2. Proteção humana nos minigames
+### 4. Proteção humana nos minigames
 
 Objetivo: impedir automação sem prejudicar jogadores legítimos.
 
@@ -53,28 +82,27 @@ Objetivo: impedir automação sem prejudicar jogadores legítimos.
 Pronto quando: repetir token, finalizar rodada impossível ou enviar rajadas
 automatizadas não concede poder nem altera o inventário.
 
-### 3. Conversão BTC/DOGE para CMA
+### 5. Conversão BTC/DOGE para CMA
 
-Objetivo: concluir o livro-razão e a cotação antes de aceitar dinheiro real.
+Objetivo: observar preços, arredondamento e reserva econômica durante a
+homologação restrita.
 
-Já existe: carteira interna, saldo atômico, prévia de cotação, validade, taxa,
-execução autoritativa de conversão e adaptador NOWPayments para faturas
-BTC/DOGE com IPN assinado, idempotência e crédito confirmado pelo servidor. O
-adaptador permanece desligado até a aprovação comercial e o ensaio no sandbox.
+Já existe: carteira interna, saldo atômico, compra inteira de CMA, prévia de
+cotação, validade, taxa, execução autoritativa e faturas NOWPayments com IPN
+assinado, idempotência e crédito confirmado pelo servidor. A produção está
+restrita à conta fundadora.
 
 Ainda falta:
 
-1. abrir e obter aprovação da conta comercial NOWPayments;
-2. decidir jurisdição, empresa, KYC/AML e política de reembolso;
-3. cadastrar as credenciais do sandbox diretamente como segredos do Worker;
-4. validar fatura, pagamento parcial, expiração, confirmação e repetição de IPN;
-5. reconciliar depósito, crédito, conversão, estorno e exceções;
-6. executar revisão jurídica e operacional antes de qualquer credencial real.
+1. validar fatura, pagamento parcial, expiração, confirmação e repetição de IPN;
+2. reconciliar depósito, crédito cripto, compra de CMA, estorno e exceções;
+3. decidir jurisdição, empresa, KYC/AML e política de reembolso;
+4. executar revisão jurídica e operacional antes de liberar outras contas.
 
 Regras fixas: CMA é saldo interno e não possui saque; depósito não guarda seed
 phrase no Arcadia; nenhum crédito nasce de informação enviada pelo navegador.
 
-### 4. Passagem de UX com contas reais de ensaio
+### 6. Passagem de UX com contas reais de ensaio
 
 Roteiro mínimo em desktop e celular:
 
@@ -90,7 +118,7 @@ Roteiro mínimo em desktop e celular:
 Registrar para cada problema: tela, ação, resultado esperado, resultado atual,
 dispositivo e uma captura. Não usar a conta fundadora para testes destrutivos.
 
-### 5. Beta fechado antes do dinheiro real
+### 7. Beta fechado antes de ampliar o dinheiro real
 
 - pelo menos duas semanas sem depósito e sem saque;
 - backups recentes e ensaio de recuperação aprovado;
@@ -112,7 +140,7 @@ dispositivo e uma captura. Não usar a conta fundadora para testes destrutivos.
 
 ## Próximo ponto de retomada
 
-Sem comprar o domínio ainda, avançar na fila administrativa dos protocolos e no
-Turnstile dos minigames. Quando o nome definitivo estiver decidido, seguir o
-checklist de `docs/EMAIL_AND_SUPPORT_SETUP.md` para SMTP, DNS e testes. Conversão
-real e depósito permanecem atrás de um portão separado.
+Sem comprar o domínio ainda, concluir primeiro a fatura mínima da conta
+fundadora, a reconciliação da tesouraria e a compra inteira de CMA. Depois,
+avançar na fila operacional e no Turnstile dos minigames. Depósitos continuam
+atrás do portão exclusivo do fundador e saques permanecem desligados.

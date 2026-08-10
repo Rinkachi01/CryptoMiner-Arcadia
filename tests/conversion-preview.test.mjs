@@ -7,7 +7,9 @@ import {
   CONVERSION_QUOTE_TTL_MS,
   amountToAtomic,
   applyInternalConversionBalances,
+  calculateCmaPurchaseQuote,
   calculateConversionQuote,
+  cmaUnitsFromInput,
   conversionAssets,
 } from "../app/conversion-rules.ts";
 
@@ -23,6 +25,22 @@ test("CMA usa dólar como referência interna sem criar resgate", () => {
 
 test("cotação expira rapidamente para acompanhar a volatilidade", () => {
   assert.equal(CONVERSION_QUOTE_TTL_MS, 2 * 60 * 1000);
+});
+
+test("jogador compra somente unidades inteiras de CMA pelo valor calculado em cripto", () => {
+  assert.equal(cmaUnitsFromInput("1"), 1);
+  assert.equal(cmaUnitsFromInput(25), 25);
+  assert.equal(cmaUnitsFromInput("1.5"), null);
+  assert.equal(cmaUnitsFromInput("0"), null);
+  assert.equal(cmaUnitsFromInput("1000001"), null);
+
+  const quote = calculateCmaPurchaseQuote("BTC", 1, 100_000);
+  assert.equal(quote.targetCma, 1);
+  assert.equal(quote.netCma, 1);
+  assert.equal(quote.assetAmountAtomic, 1_031);
+  assert.equal(quote.assetAmount, 0.00001031);
+  assert.equal(quote.feeCma, 0.030928);
+  assert.equal(quote.grossUsd, 1.031);
 });
 
 test("prévia aceita BTC, DOGE e LTC com no máximo oito casas", () => {
@@ -84,8 +102,11 @@ test("cotação vem do servidor, expira e a execução é autoritativa", async (
   assert.match(server, /UPDATE game_states/);
   assert.match(server, /convert_crypto_to_cma/);
   assert.match(server, /consumption_key/);
+  assert.match(server, /quote\.net_cma_micros % 1_000_000/);
+  assert.match(route, /targetCma: body\.targetCma/);
   assert.match(view, /CONFIRMAR CONVERSÃO/);
-  assert.match(view, /USAR SALDO TOTAL/);
+  assert.match(view, /COMPRAR O MÁXIMO INTEIRO/);
+  assert.match(view, /QUANTIDADE INTEIRA DE CMA/);
 });
 
 test("migração e recuperação incluem execução e carteiras", async () => {
