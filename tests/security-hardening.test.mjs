@@ -19,6 +19,10 @@ test("detector recusa rajada impossível e intervalo robótico sem punir ritmo h
     detectAutomationPattern([100, 420, 910, 1_550, 2_020, 2_800, 3_180]),
     null,
   );
+  assert.match(
+    detectAutomationPattern([500, 450, 900]),
+    /fora da ordem/,
+  );
 });
 
 test("Turnstile só fica configurado com as duas chaves e falha fechado quando exigido", () => {
@@ -57,8 +61,13 @@ test("os quatro jogos passam pelo mesmo limite no servidor e o navegador não co
   assert.match(gate, /arcade_access/);
   assert.match(widget, /expired-callback/);
   assert.match(route, /verifyTurnstileAndCreatePass/);
+  assert.match(route, /guardArcadeAction/);
+  assert.match(route, /cf-connecting-ip/);
   assert.match(security, /siteverify/);
-  assert.doesNotMatch(security, /remoteip|userAgent|fingerprint/i);
+  assert.match(security, /remoteip/);
+  assert.match(security, /expectedHostname/);
+  assert.match(security, /AbortSignal\.timeout\(8_000\)/);
+  assert.match(gate, /resetSignal/);
   assert.doesNotMatch(gate, /rewardPowerGh|ledger_entries|balanceCma/i);
 });
 

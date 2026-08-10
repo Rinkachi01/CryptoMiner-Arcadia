@@ -8,11 +8,14 @@ import {
 } from "../support-rules";
 
 type PersonalTicket = {
+  adminReply: string | null;
   category: string;
   createdAt: number;
   deliveryStatus: string;
+  lastReplyAt: number | null;
   message: string;
   publicId: string;
+  replyDeliveryStatus: string;
   status: string;
   subject: string;
   updatedAt: number;
@@ -205,6 +208,15 @@ export function SupportRequestForm({
                   </div>
                   <h3>{ticket.subject}</h3>
                   <p>{ticket.message}</p>
+                  {ticket.adminReply && (
+                    <div className="support-ticket-reply">
+                      <span>RESPOSTA DO ARCADIA</span>
+                      <p>{ticket.adminReply}</p>
+                      {ticket.lastReplyAt && (
+                        <small>{formatTicketDate(ticket.lastReplyAt)}</small>
+                      )}
+                    </div>
+                  )}
                   <small>
                     {supportCategoryLabels[ticket.category as SupportCategory] ??
                       ticket.category}

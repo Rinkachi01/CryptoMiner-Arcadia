@@ -1,9 +1,10 @@
-const ARCADE_PASS_MS = 12 * 60 * 60 * 1000;
+const ARCADE_PASS_MS = 4 * 60 * 60 * 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
 const ACTION_LIMITS = {
-  start: 12,
+  start: 10,
   submit: 160,
+  verify: 6,
 } as const;
 
 type ArcadeAction = keyof typeof ACTION_LIMITS;
@@ -17,6 +18,7 @@ type SecurityEnvironment = {
 
 type TurnstileResult = {
   action?: string;
+  challenge_ts?: string;
   hostname?: string;
   success?: boolean;
   "error-codes"?: string[];
@@ -148,6 +150,7 @@ export async function verifyTurnstileAndCreatePass(
   accountId: string,
   token: string,
   environment: unknown,
+  requestContext?: { expectedHostname?: string | null; remoteIp?: string | null },
   now = Date.now(),
 ) {
   await ensureSecuritySchema(db);
@@ -159,24 +162,45 @@ export async function verifyTurnstileAndCreatePass(
     return { ok: false as const, error: "Resposta de verificação inválida." };
   }
 
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      body: JSON.stringify({
-        idempotency_key: crypto.randomUUID(),
-        response: token,
-        secret: config.secret,
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    },
-  );
-  const result = (await response.json().catch(() => null)) as TurnstileResult | null;
+  let response: Response;
+  let result: TurnstileResult | null;
+  try {
+    response = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          remoteip: requestContext?.remoteIp || undefined,
+          response: token,
+          secret: config.secret,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    result = (await response.json().catch(() => null)) as TurnstileResult | null;
+  } catch {
+    await writeSecurityEvent(
+      db,
+      accountId,
+      "turnstile_unavailable",
+      "Serviço de verificação humana indisponível.",
+      {},
+      now,
+    );
+    return {
+      ok: false as const,
+      error: "A verificação humana demorou demais. Tente novamente.",
+    };
+  }
+  const expectedHostname =
+    config.hostname || requestContext?.expectedHostname || null;
   const valid = Boolean(
     response.ok &&
       result?.success &&
       result.action === "arcade_access" &&
-      (!config.hostname || result.hostname === config.hostname),
+      (!expectedHostname || result.hostname === expectedHostname),
   );
   if (!valid) {
     await writeSecurityEvent(
@@ -184,7 +208,12 @@ export async function verifyTurnstileAndCreatePass(
       accountId,
       "turnstile_failed",
       "Verificação humana recusada.",
-      { codes: (result?.["error-codes"] ?? []).slice(0, 4).join(",") },
+      {
+        codes: (result?.["error-codes"] ?? []).slice(0, 4).join(","),
+        expectedHostname,
+        receivedAction: result?.action ?? null,
+        receivedHostname: result?.hostname ?? null,
+      },
       now,
     );
     return { ok: false as const, error: "Não foi possível confirmar a verificação humana." };
@@ -211,7 +240,7 @@ export async function guardArcadeAction(
   now = Date.now(),
 ) {
   await ensureSecuritySchema(db);
-  if (action === "start") {
+  if (action === "start" || action === "verify") {
     await db.batch([
       db.prepare(`DELETE FROM arcade_security_passes WHERE expires_at <= ?`).bind(now),
       db.prepare(`DELETE FROM security_rate_windows WHERE expires_at <= ?`).bind(now),
@@ -283,6 +312,9 @@ export async function guardArcadeAction(
 export function detectAutomationPattern(eventTimes: number[]) {
   if (eventTimes.length < 3) return null;
   const gaps = eventTimes.slice(1).map((time, index) => time - eventTimes[index]);
+  if (gaps.some((gap) => gap < 0)) {
+    return "Sequência de eventos fora da ordem esperada.";
+  }
   if (gaps.filter((gap) => gap >= 0 && gap < 45).length >= 2) {
     return "Sequência de cliques rápida demais para interação humana.";
   }

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
+  guardArcadeAction,
   readArcadeSecurityStatus,
   verifyTurnstileAndCreatePass,
 } from "../../security-server";
@@ -46,12 +47,25 @@ export async function POST(request: Request) {
   if (!body || typeof body.token !== "string" || body.token.length > 2_048) {
     return json({ error: "Resposta de verificação inválida." }, 400);
   }
+  const now = Date.now();
+  const rateGate = await guardArcadeAction(
+    current.db,
+    current.accountId,
+    "verify",
+    env,
+    now,
+  );
+  if (!rateGate.allowed) return json(rateGate, rateGate.status);
   const result = await verifyTurnstileAndCreatePass(
     current.db,
     current.accountId,
     body.token,
     env,
-    Date.now(),
+    {
+      expectedHostname: new URL(request.url).hostname,
+      remoteIp: request.headers.get("cf-connecting-ip"),
+    },
+    now,
   );
   return result.ok ? json(result) : json(result, 403);
 }

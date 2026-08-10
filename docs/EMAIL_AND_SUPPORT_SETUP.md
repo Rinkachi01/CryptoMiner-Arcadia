@@ -10,8 +10,13 @@ Atualizado em 9 de agosto de 2026.
 - Chamado autenticado, protocolo individual e historico recente dentro do Arcadia.
 - Limite de um chamado por minuto e cinco chamados em 24 horas por conta.
 - Preparacao para notificar o suporte pelo Resend sem enviar a chave ao navegador.
+- Fila exclusiva do proprietario para classificar, responder e encerrar protocolos.
+- Resposta visivel dentro do Arcadia mesmo antes do e-mail corporativo ser ativado.
 
 Os chamados ficam registrados no banco mesmo enquanto o envio corporativo estiver desligado. Nesta fase, `TRANSACTIONAL_EMAIL_ENABLED` deve continuar como `false`.
+
+O roteiro operacional completo, incluindo quais enderecos criar, esta em
+`docs/EMAIL_SETUP_STEP_BY_STEP.md`.
 
 ## Depois de comprar o dominio
 
@@ -39,11 +44,10 @@ Os chamados ficam registrados no banco mesmo enquanto o envio corporativo estive
 
 ## Retencao e operacao
 
-O jogador visualiza os 10 protocolos mais recentes. Protocolos resolvidos ou encerrados podem ser removidos automaticamente depois de 180 dias. Antes do beta publico, a Central do Proprietario deve receber uma fila para responder, alterar status e registrar notas internas.
+O jogador visualiza os 10 protocolos mais recentes. Protocolos resolvidos ou encerrados podem ser removidos automaticamente depois de 180 dias. A Central do Proprietario ja possui fila para responder, alterar status e registrar o atendimento na auditoria.
 
 ## Limites desta fase
 
 - O endereco `support@cryptominearcadia.com` e apenas uma reserva visual enquanto o dominio nao pertence ao projeto.
 - Nao existe envio corporativo ativo sem dominio verificado e segredo do Resend.
 - Esta entrega nao ativa deposito, saque nem conversao com dinheiro real.
-

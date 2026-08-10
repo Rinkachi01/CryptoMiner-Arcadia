@@ -30,13 +30,15 @@ test("protocolo publico nao revela o identificador interno", () => {
   );
 });
 
-test("central persiste chamados por conta e limita abuso", async () => {
-  const [route, form, page, emailServer, migration] = await Promise.all([
+test("central persiste chamados por conta, limita abuso e entrega respostas", async () => {
+  const [route, form, page, emailServer, migration, adminRoute, dashboard] = await Promise.all([
     readFile(new URL("../app/api/support/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/support/SupportRequestForm.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/support/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/support-email-server.ts", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0019_demonic_blizzard.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0020_concerned_elektra.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(route, /getArcadiaUser/);
   assert.match(route, /60_000/);
@@ -44,7 +46,14 @@ test("central persiste chamados por conta e limita abuso", async () => {
   assert.match(route, /deliverSupportTicket/);
   assert.match(emailServer, /requested && apiKey && from && to/);
   assert.match(emailServer, /Authorization: `Bearer \$\{config\.apiKey\}`/);
+  assert.match(emailServer, /Idempotency-Key/);
+  assert.match(emailServer, /deliverSupportReply/);
   assert.match(form, /\/api\/support/);
+  assert.match(form, /adminReply/);
   assert.match(page, /SupportRequestForm/);
-  assert.match(migration, /CREATE TABLE `support_tickets`/);
+  assert.match(migration, /ADD `admin_note`/);
+  assert.match(migration, /ADD `reply_delivery_status`/);
+  assert.match(adminRoute, /update-support-ticket/);
+  assert.match(adminRoute, /claimOrVerifyAdminOwner/);
+  assert.match(dashboard, /Protocolos dos jogadores/);
 });

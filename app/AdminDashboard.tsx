@@ -29,6 +29,10 @@ import type { SecurityOverview } from "./security-server";
 import type { ConversionOverview } from "./conversion-server";
 import type { PublicLaunchReadiness } from "./public-launch-server";
 import { BLOCKS_PER_DAY, formatAtomic, pools, type PoolId } from "./game-rules";
+import {
+  supportCategoryLabels,
+  type SupportCategory,
+} from "./support-rules";
 
 type AdminOverview = {
   alerts: AdminAlert[];
@@ -209,6 +213,29 @@ type AdminOverview = {
   operations: OperationalHealthReport;
   recovery: RecoveryOverview;
   security: SecurityOverview;
+  support: {
+    emailEnabled: boolean;
+    statusCounts: {
+      closed: number;
+      open: number;
+      resolved: number;
+      reviewing: number;
+    };
+    tickets: Array<{
+      adminNote: string;
+      category: string;
+      createdAt: number;
+      deliveryStatus: string;
+      email: string;
+      lastReplyAt: number | null;
+      message: string;
+      publicId: string;
+      replyDeliveryStatus: string;
+      status: string;
+      subject: string;
+      updatedAt: number;
+    }>;
+  };
   recentCrates: Array<{
     crateId: string;
     createdAt: number;
@@ -273,6 +300,13 @@ const feedbackStatusLabels: Record<string, string> = {
   reviewing: "Em análise",
   planned: "Planejado",
   resolved: "Resolvido",
+};
+
+const supportStatusLabels: Record<string, string> = {
+  open: "Aberto",
+  reviewing: "Em análise",
+  resolved: "Resolvido",
+  closed: "Encerrado",
 };
 
 const actionLabels: Record<string, string> = {
@@ -498,6 +532,9 @@ export function AdminDashboard({
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [supportReplies, setSupportReplies] = useState<Record<string, string>>(
+    {},
+  );
   const [thresholdDrafts, setThresholdDrafts] = useState<
     Partial<Record<AdminThresholdKey, number>>
   >({});
@@ -1619,6 +1656,140 @@ export function AdminDashboard({
             <span>FUTURO</span>
           </article>
         </div>
+      </section>
+
+      <section className="admin-panel admin-support-panel" id="support-queue">
+        <div className="admin-panel-heading">
+          <div>
+            <span>ATENDIMENTO OFICIAL · FILA DO PROPRIETÁRIO</span>
+            <h2>Protocolos dos jogadores</h2>
+          </div>
+          <small>
+            {overview.support.statusCounts.open} ABERTO(S) ·{" "}
+            {overview.support.statusCounts.reviewing} EM ANÁLISE ·{" "}
+            {overview.support.emailEnabled
+              ? "RESPOSTA POR E-MAIL ATIVA"
+              : "RESPOSTAS SALVAS INTERNAMENTE"}
+          </small>
+        </div>
+
+        <div className="admin-support-summary">
+          {Object.entries(overview.support.statusCounts).map(
+            ([status, total]) => (
+              <article key={status}>
+                <span>{supportStatusLabels[status] ?? status}</span>
+                <strong>{total}</strong>
+              </article>
+            ),
+          )}
+        </div>
+
+        {overview.support.tickets.length === 0 ? (
+          <div className="admin-feedback-empty">
+            Nenhum protocolo foi criado pelos jogadores.
+          </div>
+        ) : (
+          <div className="admin-support-queue">
+            {overview.support.tickets.map((ticket) => {
+              const reply = supportReplies[ticket.publicId] ?? ticket.adminNote;
+              return (
+                <article key={ticket.publicId}>
+                  <header>
+                    <div>
+                      <span>{ticket.publicId}</span>
+                      <strong>{ticket.subject}</strong>
+                      <small>
+                        {supportCategoryLabels[
+                          ticket.category as SupportCategory
+                        ] ?? ticket.category}
+                        {" · "}
+                        {ticket.email}
+                        {" · "}
+                        {formatDate(ticket.createdAt)}
+                      </small>
+                    </div>
+                    <label>
+                      ETAPA
+                      <select
+                        value={ticket.status}
+                        disabled={busyAction === `support-${ticket.publicId}`}
+                        onChange={(event) =>
+                          void runAdminAction(`support-${ticket.publicId}`, {
+                            action: "update-support-ticket",
+                            supportStatus: event.target.value,
+                            supportTicketId: ticket.publicId,
+                          })
+                        }
+                      >
+                        {Object.entries(supportStatusLabels).map(
+                          ([status, label]) => (
+                            <option value={status} key={status}>
+                              {label}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                  </header>
+                  <div className="admin-support-message">{ticket.message}</div>
+                  <label className="admin-support-reply">
+                    RESPOSTA AO JOGADOR
+                    <textarea
+                      maxLength={2_000}
+                      rows={4}
+                      value={reply}
+                      onChange={(event) =>
+                        setSupportReplies((current) => ({
+                          ...current,
+                          [ticket.publicId]: event.target.value,
+                        }))
+                      }
+                      placeholder="Explique a solução sem pedir senha, chave privada ou código de acesso."
+                    />
+                    <small>
+                      {ticket.lastReplyAt
+                        ? `Última resposta: ${formatDate(ticket.lastReplyAt)} · ${ticket.replyDeliveryStatus}`
+                        : `${reply.length}/2.000 caracteres`}
+                    </small>
+                  </label>
+                  <footer>
+                    <span>
+                      Entrada: {ticket.deliveryStatus} · Resposta:{" "}
+                      {ticket.replyDeliveryStatus}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        reply.trim().length < 10 ||
+                        busyAction === `support-reply-${ticket.publicId}`
+                      }
+                      onClick={() =>
+                        void runAdminAction(
+                          `support-reply-${ticket.publicId}`,
+                          {
+                            action: "update-support-ticket",
+                            supportReply: reply,
+                            supportStatus:
+                              ticket.status === "open"
+                                ? "reviewing"
+                                : ticket.status,
+                            supportTicketId: ticket.publicId,
+                          },
+                        )
+                      }
+                    >
+                      {busyAction === `support-reply-${ticket.publicId}`
+                        ? "SALVANDO..."
+                        : overview.support.emailEnabled
+                          ? "ENVIAR RESPOSTA"
+                          : "SALVAR RESPOSTA"}
+                    </button>
+                  </footer>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="admin-panel admin-feedback-panel">

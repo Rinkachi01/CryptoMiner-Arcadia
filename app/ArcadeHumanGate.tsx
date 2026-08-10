@@ -14,6 +14,7 @@ export default function ArcadeHumanGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SecurityStatus | null>(null);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -45,6 +46,7 @@ export default function ArcadeHumanGate({ children }: { children: ReactNode }) {
       setStatus((current) => current && { ...current, verified: true });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Verificação recusada.");
+      setCaptchaReset((current) => current + 1);
     } finally {
       setChecking(false);
     }
@@ -61,7 +63,7 @@ export default function ArcadeHumanGate({ children }: { children: ReactNode }) {
       <h3>Confirme que você é humano</h3>
       <p>
         Esta etapa protege as recompensas e o poder da rede contra robôs. A
-        aprovação vale por 12 horas e a resposta não fica armazenada.
+        aprovação vale por 4 horas e a resposta não fica armazenada.
       </p>
       {status?.configured && status.siteKey ? (
         <TurnstileWidget
@@ -69,6 +71,7 @@ export default function ArcadeHumanGate({ children }: { children: ReactNode }) {
           className="arcade-turnstile"
           onError={setError}
           onToken={(token) => token && void verify(token)}
+          resetSignal={captchaReset}
           siteKey={status.siteKey}
         />
       ) : (

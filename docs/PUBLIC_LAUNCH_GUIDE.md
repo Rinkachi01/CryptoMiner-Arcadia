@@ -155,7 +155,7 @@ Fontes oficiais:
 - sessões suspeitas rejeitadas sem recompensa e enviadas à revisão administrativa;
 - eventos de segurança sem armazenar IP, token do desafio ou impressão digital invasiva;
 - eventos de segurança conservados por 30 dias e janelas temporárias removidas após expirar;
-- Turnstile preparado, validado no servidor e com passe de 12 horas.
+- Turnstile preparado, validado no servidor e com passe de 4 horas.
 
 ### Configuração antes do beta público
 
@@ -170,6 +170,9 @@ TURNSTILE_REQUIRED=true
 ```
 
 O servidor valida a ação `arcade_access`, o hostname, uso único e validade do token. Nunca enviar `TURNSTILE_SECRET` ao navegador. A validação no servidor é obrigatória; o token dura cinco minutos e só pode ser usado uma vez.
+
+O roteiro de ativação sem interromper os jogos está em
+`docs/ANTI_BOT_ACTIVATION.md`.
 
 Em 2 de agosto de 2026, a chave pública do widget foi instalada no Worker e
 `AUTH_CAPTCHA_REQUIRED=true` foi ativado para cadastro, login e recuperação do

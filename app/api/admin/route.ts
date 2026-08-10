@@ -60,6 +60,15 @@ import {
   readConversionOverview,
 } from "../../conversion-server";
 import { readPublicLaunchReadiness } from "../../public-launch-server";
+import {
+  deliverSupportReply,
+  readSupportEmailConfig,
+} from "../../support-email-server";
+import {
+  ensureSupportSchema,
+  isSupportTicketStatus,
+  readAdminSupportOverview,
+} from "../../support-server";
 
 export const dynamic = "force-dynamic";
 
@@ -568,6 +577,7 @@ export async function GET(request: Request) {
     ensureOperationsSchema(context.db),
     ensureSecuritySchema(context.db),
     ensureConversionSchema(context.db),
+    ensureSupportSchema(context.db),
   ]);
   const now = Date.now();
   const bucket = recoveryBucketFromEnv(env);
@@ -581,6 +591,7 @@ export async function GET(request: Request) {
     recovery,
     security,
     conversion,
+    support,
   ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
@@ -591,6 +602,7 @@ export async function GET(request: Request) {
     readRecoveryOverview(context.db, bucket, now),
     readSecurityOverview(context.db, env, now),
     readConversionOverview(context.db, now),
+    readAdminSupportOverview(context.db),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -623,6 +635,10 @@ export async function GET(request: Request) {
     recovery,
     security,
     conversion,
+    support: {
+      ...support,
+      emailEnabled: readSupportEmailConfig(env).enabled,
+    },
     launch: readPublicLaunchReadiness(env, request.url),
     ...overview,
     serverTime: now,
@@ -649,12 +665,123 @@ export async function POST(request: Request) {
         rewards?: unknown;
         resolution?: unknown;
         sessionId?: unknown;
+        supportReply?: unknown;
+        supportStatus?: unknown;
+        supportTicketId?: unknown;
         setting?: unknown;
         value?: unknown;
       }
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (
+    body?.action === "update-support-ticket" &&
+    typeof body.supportTicketId === "string" &&
+    /^CMA-[A-Z0-9]{8}$/.test(body.supportTicketId) &&
+    isSupportTicketStatus(body.supportStatus)
+  ) {
+    await ensureSupportSchema(context.db);
+    const ticket = await context.db
+      .prepare(
+        `SELECT public_id, email, subject, admin_note, reply_delivery_status
+         FROM support_tickets
+         WHERE public_id = ?`,
+      )
+      .bind(body.supportTicketId)
+      .first<{
+        admin_note: string;
+        email: string;
+        public_id: string;
+        reply_delivery_status: string;
+        subject: string;
+      }>();
+    if (!ticket) return json({ error: "Protocolo não encontrado." }, 404);
+
+    const rawSupportReply =
+      typeof body.supportReply === "string" ? body.supportReply.trim() : "";
+    if (rawSupportReply.length > 2_000) {
+      return json({ error: "A resposta deve ter no máximo 2.000 caracteres." }, 400);
+    }
+    const supportReply = rawSupportReply;
+    if (supportReply && supportReply.length < 10) {
+      return json({ error: "A resposta deve ter pelo menos 10 caracteres." }, 400);
+    }
+    await context.db
+      .prepare(
+        `UPDATE support_tickets
+         SET status = ?, updated_at = ?
+         WHERE public_id = ?`,
+      )
+      .bind(body.supportStatus, now, ticket.public_id)
+      .run();
+
+    let replyStatus = ticket.reply_delivery_status;
+    const shouldSendReply = Boolean(
+      supportReply &&
+        (supportReply !== ticket.admin_note ||
+          ticket.reply_delivery_status !== "sent"),
+    );
+    if (shouldSendReply) {
+      await context.db
+        .prepare(
+          `UPDATE support_tickets
+           SET admin_note = ?, last_reply_at = ?, last_reply_by = ?,
+               reply_delivery_status = 'processing', updated_at = ?
+           WHERE public_id = ?`,
+        )
+        .bind(
+          supportReply,
+          now,
+          context.accountId,
+          now,
+          ticket.public_id,
+        )
+        .run();
+      const delivery = await deliverSupportReply(
+        env,
+        {
+          email: ticket.email,
+          publicId: ticket.public_id,
+          subject: ticket.subject,
+        },
+        supportReply,
+      );
+      replyStatus = delivery.status;
+      await context.db
+        .prepare(
+          `UPDATE support_tickets
+           SET reply_delivery_status = ?, reply_provider_message_id = ?,
+               updated_at = ?
+           WHERE public_id = ?`,
+        )
+        .bind(
+          delivery.status,
+          "providerId" in delivery ? delivery.providerId : null,
+          Date.now(),
+          ticket.public_id,
+        )
+        .run();
+    }
+    await writeAdminAudit(
+      context.db,
+      context.accountId,
+      "support_ticket_updated",
+      {
+        publicId: ticket.public_id,
+        replyStatus,
+        status: body.supportStatus,
+      },
+      now,
+    );
+    return json({
+      message: shouldSendReply
+        ? replyStatus === "sent"
+          ? "Resposta enviada e protocolo atualizado."
+          : "Resposta salva no protocolo; o e-mail aguarda a ativação do domínio."
+        : "Etapa do protocolo atualizada.",
+    });
+  }
 
   if (body?.action === "create-recovery-archive") {
     try {
