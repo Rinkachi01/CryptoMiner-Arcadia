@@ -638,6 +638,7 @@ export async function GET(request: Request) {
     support: {
       ...support,
       emailEnabled: readSupportEmailConfig(env).enabled,
+      emailProvider: readSupportEmailConfig(env).provider,
     },
     launch: readPublicLaunchReadiness(env, request.url),
     ...overview,

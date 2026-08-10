@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { validateSupportTicketInput } from "../app/support-rules.ts";
 import { createSupportPublicId } from "../app/support-server.ts";
+import { readSupportEmailConfig } from "../app/support-email-server.ts";
 
 test("chamado exige categoria, titulo e descricao validos", () => {
   assert.equal(validateSupportTicketInput({}).valid, false);
@@ -30,6 +31,26 @@ test("protocolo publico nao revela o identificador interno", () => {
   );
 });
 
+test("Gmail provisório só ativa com ponte assinada completa", () => {
+  const pending = readSupportEmailConfig({
+    EMAIL_PROVIDER: "google_apps_script",
+    SUPPORT_EMAIL_TO: "arcadia@example.com",
+    TRANSACTIONAL_EMAIL_ENABLED: "true",
+  });
+  assert.equal(pending.enabled, false);
+
+  const ready = readSupportEmailConfig({
+    EMAIL_PROVIDER: "google_apps_script",
+    GOOGLE_MAIL_WEBHOOK_SECRET: "a".repeat(32),
+    GOOGLE_MAIL_WEBHOOK_URL:
+      "https://script.google.com/macros/s/arcadia-test/exec",
+    SUPPORT_EMAIL_TO: "arcadia@example.com",
+    TRANSACTIONAL_EMAIL_ENABLED: "true",
+  });
+  assert.equal(ready.enabled, true);
+  assert.equal(ready.provider, "google_apps_script");
+});
+
 test("central persiste chamados por conta, limita abuso e entrega respostas", async () => {
   const [
     route,
@@ -43,6 +64,7 @@ test("central persiste chamados por conta, limita abuso e entrega respostas", as
     game,
     home,
     supportServer,
+    googleBridge,
   ] = await Promise.all([
     readFile(new URL("../app/api/support/route.ts", import.meta.url), "utf8"),
     readFile(
@@ -61,6 +83,10 @@ test("central persiste chamados por conta, limita abuso e entrega respostas", as
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/support-server.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../docs/google-apps-script/Code.gs", import.meta.url),
+      "utf8",
+    ),
   ]);
   assert.match(route, /getArcadiaUser/);
   assert.match(route, /60_000/);
@@ -68,7 +94,8 @@ test("central persiste chamados por conta, limita abuso e entrega respostas", as
   assert.match(route, /deliverSupportTicket/);
   assert.match(route, /export async function PATCH/);
   assert.match(route, /acknowledgeSupportReplies/);
-  assert.match(emailServer, /requested && apiKey && from && to/);
+  assert.match(emailServer, /google_apps_script/);
+  assert.match(emailServer, /crypto\.subtle\.sign\("HMAC"/);
   assert.match(emailServer, /Authorization: `Bearer \$\{config\.apiKey\}`/);
   assert.match(emailServer, /Idempotency-Key/);
   assert.match(emailServer, /deliverSupportReply/);
@@ -90,4 +117,7 @@ test("central persiste chamados por conta, limita abuso e entrega respostas", as
   assert.match(supportServer, /account_id = \?/);
   assert.match(supportServer, /player_seen_reply_at < last_reply_at/);
   assert.match(supportServer, /180 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(googleBridge, /computeHmacSha256Signature/);
+  assert.match(googleBridge, /MailApp\.sendEmail/);
+  assert.match(googleBridge, /ARCADIA_SUPPORT_EMAIL/);
 });

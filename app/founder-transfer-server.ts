@@ -229,7 +229,11 @@ async function transformBytes(
   bytes: Uint8Array,
   stream: CompressionStream | DecompressionStream,
 ) {
-  const output = new Blob([bytes]).stream().pipeThrough(stream);
+  const safeBuffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  const output = new Blob([safeBuffer]).stream().pipeThrough(stream);
   return new Uint8Array(await new Response(output).arrayBuffer());
 }
 

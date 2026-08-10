@@ -216,6 +216,7 @@ type AdminOverview = {
   support: {
     awaitingPlayerCount: number;
     emailEnabled: boolean;
+    emailProvider: "google_apps_script" | "resend";
     statusCounts: {
       closed: number;
       open: number;
@@ -1672,7 +1673,9 @@ export function AdminDashboard({
             {overview.support.statusCounts.reviewing} EM ANÁLISE ·{" "}
             {overview.support.awaitingPlayerCount} AGUARDANDO LEITURA ·{" "}
             {overview.support.emailEnabled
-              ? "RESPOSTA POR E-MAIL ATIVA"
+              ? overview.support.emailProvider === "google_apps_script"
+                ? "GMAIL PROVISÓRIO ATIVO"
+                : "RESPOSTA POR E-MAIL ATIVA"
               : "RESPOSTAS SALVAS INTERNAMENTE"}
           </small>
         </div>

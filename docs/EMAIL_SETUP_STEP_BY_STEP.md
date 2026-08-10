@@ -15,19 +15,21 @@ econômico separa cada responsabilidade:
 - **Central do Proprietário** organiza e responde aos protocolos sem expor o
   e-mail particular. A resposta também fica visível dentro do jogo.
 
-Enquanto o domínio não for comprado, o cadastro pode continuar em homologação,
-mas o e-mail corporativo deve permanecer desativado.
+Enquanto o domínio não for comprado, o cadastro pode continuar em homologação.
+O Gmail separado criado para o Arcadia pode ser usado provisoriamente conforme
+`docs/GMAIL_BETA_SETUP.md`; ele não substitui o domínio no lançamento.
 
 ## Antes de comprar o domínio
 
 - O suporte funciona integralmente por protocolos dentro do Arcadia.
 - O jogador recebe um aviso no menu quando existe resposta nova.
 - A Central do Proprietário mostra se a resposta ainda aguarda leitura.
-- O Gmail particular pode continuar como conta administrativa e destino futuro,
-  mas não deve ser publicado como atendimento oficial.
-- Não vale configurar Gmail SMTP para o beta público: isso expõe a identidade
-  operacional, mistura reputação pessoal com a do jogo e não substitui a
-  verificação de um domínio de envio.
+- O Gmail separado do Arcadia pode enviar confirmação e recuperação no beta por
+  SMTP personalizado do Supabase.
+- O suporte pode usar a ponte assinada do Google Apps Script sem publicar o
+  endereço na interface.
+- Não use uma conta pessoal: a conta deve pertencer somente à operação do jogo,
+  ter MFA e senha de app exclusiva.
 
 Quando o domínio for comprado, os protocolos existentes continuam no mesmo
 banco. Ativar o Resend apenas adiciona uma cópia por e-mail; nenhum chamado

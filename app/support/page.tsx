@@ -28,7 +28,8 @@ export const dynamic = "force-dynamic";
 
 export default async function SupportPage() {
   const user = await getArcadiaUser();
-  const emailDeliveryEnabled = readSupportEmailConfig(env).enabled;
+  const emailConfig = readSupportEmailConfig(env);
+  const emailDeliveryEnabled = emailConfig.enabled;
 
   return (
     <main className="public-info-page">
@@ -44,7 +45,11 @@ export default async function SupportPage() {
         </p>
         <div className="support-contact-status">
           <strong>
-            {emailDeliveryEnabled ? "PROTOCOLO + E-MAIL" : "PROTOCOLO INTERNO ATIVO"}
+            {emailDeliveryEnabled
+              ? emailConfig.provider === "google_apps_script"
+                ? "PROTOCOLO + GMAIL BETA"
+                : "PROTOCOLO + E-MAIL"
+              : "PROTOCOLO INTERNO ATIVO"}
           </strong>
           <span>Atendimento dentro da sua conta</span>
           <small>
