@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     }
     if (body.action === "create-deposit") {
       return json({
-        message: "Fatura criada pelo provedor. O saldo só será liberado após confirmação na rede.",
+        message: "Fatura criada pelo provedor. O BTC ou DOGE recebido só entra no saldo interno após confirmação na rede.",
         deposit: await createProviderDepositIntent({
           accountId,
           asset: body.asset,

@@ -74,6 +74,8 @@ test("cotação vem do servidor, expira e a execução é autoritativa", async (
   assert.match(route, /getArcadiaUser/);
   assert.match(route, /readMarketRates/);
   assert.match(server, /api\.coingecko\.com/);
+  assert.match(server, /api\.coinbase\.com/);
+  assert.match(server, /fetchFreshRates/);
   assert.match(server, /CONVERSION_QUOTE_TTL_MS/);
   assert.match(server, /QUOTE_LIMIT_10_MIN/);
   assert.match(server, /AbortSignal\.timeout\(PRICE_FETCH_TIMEOUT_MS\)/);

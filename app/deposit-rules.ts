@@ -1,7 +1,35 @@
-import { CONVERSION_FEE_BPS } from "./conversion-rules.ts";
-
 export const DEPOSIT_SETTLEMENT_ASSET = "USDTTRC20" as const;
 export const DEPOSIT_SETTLEMENT_DECIMALS = 6;
+
+export function applyCryptoDepositBalances(input: {
+  asset: "BTC" | "DOGE";
+  btcBalanceAtomic: number;
+  dogeBalanceAtomic: number;
+  receivedAtomic: number;
+}) {
+  if (
+    !Number.isSafeInteger(input.btcBalanceAtomic) ||
+    !Number.isSafeInteger(input.dogeBalanceAtomic) ||
+    !Number.isSafeInteger(input.receivedAtomic) ||
+    input.btcBalanceAtomic < 0 ||
+    input.dogeBalanceAtomic < 0 ||
+    input.receivedAtomic <= 0
+  ) {
+    throw new Error("Crédito de depósito inválido.");
+  }
+  const btcBalanceAtomic =
+    input.asset === "BTC"
+      ? input.btcBalanceAtomic + input.receivedAtomic
+      : input.btcBalanceAtomic;
+  const dogeBalanceAtomic =
+    input.asset === "DOGE"
+      ? input.dogeBalanceAtomic + input.receivedAtomic
+      : input.dogeBalanceAtomic;
+  if (!Number.isSafeInteger(btcBalanceAtomic) || !Number.isSafeInteger(dogeBalanceAtomic)) {
+    throw new Error("Saldo recebido excede o limite seguro.");
+  }
+  return { btcBalanceAtomic, dogeBalanceAtomic };
+}
 
 export function parseDecimalAtomic(value: unknown, decimals: number) {
   if ((typeof value !== "string" && typeof value !== "number") ||
@@ -24,32 +52,4 @@ export function parseDecimalAtomic(value: unknown, decimals: number) {
   } catch {
     return null;
   }
-}
-
-export function calculateDirectCmaDeposit(
-  requestedUsdMicros: number,
-  settlementUsdtMicros: number,
-) {
-  if (
-    !Number.isSafeInteger(requestedUsdMicros) ||
-    !Number.isSafeInteger(settlementUsdtMicros) ||
-    requestedUsdMicros <= 0 ||
-    settlementUsdtMicros <= 0
-  ) {
-    throw new Error("Valores de depósito inválidos.");
-  }
-  const feeCmaMicros = Math.ceil(
-    (requestedUsdMicros * CONVERSION_FEE_BPS) / 10_000,
-  );
-  const creditedCmaMicros = requestedUsdMicros - feeCmaMicros;
-  if (!Number.isSafeInteger(creditedCmaMicros) || creditedCmaMicros <= 0) {
-    throw new Error("Crédito CMA calculado inválido.");
-  }
-  return {
-    creditedCmaMicros,
-    feeBps: CONVERSION_FEE_BPS,
-    feeCmaMicros,
-    grossCmaMicros: requestedUsdMicros,
-    reserveCovered: settlementUsdtMicros >= creditedCmaMicros,
-  };
 }

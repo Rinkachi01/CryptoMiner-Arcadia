@@ -63,8 +63,9 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
   assert.match(route, /getArcadiaUser/);
   assert.match(view, /Depósitos reais usam fatura externa/);
   assert.match(view, /Nunca envie criptomoeda/);
-  assert.match(view, /receba CMA/);
-  assert.match(view, /USDT TRC20/);
+  assert.match(view, /Deposite BTC ou DOGE no seu saldo interno/);
+  assert.match(view, /nenhum CMA é criado automaticamente/);
+  assert.match(view, /SOLICITAR SAQUE/);
   assert.match(view, /Promise\.allSettled/);
   assert.match(page, />ENTRAR</);
   assert.match(page, />CRIAR CONTA</);

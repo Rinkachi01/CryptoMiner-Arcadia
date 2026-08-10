@@ -66,10 +66,14 @@ export class ConversionExecutionError extends Error {
 export type MarketRate = {
   asset: ConversionAssetId;
   observedAt: number;
-  provider: "coingecko";
+  provider: "coinbase" | "coingecko";
   stale: boolean;
   usdPrice: number;
 };
+
+function marketProvider(value: string): MarketRate["provider"] {
+  return value === "coinbase" ? "coinbase" : "coingecko";
+}
 
 export type ConversionQuote = {
   asset: ConversionAssetId;
@@ -194,6 +198,52 @@ async function fetchCoinGeckoRates(environment: unknown, now: number) {
   });
 }
 
+async function fetchCoinbaseRates(now: number): Promise<MarketRate[]> {
+  return Promise.all(
+    conversionAssets.map(async (asset) => {
+      const response = await fetch(
+        `https://api.coinbase.com/v2/exchange-rates?currency=${asset.id}`,
+        {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(PRICE_FETCH_TIMEOUT_MS),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Cotação alternativa indisponível (${response.status}).`);
+      }
+      const body = await readBoundedJsonObject(response);
+      const data = body.data;
+      if (!data || typeof data !== "object") {
+        throw new Error(`Cotação alternativa de ${asset.id} inválida.`);
+      }
+      const currency = String(Reflect.get(data, "currency") ?? "").toUpperCase();
+      const rates = Reflect.get(data, "rates");
+      const usd =
+        rates && typeof rates === "object"
+          ? Number(Reflect.get(rates, "USD"))
+          : Number.NaN;
+      if (currency !== asset.id || !Number.isFinite(usd) || usd <= 0) {
+        throw new Error(`Cotação alternativa de ${asset.id} indisponível.`);
+      }
+      return {
+        asset: asset.id,
+        observedAt: now,
+        provider: "coinbase" as const,
+        stale: false,
+        usdPrice: usd,
+      };
+    }),
+  );
+}
+
+async function fetchFreshRates(environment: unknown, now: number) {
+  try {
+    return await fetchCoinGeckoRates(environment, now);
+  } catch {
+    return fetchCoinbaseRates(now);
+  }
+}
+
 export async function readMarketRates(
   db: D1Database,
   environment: unknown,
@@ -210,7 +260,7 @@ export async function readMarketRates(
       return {
         asset: asset.id,
         observedAt: row.observed_at,
-        provider: "coingecko" as const,
+        provider: marketProvider(row.provider),
         stale: false,
         usdPrice: row.usd_price_micros / 1_000_000,
       };
@@ -218,13 +268,13 @@ export async function readMarketRates(
   }
 
   try {
-    const rates = await fetchCoinGeckoRates(environment, now);
+    const rates = await fetchFreshRates(environment, now);
     await db.batch(
       rates.map((rate) =>
         db
           .prepare(`INSERT INTO market_price_snapshots (
             asset, usd_price_micros, provider, observed_at, updated_at
-          ) VALUES (?, ?, 'coingecko', ?, ?)
+          ) VALUES (?, ?, ?, ?, ?)
           ON CONFLICT(asset) DO UPDATE SET
             usd_price_micros = excluded.usd_price_micros,
             provider = excluded.provider,
@@ -233,6 +283,7 @@ export async function readMarketRates(
           .bind(
             rate.asset,
             Math.round(rate.usdPrice * 1_000_000),
+            rate.provider,
             rate.observedAt,
             now,
           ),
@@ -250,7 +301,7 @@ export async function readMarketRates(
       return {
         asset: asset.id,
         observedAt: row.observed_at,
-        provider: "coingecko" as const,
+        provider: marketProvider(row.provider),
         stale: true,
         usdPrice: row.usd_price_micros / 1_000_000,
       };

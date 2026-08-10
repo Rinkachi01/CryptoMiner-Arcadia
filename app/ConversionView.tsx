@@ -7,12 +7,12 @@ import { assetsManifest } from "./assets.manifest";
 import type { ConversionAssetId } from "./conversion-rules";
 
 type ConvertibleAsset = "BTC" | "DOGE";
-type WalletTab = "convert" | "deposit";
+type WalletTab = "convert" | "deposit" | "withdraw";
 
 type MarketRate = {
   asset: ConversionAssetId;
   observedAt: number;
-  provider: "coingecko";
+  provider: "coinbase" | "coingecko";
   stale: boolean;
   usdPrice: number;
 };
@@ -75,7 +75,7 @@ type WalletResponse = {
       id: string;
       provider: string;
       requestedUsd: number;
-      creditedCma: number;
+      receivedAtomic: number;
       settlementAsset: string | null;
       status: string;
     }>;
@@ -164,7 +164,7 @@ export function ConversionView({
   onRefreshAccount,
   serverVersion,
 }: ConversionViewProps) {
-  const [tab, setTab] = useState<WalletTab>("convert");
+  const [tab, setTab] = useState<WalletTab>("deposit");
   const [asset, setAsset] = useState<ConvertibleAsset>("BTC");
   const [amount, setAmount] = useState("0.0001");
   const [rates, setRates] = useState<MarketRate[]>([]);
@@ -239,11 +239,6 @@ export function ConversionView({
   );
   const selectedBalanceAtomic =
     asset === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
-  const depositNetCmaEstimate = Math.max(
-    0,
-    (Number.parseFloat(depositUsd.replace(",", ".")) || 0) * 0.97,
-  );
-
   async function requestQuote() {
     setQuoting(true);
     setQuote(null);
@@ -408,22 +403,31 @@ export function ConversionView({
 
       <div className="wallet-tabs" role="tablist" aria-label="Ações da carteira">
         <button
-          className={tab === "convert" ? "active" : ""}
-          role="tab"
-          aria-selected={tab === "convert"}
-          type="button"
-          onClick={() => setTab("convert")}
-        >
-          CONVERTER PARA CMA
-        </button>
-        <button
           className={tab === "deposit" ? "active" : ""}
           role="tab"
           aria-selected={tab === "deposit"}
           type="button"
           onClick={() => setTab("deposit")}
         >
-          COMPRAR CMA COM CRIPTO
+          1 · DEPOSITAR BTC/DOGE
+        </button>
+        <button
+          className={tab === "convert" ? "active" : ""}
+          role="tab"
+          aria-selected={tab === "convert"}
+          type="button"
+          onClick={() => setTab("convert")}
+        >
+          2 · CONVERTER PARA CMA
+        </button>
+        <button
+          className={tab === "withdraw" ? "active" : ""}
+          role="tab"
+          aria-selected={tab === "withdraw"}
+          type="button"
+          onClick={() => setTab("withdraw")}
+        >
+          3 · SOLICITAR SAQUE
         </button>
       </div>
 
@@ -500,7 +504,7 @@ export function ConversionView({
                 disabled={loading || quoting || converting || !selectedRate}
                 onClick={() => void requestQuote()}
               >
-                {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 5 MINUTOS"}
+                {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 2 MINUTOS"}
               </button>
               {error && <p className="conversion-error" role="alert">{error}</p>}
               {success && <p className="conversion-success" role="status">{success}</p>}
@@ -542,7 +546,7 @@ export function ConversionView({
             </section>
           </div>
         </>
-      ) : (
+      ) : tab === "deposit" ? (
         <section className="wallet-deposit-panel">
           {!wallet && error && (
             <p className="conversion-error" role="alert">{error}</p>
@@ -553,11 +557,11 @@ export function ConversionView({
                 ? "SANDBOX DO PROVEDOR · SEM DINHEIRO REAL"
                 : "DEPÓSITOS VIA NOWPAYMENTS"}
             </span>
-            <h3>Pague em BTC ou DOGE e receba CMA</h3>
+            <h3>Deposite BTC ou DOGE no seu saldo interno</h3>
             <p>
               O Arcadia não guarda chaves privadas. O provedor cria uma fatura única e
-              envia uma confirmação assinada. Depois da liquidação da tesouraria em
-              USDT TRC20, o servidor credita o CMA líquido uma única vez.
+              envia uma confirmação assinada. O servidor credita exatamente a moeda
+              recebida; converter esse saldo para CMA é uma decisão separada do jogador.
             </p>
           </header>
           <div className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
@@ -579,16 +583,14 @@ export function ConversionView({
               </span>
             </div>
             <label>
-              VALOR DA FATURA EM USD
+              VALOR DE REFERÊNCIA DA FATURA EM USD
               <input
                 inputMode="decimal"
                 value={depositUsd}
                 onChange={(event) => setDepositUsd(event.target.value)}
               />
               <small>Mínimo local US$ 5 · máximo US$ 1.000</small>
-              <strong className="wallet-deposit-estimate">
-                ESTIMATIVA LÍQUIDA · {formatCma(depositNetCmaEstimate)} CMA
-              </strong>
+              <strong className="wallet-deposit-estimate">O VALOR EM BTC OU DOGE APARECE NA FATURA</strong>
             </label>
           </div>
           {depositError && <p className="conversion-error" role="alert">{depositError}</p>}
@@ -631,21 +633,6 @@ export function ConversionView({
                     onClick={() => void runSandbox("deposit")}
                   >
                     {sandboxBusy === "deposit" ? "CRIANDO…" : "SIMULAR DEPÓSITO"}
-                  </button>
-                </label>
-                <label>
-                  SAQUE SIMULADO EM {sandboxAsset}
-                  <input
-                    inputMode="decimal"
-                    value={sandboxAmount}
-                    onChange={(event) => setSandboxAmount(event.target.value)}
-                  />
-                  <button
-                    disabled={sandboxBusy !== null}
-                    type="button"
-                    onClick={() => void runSandbox("withdrawal")}
-                  >
-                    {sandboxBusy === "withdrawal" ? "VALIDANDO…" : "SIMULAR SAQUE"}
                   </button>
                 </label>
               </div>
@@ -708,7 +695,7 @@ export function ConversionView({
                     <span>{formatUsd(item.requestedUsd)}</span>
                     <em>{item.status.replaceAll("_", " ").toUpperCase()}</em>
                     {item.status === "credited" && (
-                      <strong>+{formatCma(item.creditedCma)} CMA</strong>
+                      <strong>+{formatCryptoAtomic(item.receivedAtomic)} {item.asset}</strong>
                     )}
                     {item.checkoutUrl && item.status !== "credited" && (
                       <a href={item.checkoutUrl} rel="noreferrer">ABRIR FATURA</a>
@@ -719,8 +706,8 @@ export function ConversionView({
           )}
           <div className="wallet-deposit-flow">
             <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
-            <article><b>2</b><span><strong>LIQUIDAÇÃO</strong><small>A assinatura, o valor e o recebimento em USDT TRC20 são conferidos.</small></span></article>
-            <article><b>3</b><span><strong>CRÉDITO CMA</strong><small>O valor líquido, após reserva de 3%, entra uma única vez no livro-razão.</small></span></article>
+            <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>A assinatura, a moeda paga e a liquidação da tesouraria são conferidas.</small></span></article>
+            <article><b>3</b><span><strong>SALDO CRIPTO</strong><small>O BTC ou DOGE recebido entra no livro-razão; nenhum CMA é criado automaticamente.</small></span></article>
           </div>
           <p className="wallet-provider-notice">
             <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
@@ -728,15 +715,58 @@ export function ConversionView({
             dentro desta tela após a ativação oficial.
           </p>
         </section>
+      ) : (
+        <section className="wallet-deposit-panel wallet-withdraw-panel">
+          <header>
+            <span>SAQUE CRIPTO · PROCESSAMENTO MANUAL</span>
+            <h3>O saque é separado da conversão</h3>
+            <p>
+              Somente saldos internos de BTC e DOGE poderão ser solicitados para saque.
+              CMA é crédito do jogo e não pode ser sacado. A fila real permanece fechada
+              até concluirmos endereço, rede, 2FA, revisão administrativa e reserva.
+            </p>
+          </header>
+          <div className="wallet-withdraw-summary">
+            <article><small>DISPONÍVEL EM BTC</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></article>
+            <article><small>DISPONÍVEL EM DOGE</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></article>
+            <article><small>STATUS</small><strong>EM PREPARAÇÃO SEGURA</strong></article>
+          </div>
+          <p className="wallet-provider-notice">
+            <strong>NENHUM SAQUE REAL É EXECUTADO NESTA VERSÃO.</strong>{" "}
+            Quando a fila for ativada, o saldo será reservado na solicitação e só será
+            baixado definitivamente após o proprietário registrar a transação enviada.
+          </p>
+          {wallet?.withdrawals?.sandboxEnabled && (
+            <section className="wallet-sandbox-lab">
+              <header><div><span>TESTE DE FLUXO</span><h4>Simular pedido de saque</h4></div><strong>ZERO MOVIMENTAÇÃO</strong></header>
+              <div className="wallet-sandbox-controls">
+                <label>
+                  MOEDA
+                  <select value={sandboxAsset} onChange={(event) => setSandboxAsset(event.target.value as ConvertibleAsset)}>
+                    <option value="BTC">Bitcoin · BTC</option>
+                    <option value="DOGE">Dogecoin · DOGE</option>
+                  </select>
+                </label>
+                <label>
+                  QUANTIDADE EM {sandboxAsset}
+                  <input inputMode="decimal" value={sandboxAmount} onChange={(event) => setSandboxAmount(event.target.value)} />
+                  <button disabled={sandboxBusy !== null} type="button" onClick={() => void runSandbox("withdrawal")}>
+                    {sandboxBusy === "withdrawal" ? "VALIDANDO…" : "SIMULAR PEDIDO"}
+                  </button>
+                </label>
+              </div>
+              {sandboxError && <p className="conversion-error" role="alert">{sandboxError}</p>}
+              {sandboxMessage && <p className="conversion-success" role="status">{sandboxMessage}</p>}
+            </section>
+          )}
+        </section>
       )}
 
       <footer className="conversion-safety-note">
         <div><b>UMA ÚNICA DIREÇÃO</b><p>BTC ou DOGE → CMA. CMA não volta para cripto.</p></div>
         <div><b>SEM SAQUE DE CMA</b><p>O CMA compra somente itens e serviços internos.</p></div>
         <div><b>REGISTRO INDIVIDUAL</b><p>Cada conta tem saldos e histórico separados no servidor.</p></div>
-        <a href="https://www.coingecko.com" target="_blank" rel="noreferrer">
-          DADOS DE MERCADO: COINGECKO
-        </a>
+        <div><b>COTAÇÃO REDUNDANTE</b><p>CoinGecko com alternativa automática da Coinbase.</p></div>
       </footer>
     </section>
   );

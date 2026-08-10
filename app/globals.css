@@ -6267,7 +6267,7 @@ img {
 
 .wallet-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 6px;
   border: 1px solid rgba(137, 167, 184, 0.25);
@@ -6374,7 +6374,7 @@ img {
 
 .wallet-sandbox-controls {
   display: grid;
-  grid-template-columns: minmax(180px, 0.7fr) repeat(2, minmax(220px, 1fr));
+  grid-template-columns: minmax(180px, 0.7fr) minmax(220px, 1fr);
   gap: 12px;
 }
 
@@ -6647,6 +6647,33 @@ img {
   color: #ffc248;
 }
 
+.wallet-withdraw-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wallet-withdraw-summary article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(99, 234, 255, 0.22);
+  background: #050b12;
+}
+
+.wallet-withdraw-summary small {
+  color: #91a9b5;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+
+.wallet-withdraw-summary strong {
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 1rem;
+}
+
 .conversion-safety-note {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
@@ -6696,7 +6723,8 @@ img {
   .wallet-balance-overview,
   .wallet-deposit-flow,
   .wallet-sandbox-controls,
-  .wallet-provider-gate {
+  .wallet-provider-gate,
+  .wallet-withdraw-summary {
     grid-template-columns: 1fr;
   }
 }

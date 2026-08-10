@@ -65,15 +65,15 @@ export function presentLedgerActivity(
         "CMA virtual foi adicionado para validar compras e o crescimento controlado da rede beta.",
     };
   }
-  if (action === "credit_cma_deposit") {
-    const creditedCma = numberValue(metadata.creditedCmaMicros) / 1_000_000;
+  if (action === "credit_crypto_deposit") {
+    const asset = String(metadata.creditedAsset ?? "CRIPTO");
+    const credited = numberValue(metadata.creditedAtomic) / 100_000_000;
     return {
       category: "economy",
-      title: "Depósito convertido em CMA",
-      description: `${creditedCma.toLocaleString("pt-BR", {
-        maximumFractionDigits: 6,
-        minimumFractionDigits: 2,
-      })} CMA foram creditados após confirmação assinada e liquidação da tesouraria.`,
+      title: `Depósito em ${asset} confirmado`,
+      description: `${credited.toLocaleString("pt-BR", {
+        maximumFractionDigits: 8,
+      })} ${asset} foram creditados no saldo interno. A conversão para CMA depende de confirmação manual do jogador.`,
     };
   }
   if (action === "block_settlement") {

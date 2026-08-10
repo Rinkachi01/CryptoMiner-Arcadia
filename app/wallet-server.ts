@@ -4,7 +4,7 @@ import {
 } from "./game-server.ts";
 import { amountToAtomic } from "./conversion-rules.ts";
 import {
-  calculateDirectCmaDeposit,
+  applyCryptoDepositBalances,
   DEPOSIT_SETTLEMENT_ASSET,
   DEPOSIT_SETTLEMENT_DECIMALS,
   parseDecimalAtomic,
@@ -49,6 +49,7 @@ type DepositIntentRow = {
   id: string;
   provider: string;
   requested_usd_micros: number;
+  received_atomic: number;
   credited_cma_micros: number;
   settlement_asset: string | null;
   settlement_atomic: number;
@@ -95,7 +96,7 @@ export type WalletOverview = {
       id: string;
       provider: string;
       requestedUsd: number;
-      creditedCma: number;
+      receivedAtomic: number;
       settlementAsset: string | null;
       status: string;
     }>;
@@ -482,32 +483,6 @@ export async function processNowPaymentsIpn(input: {
     ]);
     return { accepted: true as const, status: "review_required" as const };
   }
-  const depositCredit = calculateDirectCmaDeposit(
-    intent.requested_usd_micros,
-    settlementAtomic,
-  );
-  if (!depositCredit.reserveCovered) {
-    await input.db.batch([
-      input.db
-        .prepare(`UPDATE wallet_deposit_intents
-          SET status = 'review_required', received_atomic = ?,
-              settlement_asset = ?, settlement_atomic = ?, updated_at = ?
-          WHERE id = ? AND status NOT IN ('credited', 'crediting')`)
-        .bind(
-          receivedAtomic,
-          settlementAsset,
-          settlementAtomic,
-          now,
-          intent.id,
-        ),
-      input.db
-        .prepare(`UPDATE wallet_provider_events SET status = 'processed'
-          WHERE id = ?`)
-        .bind(eventId),
-    ]);
-    return { accepted: true as const, status: "review_required" as const };
-  }
-
   const stateRow = await input.db
     .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
     .bind(intent.account_id)
@@ -522,23 +497,24 @@ export async function processNowPaymentsIpn(input: {
   }
 
   const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
-  const currentCmaMicros = Math.round(state.cmaBalance * 1_000_000);
-  const nextCmaMicros = currentCmaMicros + depositCredit.creditedCmaMicros;
-  if (!Number.isSafeInteger(nextCmaMicros)) {
-    throw new Error("Saldo recebido excede o limite seguro.");
-  }
-  state.cmaBalance = nextCmaMicros / 1_000_000;
-  state.displayedBalanceSymbol = "CMA";
+  const balances = applyCryptoDepositBalances({
+    asset: eventAsset,
+    btcBalanceAtomic: state.btcBalanceAtomic,
+    dogeBalanceAtomic: state.dogeBalanceAtomic,
+    receivedAtomic,
+  });
+  state.btcBalanceAtomic = balances.btcBalanceAtomic;
+  state.dogeBalanceAtomic = balances.dogeBalanceAtomic;
+  state.displayedBalanceSymbol = eventAsset;
   const nextVersion = stateRow.version + 1;
   const nextStateJson = JSON.stringify(state);
   const idempotencyKey = `deposit:${intent.id}`;
   const ledgerId = crypto.randomUUID();
   const metadataJson = JSON.stringify({
-    cmaUsdReference: 1,
-    creditedCmaMicros: depositCredit.creditedCmaMicros,
-    feeBps: depositCredit.feeBps,
-    feeCmaMicros: depositCredit.feeCmaMicros,
-    grossUsdMicros: intent.requested_usd_micros,
+    creditedAsset: eventAsset,
+    creditedAtomic: receivedAtomic,
+    invoiceUsdMicros: intent.requested_usd_micros,
+    manualConversionRequired: true,
     paidAsset: eventAsset,
     provider: "nowpayments",
     providerReference: paymentReference,
@@ -556,7 +532,7 @@ export async function processNowPaymentsIpn(input: {
         receivedAtomic,
         settlementAsset,
         settlementAtomic,
-        depositCredit.creditedCmaMicros,
+        0,
         now,
         intent.id,
       ),
@@ -578,7 +554,7 @@ export async function processNowPaymentsIpn(input: {
       .prepare(`INSERT OR IGNORE INTO ledger_entries (
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
-      ) SELECT ?, ?, 'credit_cma_deposit', ?, ?, ?, ?, ?
+      ) SELECT ?, ?, 'credit_crypto_deposit', ?, ?, 0, ?, ?
         WHERE EXISTS (SELECT 1 FROM game_states
           WHERE account_id = ? AND version = ? AND state_json = ?)
           AND EXISTS (SELECT 1 FROM wallet_deposit_intents
@@ -588,7 +564,6 @@ export async function processNowPaymentsIpn(input: {
         intent.account_id,
         idempotencyKey,
         nextVersion,
-        depositCredit.creditedCmaMicros,
         metadataJson,
         now,
         intent.account_id,
@@ -607,7 +582,7 @@ export async function processNowPaymentsIpn(input: {
         receivedAtomic,
         settlementAsset,
         settlementAtomic,
-        depositCredit.creditedCmaMicros,
+        0,
         now,
         intent.id,
         intent.account_id,
@@ -632,7 +607,7 @@ export async function processNowPaymentsIpn(input: {
   return {
     accepted: true as const,
     asset: eventAsset,
-    creditedCmaMicros: depositCredit.creditedCmaMicros,
+    creditedAtomic: receivedAtomic,
     receivedAtomic,
     settlementAsset,
     settlementAtomic,
@@ -817,7 +792,7 @@ export async function readWalletOverview(input: {
       .first<WalletGameRow>(),
     input.db
       .prepare(`SELECT id, asset, provider, checkout_url,
-        requested_usd_micros, credited_cma_micros, settlement_asset,
+        requested_usd_micros, received_atomic, credited_cma_micros, settlement_asset,
         settlement_atomic, status, expires_at, created_at
         FROM wallet_deposit_intents
         WHERE account_id = ?
@@ -861,7 +836,7 @@ export async function readWalletOverview(input: {
         id: intent.id,
         provider: intent.provider,
         requestedUsd: intent.requested_usd_micros / 1_000_000,
-        creditedCma: intent.credited_cma_micros / 1_000_000,
+        receivedAtomic: intent.received_atomic,
         settlementAsset: intent.settlement_asset,
         status: intent.status,
       })),

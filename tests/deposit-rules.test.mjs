@@ -2,25 +2,42 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  calculateDirectCmaDeposit,
+  applyCryptoDepositBalances,
   DEPOSIT_SETTLEMENT_ASSET,
   parseDecimalAtomic,
 } from "../app/deposit-rules.ts";
 
-test("depósito direto aplica reserva de 3% e exige cobertura em USDT", () => {
-  const covered = calculateDirectCmaDeposit(10_000_000, 9_850_000);
-  assert.deepEqual(covered, {
-    creditedCmaMicros: 9_700_000,
-    feeBps: 300,
-    feeCmaMicros: 300_000,
-    grossCmaMicros: 10_000_000,
-    reserveCovered: true,
-  });
-  assert.equal(
-    calculateDirectCmaDeposit(10_000_000, 9_699_999).reserveCovered,
-    false,
-  );
+test("depósito preserva a liquidação auditável em USDT", () => {
   assert.equal(DEPOSIT_SETTLEMENT_ASSET, "USDTTRC20");
+});
+
+test("depósito credita somente a moeda paga sem criar CMA", () => {
+  assert.deepEqual(
+    applyCryptoDepositBalances({
+      asset: "BTC",
+      btcBalanceAtomic: 10,
+      dogeBalanceAtomic: 20,
+      receivedAtomic: 30,
+    }),
+    { btcBalanceAtomic: 40, dogeBalanceAtomic: 20 },
+  );
+  assert.deepEqual(
+    applyCryptoDepositBalances({
+      asset: "DOGE",
+      btcBalanceAtomic: 10,
+      dogeBalanceAtomic: 20,
+      receivedAtomic: 30,
+    }),
+    { btcBalanceAtomic: 10, dogeBalanceAtomic: 50 },
+  );
+  assert.throws(() =>
+    applyCryptoDepositBalances({
+      asset: "BTC",
+      btcBalanceAtomic: Number.MAX_SAFE_INTEGER,
+      dogeBalanceAtomic: 0,
+      receivedAtomic: 1,
+    }),
+  );
 });
 
 test("valores decimais do provedor são convertidos sem ponto flutuante", () => {
@@ -32,7 +49,7 @@ test("valores decimais do provedor são convertidos sem ponto flutuante", () => 
   assert.equal(parseDecimalAtomic("0", 6), null);
 });
 
-test("IPN concluído credita CMA e preserva a liquidação auditável", async () => {
+test("IPN concluído credita a moeda paga e exige conversão manual para CMA", async () => {
   const source = await readFile(
     new URL("../app/wallet-server.ts", import.meta.url),
     "utf8",
@@ -43,7 +60,8 @@ test("IPN concluído credita CMA e preserva a liquidação auditável", async ()
   assert.match(source, /outcome_currency/);
   assert.match(source, /DEPOSIT_SETTLEMENT_ASSET/);
   assert.match(source, /review_required/);
-  assert.match(source, /credit_cma_deposit/);
+  assert.match(source, /credit_crypto_deposit/);
+  assert.match(source, /manualConversionRequired: true/);
   assert.match(source, /delta_cma_micros/);
-  assert.doesNotMatch(source, /credit_crypto_deposit/);
+  assert.doesNotMatch(source, /credit_cma_deposit/);
 });
