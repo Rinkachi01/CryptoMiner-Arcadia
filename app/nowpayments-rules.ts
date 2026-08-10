@@ -20,6 +20,15 @@ function enabled(value: unknown) {
   return clean(value).toLowerCase() === "true";
 }
 
+function environmentValue(
+  source: NowPaymentsEnvironment,
+  key: keyof NowPaymentsEnvironment,
+) {
+  const bindingValue = clean(source[key]);
+  if (bindingValue) return bindingValue;
+  return typeof process !== "undefined" ? clean(process.env[key]) : "";
+}
+
 function validPublicBaseUrl(value: string) {
   try {
     const parsed = new URL(value);
@@ -31,10 +40,21 @@ function validPublicBaseUrl(value: string) {
 
 export function readNowPaymentsConfig(environment: unknown) {
   const source = (environment ?? {}) as NowPaymentsEnvironment;
-  const apiKey = clean(source.NOWPAYMENTS_API_KEY);
-  const ipnSecret = clean(source.NOWPAYMENTS_IPN_SECRET);
-  const publicBaseUrl = clean(source.PUBLIC_BASE_URL).replace(/\/$/, "");
-  const requestedApiBase = clean(source.NOWPAYMENTS_API_BASE_URL);
+  const apiKey = environmentValue(source, "NOWPAYMENTS_API_KEY");
+  const ipnSecret = environmentValue(source, "NOWPAYMENTS_IPN_SECRET");
+  const publicBaseUrl = environmentValue(source, "PUBLIC_BASE_URL").replace(
+    /\/$/,
+    "",
+  );
+  const requestedApiBase = environmentValue(
+    source,
+    "NOWPAYMENTS_API_BASE_URL",
+  );
+  const depositsFlag = environmentValue(source, "CRYPTO_DEPOSITS_ENABLED");
+  const liveDepositsFlag = environmentValue(
+    source,
+    "CRYPTO_LIVE_DEPOSITS_ENABLED",
+  );
   const productionRequested = requestedApiBase === PRODUCTION_API;
   const apiBaseUrl = productionRequested ? PRODUCTION_API : SANDBOX_API;
   const apiKeyConfigured = apiKey.length >= 24;
@@ -45,11 +65,8 @@ export function readNowPaymentsConfig(environment: unknown) {
   );
   const sandbox = apiBaseUrl === SANDBOX_API;
   const activationRequested =
-    enabled(source.CRYPTO_DEPOSITS_ENABLED) ||
-    (!clean(source.CRYPTO_DEPOSITS_ENABLED) && providerReady && sandbox);
-  const liveActivationRequested = enabled(
-    source.CRYPTO_LIVE_DEPOSITS_ENABLED,
-  );
+    enabled(depositsFlag) || (!depositsFlag && providerReady && sandbox);
+  const liveActivationRequested = enabled(liveDepositsFlag);
   return {
     activationRequested,
     apiBaseUrl,
