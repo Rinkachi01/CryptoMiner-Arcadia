@@ -219,6 +219,8 @@ Fontes oficiais:
 - não converter BTC/DOGE/LTC em CMA sem cotação de mercado válida, taxa transparente e confirmação autoritativa;
 - não prometer “1 CMA = US$ 1” nem rentabilidade;
 - não liberar saque com uma simples chamada de API do cliente.
+- usar o laboratório financeiro apenas para simular protocolos: ele não gera
+  endereço real, não altera saldo e não representa depósito ou saque ativo.
 
 ### Primeira etapa financeira recomendada: compra em sentido único
 

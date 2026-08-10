@@ -9,9 +9,11 @@
               <td style="padding:32px">
                 <p style="margin:0 0 12px;color:#a9ff3f;font-size:12px;font-weight:700;letter-spacing:1.5px">CRYPTO MINER ARCADIA</p>
                 <h1 style="margin:0 0 16px;font-size:26px;line-height:1.2">Confirme seu e-mail</h1>
-                <p style="margin:0 0 24px;color:#b7c8ce;line-height:1.65">Use o botao abaixo para confirmar o cadastro e liberar sua conta. Se voce nao iniciou este cadastro, ignore esta mensagem.</p>
+                <p style="margin:0 0 24px;color:#b7c8ce;line-height:1.65">Use o botão abaixo para confirmar o cadastro e liberar sua conta. Se você não iniciou este cadastro, ignore esta mensagem.</p>
                 <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#a9ff3f;color:#071006;padding:15px 20px;text-decoration:none;font-weight:800">CONFIRMAR CONTA</a>
-                <p style="margin:24px 0 0;color:#8297a0;font-size:12px;line-height:1.6">O Arcadia nunca solicita senha, chave privada ou seed phrase por e-mail.</p>
+                <p style="margin:24px 0 8px;color:#8297a0;font-size:12px;line-height:1.6">Se o botão não abrir, copie este endereço no navegador:</p>
+                <p style="margin:0;color:#63eaff;font-size:12px;line-height:1.6;word-break:break-all">{{ .ConfirmationURL }}</p>
+                <p style="margin:24px 0 0;color:#8297a0;font-size:12px;line-height:1.6">O Arcadia nunca solicita senha, chave privada ou seed phrase por e-mail. Suporte: <a href="{{ .SiteURL }}/support" style="color:#63eaff">{{ .SiteURL }}/support</a></p>
               </td>
             </tr>
           </table>
@@ -20,4 +22,3 @@
     </table>
   </body>
 </html>
-

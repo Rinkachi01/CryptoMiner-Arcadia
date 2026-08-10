@@ -34,9 +34,11 @@ export type ArcadeSecurityStatus = {
 
 export type SecurityOverview = {
   activePasses: number;
+  automationEvents24h: number;
   blockedAccounts24h: number;
   configured: boolean;
   events24h: number;
+  rateLimitEvents24h: number;
   recentEvents: Array<{
     accountId: string;
     category: string;
@@ -44,6 +46,8 @@ export type SecurityOverview = {
     reason: string;
   }>;
   required: boolean;
+  status: "attention" | "critical" | "stable";
+  turnstileFailures24h: number;
 };
 
 function textSetting(value: unknown) {
@@ -360,26 +364,55 @@ export async function readSecurityOverview(
 ): Promise<SecurityOverview> {
   await ensureSecuritySchema(db);
   const config = readSecurityConfig(environment);
-  const [passes, events, accounts, recent] = await Promise.all([
+  const [passes, events, accounts, categories, recent] = await Promise.all([
     db.prepare(`SELECT COUNT(*) AS total FROM arcade_security_passes
       WHERE expires_at > ?`).bind(now).first<{ total: number }>(),
     db.prepare(`SELECT COUNT(*) AS total FROM security_events
       WHERE created_at >= ?`).bind(now - 24 * 60 * 60 * 1000).first<{ total: number }>(),
     db.prepare(`SELECT COUNT(DISTINCT account_id) AS total FROM security_events
       WHERE created_at >= ?`).bind(now - 24 * 60 * 60 * 1000).first<{ total: number }>(),
+    db.prepare(`SELECT
+        SUM(CASE WHEN category = 'automation_pattern' THEN 1 ELSE 0 END) AS automation_total,
+        SUM(CASE WHEN category = 'rate_limit' THEN 1 ELSE 0 END) AS rate_limit_total,
+        SUM(CASE WHEN category IN ('turnstile_failed', 'turnstile_unavailable')
+          THEN 1 ELSE 0 END) AS turnstile_total
+      FROM security_events WHERE created_at >= ?`)
+      .bind(now - 24 * 60 * 60 * 1000)
+      .first<{
+        automation_total: number;
+        rate_limit_total: number;
+        turnstile_total: number;
+      }>(),
     db.prepare(`SELECT account_id, category, reason, created_at
-      FROM security_events ORDER BY created_at DESC LIMIT 8`).all<{
+      FROM security_events ORDER BY created_at DESC LIMIT 12`).all<{
         account_id: string;
         category: string;
         reason: string;
         created_at: number;
       }>(),
   ]);
+  const automationEvents24h = Number(categories?.automation_total ?? 0);
+  const rateLimitEvents24h = Number(categories?.rate_limit_total ?? 0);
+  const turnstileFailures24h = Number(categories?.turnstile_total ?? 0);
+  const events24h = Number(events?.total ?? 0);
+  const status =
+    automationEvents24h >= 5 ||
+    rateLimitEvents24h >= 50 ||
+    turnstileFailures24h >= 25
+      ? "critical"
+      : events24h >= 5 ||
+          automationEvents24h > 0 ||
+          rateLimitEvents24h > 0 ||
+          turnstileFailures24h > 0
+        ? "attention"
+        : "stable";
   return {
     activePasses: Number(passes?.total ?? 0),
+    automationEvents24h,
     blockedAccounts24h: Number(accounts?.total ?? 0),
     configured: config.configured,
-    events24h: Number(events?.total ?? 0),
+    events24h,
+    rateLimitEvents24h,
     recentEvents: recent.results.map((row) => ({
       accountId: row.account_id,
       category: row.category,
@@ -387,5 +420,7 @@ export async function readSecurityOverview(
       reason: row.reason,
     })),
     required: config.required,
+    status,
+    turnstileFailures24h,
   };
 }

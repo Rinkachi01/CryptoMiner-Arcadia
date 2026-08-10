@@ -131,6 +131,7 @@ const requiredTables = [
   "player_wallet_accounts",
   "wallet_deposit_intents",
   "wallet_provider_events",
+  "wallet_withdrawal_intents",
   "operational_checkpoints",
 ] as const;
 
@@ -161,6 +162,7 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   conversion_quotes: 100_000,
   wallet_deposit_intents: 100_000,
   wallet_provider_events: 100_000,
+  wallet_withdrawal_intents: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
   temporary_power_grants: 100_000,

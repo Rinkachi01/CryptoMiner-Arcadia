@@ -15,6 +15,7 @@ export type PublicLaunchReadiness = {
     enabled: boolean;
     model: "provider_invoice";
     provider: "bitpay_candidate";
+    sandboxEnabled: boolean;
   };
   hosting: {
     customDomain: boolean;
@@ -35,6 +36,7 @@ export type PublicLaunchReadiness = {
     cmaWithdrawable: false;
     cryptoEnabled: false;
     provider: "not_selected";
+    sandboxEnabled: boolean;
   };
 };
 
@@ -99,6 +101,7 @@ export function readPublicLaunchReadiness(
       enabled: deposits.depositsEnabled,
       model: "provider_invoice",
       provider: "bitpay_candidate",
+      sandboxEnabled: deposits.sandboxEnabled,
     },
     hosting: hostingStatus(requestUrl ?? source.PUBLIC_BASE_URL),
     identity: {
@@ -116,6 +119,7 @@ export function readPublicLaunchReadiness(
       cmaWithdrawable: false,
       cryptoEnabled: false,
       provider: "not_selected",
+      sandboxEnabled: deposits.sandboxEnabled,
     },
   };
 }

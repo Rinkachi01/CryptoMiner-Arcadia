@@ -61,8 +61,41 @@ type WalletResponse = {
     enabled: boolean;
     provider: "bitpay";
     providerReady: boolean;
+    sandboxEnabled: boolean;
+    recent: Array<{
+      asset: string;
+      createdAt: number;
+      expiresAt: number | null;
+      id: string;
+      requestedUsd: number;
+      status: string;
+    }>;
   };
   error?: string;
+  withdrawals?: {
+    enabled: false;
+    recentSandbox: Array<{
+      amountAtomic: number;
+      asset: string;
+      createdAt: number;
+      id: string;
+      status: string;
+    }>;
+    sandboxEnabled: boolean;
+  };
+};
+
+type SandboxResponse = {
+  error?: string;
+  message?: string;
+  simulation?: {
+    amountAtomic?: number;
+    asset: ConvertibleAsset;
+    expiresAt?: number;
+    id: string;
+    requestedUsd?: number;
+    status: "simulation_only";
+  };
 };
 
 type ConversionViewProps = {
@@ -120,6 +153,12 @@ export function ConversionView({
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [sandboxAmount, setSandboxAmount] = useState("0.001");
+  const [sandboxAsset, setSandboxAsset] = useState<ConvertibleAsset>("BTC");
+  const [sandboxBusy, setSandboxBusy] = useState<"deposit" | "withdrawal" | null>(null);
+  const [sandboxError, setSandboxError] = useState("");
+  const [sandboxMessage, setSandboxMessage] = useState("");
+  const [sandboxUsd, setSandboxUsd] = useState("10");
 
   useEffect(() => {
     let active = true;
@@ -218,6 +257,46 @@ export function ConversionView({
     setAmount((selectedBalanceAtomic / 100_000_000).toFixed(8));
     setQuote(null);
     setError("");
+  }
+
+  async function runSandbox(action: "deposit" | "withdrawal") {
+    setSandboxBusy(action);
+    setSandboxError("");
+    setSandboxMessage("");
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify(
+          action === "deposit"
+            ? {
+                action: "sandbox-deposit",
+                asset: sandboxAsset,
+                usdAmount: sandboxUsd,
+              }
+            : {
+                action: "sandbox-withdrawal",
+                amount: sandboxAmount,
+                asset: sandboxAsset,
+              },
+        ),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as SandboxResponse;
+      if (!response.ok || !payload.simulation) {
+        throw new Error(payload.error ?? "Simulação recusada pelo servidor.");
+      }
+      setSandboxMessage(
+        `${payload.message ?? "Simulação registrada."} Protocolo ${payload.simulation.id.slice(-8).toUpperCase()}.`,
+      );
+      const refreshed = await fetch("/api/wallet", { cache: "no-store" });
+      if (refreshed.ok) setWallet((await refreshed.json()) as WalletResponse);
+    } catch (reason) {
+      setSandboxError(
+        reason instanceof Error ? reason.message : "Não foi possível simular.",
+      );
+    } finally {
+      setSandboxBusy(null);
+    }
   }
 
   return (
@@ -404,6 +483,85 @@ export function ConversionView({
               creditará o saldo individual somente após confirmação na rede.
             </p>
           </header>
+          {wallet?.deposits?.sandboxEnabled && (
+            <section className="wallet-sandbox-lab" aria-labelledby="wallet-sandbox-title">
+              <header>
+                <div>
+                  <span>LABORATÓRIO FINANCEIRO</span>
+                  <h4 id="wallet-sandbox-title">Teste o fluxo sem movimentar dinheiro</h4>
+                </div>
+                <strong>SIMULAÇÃO · ZERO CRÉDITO</strong>
+              </header>
+              <p>
+                Esta área testa telas, limites e protocolos. Ela não gera endereço
+                real, não recebe criptomoeda e não altera nenhum saldo.
+              </p>
+              <div className="wallet-sandbox-controls">
+                <label>
+                  MOEDA DE TESTE
+                  <select
+                    value={sandboxAsset}
+                    onChange={(event) =>
+                      setSandboxAsset(event.target.value as ConvertibleAsset)
+                    }
+                  >
+                    <option value="BTC">Bitcoin · BTC</option>
+                    <option value="DOGE">Dogecoin · DOGE</option>
+                  </select>
+                </label>
+                <label>
+                  FATURA SIMULADA EM USD
+                  <input
+                    inputMode="decimal"
+                    value={sandboxUsd}
+                    onChange={(event) => setSandboxUsd(event.target.value)}
+                  />
+                  <button
+                    disabled={sandboxBusy !== null}
+                    type="button"
+                    onClick={() => void runSandbox("deposit")}
+                  >
+                    {sandboxBusy === "deposit" ? "CRIANDO…" : "SIMULAR DEPÓSITO"}
+                  </button>
+                </label>
+                <label>
+                  SAQUE SIMULADO EM {sandboxAsset}
+                  <input
+                    inputMode="decimal"
+                    value={sandboxAmount}
+                    onChange={(event) => setSandboxAmount(event.target.value)}
+                  />
+                  <button
+                    disabled={sandboxBusy !== null}
+                    type="button"
+                    onClick={() => void runSandbox("withdrawal")}
+                  >
+                    {sandboxBusy === "withdrawal" ? "VALIDANDO…" : "SIMULAR SAQUE"}
+                  </button>
+                </label>
+              </div>
+              {sandboxError && (
+                <p className="conversion-error" role="alert">{sandboxError}</p>
+              )}
+              {sandboxMessage && (
+                <p className="conversion-success" role="status">{sandboxMessage}</p>
+              )}
+              <div className="wallet-sandbox-history">
+                <article>
+                  <span>FATURAS DE TESTE</span>
+                  <strong>{wallet.deposits.recent.filter((item) => item.status === "simulation_only").length}</strong>
+                </article>
+                <article>
+                  <span>SAQUES DE TESTE</span>
+                  <strong>{wallet.withdrawals?.recentSandbox.length ?? 0}</strong>
+                </article>
+                <article>
+                  <span>DINHEIRO MOVIMENTADO</span>
+                  <strong>US$ 0,00</strong>
+                </article>
+              </div>
+            </section>
+          )}
           <div className="wallet-deposit-assets">
             {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => (
               <article key={id}>

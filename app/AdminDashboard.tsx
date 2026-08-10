@@ -313,6 +313,13 @@ const supportStatusLabels: Record<string, string> = {
   closed: "Encerrado",
 };
 
+const securityCategoryLabels: Record<string, string> = {
+  automation_pattern: "Padrão automatizado",
+  rate_limit: "Limite de ações",
+  turnstile_failed: "Desafio humano recusado",
+  turnstile_unavailable: "Turnstile indisponível",
+};
+
 const actionLabels: Record<string, string> = {
   starter_kit_granted: "Kits iniciais entregues",
   buy_batteries: "Baterias compradas",
@@ -859,7 +866,7 @@ export function AdminDashboard({
                   ? "PREPARADO"
                   : "AGUARDA CHAVES"}
             </strong>
-            <p>Turnstile opcional, validado no servidor e com passe de 12 horas.</p>
+            <p>Turnstile obrigatório, validado no servidor e com passe de 4 horas.</p>
           </article>
           <article
             className={overview.launch.identity.projectConfigured ? "ready" : "pending"}
@@ -950,6 +957,8 @@ export function AdminDashboard({
                   ? "ATIVO"
                   : overview.launch.deposits.configured
                     ? "CONFIGURADO, MAS BLOQUEADO"
+                    : overview.launch.deposits.sandboxEnabled
+                      ? "LABORATÓRIO SEM DINHEIRO ATIVO"
                     : "BITPAY EM AVALIAÇÃO"}
               </em>
             </article>
@@ -961,7 +970,11 @@ export function AdminDashboard({
                 Fase separada. CMA nunca será sacável; BTC e DOGE dependerão de
                 contrato, identidade verificada, limites e reserva financeira.
               </p>
-              <em>NÃO ATIVAR AGORA</em>
+              <em>
+                {overview.launch.withdrawals.sandboxEnabled
+                  ? "SOMENTE SIMULAÇÃO"
+                  : "NÃO ATIVAR AGORA"}
+              </em>
             </article>
           </div>
         </section>
@@ -1064,10 +1077,60 @@ export function AdminDashboard({
             <strong>{formatNumber(overview.security.activePasses)}</strong>
           </div>
           <div>
-            <span>CONVERSÕES CONCLUÍDAS · 24H</span>
-            <strong>{formatNumber(overview.conversion.conversions24h)}</strong>
+            <span>AUTOMAÇÕES DETECTADAS · 24H</span>
+            <strong>{formatNumber(overview.security.automationEvents24h)}</strong>
+          </div>
+          <div>
+            <span>LIMITES ACIONADOS · 24H</span>
+            <strong>{formatNumber(overview.security.rateLimitEvents24h)}</strong>
+          </div>
+          <div>
+            <span>TURNSTILE RECUSADO · 24H</span>
+            <strong>{formatNumber(overview.security.turnstileFailures24h)}</strong>
           </div>
         </div>
+
+        <section className={`admin-security-monitor ${overview.security.status}`}>
+          <header>
+            <div>
+              <span>MONITOR ANTIFRAUDE · TEMPO REAL DO SERVIDOR</span>
+              <h3>Fila de sinais do Arcade</h3>
+            </div>
+            <strong>
+              {overview.security.status === "stable"
+                ? "OPERAÇÃO ESTÁVEL"
+                : overview.security.status === "attention"
+                  ? "EXIGE ACOMPANHAMENTO"
+                  : "AÇÃO PRIORITÁRIA"}
+            </strong>
+          </header>
+          <p>
+            Os eventos abaixo não removem saldo automaticamente. Eles ajudam o
+            proprietário a separar falha humana, excesso de tentativas e automação
+            antes de qualquer decisão sobre a conta.
+          </p>
+          <div className="admin-security-events">
+            {overview.security.recentEvents.length === 0 ? (
+              <article className="empty">
+                <strong>Nenhum sinal recente</strong>
+                <span>O servidor continua aplicando os limites normalmente.</span>
+              </article>
+            ) : (
+              overview.security.recentEvents.map((event, index) => (
+                <article key={`${event.accountId}-${event.createdAt}-${index}`}>
+                  <div>
+                    <span>
+                      {securityCategoryLabels[event.category] ?? "Evento de segurança"}
+                    </span>
+                    <time>{formatDate(event.createdAt)}</time>
+                  </div>
+                  <strong>Conta {event.accountId.slice(0, 8)}…</strong>
+                  <p>{event.reason}</p>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
       </section>
 
       <section className="admin-panel admin-beta-observability">

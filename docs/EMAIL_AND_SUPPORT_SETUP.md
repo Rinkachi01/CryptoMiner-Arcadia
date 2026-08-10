@@ -25,7 +25,9 @@ O roteiro operacional completo, incluindo quais enderecos criar, esta em
 3. Criar `support@seudominio.com` como endereco de atendimento. O remetente pode ser `Arcadia <no-reply@auth.seudominio.com>`.
 4. No Supabase, abrir **Authentication > Emails > SMTP Settings** e configurar o SMTP personalizado do Resend.
 5. Conferir **Site URL** e **Redirect URLs** para o endereco publico definitivo, sempre com HTTPS.
-6. Aplicar os modelos da pasta `docs/email-templates` e enviar testes para Gmail e Outlook.
+6. Aplicar os cinco modelos da pasta `docs/email-templates` (confirmação,
+   recuperação, magic link, troca de e-mail e aviso de senha alterada) e enviar
+   testes para Gmail e Outlook.
 7. Salvar no servidor, nunca no codigo ou navegador:
    - `RESEND_API_KEY`
    - `EMAIL_FROM`

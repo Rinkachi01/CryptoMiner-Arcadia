@@ -505,6 +505,31 @@ export const walletProviderEvents = sqliteTable(
   ],
 );
 
+export const walletWithdrawalIntents = sqliteTable(
+  "wallet_withdrawal_intents",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    asset: text("asset").notNull(),
+    provider: text("provider").notNull(),
+    requestedAtomic: integer("requested_atomic").notNull(),
+    destinationPreview: text("destination_preview").notNull(),
+    status: text("status").notNull().default("simulation_only"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("wallet_withdrawal_intents_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("wallet_withdrawal_intents_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   singletonId: integer("singleton_id").primaryKey(),
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),

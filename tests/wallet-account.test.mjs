@@ -8,6 +8,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
     depositsEnabled: false,
     provider: "bitpay",
     providerReady: false,
+    sandboxEnabled: false,
   });
   assert.deepEqual(
     walletProviderReadiness({
@@ -15,7 +16,12 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
       CRYPTO_DEPOSITS_ENABLED: "false",
       PUBLIC_BASE_URL: "https://arcadia.example",
     }),
-    { depositsEnabled: false, provider: "bitpay", providerReady: true },
+    {
+      depositsEnabled: false,
+      provider: "bitpay",
+      providerReady: true,
+      sandboxEnabled: false,
+    },
   );
   assert.equal(
     walletProviderReadiness({
@@ -23,6 +29,10 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
       CRYPTO_DEPOSITS_ENABLED: "true",
       PUBLIC_BASE_URL: "https://arcadia.example",
     }).depositsEnabled,
+    true,
+  );
+  assert.equal(
+    walletProviderReadiness({ CRYPTO_SANDBOX_ENABLED: "true" }).sandboxEnabled,
     true,
   );
 });
@@ -42,4 +52,24 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
   assert.match(view, /Nunca envie criptomoeda/);
   assert.match(page, />ENTRAR</);
   assert.match(page, />CRIAR CONTA</);
+});
+
+test("laboratório financeiro registra somente simulações e preserva saldos", async () => {
+  const [server, route, view, recovery, schema] = await Promise.all([
+    readFile(new URL("../app/wallet-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/wallet/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/ConversionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/recovery-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /simulation_only/);
+  assert.match(server, /noFundsMoved: true/);
+  assert.match(server, /noBalanceChanged: true/);
+  assert.match(server, /Limite de cinco simulações por hora/);
+  assert.match(route, /sandbox-deposit/);
+  assert.match(route, /sandbox-withdrawal/);
+  assert.match(view, /ZERO CRÉDITO/);
+  assert.match(view, /não altera nenhum saldo/);
+  assert.match(schema, /wallet_withdrawal_intents/);
+  assert.match(recovery, /wallet_withdrawal_intents/);
 });

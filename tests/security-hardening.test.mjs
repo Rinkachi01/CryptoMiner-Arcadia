@@ -71,6 +71,20 @@ test("os quatro jogos passam pelo mesmo limite no servidor e o navegador não co
   assert.doesNotMatch(gate, /rewardPowerGh|ledger_entries|balanceCma/i);
 });
 
+test("painel antifraude separa automação, limites e falhas do Turnstile", async () => {
+  const [security, dashboard] = await Promise.all([
+    readFile(new URL("../app/security-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(security, /automationEvents24h/);
+  assert.match(security, /rateLimitEvents24h/);
+  assert.match(security, /turnstileFailures24h/);
+  assert.match(security, /status: "attention" \| "critical" \| "stable"/);
+  assert.match(dashboard, /MONITOR ANTIFRAUDE/);
+  assert.match(dashboard, /Os eventos abaixo não removem saldo automaticamente/);
+  assert.match(dashboard, /passe de 4 horas/);
+});
+
 test("migração, recuperação, painel e guia cobrem o pré-lançamento", async () => {
   const [migration, recovery, dashboard, guide] = await Promise.all([
     readFile(new URL("../drizzle/0016_empty_mad_thinker.sql", import.meta.url), "utf8"),
