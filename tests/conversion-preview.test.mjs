@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CMA_USD_REFERENCE,
   CONVERSION_FEE_BPS,
+  CONVERSION_QUOTE_TTL_MS,
   amountToAtomic,
   applyInternalConversionBalances,
   calculateConversionQuote,
@@ -18,6 +19,10 @@ test("CMA usa dólar como referência interna sem criar resgate", () => {
   assert.equal(quote.grossCma, 10);
   assert.equal(quote.feeCma, 0.3);
   assert.equal(quote.netCma, 9.7);
+});
+
+test("cotação expira rapidamente para acompanhar a volatilidade", () => {
+  assert.equal(CONVERSION_QUOTE_TTL_MS, 2 * 60 * 1000);
 });
 
 test("prévia aceita BTC, DOGE e LTC com no máximo oito casas", () => {
@@ -71,6 +76,8 @@ test("cotação vem do servidor, expira e a execução é autoritativa", async (
   assert.match(server, /api\.coingecko\.com/);
   assert.match(server, /CONVERSION_QUOTE_TTL_MS/);
   assert.match(server, /QUOTE_LIMIT_10_MIN/);
+  assert.match(server, /AbortSignal\.timeout\(PRICE_FETCH_TIMEOUT_MS\)/);
+  assert.match(server, /if \(rate\.stale\)/);
   assert.match(route, /executeConversionQuote/);
   assert.match(server, /UPDATE game_states/);
   assert.match(server, /convert_crypto_to_cma/);

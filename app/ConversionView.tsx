@@ -352,7 +352,7 @@ export function ConversionView({
           <h2>Seus saldos e sua conversão para CMA</h2>
           <p>
             BTC e DOGE pertencem ao registro individual desta conta. A conversão é
-            confirmada pelo servidor, usa uma cotação de cinco minutos e só acontece
+            confirmada pelo servidor, usa uma cotação de dois minutos e só acontece
             uma vez.
           </p>
         </div>

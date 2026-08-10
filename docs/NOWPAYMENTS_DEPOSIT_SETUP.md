@@ -17,6 +17,10 @@ interno e não sacável.
 5. Criar primeiro uma conta no sandbox e gerar uma chave de API e um segredo
    IPN exclusivos.
 
+Se uma chave aparecer em conversa, captura de tela, repositório ou log, ela deve
+ser revogada imediatamente e substituída. As credenciais do sandbox e da
+produção precisam ser diferentes.
+
 Não envie as chaves em conversa. Elas devem ser cadastradas diretamente como
 segredos do Cloudflare:
 
@@ -37,6 +41,11 @@ O callback que deve ser autorizado no provedor é:
 ```text
 https://crypto-miner-arcadia.criptomineracardia.workers.dev/api/wallet/nowpayments
 ```
+
+No painel do Cloudflare, abra o Worker `crypto-miner-arcadia`, entre em
+**Settings > Variables and Secrets** e cadastre os dois valores como
+**Secret/Encrypted**, nunca como texto visível. Não é necessário informar
+seed phrase ou chave privada ao Arcadia.
 
 ## Teste obrigatório antes da ativação
 
@@ -61,4 +70,3 @@ proprietário continua sendo uma operação financeira real. Antes de liberar
 essa fila para jogadores, definir verificação de identidade, endereço de
 destino, limites, análise de risco, confirmação em duas etapas, reserva e
 política de reembolso. "Manual" não significa livre de responsabilidade.
-

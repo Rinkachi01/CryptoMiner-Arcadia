@@ -272,7 +272,7 @@ recebimento e os testes de sandbox serem aprovados.
 
 ### Conversão de BTC ou DOGE para CMA
 
-A conversão interna já funciona no beta: o servidor consulta BTC/USD e DOGE/USD, fixa a cotação por cinco minutos e mostra CMA bruto, reserva econômica e CMA líquido. A confirmação debita o saldo interno da moeda, credita CMA, consome a cotação uma única vez e grava uma entrada imutável no histórico financeiro. Litecoin continua apenas na fonte de preço e não é conversível enquanto não existir pool/carteira LTC no jogo.
+A conversão interna já funciona no beta: o servidor consulta BTC/USD e DOGE/USD, fixa a cotação por dois minutos e mostra CMA bruto, reserva econômica e CMA líquido. Uma leitura vencida pode aparecer como referência visual, mas nunca pode ser executada. A confirmação debita o saldo interno da moeda, credita CMA, consome a cotação uma única vez e grava uma entrada imutável no histórico financeiro. Litecoin continua apenas na fonte de preço e não é conversível enquanto não existir pool/carteira LTC no jogo.
 
 A regra econômica inicial da prévia é 1 CMA por US$ 1 de valor de mercado, com reserva de 3% e mínimo equivalente a US$ 1. Esses parâmetros devem ser revistos com os custos reais do processador antes da ativação.
 

@@ -3,6 +3,7 @@ import {
   type PublicGameState,
 } from "./game-server.ts";
 import { amountToAtomic } from "./conversion-rules.ts";
+import { readBoundedJsonObject } from "./external-json.ts";
 import {
   isNowPaymentsAsset,
   normalizeNowPaymentsStatus,
@@ -202,12 +203,6 @@ function cleanProviderValue(value: unknown) {
     : "";
 }
 
-async function boundedProviderJson(response: Response) {
-  const length = Number(response.headers.get("content-length") ?? 0);
-  if (length > 64_000) throw new Error("Resposta do provedor excedeu o limite seguro.");
-  return (await response.json()) as Record<string, unknown>;
-}
-
 export async function createProviderDepositIntent(input: {
   accountId: string;
   asset: unknown;
@@ -278,7 +273,7 @@ export async function createProviderDepositIntent(input: {
       }),
       signal: AbortSignal.timeout(8_000),
     });
-    const result = await boundedProviderJson(response);
+    const result = await readBoundedJsonObject(response);
     const providerReference = cleanProviderValue(result.id);
     const checkoutUrl = validNowPaymentsCheckoutUrl(result.invoice_url);
     if (!response.ok || !providerReference || !checkoutUrl) {

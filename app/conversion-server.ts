@@ -11,9 +11,11 @@ import {
   type ConversionAssetId,
 } from "./conversion-rules.ts";
 import type { PublicGameState } from "./game-server.ts";
+import { readBoundedJsonObject } from "./external-json.ts";
 
 const PRICE_CACHE_MS = 60 * 1000;
 const MAX_STALE_PRICE_MS = 15 * 60 * 1000;
+const PRICE_FETCH_TIMEOUT_MS = 5 * 1000;
 const QUOTE_LIMIT_10_MIN = 30;
 
 type ConversionEnvironment = {
@@ -163,24 +165,28 @@ async function fetchCoinGeckoRates(environment: unknown, now: number) {
         Accept: "application/json",
         ...(key ? { "x-cg-demo-api-key": key } : {}),
       },
+      signal: AbortSignal.timeout(PRICE_FETCH_TIMEOUT_MS),
     },
   );
   if (!response.ok) throw new Error(`Cotação externa indisponível (${response.status}).`);
-  const body = (await response.json()) as Record<
-    string,
-    { last_updated_at?: number; usd?: number }
-  >;
+  const body = await readBoundedJsonObject(response);
   return conversionAssets.map((asset) => {
-    const result = body[asset.coingeckoId];
+    const result = body[asset.coingeckoId] as
+      | { last_updated_at?: number; usd?: number }
+      | undefined;
     if (!result || !Number.isFinite(result.usd) || Number(result.usd) <= 0) {
       throw new Error(`Cotação de ${asset.id} indisponível.`);
     }
+    const observedAt =
+      Number.isFinite(result.last_updated_at) && Number(result.last_updated_at) > 0
+        ? Number(result.last_updated_at) * 1000
+        : now;
+    if (observedAt > now + 60_000 || now - observedAt > MAX_STALE_PRICE_MS) {
+      throw new Error(`Cotação de ${asset.id} está desatualizada.`);
+    }
     return {
       asset: asset.id,
-      observedAt:
-        Number.isFinite(result.last_updated_at) && Number(result.last_updated_at) > 0
-          ? Number(result.last_updated_at) * 1000
-          : now,
+      observedAt,
       provider: "coingecko" as const,
       stale: false,
       usdPrice: Number(result.usd),
@@ -283,6 +289,9 @@ export async function createConversionQuote(input: {
 
   const rates = await readMarketRates(input.db, input.environment, now);
   const rate = rates.find((item) => item.asset === input.asset)!;
+  if (rate.stale) {
+    throw new Error("Cotação atual indisponível. Aguarde alguns instantes e tente novamente.");
+  }
   const calculated = calculateConversionQuote(
     input.asset,
     amountAtomic,

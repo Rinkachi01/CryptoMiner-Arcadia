@@ -1,7 +1,7 @@
 export const CMA_USD_REFERENCE = 1;
 export const CONVERSION_FEE_BPS = 300;
 export const CONVERSION_MIN_USD = 1;
-export const CONVERSION_QUOTE_TTL_MS = 5 * 60 * 1000;
+export const CONVERSION_QUOTE_TTL_MS = 2 * 60 * 1000;
 
 export type ConversionAssetId = "BTC" | "DOGE" | "LTC";
 
