@@ -1246,6 +1246,14 @@ function MiningRoom({
   onOpenGames: () => void;
   onUseBattery: () => void;
 }) {
+  const orderedRoomRacks = [...roomRacks].sort(
+    (first, second) => first.positionIndex - second.positionIndex,
+  );
+  const firstEmptyRackPosition = rackPositions.findIndex(
+    (_, positionIndex) =>
+      !roomRacks.some((rack) => rack.positionIndex === positionIndex),
+  );
+
   return (
     <div className="mine-grid">
       <section className="room-card">
@@ -1374,6 +1382,88 @@ function MiningRoom({
             {ROOM_RACK_CAPACITY} POSIÇÕES GRATUITAS · LAYOUT V.03
           </div>
         </div>
+
+        <nav
+          className="mobile-rack-dock"
+          aria-label="Acesso rápido aos racks desta sala"
+        >
+          <header>
+            <div>
+              <span>RACKS DA SALA</span>
+              <strong>
+                {roomRacks.length}/{ROOM_RACK_CAPACITY} instalados
+              </strong>
+            </div>
+            <small>Deslize e toque para gerenciar</small>
+          </header>
+          <div className="mobile-rack-scroll">
+            {orderedRoomRacks.map((rack) => {
+              const installed = rackMiners[rack.id] ?? [];
+              const usedSlots = getUsedSlotCount(installed);
+              return (
+                <button
+                  type="button"
+                  className="mobile-rack-card"
+                  onClick={() => onOpenRack(rack.id)}
+                  aria-label={`Abrir rack da posição ${
+                    rack.positionIndex + 1
+                  }, ${usedSlots} de 8 slots ocupados`}
+                  key={rack.id}
+                >
+                  <span className="mobile-rack-sprite" aria-hidden="true">
+                    <img
+                      className="rack-frame"
+                      src={assetsManifest.rackBasic.path}
+                      alt=""
+                    />
+                    {installed.map((placement) => {
+                      const miner = getMiner(placement.minerId);
+                      if (!miner) return null;
+                      return (
+                        <img
+                          className={`rack-miner size-${miner.slotSize}`}
+                          key={placement.instanceId}
+                          src={miner.asset}
+                          alt=""
+                          style={rackMinerPosition(placement.slotIndex)}
+                        />
+                      );
+                    })}
+                  </span>
+                  <span className="mobile-rack-copy">
+                    <strong>
+                      RACK {String(rack.positionIndex + 1).padStart(2, "0")}
+                    </strong>
+                    <small>{usedSlots}/8 slots ocupados</small>
+                  </span>
+                  <b>ABRIR</b>
+                </button>
+              );
+            })}
+
+            {editMode && firstEmptyRackPosition >= 0 && (
+              <button
+                type="button"
+                className="mobile-rack-card add"
+                onClick={() => onPlaceRack(firstEmptyRackPosition)}
+                aria-label={`Instalar rack na posição ${firstEmptyRackPosition + 1}`}
+              >
+                <span className="mobile-rack-add" aria-hidden="true">
+                  +
+                </span>
+                <span className="mobile-rack-copy">
+                  <strong>POSIÇÃO {firstEmptyRackPosition + 1}</strong>
+                  <small>
+                    {rackInventoryCount > 0
+                      ? `${rackInventoryCount} rack disponível`
+                      : "Abrir loja de racks"}
+                  </small>
+                </span>
+                <b>{rackInventoryCount > 0 ? "INSTALAR" : "LOJA"}</b>
+              </button>
+            )}
+          </div>
+        </nav>
       </section>
 
       <aside className="operation-panel">

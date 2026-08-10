@@ -17345,3 +17345,309 @@ img {
     text-align: left;
   }
 }
+
+/* Sala v4: acesso claro aos racks em telas pequenas e sprites alinhadas. */
+.mobile-rack-dock {
+  display: none;
+}
+
+.rack-visual .rack-miner,
+.preview-miner.corrected img,
+.mobile-rack-sprite .rack-miner {
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
+}
+
+@media (max-width: 900px) {
+  .mobile-rack-dock {
+    display: grid;
+    gap: 12px;
+    padding: 15px;
+    border-top: 1px solid #30404d;
+    background:
+      linear-gradient(105deg, rgba(54, 216, 242, 0.055), transparent 58%),
+      #0c141c;
+  }
+
+  .mobile-rack-dock > header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .mobile-rack-dock > header > div {
+    display: grid;
+    gap: 3px;
+  }
+
+  .mobile-rack-dock > header span {
+    color: var(--cyan);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.11em;
+  }
+
+  .mobile-rack-dock > header strong {
+    color: #f0f6f8;
+    font-size: 0.94rem;
+  }
+
+  .mobile-rack-dock > header small {
+    color: #94a4af;
+    font-size: 0.72rem;
+  }
+
+  .mobile-rack-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 1px 1px 8px;
+    scroll-padding-inline: 1px;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-inline: contain;
+  }
+
+  .mobile-rack-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .mobile-rack-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #3a4b58;
+  }
+
+  .mobile-rack-card {
+    display: grid;
+    width: min(290px, calc(100vw - 62px));
+    min-width: min(290px, calc(100vw - 62px));
+    min-height: 104px;
+    align-items: center;
+    gap: 11px;
+    padding: 11px;
+    grid-template-columns: 82px minmax(0, 1fr) auto;
+    border: 1px solid #3b4c59;
+    border-radius: 8px;
+    background: #101a23;
+    color: #dfe9ed;
+    cursor: pointer;
+    scroll-snap-align: start;
+    text-align: left;
+    touch-action: manipulation;
+  }
+
+  .mobile-rack-card:hover,
+  .mobile-rack-card:focus-visible {
+    border-color: rgba(169, 255, 63, 0.62);
+    background:
+      linear-gradient(105deg, rgba(169, 255, 63, 0.085), transparent 65%),
+      #101a23;
+  }
+
+  .mobile-rack-sprite {
+    position: relative;
+    display: block;
+    width: 82px;
+    aspect-ratio: 252 / 200;
+    pointer-events: none;
+  }
+
+  .mobile-rack-sprite .rack-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+
+  .mobile-rack-sprite .rack-miner {
+    position: absolute;
+    z-index: 2;
+    width: 17.5%;
+    height: 15.5%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  .mobile-rack-sprite .rack-miner.size-2 {
+    width: 39.5%;
+  }
+
+  .mobile-rack-copy {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .mobile-rack-copy strong {
+    overflow: hidden;
+    color: #f2f6f2;
+    font-size: 0.86rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-rack-copy small {
+    color: #94a4ae;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .mobile-rack-card > b {
+    color: var(--lime);
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+  }
+
+  .mobile-rack-card.add {
+    border-style: dashed;
+    border-color: rgba(54, 216, 242, 0.54);
+  }
+
+  .mobile-rack-add {
+    display: grid;
+    width: 58px;
+    height: 58px;
+    margin-inline: auto;
+    place-items: center;
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    background: rgba(54, 216, 242, 0.08);
+    color: var(--cyan);
+    font-size: 1.7rem;
+  }
+
+  .rack-inline-panel > header {
+    gap: 14px;
+    padding: 18px 20px;
+  }
+
+  .rack-inline-panel .rack-preview {
+    width: min(100%, 360px);
+  }
+
+  .rack-inline-panel .rack-rule {
+    max-width: 520px;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .mobile-rack-dock {
+    padding: 13px 12px;
+  }
+
+  .mobile-rack-dock > header {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .rack-inline-panel > header {
+    align-items: start;
+    padding: 16px 14px;
+  }
+
+  .rack-inline-panel > header h2 {
+    font-size: 1.25rem;
+  }
+
+  .rack-inline-panel .rack-preview-panel,
+  .rack-inline-panel .rack-inventory {
+    padding: 14px 12px;
+  }
+
+  .rack-inline-panel .rack-summary {
+    align-items: start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .rack-inline-panel .rack-rule {
+    grid-template-columns: 1fr;
+  }
+
+  .rack-inline-panel .rack-slot-editor {
+    grid-auto-rows: 66px;
+    gap: 8px;
+  }
+
+  .rack-inline-panel .rack-slot-editor > button {
+    min-width: 0;
+    padding-inline: 7px;
+  }
+
+  .rack-inline-panel .rack-editor-heading {
+    align-items: start;
+    gap: 10px;
+  }
+
+  .rack-inline-panel .rack-editor-heading > button {
+    min-width: 112px;
+  }
+
+  .rack-inline-panel .rack-inventory-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .rack-inline-panel .rack-miner-card {
+    min-height: 96px;
+    gap: 9px;
+    padding: 10px;
+    grid-template-columns: 62px minmax(0, 1fr) 88px;
+    grid-template-rows: auto auto;
+  }
+
+  .rack-inline-panel .rack-miner-art {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .rack-inline-panel .mini-rarity {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 0.62rem;
+  }
+
+  .rack-inline-panel .rack-miner-data {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .rack-inline-panel .rack-miner-data h3 {
+    white-space: normal;
+  }
+
+  .rack-inline-panel .rack-miner-card .slot-cost {
+    display: none;
+  }
+
+  .rack-inline-panel .rack-miner-card > button {
+    align-self: stretch;
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 420px) {
+  .mobile-rack-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .mobile-rack-card > b {
+    display: none;
+  }
+
+  .rack-inline-panel .rack-miner-card {
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .rack-inline-panel .rack-miner-card > button {
+    min-height: 42px;
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}

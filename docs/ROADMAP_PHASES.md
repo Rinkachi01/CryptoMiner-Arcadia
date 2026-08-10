@@ -449,8 +449,7 @@ chaves pelo proprietário.
 Polimentos ainda recomendados:
 
 - teste real de toque e leitura em celulares pequenos;
-- revisão visual final de todos os encaixes de mineradores nos quatro níveis do
-  rack;
+- validação visual final dos quatro níveis do rack em aparelhos reais;
 - comparação do funil do primeiro dia por dispositivo e tamanho de tela;
 - revisão jurídica antes de usar linguagem de investimento, ROI, saque ou
   rendimento.
@@ -463,6 +462,16 @@ Entrega de clareza do Arcade concluída:
   horas;
 - contagem de recarga em minutos e segundos quando necessário;
 - aviso uniforme de que o servidor valida o resultado antes de liberar poder.
+
+Entrega visual da sala e dos racks concluída:
+
+- faixa de acesso rápido aos racks em telas pequenas, sem depender de acertar a
+  sprite dentro da sala;
+- miniatura de cada rack preservando o mesmo mapa proporcional de oito slots;
+- catálogo, mapa de slots e botões do gerenciador reorganizados para toque e
+  leitura em celulares;
+- sprites dos mineradores renderizadas de forma consistente na sala, na faixa
+  móvel e na prévia do gerenciador.
 
 ## Laboratório do Beta — dispositivo e acessibilidade
 
