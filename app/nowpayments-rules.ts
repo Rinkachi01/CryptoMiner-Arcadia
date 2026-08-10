@@ -35,29 +35,37 @@ export function readNowPaymentsConfig(environment: unknown) {
   const ipnSecret = clean(source.NOWPAYMENTS_IPN_SECRET);
   const publicBaseUrl = clean(source.PUBLIC_BASE_URL).replace(/\/$/, "");
   const requestedApiBase = clean(source.NOWPAYMENTS_API_BASE_URL);
-  const apiBaseUrl =
-    requestedApiBase === SANDBOX_API ? SANDBOX_API : PRODUCTION_API;
+  const productionRequested = requestedApiBase === PRODUCTION_API;
+  const apiBaseUrl = productionRequested ? PRODUCTION_API : SANDBOX_API;
   const apiKeyConfigured = apiKey.length >= 24;
   const ipnSecretConfigured = ipnSecret.length >= 16;
   const publicBaseUrlConfigured = validPublicBaseUrl(publicBaseUrl);
   const providerReady = Boolean(
     apiKeyConfigured && ipnSecretConfigured && publicBaseUrlConfigured,
   );
+  const sandbox = apiBaseUrl === SANDBOX_API;
+  const activationRequested =
+    enabled(source.CRYPTO_DEPOSITS_ENABLED) ||
+    (!clean(source.CRYPTO_DEPOSITS_ENABLED) && providerReady && sandbox);
+  const liveActivationRequested = enabled(
+    source.CRYPTO_LIVE_DEPOSITS_ENABLED,
+  );
   return {
+    activationRequested,
     apiBaseUrl,
     apiKeyConfigured,
     apiKey,
     depositsEnabled:
       providerReady &&
-      enabled(source.CRYPTO_DEPOSITS_ENABLED) &&
-      (apiBaseUrl === SANDBOX_API ||
-        enabled(source.CRYPTO_LIVE_DEPOSITS_ENABLED)),
+      activationRequested &&
+      (sandbox || liveActivationRequested),
     ipnSecret,
     ipnSecretConfigured,
+    liveActivationRequested,
     providerReady,
     publicBaseUrl,
     publicBaseUrlConfigured,
-    sandbox: apiBaseUrl === SANDBOX_API,
+    sandbox,
   };
 }
 

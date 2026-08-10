@@ -12,7 +12,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
     mode: "disabled",
     provider: "nowpayments",
     providerReady: false,
-    providerSandbox: false,
+    providerSandbox: true,
     sandboxEnabled: false,
   });
   assert.deepEqual(
@@ -30,7 +30,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
       mode: "disabled",
       provider: "nowpayments",
       providerReady: true,
-      providerSandbox: false,
+      providerSandbox: true,
       sandboxEnabled: false,
     },
   );

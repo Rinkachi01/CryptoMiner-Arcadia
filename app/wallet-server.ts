@@ -121,11 +121,9 @@ export function walletProviderReadiness(environment: unknown) {
   const source = cleanEnvironment(environment);
   const config = readNowPaymentsConfig(source);
   return {
-    activationRequested:
-      source.CRYPTO_DEPOSITS_ENABLED?.trim().toLowerCase() === "true",
+    activationRequested: config.activationRequested,
     depositsEnabled: config.depositsEnabled,
-    liveActivationRequested:
-      source.CRYPTO_LIVE_DEPOSITS_ENABLED?.trim().toLowerCase() === "true",
+    liveActivationRequested: config.liveActivationRequested,
     provider: "nowpayments" as const,
     providerReady: config.providerReady,
     providerSandbox: config.sandbox,

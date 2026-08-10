@@ -24,6 +24,7 @@ test("configuração do provedor falha fechada e exige segredo IPN", () => {
 
   const productionBlocked = readNowPaymentsConfig({
     CRYPTO_DEPOSITS_ENABLED: "true",
+    NOWPAYMENTS_API_BASE_URL: "https://api.nowpayments.io/v1",
     NOWPAYMENTS_API_KEY: "api-key-de-teste-comprida",
     NOWPAYMENTS_IPN_SECRET: "segredo-ipn-teste",
     PUBLIC_BASE_URL: "https://arcadia.example",
@@ -34,6 +35,7 @@ test("configuração do provedor falha fechada e exige segredo IPN", () => {
     readNowPaymentsConfig({
       CRYPTO_DEPOSITS_ENABLED: "true",
       CRYPTO_LIVE_DEPOSITS_ENABLED: "true",
+      NOWPAYMENTS_API_BASE_URL: "https://api.nowpayments.io/v1",
       NOWPAYMENTS_API_KEY: "api-key-de-teste-comprida",
       NOWPAYMENTS_IPN_SECRET: "segredo-ipn-teste",
       PUBLIC_BASE_URL: "https://arcadia.example",
