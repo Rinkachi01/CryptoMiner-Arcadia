@@ -17651,3 +17651,65 @@ img {
     grid-row: 3;
   }
 }
+
+/* Correção móvel: a camada visual final não pode reabrir a segunda coluna. */
+@media (max-width: 900px) {
+  .mine-grid {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .room-card,
+  .operation-panel {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .room-toolbar {
+    height: auto;
+    min-height: 0;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    flex-direction: column;
+  }
+
+  .room-toolbar > span {
+    min-height: 24px;
+  }
+
+  .room-toolbar > div {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .room-toolbar > div button {
+    flex: 0 0 auto;
+  }
+
+  .room-stage {
+    width: 100%;
+    min-width: 0;
+    min-height: 280px;
+    aspect-ratio: 724 / 543;
+  }
+
+  .room-mode-badge {
+    right: 10px;
+    bottom: 10px;
+    max-width: calc(100% - 20px);
+  }
+}
+
+@media (max-width: 420px) {
+  .room-stage {
+    min-height: 250px;
+  }
+}

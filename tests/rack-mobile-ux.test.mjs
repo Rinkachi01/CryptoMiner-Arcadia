@@ -31,3 +31,23 @@ test("gerenciador reorganiza controles e catálogo em telas estreitas", async ()
   assert.match(styles, /@media \(max-width: 420px\)/);
   assert.match(styles, /grid-column:\s*1 \/ -1/);
 });
+
+test("regra visual final mantém a sala em uma coluna no celular", async () => {
+  const styles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+  const finalDesktopGrid = styles.lastIndexOf(
+    "grid-template-columns: minmax(0, 1fr) minmax(300px, 330px);",
+  );
+  const finalMobileGuard = styles.lastIndexOf("@media (max-width: 900px)");
+  const mobileRules = styles.slice(finalMobileGuard);
+
+  assert.ok(finalMobileGuard > finalDesktopGrid);
+  assert.match(
+    mobileRules,
+    /\.mine-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+  assert.match(mobileRules, /\.room-card,[\s\S]*?width:\s*100%/);
+  assert.match(mobileRules, /\.room-stage\s*\{[\s\S]*?min-height:\s*280px/);
+});
