@@ -65,6 +65,7 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
   assert.match(view, /Nunca envie criptomoeda/);
   assert.match(view, /receba CMA/);
   assert.match(view, /USDT TRC20/);
+  assert.match(view, /Promise\.allSettled/);
   assert.match(page, />ENTRAR</);
   assert.match(page, />CRIAR CONTA</);
 });

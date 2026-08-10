@@ -188,7 +188,7 @@ export function ConversionView({
 
   useEffect(() => {
     let active = true;
-    Promise.all([
+    Promise.allSettled([
       fetch("/api/conversion", { cache: "no-store" }).then(async (response) => {
         const payload = (await response.json()) as ConversionResponse;
         if (!response.ok || !payload.rates || !payload.policy) {
@@ -201,15 +201,29 @@ export function ConversionView({
         if (!response.ok) throw new Error(payload.error ?? "Carteira indisponível.");
         return payload;
       }),
-    ])
-      .then(([conversionPayload, walletPayload]) => {
+    ]).then(([conversionResult, walletResult]) => {
         if (!active) return;
-        setRates(conversionPayload.rates!);
-        setPolicy(conversionPayload.policy);
-        setWallet(walletPayload);
-      })
-      .catch((reason: Error) => {
-        if (active) setError(reason.message || "Carteira indisponível.");
+        const errors: string[] = [];
+        if (conversionResult.status === "fulfilled") {
+          setRates(conversionResult.value.rates!);
+          setPolicy(conversionResult.value.policy);
+        } else {
+          errors.push(
+            conversionResult.reason instanceof Error
+              ? conversionResult.reason.message
+              : "Cotação de mercado indisponível.",
+          );
+        }
+        if (walletResult.status === "fulfilled") {
+          setWallet(walletResult.value);
+        } else {
+          errors.push(
+            walletResult.reason instanceof Error
+              ? walletResult.reason.message
+              : "Carteira indisponível.",
+          );
+        }
+        setError(errors.join(" "));
       })
       .finally(() => {
         if (active) setLoading(false);
