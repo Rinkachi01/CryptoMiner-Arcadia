@@ -22,6 +22,25 @@ export type CoinLinkMoveResult = {
   board: GameCoinId[];
   score: number;
   cascades: number;
+  steps: CoinLinkCascadeStep[];
+};
+
+export type CoinLinkMatchGroup = {
+  coinId: GameCoinId;
+  direction: "horizontal" | "vertical";
+  indices: number[];
+  length: number;
+};
+
+export type CoinLinkCascadeStep = {
+  cascade: number;
+  boardBeforeClear: GameCoinId[];
+  boardAfterRefill: GameCoinId[];
+  matchedIndices: number[];
+  groups: CoinLinkMatchGroup[];
+  maxRun: number;
+  score: number;
+  sizeBonus: number;
 };
 
 const coinPoints = new Map(gameCoins.map((coin) => [coin.id, coin.points]));
@@ -42,15 +61,15 @@ export function coinLinkTargetScore(difficulty: number) {
 
 export function coinLinkCoinPool(difficulty: number) {
   const level = normalizedDifficulty(difficulty);
-  const valuableIndex = Math.min(gameCoins.length - 1, 5 + Math.floor(level / 2));
-  return [
-    gameCoins[0].id,
-    gameCoins[1].id,
-    gameCoins[2].id,
-    gameCoins[3].id,
-    gameCoins[4].id,
-    gameCoins[valuableIndex].id,
-  ] satisfies GameCoinId[];
+  const poolSize = Math.min(7, 5 + Math.floor((level - 1) / 4));
+  const valuableIndex = Math.min(
+    gameCoins.length - 1,
+    poolSize - 1 + Math.floor((level - 1) / 2),
+  );
+  const commonCoins = gameCoins
+    .slice(0, poolSize - 1)
+    .map((coin) => coin.id);
+  return [...commonCoins, gameCoins[valuableIndex].id] satisfies GameCoinId[];
 }
 
 function isAdjacent(first: number, second: number) {
@@ -71,8 +90,8 @@ function isAdjacent(first: number, second: number) {
   return Math.abs(firstRow - secondRow) + Math.abs(firstColumn - secondColumn) === 1;
 }
 
-export function findCoinLinkMatches(board: GameCoinId[]) {
-  const matched = new Set<number>();
+export function findCoinLinkMatchGroups(board: GameCoinId[]) {
+  const groups: CoinLinkMatchGroup[] = [];
   for (let row = 0; row < COIN_LINK_BOARD_SIZE; row += 1) {
     let start = 0;
     while (start < COIN_LINK_BOARD_SIZE) {
@@ -85,9 +104,16 @@ export function findCoinLinkMatches(board: GameCoinId[]) {
         end += 1;
       }
       if (value && end - start >= 3) {
-        for (let column = start; column < end; column += 1) {
-          matched.add(row * COIN_LINK_BOARD_SIZE + column);
-        }
+        const indices = Array.from(
+          { length: end - start },
+          (_, offset) => row * COIN_LINK_BOARD_SIZE + start + offset,
+        );
+        groups.push({
+          coinId: value,
+          direction: "horizontal",
+          indices,
+          length: indices.length,
+        });
       }
       start = end;
     }
@@ -105,14 +131,51 @@ export function findCoinLinkMatches(board: GameCoinId[]) {
         end += 1;
       }
       if (value && end - start >= 3) {
-        for (let row = start; row < end; row += 1) {
-          matched.add(row * COIN_LINK_BOARD_SIZE + column);
-        }
+        const indices = Array.from(
+          { length: end - start },
+          (_, offset) => (start + offset) * COIN_LINK_BOARD_SIZE + column,
+        );
+        groups.push({
+          coinId: value,
+          direction: "vertical",
+          indices,
+          length: indices.length,
+        });
       }
       start = end;
     }
   }
+  return groups;
+}
+
+export function findCoinLinkMatches(board: GameCoinId[]) {
+  const matched = new Set(
+    findCoinLinkMatchGroups(board).flatMap((group) => group.indices),
+  );
   return [...matched].sort((first, second) => first - second);
+}
+
+function scoreCoinLinkCascade(
+  board: GameCoinId[],
+  groups: CoinLinkMatchGroup[],
+  cascade: number,
+) {
+  const matchedIndices = [
+    ...new Set(groups.flatMap((group) => group.indices)),
+  ].sort((first, second) => first - second);
+  const baseScore = matchedIndices.reduce(
+    (total, index) => total + (coinPoints.get(board[index]) ?? 0),
+    0,
+  );
+  const sizeBonus = groups.reduce((total, group) => {
+    const extraCoins = Math.max(0, group.length - 3);
+    return total + extraCoins * (coinPoints.get(group.coinId) ?? 0) * 2;
+  }, 0);
+  return {
+    matchedIndices,
+    sizeBonus,
+    score: (baseScore + sizeBonus) * cascade,
+  };
 }
 
 function boardHasMove(board: GameCoinId[]) {
@@ -196,24 +259,25 @@ export function applyCoinLinkMove(
   to: number,
 ): CoinLinkMoveResult {
   if (board.length !== COIN_LINK_BOARD_SIZE ** 2 || !isAdjacent(from, to)) {
-    return { valid: false, board, score: 0, cascades: 0 };
+    return { valid: false, board, score: 0, cascades: 0, steps: [] };
   }
   let next = [...board];
   [next[from], next[to]] = [next[to], next[from]];
-  let matches = findCoinLinkMatches(next);
-  if (matches.length === 0) {
-    return { valid: false, board, score: 0, cascades: 0 };
+  let groups = findCoinLinkMatchGroups(next);
+  if (groups.length === 0) {
+    return { valid: false, board, score: 0, cascades: 0, steps: [] };
   }
 
   let score = 0;
   let cascades = 0;
-  while (matches.length > 0 && cascades < 8) {
+  const steps: CoinLinkCascadeStep[] = [];
+  while (groups.length > 0 && cascades < 8) {
     cascades += 1;
-    for (const index of matches) {
-      score += (coinPoints.get(next[index]) ?? 0) * cascades;
-    }
+    const boardBeforeClear = [...next];
+    const cascadeScore = scoreCoinLinkCascade(next, groups, cascades);
+    score += cascadeScore.score;
     const cleared: Array<GameCoinId | null> = [...next];
-    for (const index of matches) cleared[index] = null;
+    for (const index of cascadeScore.matchedIndices) cleared[index] = null;
     next = collapseAndRefill(
       cleared,
       seed,
@@ -221,9 +285,19 @@ export function applyCoinLinkMove(
       moveIndex,
       cascades,
     );
-    matches = findCoinLinkMatches(next);
+    steps.push({
+      cascade: cascades,
+      boardBeforeClear,
+      boardAfterRefill: [...next],
+      matchedIndices: cascadeScore.matchedIndices,
+      groups,
+      maxRun: Math.max(...groups.map((group) => group.length)),
+      score: cascadeScore.score,
+      sizeBonus: cascadeScore.sizeBonus,
+    });
+    groups = findCoinLinkMatchGroups(next);
   }
-  return { valid: true, board: next, score, cascades };
+  return { valid: true, board: next, score, cascades, steps };
 }
 
 export function validateCoinLink(

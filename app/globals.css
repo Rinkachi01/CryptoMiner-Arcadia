@@ -18664,6 +18664,7 @@ img {
   background:
     radial-gradient(circle at 82% 26%, rgba(157, 255, 46, 0.14), transparent 17rem),
     radial-gradient(circle at 18% 0, rgba(72, 231, 255, 0.13), transparent 24rem),
+    linear-gradient(115deg, transparent 0 47%, rgba(72, 231, 255, 0.045) 47% 48%, transparent 48% 100%),
     linear-gradient(145deg, #101d2a, #090f17 65%);
 }
 
@@ -18687,6 +18688,21 @@ img {
   background:
     radial-gradient(circle at 92% 15%, rgba(255, 255, 255, 0.045), transparent 35%),
     #0c151e;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.game-selector-list button:hover {
+  z-index: 2;
+  border-color: rgba(72, 231, 255, 0.46);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.06),
+    0 12px 26px rgba(0, 0, 0, 0.24);
+  transform: translateY(-2px);
 }
 
 .game-selector-list button.link::before {
@@ -18787,6 +18803,36 @@ img {
   background-size: auto, 32px 32px, 32px 32px, auto;
 }
 
+.coin-link-goal-row {
+  display: flex;
+  width: min(100%, 570px);
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.coin-link-goal-row > div {
+  display: grid;
+  gap: 3px;
+}
+
+.coin-link-goal-row span {
+  color: #8d849d;
+  font: 800 0.63rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.coin-link-goal-row strong {
+  color: #f7f4ff;
+  font: 900 1rem/1 var(--font-display);
+}
+
+.coin-link-goal-row small {
+  color: #b9a7cb;
+  font-size: 0.7rem;
+  text-align: right;
+}
+
 .coin-link-progress {
   width: min(100%, 570px);
   height: 9px;
@@ -18821,6 +18867,14 @@ img {
   box-shadow:
     inset 0 0 35px rgba(72, 231, 255, 0.045),
     0 22px 50px rgba(0, 0, 0, 0.32);
+  isolation: isolate;
+}
+
+.coin-link-board.resolving {
+  box-shadow:
+    inset 0 0 45px rgba(179, 107, 255, 0.09),
+    0 22px 55px rgba(0, 0, 0, 0.38),
+    0 0 28px rgba(179, 107, 255, 0.1);
 }
 
 .coin-link-board > button {
@@ -18837,7 +18891,12 @@ img {
     #111827;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 130ms ease, border-color 130ms ease, background 130ms ease;
+  will-change: transform, opacity, filter;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    opacity 150ms ease;
 }
 
 .coin-link-board > button:hover:not(:disabled),
@@ -18852,6 +18911,102 @@ img {
 .coin-link-board > button:disabled {
   cursor: default;
   opacity: 1;
+}
+
+.coin-link-board > button.motion-swapping {
+  z-index: 3;
+  border-color: #48e7ff;
+  animation: coin-link-swap 150ms ease both;
+}
+
+.coin-link-board > button.motion-matching {
+  z-index: 4;
+  border-color: #e2c7ff;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.3), rgba(179, 107, 255, 0.28) 48%, transparent 72%),
+    #171126;
+  box-shadow:
+    0 0 0 2px rgba(179, 107, 255, 0.18),
+    0 0 24px rgba(179, 107, 255, 0.75);
+  animation: coin-link-match 260ms ease both;
+}
+
+.coin-link-board > button.board-falling {
+  animation: coin-link-fall 250ms cubic-bezier(0.2, 0.78, 0.25, 1) both;
+}
+
+.coin-link-board > button.motion-invalid {
+  border-color: #ff6d7c;
+  animation: coin-link-invalid 240ms ease both;
+}
+
+.coin-link-board > button.motion-matching img {
+  filter:
+    brightness(1.25)
+    drop-shadow(0 0 11px rgba(232, 206, 255, 0.95));
+}
+
+.coin-link-combo {
+  position: absolute;
+  z-index: 8;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  min-width: 190px;
+  gap: 4px;
+  padding: 13px 20px;
+  border: 1px solid rgba(226, 199, 255, 0.76);
+  border-radius: 9px;
+  background:
+    linear-gradient(110deg, rgba(72, 231, 255, 0.16), rgba(179, 107, 255, 0.3)),
+    rgba(8, 8, 18, 0.92);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.46), 0 0 32px rgba(179, 107, 255, 0.35);
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: coin-link-combo 280ms cubic-bezier(0.2, 0.88, 0.3, 1.2) both;
+}
+
+.coin-link-combo span {
+  color: #fff;
+  font: 900 1.25rem/1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.coin-link-combo strong {
+  color: #9dff2e;
+  font: 900 0.66rem/1 var(--font-mono);
+  letter-spacing: 0.09em;
+}
+
+@keyframes coin-link-swap {
+  0% { transform: scale(1); }
+  55% { transform: scale(0.86) rotate(-3deg); }
+  100% { transform: scale(1.05); }
+}
+
+@keyframes coin-link-match {
+  0% { opacity: 1; transform: scale(1); }
+  55% { opacity: 1; transform: scale(1.16) rotate(2deg); }
+  100% { opacity: 0.12; transform: scale(0.48) rotate(-5deg); }
+}
+
+@keyframes coin-link-fall {
+  0% { opacity: 0; transform: translateY(-42%) scale(0.86); }
+  70% { opacity: 1; transform: translateY(5%) scale(1.03); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes coin-link-invalid {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  70% { transform: translateX(6px); }
+}
+
+@keyframes coin-link-combo {
+  0% { opacity: 0; transform: translate(-50%, -42%) scale(0.75); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .coin-link-board > button img {
@@ -18969,6 +19124,35 @@ img {
 
 .coin-link-values b {
   color: #9dff2e;
+}
+
+.coin-link-combo-guide {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.coin-link-combo-guide > div {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 9px 7px;
+  border: 1px solid rgba(179, 107, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(9, 10, 18, 0.72);
+  text-align: center;
+}
+
+.coin-link-combo-guide b {
+  color: #c691ff;
+  font: 900 0.88rem/1 var(--font-display);
+}
+
+.coin-link-combo-guide span {
+  color: #968da5;
+  font-size: 0.58rem;
+  line-height: 1.25;
 }
 
 .coin-link-layout > aside ul {
@@ -19178,6 +19362,16 @@ img {
     padding: 16px 8px;
   }
 
+  .coin-link-goal-row {
+    align-items: start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .coin-link-goal-row small {
+    text-align: left;
+  }
+
   .coin-link-board {
     gap: 5px;
     padding: 7px;
@@ -19206,5 +19400,15 @@ img {
 
   .coin-link-layout > aside {
     padding: 20px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coin-link-board > button.motion-swapping,
+  .coin-link-board > button.motion-matching,
+  .coin-link-board > button.board-falling,
+  .coin-link-board > button.motion-invalid,
+  .coin-link-combo {
+    animation-duration: 1ms !important;
   }
 }

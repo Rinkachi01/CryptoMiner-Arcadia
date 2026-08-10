@@ -26,7 +26,23 @@ type CoinLinkSession = {
   board: GameCoinId[];
 };
 
+type BoardMotion = {
+  phase: "swapping" | "matching" | "falling" | "invalid";
+  indices: number[];
+  cascade: number;
+};
+
+type CascadeMoment = {
+  cascades: number;
+  maxRun: number;
+  sizeBonus: number;
+};
+
 const coinById = new Map(gameCoins.map((coin) => [coin.id, coin]));
+
+function waitForAnimation(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
 
 export function CoinLinkView({
   onRefreshAccount,
@@ -54,11 +70,16 @@ export function CoinLinkView({
   );
   const [reward, setReward] = useState(0);
   const [lastGain, setLastGain] = useState(0);
+  const [resolving, setResolving] = useState(false);
+  const [motion, setMotion] = useState<BoardMotion | null>(null);
+  const [cascadeMoment, setCascadeMoment] = useState<CascadeMoment | null>(null);
   const eventsRef = useRef<CoinLinkMove[]>([]);
   const boardRef = useRef<GameCoinId[]>([]);
   const scoreRef = useRef(0);
   const localStartedAt = useRef(0);
   const finishStarted = useRef(false);
+  const resolvingRef = useRef(false);
+  const animationRunRef = useRef(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 1_000);
@@ -149,7 +170,7 @@ export function CoinLinkView({
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - localStartedAt.current;
       setElapsedMs(Math.min(elapsed, session.durationMs));
-      if (elapsed >= session.durationMs) {
+      if (elapsed >= session.durationMs && !resolvingRef.current) {
         void finishGame(
           session,
           "timeout",
@@ -189,6 +210,10 @@ export function CoinLinkView({
       setScore(0);
       setMoveCount(0);
       scoreRef.current = 0;
+      resolvingRef.current = false;
+      setResolving(false);
+      setMotion(null);
+      setCascadeMoment(null);
       setElapsedMs(0);
       eventsRef.current = [];
       finishStarted.current = false;
@@ -204,8 +229,8 @@ export function CoinLinkView({
     }
   }
 
-  function chooseCoin(index: number) {
-    if (!session || phase !== "playing") return;
+  async function chooseCoin(index: number) {
+    if (!session || phase !== "playing" || resolvingRef.current) return;
     if (selected === null) {
       setSelected(index);
       return;
@@ -228,7 +253,10 @@ export function CoinLinkView({
     if (!result.valid) {
       setSelected(index);
       setLastGain(0);
+      setMotion({ phase: "invalid", indices: [selected, index], cascade: 0 });
       setMessage("Essa troca não formou uma linha. Escolha outra vizinha.");
+      await waitForAnimation(260);
+      setMotion(null);
       return;
     }
 
@@ -236,16 +264,67 @@ export function CoinLinkView({
     const nextEvents = [...eventsRef.current, event];
     const nextScore = scoreRef.current + result.score;
     eventsRef.current = nextEvents;
+    setSelected(null);
+    setLastGain(result.score);
+    resolvingRef.current = true;
+    setResolving(true);
+    const animationRun = ++animationRunRef.current;
+    const swappedBoard = [...boardRef.current];
+    [swappedBoard[selected], swappedBoard[index]] = [
+      swappedBoard[index],
+      swappedBoard[selected],
+    ];
+    setBoard(swappedBoard);
+    setMotion({
+      phase: "swapping",
+      indices: [selected, index],
+      cascade: 0,
+    });
+    await waitForAnimation(150);
+
+    for (const step of result.steps) {
+      if (animationRunRef.current !== animationRun) return;
+      setBoard(step.boardBeforeClear);
+      setMotion({
+        phase: "matching",
+        indices: step.matchedIndices,
+        cascade: step.cascade,
+      });
+      setCascadeMoment({
+        cascades: step.cascade,
+        maxRun: step.maxRun,
+        sizeBonus: step.sizeBonus,
+      });
+      setMessage(
+        step.maxRun >= 5
+          ? `Super combinação de ${step.maxRun} moedas! +${step.score} pontos.`
+          : step.maxRun === 4
+            ? `Linha de 4 com bônus! +${step.score} pontos.`
+            : step.cascade > 1
+              ? `Cascata x${step.cascade}: +${step.score} pontos.`
+              : `Combinação confirmada: +${step.score} pontos.`,
+      );
+      await waitForAnimation(step.maxRun >= 5 ? 330 : 260);
+      setBoard(step.boardAfterRefill);
+      setMotion({
+        phase: "falling",
+        indices: step.matchedIndices,
+        cascade: step.cascade,
+      });
+      await waitForAnimation(260);
+    }
+
     boardRef.current = result.board;
     scoreRef.current = nextScore;
     setBoard(result.board);
     setScore(nextScore);
     setMoveCount(nextEvents.length);
-    setSelected(null);
-    setLastGain(result.score);
+    setMotion(null);
+    resolvingRef.current = false;
+    setResolving(false);
     setMessage(
       result.cascades > 1
-        ? `Cascata x${result.cascades}: +${result.score} pontos.`
+        ? `Cascata x${result.cascades} concluída: +${result.score} pontos.`
         : `Combinação concluída: +${result.score} pontos.`,
     );
 
@@ -306,18 +385,61 @@ export function CoinLinkView({
 
       <div className="coin-link-layout">
         <div className="coin-link-board-wrap">
+          <div className="coin-link-goal-row">
+            <div>
+              <span>META DA RODADA</span>
+              <strong>{Math.min(score, targetScore)} / {targetScore}</strong>
+            </div>
+            <small>
+              {difficulty <= 4
+                ? "5 moedas · mais chances de cascata"
+                : difficulty <= 8
+                  ? "6 moedas · dificuldade intermediária"
+                  : "7 moedas · combinações mais raras"}
+            </small>
+          </div>
           <div className="coin-link-progress" aria-label="Progresso da meta">
             <i style={{ width: `${Math.min(100, (score / targetScore) * 100)}%` }} />
           </div>
-          <div className="coin-link-board" aria-label="Tabuleiro Coin Cascade">
+          <div
+            className={`coin-link-board ${resolving ? "resolving" : ""}`}
+            aria-label="Tabuleiro Coin Cascade"
+            aria-busy={resolving}
+          >
+            {cascadeMoment && resolving && (
+              <div className="coin-link-combo" aria-live="assertive">
+                <span>
+                  {cascadeMoment.maxRun >= 5
+                    ? `SUPER ${cascadeMoment.maxRun}`
+                    : cascadeMoment.maxRun === 4
+                      ? "LINHA DE 4"
+                      : `CASCADE x${cascadeMoment.cascades}`}
+                </span>
+                <strong>
+                  {cascadeMoment.sizeBonus > 0
+                    ? `BÔNUS +${cascadeMoment.sizeBonus}`
+                    : cascadeMoment.cascades > 1
+                      ? `MULTIPLICADOR x${cascadeMoment.cascades}`
+                      : "COMBINAÇÃO"}
+                </strong>
+              </div>
+            )}
             {board.map((coinId, index) => {
               const coin = coinById.get(coinId);
+              const isMotionTarget = motion?.indices.includes(index) ?? false;
+              const classes = [
+                selected === index ? "selected" : "",
+                isMotionTarget ? `motion-${motion?.phase}` : "",
+                motion?.phase === "falling" ? "board-falling" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <button
                   type="button"
-                  className={selected === index ? "selected" : ""}
-                  onPointerDown={() => chooseCoin(index)}
-                  disabled={phase !== "playing"}
+                  className={classes}
+                  onPointerDown={() => void chooseCoin(index)}
+                  disabled={phase !== "playing" || resolving}
                   aria-label={`${coin?.name ?? coinId}, ${coin?.points ?? 0} pontos`}
                   key={`${index}-${coinId}`}
                 >
@@ -361,9 +483,14 @@ export function CoinLinkView({
               </div>
             ))}
           </div>
+          <div className="coin-link-combo-guide">
+            <div><b>3</b><span>combinação normal</span></div>
+            <div><b>4</b><span>bônus de linha longa</span></div>
+            <div><b>5+</b><span>super combinação</span></div>
+          </div>
           <ul>
-            <li>Linhas de 3 ou mais moedas pontuam.</li>
-            <li>Cascatas multiplicam o valor da rodada.</li>
+            <li>Linhas de 4 e 5+ recebem bônus progressivo.</li>
+            <li>Novas quedas podem criar cascatas pela sorte.</li>
             <li>Trocas sem combinação não gastam jogada.</li>
           </ul>
           <p role="status" aria-live="polite">{message}</p>

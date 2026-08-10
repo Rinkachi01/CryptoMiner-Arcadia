@@ -6,6 +6,8 @@ import {
   coinLinkRewardPower,
   coinLinkTargetScore,
   createCoinLinkBoard,
+  coinLinkCoinPool,
+  findCoinLinkMatchGroups,
   findCoinLinkMatches,
   validateCoinLink,
 } from "../app/coin-link-rules.ts";
@@ -49,6 +51,34 @@ test("troca válida gera a mesma cascata no cliente e no replay", () => {
   assert.equal(replay.valid, true);
   assert.equal(replay.valid && replay.score, move.result.score);
   assert.deepEqual(replay.valid && replay.board, move.result.board);
+  assert.equal(move.result.steps.length, move.result.cascades);
+});
+
+test("linhas de 4 e 5 moedas são reconhecidas e recebem bônus", () => {
+  const board = [
+    "usdt", "doge", "usdt", "usdt", "xrp", "matic",
+    "doge", "usdt", "trx", "xrp", "matic", "doge",
+    "trx", "xrp", "matic", "doge", "usdt", "trx",
+    "xrp", "matic", "doge", "trx", "xrp", "matic",
+    "matic", "trx", "xrp", "matic", "doge", "usdt",
+    "doge", "xrp", "trx", "usdt", "matic", "doge",
+  ];
+  const result = applyCoinLinkMove(board, "long-line", 1, 0, 1, 7);
+  assert.equal(result.valid, true);
+  assert.equal(result.steps[0].maxRun, 4);
+  assert.ok(result.steps[0].sizeBonus > 0);
+
+  const fiveLine = [...board];
+  fiveLine.splice(0, 6, "btc", "btc", "btc", "btc", "btc", "doge");
+  const groups = findCoinLinkMatchGroups(fiveLine);
+  assert.ok(groups.some((group) => group.length === 5));
+});
+
+test("dificuldade aumenta a variedade sem retirar o fator sorte", () => {
+  assert.equal(coinLinkCoinPool(1).length, 5);
+  assert.equal(coinLinkCoinPool(5).length, 6);
+  assert.equal(coinLinkCoinPool(9).length, 7);
+  assert.deepEqual(coinLinkCoinPool(9), coinLinkCoinPool(9));
 });
 
 test("servidor rejeita troca distante e combinação inexistente", () => {
