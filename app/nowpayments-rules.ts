@@ -2,6 +2,7 @@ export type NowPaymentsAsset = "BTC" | "DOGE";
 
 export type NowPaymentsEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
+  CRYPTO_LIVE_DEPOSITS_ENABLED?: string;
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
@@ -44,7 +45,11 @@ export function readNowPaymentsConfig(environment: unknown) {
   return {
     apiBaseUrl,
     apiKey,
-    depositsEnabled: providerReady && enabled(source.CRYPTO_DEPOSITS_ENABLED),
+    depositsEnabled:
+      providerReady &&
+      enabled(source.CRYPTO_DEPOSITS_ENABLED) &&
+      (apiBaseUrl === SANDBOX_API ||
+        enabled(source.CRYPTO_LIVE_DEPOSITS_ENABLED)),
     ipnSecret,
     providerReady,
     publicBaseUrl,

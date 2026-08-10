@@ -6491,6 +6491,12 @@ img {
   font: 800 1rem/1 var(--font-mono, monospace);
 }
 
+.wallet-deposit-estimate {
+  color: #9dff2e !important;
+  font: 900 0.78rem/1.4 var(--font-mono, monospace) !important;
+  letter-spacing: 0.04em;
+}
+
 .wallet-deposit-assets {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6571,7 +6577,8 @@ img {
 }
 
 .wallet-live-history b,
-.wallet-live-history span {
+.wallet-live-history span,
+.wallet-live-history strong {
   color: #fff;
 }
 

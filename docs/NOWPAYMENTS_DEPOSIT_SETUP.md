@@ -1,9 +1,10 @@
 # Depósitos BTC e DOGE com NOWPayments
 
 O Arcadia usa o NOWPayments somente como porta de entrada. Cada compra de saldo
-gera uma fatura única. O usuário paga em BTC ou DOGE; o servidor recebe um IPN
-assinado e credita a mesma moeda no livro-razão individual. O CMA continua
-interno e não sacável.
+gera uma fatura única. O usuário paga em BTC ou DOGE; o provedor liquida a
+tesouraria em USDT TRC20 e envia um IPN assinado. Depois dessas conferências, o
+servidor credita CMA líquido no livro-razão individual. O CMA continua interno
+e não sacável.
 
 ## O que o proprietário precisa criar
 
@@ -12,7 +13,8 @@ interno e não sacável.
 2. Confirmar com o provedor que jogos de mineração virtual e venda de créditos
    internos são aceitos nos países atendidos.
 3. Ativar 2FA e guardar os códigos de recuperação fora do computador do site.
-4. Cadastrar carteiras externas próprias para recebimento de BTC e DOGE. O
+4. Manter `USDTTRC20` como moeda principal de liquidação e cadastrar uma
+   carteira externa própria quando a política da conta exigir retirada. O
    Arcadia nunca deve receber seed phrase ou chave privada.
 5. Criar primeiro uma conta no sandbox e gerar uma chave de API e um segredo
    IPN exclusivos.
@@ -29,11 +31,12 @@ NOWPAYMENTS_API_KEY
 NOWPAYMENTS_IPN_SECRET
 ```
 
-Durante os testes, manter:
+Durante os testes, manter o endpoint sandbox e a trava de produção:
 
 ```text
 NOWPAYMENTS_API_BASE_URL=https://api-sandbox.nowpayments.io/v1
-CRYPTO_DEPOSITS_ENABLED=false
+CRYPTO_DEPOSITS_ENABLED=true
+CRYPTO_LIVE_DEPOSITS_ENABLED=false
 ```
 
 O callback que deve ser autorizado no provedor é:
@@ -53,13 +56,14 @@ seed phrase ou chave privada ao Arcadia.
 - pagamento parcial sem crédito completo;
 - assinatura IPN adulterada recusada;
 - repetição do mesmo IPN sem crédito duplicado;
-- pagamento BTC creditado uma única vez;
-- pagamento DOGE creditado uma única vez;
-- conversão posterior para CMA registrada no ledger;
+- pagamento BTC liquidado em USDT TRC20 e creditado uma única vez em CMA;
+- pagamento DOGE liquidado em USDT TRC20 e creditado uma única vez em CMA;
+- valor liquidado abaixo do CMA líquido encaminhado para revisão, sem crédito;
 - reembolso e exceção encaminhados para revisão administrativa.
 
-Somente depois desses testes o proprietário pode alterar
-`CRYPTO_DEPOSITS_ENABLED` para `true`. A primeira ativação deve usar limites
+Somente depois desses testes, de uma credencial de produção nova e de revisão
+jurídica/contábil, o proprietário pode trocar o endpoint para produção e alterar
+`CRYPTO_LIVE_DEPOSITS_ENABLED` para `true`. A primeira ativação deve usar limites
 baixos e poucas contas autorizadas.
 
 ## Saques manuais

@@ -21,6 +21,25 @@ test("configuração do provedor falha fechada e exige segredo IPN", () => {
   assert.equal(configured.providerReady, true);
   assert.equal(configured.depositsEnabled, true);
   assert.equal(configured.sandbox, true);
+
+  const productionBlocked = readNowPaymentsConfig({
+    CRYPTO_DEPOSITS_ENABLED: "true",
+    NOWPAYMENTS_API_KEY: "api-key-de-teste-comprida",
+    NOWPAYMENTS_IPN_SECRET: "segredo-ipn-teste",
+    PUBLIC_BASE_URL: "https://arcadia.example",
+  });
+  assert.equal(productionBlocked.providerReady, true);
+  assert.equal(productionBlocked.depositsEnabled, false);
+  assert.equal(
+    readNowPaymentsConfig({
+      CRYPTO_DEPOSITS_ENABLED: "true",
+      CRYPTO_LIVE_DEPOSITS_ENABLED: "true",
+      NOWPAYMENTS_API_KEY: "api-key-de-teste-comprida",
+      NOWPAYMENTS_IPN_SECRET: "segredo-ipn-teste",
+      PUBLIC_BASE_URL: "https://arcadia.example",
+    }).depositsEnabled,
+    true,
+  );
 });
 
 test("assinatura IPN é canônica, verificável e sensível a alterações", async () => {
@@ -59,4 +78,3 @@ test("webhook público verifica assinatura antes de processar crédito", async (
   assert.match(source, /processNowPaymentsIpn/);
   assert.match(source, /payload_too_large/);
 });
-

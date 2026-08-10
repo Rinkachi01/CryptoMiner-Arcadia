@@ -65,6 +65,17 @@ export function presentLedgerActivity(
         "CMA virtual foi adicionado para validar compras e o crescimento controlado da rede beta.",
     };
   }
+  if (action === "credit_cma_deposit") {
+    const creditedCma = numberValue(metadata.creditedCmaMicros) / 1_000_000;
+    return {
+      category: "economy",
+      title: "Depósito convertido em CMA",
+      description: `${creditedCma.toLocaleString("pt-BR", {
+        maximumFractionDigits: 6,
+        minimumFractionDigits: 2,
+      })} CMA foram creditados após confirmação assinada e liquidação da tesouraria.`,
+    };
+  }
   if (action === "block_settlement") {
     const settledBlocks = Math.max(
       1,

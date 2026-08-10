@@ -6,6 +6,7 @@ import { walletProviderReadiness } from "../app/wallet-server.ts";
 test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
   assert.deepEqual(walletProviderReadiness({}), {
     depositsEnabled: false,
+    mode: "disabled",
     provider: "nowpayments",
     providerReady: false,
     sandboxEnabled: false,
@@ -19,6 +20,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
     }),
     {
       depositsEnabled: false,
+      mode: "disabled",
       provider: "nowpayments",
       providerReady: true,
       sandboxEnabled: false,
@@ -29,6 +31,7 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
       NOWPAYMENTS_API_KEY: "api-key-de-teste-comprida",
       NOWPAYMENTS_IPN_SECRET: "segredo-ipn-teste",
       CRYPTO_DEPOSITS_ENABLED: "true",
+      NOWPAYMENTS_API_BASE_URL: "https://api-sandbox.nowpayments.io/v1",
       PUBLIC_BASE_URL: "https://arcadia.example",
     }).depositsEnabled,
     true,
@@ -52,6 +55,8 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
   assert.match(route, /getArcadiaUser/);
   assert.match(view, /Depósitos reais usam fatura externa/);
   assert.match(view, /Nunca envie criptomoeda/);
+  assert.match(view, /receba CMA/);
+  assert.match(view, /USDT TRC20/);
   assert.match(page, />ENTRAR</);
   assert.match(page, />CRIAR CONTA</);
 });

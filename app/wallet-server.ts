@@ -3,6 +3,12 @@ import {
   type PublicGameState,
 } from "./game-server.ts";
 import { amountToAtomic } from "./conversion-rules.ts";
+import {
+  calculateDirectCmaDeposit,
+  DEPOSIT_SETTLEMENT_ASSET,
+  DEPOSIT_SETTLEMENT_DECIMALS,
+  parseDecimalAtomic,
+} from "./deposit-rules.ts";
 import { readBoundedJsonObject } from "./external-json.ts";
 import {
   isNowPaymentsAsset,
@@ -14,6 +20,7 @@ import {
 
 type WalletEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
+  CRYPTO_LIVE_DEPOSITS_ENABLED?: string;
   CRYPTO_SANDBOX_ENABLED?: string;
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
@@ -42,6 +49,9 @@ type DepositIntentRow = {
   id: string;
   provider: string;
   requested_usd_micros: number;
+  credited_cma_micros: number;
+  settlement_asset: string | null;
+  settlement_atomic: number;
   status: string;
 };
 
@@ -71,6 +81,7 @@ export type WalletOverview = {
     enabled: boolean;
     provider: "nowpayments";
     providerReady: boolean;
+    mode: "disabled" | "live" | "sandbox";
     sandboxEnabled: boolean;
     recent: Array<{
       asset: string;
@@ -80,6 +91,8 @@ export type WalletOverview = {
       id: string;
       provider: string;
       requestedUsd: number;
+      creditedCma: number;
+      settlementAsset: string | null;
       status: string;
     }>;
   };
@@ -107,6 +120,11 @@ export function walletProviderReadiness(environment: unknown) {
     depositsEnabled: config.depositsEnabled,
     provider: "nowpayments" as const,
     providerReady: config.providerReady,
+    mode: config.depositsEnabled
+      ? config.sandbox
+        ? ("sandbox" as const)
+        : ("live" as const)
+      : ("disabled" as const),
     sandboxEnabled:
       source.CRYPTO_SANDBOX_ENABLED?.trim().toLowerCase() === "true",
   };
@@ -134,6 +152,9 @@ export async function ensureWalletSchema(db: D1Database) {
       deposit_address TEXT,
       requested_usd_micros INTEGER NOT NULL,
       received_atomic INTEGER DEFAULT 0 NOT NULL,
+      settlement_asset TEXT,
+      settlement_atomic INTEGER DEFAULT 0 NOT NULL,
+      credited_cma_micros INTEGER DEFAULT 0 NOT NULL,
       status TEXT DEFAULT 'awaiting_provider' NOT NULL,
       expires_at INTEGER,
       created_at INTEGER NOT NULL,
@@ -185,10 +206,13 @@ type NowPaymentsIpnPayload = {
   invoice_id?: number | string;
   order_id?: string;
   outcome_amount?: number | string;
+  outcome_currency?: string;
   pay_amount?: number | string;
   pay_currency?: string;
   payment_id?: number | string;
   payment_status?: string;
+  price_amount?: number | string;
+  price_currency?: string;
 };
 
 type ProviderDepositIntentRow = DepositIntentRow & {
@@ -218,8 +242,9 @@ export async function createProviderDepositIntent(input: {
   if (!isNowPaymentsAsset(input.asset)) {
     throw new Error("Escolha BTC ou DOGE para o depósito.");
   }
-  const usdAmount = Number(input.usdAmount);
-  if (!Number.isFinite(usdAmount) || usdAmount < 5 || usdAmount > 1_000) {
+  const rawUsdAmount = Number(input.usdAmount);
+  const usdAmount = Math.round(rawUsdAmount * 100) / 100;
+  if (!Number.isFinite(rawUsdAmount) || usdAmount < 5 || usdAmount > 1_000) {
     throw new Error("Use um valor entre US$ 5 e US$ 1.000.");
   }
   const now = input.now ?? Date.now();
@@ -263,6 +288,7 @@ export async function createProviderDepositIntent(input: {
       body: JSON.stringify({
         cancel_url: `${config.publicBaseUrl}/?view=wallet&deposit=cancelled`,
         ipn_callback_url: `${config.publicBaseUrl}/api/wallet/nowpayments`,
+        is_fee_paid_by_user: true,
         is_fixed_rate: true,
         order_description: "Crédito de saldo no Crypto Miner Arcadia",
         order_id: id,
@@ -342,6 +368,7 @@ export async function processNowPaymentsIpn(input: {
   const paymentReference = cleanProviderValue(
     payload.payment_id ?? payload.invoice_id,
   );
+  const invoiceReference = cleanProviderValue(payload.invoice_id);
   const status = normalizeNowPaymentsStatus(payload.payment_status);
   if (!/^deposit-[0-9a-f-]{36}$/i.test(intentId) || !paymentReference) {
     throw new Error("Evento sem referência de depósito.");
@@ -387,13 +414,82 @@ export async function processNowPaymentsIpn(input: {
 
   const eventAsset = cleanProviderValue(payload.pay_currency).toUpperCase();
   const paidAmount = cleanProviderValue(
-    payload.actually_paid ?? payload.pay_amount ?? payload.outcome_amount,
+    payload.actually_paid ?? payload.pay_amount,
+  );
+  const priceCurrency = cleanProviderValue(payload.price_currency).toUpperCase();
+  const priceAmountMicros = parseDecimalAtomic(payload.price_amount, 6);
+  const settlementAsset = cleanProviderValue(payload.outcome_currency).toUpperCase();
+  const settlementAtomic = parseDecimalAtomic(
+    payload.outcome_amount,
+    DEPOSIT_SETTLEMENT_DECIMALS,
   );
   if (eventAsset !== intent.asset || !isNowPaymentsAsset(eventAsset)) {
     throw new Error("Moeda recebida não corresponde à fatura.");
   }
+  if (
+    !invoiceReference ||
+    !intent.provider_reference ||
+    invoiceReference !== intent.provider_reference
+  ) {
+    throw new Error("Fatura recebida não corresponde à referência do provedor.");
+  }
+  if (
+    priceCurrency !== "USD" ||
+    priceAmountMicros !== intent.requested_usd_micros
+  ) {
+    throw new Error("Valor confirmado não corresponde à fatura.");
+  }
   const receivedAtomic = amountToAtomic(paidAmount, eventAsset);
   if (!receivedAtomic) throw new Error("Quantidade recebida inválida.");
+  if (
+    settlementAsset !== DEPOSIT_SETTLEMENT_ASSET ||
+    !settlementAtomic
+  ) {
+    await input.db.batch([
+      input.db
+        .prepare(`UPDATE wallet_deposit_intents
+          SET status = 'review_required', received_atomic = ?,
+              settlement_asset = ?, settlement_atomic = ?, updated_at = ?
+          WHERE id = ? AND status NOT IN ('credited', 'crediting')`)
+        .bind(
+          receivedAtomic,
+          settlementAsset || null,
+          settlementAtomic ?? 0,
+          now,
+          intent.id,
+        ),
+      input.db
+        .prepare(`UPDATE wallet_provider_events SET status = 'processed'
+          WHERE id = ?`)
+        .bind(eventId),
+    ]);
+    return { accepted: true as const, status: "review_required" as const };
+  }
+  const depositCredit = calculateDirectCmaDeposit(
+    intent.requested_usd_micros,
+    settlementAtomic,
+  );
+  if (!depositCredit.reserveCovered) {
+    await input.db.batch([
+      input.db
+        .prepare(`UPDATE wallet_deposit_intents
+          SET status = 'review_required', received_atomic = ?,
+              settlement_asset = ?, settlement_atomic = ?, updated_at = ?
+          WHERE id = ? AND status NOT IN ('credited', 'crediting')`)
+        .bind(
+          receivedAtomic,
+          settlementAsset,
+          settlementAtomic,
+          now,
+          intent.id,
+        ),
+      input.db
+        .prepare(`UPDATE wallet_provider_events SET status = 'processed'
+          WHERE id = ?`)
+        .bind(eventId),
+    ]);
+    return { accepted: true as const, status: "review_required" as const };
+  }
 
   const stateRow = await input.db
     .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
@@ -409,30 +505,44 @@ export async function processNowPaymentsIpn(input: {
   }
 
   const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
-  if (eventAsset === "BTC") state.btcBalanceAtomic += receivedAtomic;
-  else state.dogeBalanceAtomic += receivedAtomic;
-  if (
-    !Number.isSafeInteger(state.btcBalanceAtomic) ||
-    !Number.isSafeInteger(state.dogeBalanceAtomic)
-  ) {
+  const currentCmaMicros = Math.round(state.cmaBalance * 1_000_000);
+  const nextCmaMicros = currentCmaMicros + depositCredit.creditedCmaMicros;
+  if (!Number.isSafeInteger(nextCmaMicros)) {
     throw new Error("Saldo recebido excede o limite seguro.");
   }
+  state.cmaBalance = nextCmaMicros / 1_000_000;
+  state.displayedBalanceSymbol = "CMA";
   const nextVersion = stateRow.version + 1;
   const nextStateJson = JSON.stringify(state);
   const idempotencyKey = `deposit:${intent.id}`;
   const ledgerId = crypto.randomUUID();
   const metadataJson = JSON.stringify({
-    asset: eventAsset,
+    cmaUsdReference: 1,
+    creditedCmaMicros: depositCredit.creditedCmaMicros,
+    feeBps: depositCredit.feeBps,
+    feeCmaMicros: depositCredit.feeCmaMicros,
+    grossUsdMicros: intent.requested_usd_micros,
+    paidAsset: eventAsset,
     provider: "nowpayments",
     providerReference: paymentReference,
     receivedAtomic,
+    settlementAsset,
+    settlementAtomic,
   });
   const results = await input.db.batch([
     input.db
       .prepare(`UPDATE wallet_deposit_intents
-        SET status = 'crediting', received_atomic = ?, updated_at = ?
+        SET status = 'crediting', received_atomic = ?, settlement_asset = ?,
+            settlement_atomic = ?, credited_cma_micros = ?, updated_at = ?
         WHERE id = ? AND status NOT IN ('credited', 'crediting')`)
-      .bind(receivedAtomic, now, intent.id),
+      .bind(
+        receivedAtomic,
+        settlementAsset,
+        settlementAtomic,
+        depositCredit.creditedCmaMicros,
+        now,
+        intent.id,
+      ),
     input.db
       .prepare(`UPDATE game_states
         SET state_json = ?, version = ?, updated_at = ?
@@ -451,7 +561,7 @@ export async function processNowPaymentsIpn(input: {
       .prepare(`INSERT OR IGNORE INTO ledger_entries (
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
-      ) SELECT ?, ?, 'credit_crypto_deposit', ?, ?, 0, ?, ?
+      ) SELECT ?, ?, 'credit_cma_deposit', ?, ?, ?, ?, ?
         WHERE EXISTS (SELECT 1 FROM game_states
           WHERE account_id = ? AND version = ? AND state_json = ?)
           AND EXISTS (SELECT 1 FROM wallet_deposit_intents
@@ -461,6 +571,7 @@ export async function processNowPaymentsIpn(input: {
         intent.account_id,
         idempotencyKey,
         nextVersion,
+        depositCredit.creditedCmaMicros,
         metadataJson,
         now,
         intent.account_id,
@@ -470,11 +581,21 @@ export async function processNowPaymentsIpn(input: {
       ),
     input.db
       .prepare(`UPDATE wallet_deposit_intents
-        SET status = 'credited', received_atomic = ?, updated_at = ?
+        SET status = 'credited', received_atomic = ?, settlement_asset = ?,
+            settlement_atomic = ?, credited_cma_micros = ?, updated_at = ?
         WHERE id = ? AND status = 'crediting'
           AND EXISTS (SELECT 1 FROM ledger_entries
             WHERE account_id = ? AND idempotency_key = ?)`)
-      .bind(receivedAtomic, now, intent.id, intent.account_id, idempotencyKey),
+      .bind(
+        receivedAtomic,
+        settlementAsset,
+        settlementAtomic,
+        depositCredit.creditedCmaMicros,
+        now,
+        intent.id,
+        intent.account_id,
+        idempotencyKey,
+      ),
     input.db
       .prepare(`UPDATE wallet_provider_events SET status = 'processed'
         WHERE id = ?`)
@@ -494,7 +615,10 @@ export async function processNowPaymentsIpn(input: {
   return {
     accepted: true as const,
     asset: eventAsset,
+    creditedCmaMicros: depositCredit.creditedCmaMicros,
     receivedAtomic,
+    settlementAsset,
+    settlementAtomic,
     status: "credited" as const,
   };
 }
@@ -676,7 +800,8 @@ export async function readWalletOverview(input: {
       .first<WalletGameRow>(),
     input.db
       .prepare(`SELECT id, asset, provider, checkout_url,
-        requested_usd_micros, status, expires_at, created_at
+        requested_usd_micros, credited_cma_micros, settlement_asset,
+        settlement_atomic, status, expires_at, created_at
         FROM wallet_deposit_intents
         WHERE account_id = ?
         ORDER BY created_at DESC
@@ -703,6 +828,7 @@ export async function readWalletOverview(input: {
     deposits: {
       assets: ["BTC", "DOGE"],
       enabled: readiness.depositsEnabled,
+      mode: readiness.mode,
       provider: readiness.provider,
       providerReady: readiness.providerReady,
       sandboxEnabled: readiness.sandboxEnabled,
@@ -714,6 +840,8 @@ export async function readWalletOverview(input: {
         id: intent.id,
         provider: intent.provider,
         requestedUsd: intent.requested_usd_micros / 1_000_000,
+        creditedCma: intent.credited_cma_micros / 1_000_000,
+        settlementAsset: intent.settlement_asset,
         status: intent.status,
       })),
     },

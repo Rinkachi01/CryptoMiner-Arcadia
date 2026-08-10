@@ -59,6 +59,7 @@ type WalletResponse = {
   deposits?: {
     assets: ["BTC", "DOGE"];
     enabled: boolean;
+    mode: "disabled" | "live" | "sandbox";
     provider: "nowpayments";
     providerReady: boolean;
     sandboxEnabled: boolean;
@@ -70,6 +71,8 @@ type WalletResponse = {
       id: string;
       provider: string;
       requestedUsd: number;
+      creditedCma: number;
+      settlementAsset: string | null;
       status: string;
     }>;
   };
@@ -218,6 +221,10 @@ export function ConversionView({
   );
   const selectedBalanceAtomic =
     asset === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
+  const depositNetCmaEstimate = Math.max(
+    0,
+    (Number.parseFloat(depositUsd.replace(",", ".")) || 0) * 0.97,
+  );
 
   async function requestQuote() {
     setQuoting(true);
@@ -398,7 +405,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("deposit")}
         >
-          DEPOSITAR BTC / DOGE
+          COMPRAR CMA COM CRIPTO
         </button>
       </div>
 
@@ -520,12 +527,16 @@ export function ConversionView({
       ) : (
         <section className="wallet-deposit-panel">
           <header>
-            <span>DEPÓSITOS REAIS · NOWPAYMENTS</span>
-            <h3>Uma fatura única para cada depósito</h3>
+            <span>
+              {wallet?.deposits?.mode === "sandbox"
+                ? "SANDBOX DO PROVEDOR · SEM DINHEIRO REAL"
+                : "DEPÓSITOS VIA NOWPAYMENTS"}
+            </span>
+            <h3>Pague em BTC ou DOGE e receba CMA</h3>
             <p>
               O Arcadia não guarda chaves privadas. O provedor cria uma fatura única e
-              envia uma confirmação assinada; o servidor credita BTC ou DOGE uma única
-              vez somente quando o pagamento chega ao estado concluído.
+              envia uma confirmação assinada. Depois da liquidação da tesouraria em
+              USDT TRC20, o servidor credita o CMA líquido uma única vez.
             </p>
           </header>
           <div className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
@@ -534,7 +545,9 @@ export function ConversionView({
               <strong>NOWPayments · somente depósitos</strong>
               <span>
                 {wallet?.deposits?.enabled
-                  ? "Conta comercial conectada. Faturas reais disponíveis."
+                  ? wallet.deposits.mode === "sandbox"
+                    ? "Conectado ao ambiente de testes. Não envie criptomoeda real."
+                    : "Conta comercial conectada. Faturas de produção disponíveis."
                   : "Integração pronta; falta cadastrar a chave da conta comercial e a carteira de recebimento."}
               </span>
             </div>
@@ -546,6 +559,9 @@ export function ConversionView({
                 onChange={(event) => setDepositUsd(event.target.value)}
               />
               <small>Mínimo local US$ 5 · máximo US$ 1.000</small>
+              <strong className="wallet-deposit-estimate">
+                ESTIMATIVA LÍQUIDA · {formatCma(depositNetCmaEstimate)} CMA
+              </strong>
             </label>
           </div>
           {depositError && <p className="conversion-error" role="alert">{depositError}</p>}
@@ -645,7 +661,9 @@ export function ConversionView({
                   {depositBusy === id
                     ? "CRIANDO FATURA…"
                     : wallet?.deposits?.enabled
-                      ? "CRIAR FATURA SEGURA"
+                      ? wallet.deposits.mode === "sandbox"
+                        ? "CRIAR FATURA SANDBOX"
+                        : "CRIAR FATURA SEGURA"
                       : "AGUARDANDO CONEXÃO"}
                 </button>
               </article>
@@ -662,6 +680,9 @@ export function ConversionView({
                     <b>{item.asset}</b>
                     <span>{formatUsd(item.requestedUsd)}</span>
                     <em>{item.status.replaceAll("_", " ").toUpperCase()}</em>
+                    {item.status === "credited" && (
+                      <strong>+{formatCma(item.creditedCma)} CMA</strong>
+                    )}
                     {item.checkoutUrl && item.status !== "credited" && (
                       <a href={item.checkoutUrl} rel="noreferrer">ABRIR FATURA</a>
                     )}
@@ -671,11 +692,11 @@ export function ConversionView({
           )}
           <div className="wallet-deposit-flow">
             <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
-            <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>O aviso externo é conferido novamente no provedor.</small></span></article>
-            <article><b>3</b><span><strong>CRÉDITO</strong><small>BTC ou DOGE entra uma única vez no seu livro-razão.</small></span></article>
+            <article><b>2</b><span><strong>LIQUIDAÇÃO</strong><small>A assinatura, o valor e o recebimento em USDT TRC20 são conferidos.</small></span></article>
+            <article><b>3</b><span><strong>CRÉDITO CMA</strong><small>O valor líquido, após reserva de 3%, entra uma única vez no livro-razão.</small></span></article>
           </div>
           <p className="wallet-provider-notice">
-            <strong>{wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
+            <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
             Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
             dentro desta tela após a ativação oficial.
           </p>
