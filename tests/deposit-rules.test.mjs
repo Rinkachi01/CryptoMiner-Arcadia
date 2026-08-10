@@ -38,6 +38,7 @@ test("IPN concluído credita CMA e preserva a liquidação auditável", async ()
     "utf8",
   );
   assert.match(source, /is_fee_paid_by_user: true/);
+  assert.match(source, /credencial de sandbox separada/);
   assert.match(source, /price_currency/);
   assert.match(source, /outcome_currency/);
   assert.match(source, /DEPOSIT_SETTLEMENT_ASSET/);

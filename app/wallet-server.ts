@@ -312,6 +312,11 @@ export async function createProviderDepositIntent(input: {
       signal: AbortSignal.timeout(8_000),
     });
     const result = await readBoundedJsonObject(response);
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(
+        "A chave cadastrada não foi aceita pelo sandbox da NOWPayments. Use uma credencial de sandbox separada.",
+      );
+    }
     const providerReference = cleanProviderValue(result.id);
     const checkoutUrl = validNowPaymentsCheckoutUrl(result.invoice_url);
     if (!response.ok || !providerReference || !checkoutUrl) {
