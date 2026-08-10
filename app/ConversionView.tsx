@@ -58,10 +58,13 @@ type WalletResponse = {
   };
   deposits?: {
     assets: ["BTC", "DOGE"];
+    activationRequested: boolean;
     enabled: boolean;
+    liveActivationRequested: boolean;
     mode: "disabled" | "live" | "sandbox";
     provider: "nowpayments";
     providerReady: boolean;
+    providerSandbox: boolean;
     missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     sandboxEnabled: boolean;
     recent: Array<{
@@ -555,7 +558,7 @@ export function ConversionView({
                       ? "Falta um segredo IPN com pelo menos 16 caracteres."
                       : wallet?.deposits?.missingSetup?.includes("public_url")
                         ? "Falta configurar a URL pública HTTPS do Arcadia."
-                        : "O provedor está configurado, mas a ativação permanece bloqueada."}
+                        : `O provedor está configurado, mas a ativação permanece bloqueada (pedido: ${wallet?.deposits?.activationRequested ? "sim" : "não"}; sandbox: ${wallet?.deposits?.providerSandbox ? "sim" : "não"}; produção: ${wallet?.deposits?.liveActivationRequested ? "sim" : "não"}).`}
               </span>
             </div>
             <label>

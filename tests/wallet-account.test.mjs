@@ -5,11 +5,14 @@ import { walletProviderReadiness } from "../app/wallet-server.ts";
 
 test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
   assert.deepEqual(walletProviderReadiness({}), {
+    activationRequested: false,
     depositsEnabled: false,
+    liveActivationRequested: false,
     missingSetup: ["api_key", "ipn_secret", "public_url"],
     mode: "disabled",
     provider: "nowpayments",
     providerReady: false,
+    providerSandbox: false,
     sandboxEnabled: false,
   });
   assert.deepEqual(
@@ -20,11 +23,14 @@ test("depósitos exigem credencial, URL HTTPS e ativação explícita", () => {
       PUBLIC_BASE_URL: "https://arcadia.example",
     }),
     {
+      activationRequested: false,
       depositsEnabled: false,
+      liveActivationRequested: false,
       missingSetup: [],
       mode: "disabled",
       provider: "nowpayments",
       providerReady: true,
+      providerSandbox: false,
       sandboxEnabled: false,
     },
   );

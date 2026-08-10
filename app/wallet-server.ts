@@ -79,8 +79,11 @@ export type WalletOverview = {
   deposits: {
     assets: ["BTC", "DOGE"];
     enabled: boolean;
+    activationRequested: boolean;
+    liveActivationRequested: boolean;
     provider: "nowpayments";
     providerReady: boolean;
+    providerSandbox: boolean;
     missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     mode: "disabled" | "live" | "sandbox";
     sandboxEnabled: boolean;
@@ -118,9 +121,14 @@ export function walletProviderReadiness(environment: unknown) {
   const source = cleanEnvironment(environment);
   const config = readNowPaymentsConfig(source);
   return {
+    activationRequested:
+      source.CRYPTO_DEPOSITS_ENABLED?.trim().toLowerCase() === "true",
     depositsEnabled: config.depositsEnabled,
+    liveActivationRequested:
+      source.CRYPTO_LIVE_DEPOSITS_ENABLED?.trim().toLowerCase() === "true",
     provider: "nowpayments" as const,
     providerReady: config.providerReady,
+    providerSandbox: config.sandbox,
     missingSetup: [
       ...(!config.apiKeyConfigured ? (["api_key"] as const) : []),
       ...(!config.ipnSecretConfigured ? (["ipn_secret"] as const) : []),
@@ -833,10 +841,13 @@ export async function readWalletOverview(input: {
     balances: parseBalances(game),
     deposits: {
       assets: ["BTC", "DOGE"],
+      activationRequested: readiness.activationRequested,
       enabled: readiness.depositsEnabled,
+      liveActivationRequested: readiness.liveActivationRequested,
       mode: readiness.mode,
       provider: readiness.provider,
       providerReady: readiness.providerReady,
+      providerSandbox: readiness.providerSandbox,
       missingSetup: readiness.missingSetup,
       sandboxEnabled: readiness.sandboxEnabled,
       recent: (intents.results ?? []).map((intent) => ({
