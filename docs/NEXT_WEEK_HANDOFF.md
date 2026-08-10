@@ -1,12 +1,16 @@
 # Crypto Miner Arcadia — retomada da próxima semana
 
-Atualizado em 2 de agosto de 2026.
+Atualizado em 9 de agosto de 2026.
 
 ## Estado seguro deixado nesta rodada
 
 - cadastro, confirmação de e-mail, login, saída e recuperação estão ligados ao
   Supabase;
 - Turnstile já protege cadastro, login e recuperação de senha;
+- confirmação e recuperação agora possuem tela de envio, reenvio protegido
+  e espera de 60 segundos;
+- a Central de Suporte registra protocolos por conta, mostra o histórico recente
+  e limita abuso mesmo sem um domínio comprado;
 - a segunda conta confirmou o kit inicial correto: um rack e um minerador, sem
   CMA, bateria ou energia gratuita;
 - mineração, inventário, energia, compras, blocos e minigames continuam
@@ -105,6 +109,7 @@ dispositivo e uma captura. Não usar a conta fundadora para testes destrutivos.
 
 ## Próximo ponto de retomada
 
-Começar por SMTP/domínio. Enquanto o domínio não estiver decidido, avançar no
-modo de teste com Turnstile dos minigames, limites de abuso e roteiro de UX da
-segunda conta. Conversão real e depósito permanecem atrás de um portão separado.
+Sem comprar o domínio ainda, avançar na fila administrativa dos protocolos e no
+Turnstile dos minigames. Quando o nome definitivo estiver decidido, seguir o
+checklist de `docs/EMAIL_AND_SUPPORT_SETUP.md` para SMTP, DNS e testes. Conversão
+real e depósito permanecem atrás de um portão separado.

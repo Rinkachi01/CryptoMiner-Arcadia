@@ -1,5 +1,9 @@
+import { env } from "cloudflare:workers";
+import { arcadiaSignInPath, getArcadiaUser } from "../identity-server";
 import { PublicInfoHeader } from "../PublicInfoHeader";
 import { PublicSiteFooter } from "../PublicSiteFooter";
+import { readSupportEmailConfig } from "../support-email-server";
+import { SupportRequestForm } from "./SupportRequestForm";
 
 const supportTopics = [
   {
@@ -20,7 +24,12 @@ const supportTopics = [
   },
 ];
 
-export default function SupportPage() {
+export const dynamic = "force-dynamic";
+
+export default async function SupportPage() {
+  const user = await getArcadiaUser();
+  const emailDeliveryEnabled = readSupportEmailConfig(env).enabled;
+
   return (
     <main className="public-info-page">
       <PublicInfoHeader label="CENTRAL DE SUPORTE" />
@@ -29,16 +38,29 @@ export default function SupportPage() {
         <span>AJUDA OFICIAL</span>
         <h1>Suporte claro antes e depois do lançamento.</h1>
         <p>
-          Esta central já documenta os fluxos do Arcadia. O atendimento por
-          e-mail será aberto somente depois que o domínio e a caixa corporativa
-          estiverem verificados.
+          Consulte orientações oficiais, abra um protocolo ligado à sua conta
+          verificada e acompanhe os chamados recentes sem expor informações
+          sensíveis.
         </p>
         <div className="support-contact-status">
-          <strong>CANAL RESERVADO</strong>
+          <strong>
+            {emailDeliveryEnabled ? "ATENDIMENTO ATIVO" : "PROTOCOLO INTERNO ATIVO"}
+          </strong>
           <span>support@cryptominearcadia.com</span>
-          <small>A ativar antes do beta público · ainda não envie mensagens</small>
+          <small>
+            {emailDeliveryEnabled
+              ? "Chamados registrados e encaminhados à equipe"
+              : "O e-mail corporativo será ativado depois do domínio"}
+          </small>
         </div>
       </section>
+
+      <SupportRequestForm
+        accountEmail={user?.email ?? null}
+        emailDeliveryEnabled={emailDeliveryEnabled}
+        loginPath={arcadiaSignInPath("/support")}
+        signedIn={Boolean(user)}
+      />
 
       <section className="support-topic-grid" aria-label="Assuntos de suporte">
         {supportTopics.map((topic, index) => (
@@ -131,4 +153,3 @@ export default function SupportPage() {
     </main>
   );
 }
-

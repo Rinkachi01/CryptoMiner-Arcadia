@@ -134,6 +134,13 @@
       "when": 1785642536285,
       "tag": "0018_lying_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1786327263362,
+      "tag": "0019_demonic_blizzard",
+      "breakpoints": true
     }
   ]
 }

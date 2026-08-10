@@ -1,7 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { TurnstileWidget } from "../TurnstileWidget";
 
 type AuthMode = "reset" | "signin" | "signup";
@@ -27,7 +27,17 @@ function friendlyError(message: string) {
   if (normalized.includes("user already registered")) {
     return "Esta conta já existe. Tente entrar ou recuperar a senha.";
   }
+  if (normalized.includes("email not confirmed")) {
+    return "Confirme seu e-mail antes de entrar. Você pode reenviar a confirmação pelo cadastro.";
+  }
   return "Não foi possível concluir agora. Revise os dados e tente novamente.";
+}
+
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email;
+  const visible = name.slice(0, Math.min(2, name.length));
+  return `${visible}${"•".repeat(Math.max(3, name.length - visible.length))}@${domain}`;
 }
 
 export function AuthForm({
@@ -51,11 +61,26 @@ export function AuthForm({
   const [fullName, setFullName] = useState("");
   const [message, setMessage] = useState(initialError ?? "");
   const [password, setPassword] = useState("");
+  const [sentEmail, setSentEmail] = useState<
+    "confirmation" | "recovery" | null
+  >(null);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setInterval(
+      () => setResendSeconds((current) => Math.max(0, current - 1)),
+      1_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [resendSeconds]);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage("");
+    setSentEmail(null);
+    setResendSeconds(0);
     setCaptchaToken("");
     setCaptchaReset((current) => current + 1);
   }
@@ -82,6 +107,8 @@ export function AuthForm({
         setMessage(
           "Se a conta existir, você receberá um e-mail com o próximo passo.",
         );
+        setSentEmail("recovery");
+        setResendSeconds(60);
         return;
       }
 
@@ -113,6 +140,8 @@ export function AuthForm({
         setMessage(
           "Cadastro recebido. Confirme o e-mail para liberar sua conta.",
         );
+        setSentEmail("confirmation");
+        setResendSeconds(60);
         return;
       }
 
@@ -130,6 +159,53 @@ export function AuthForm({
       );
     } finally {
       if (captchaRequired && submittedToAuth) {
+        setCaptchaToken("");
+        setCaptchaReset((current) => current + 1);
+      }
+      setBusy(false);
+    }
+  }
+
+  async function resendEmail() {
+    if (!sentEmail || busy || resendSeconds > 0) return;
+    if (captchaRequired && !captchaToken) {
+      setMessage("Confirme a verificação humana para reenviar.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const redirectTo =
+        sentEmail === "confirmation"
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`
+          : `${window.location.origin}/auth/callback?next=/auth/update-password`;
+      const { error } =
+        sentEmail === "confirmation"
+          ? await supabase.auth.resend({
+              email,
+              options: {
+                captchaToken: captchaToken || undefined,
+                emailRedirectTo: redirectTo,
+              },
+              type: "signup",
+            })
+          : await supabase.auth.resetPasswordForEmail(email, {
+              captchaToken: captchaToken || undefined,
+              redirectTo,
+            });
+      if (error) throw error;
+      setMessage(
+        sentEmail === "confirmation"
+          ? "Se o cadastro estiver pendente, uma nova confirmação foi enviada."
+          : "Se a conta existir, um novo link de recuperação foi enviado.",
+      );
+      setResendSeconds(60);
+    } catch (error) {
+      setMessage(
+        friendlyError(error instanceof Error ? error.message : String(error)),
+      );
+    } finally {
+      if (captchaRequired) {
         setCaptchaToken("");
         setCaptchaReset((current) => current + 1);
       }
@@ -185,6 +261,60 @@ export function AuthForm({
           </button>
         </div>
 
+        {sentEmail ? (
+          <section className="public-auth-email-sent" aria-live="polite">
+            <div className="email-sent-icon" aria-hidden="true">✓</div>
+            <span>
+              {sentEmail === "confirmation"
+                ? "CONFIRMAÇÃO SOLICITADA"
+                : "RECUPERAÇÃO SOLICITADA"}
+            </span>
+            <h2>Confira sua caixa de entrada</h2>
+            <p>
+              Enviamos as instruções para <strong>{maskEmail(email)}</strong>.
+              Confira também spam e promoções. O Arcadia nunca pedirá sua senha
+              por e-mail.
+            </p>
+
+            {captchaRequired && turnstileSiteKey && resendSeconds === 0 && (
+              <div className="public-auth-captcha">
+                <TurnstileWidget
+                  action="auth_resend"
+                  onError={setMessage}
+                  onToken={setCaptchaToken}
+                  resetSignal={captchaReset}
+                  siteKey={turnstileSiteKey}
+                />
+                <small>Confirme sua presença antes de solicitar outro envio.</small>
+              </div>
+            )}
+
+            {message && (
+              <div className="public-auth-message" role="status">{message}</div>
+            )}
+
+            <div className="email-sent-actions">
+              <button
+                type="button"
+                disabled={
+                  busy ||
+                  resendSeconds > 0 ||
+                  (captchaRequired && (!turnstileSiteKey || !captchaToken))
+                }
+                onClick={() => void resendEmail()}
+              >
+                {busy
+                  ? "REENVIANDO..."
+                  : resendSeconds > 0
+                    ? `REENVIAR EM ${resendSeconds}s`
+                    : "REENVIAR E-MAIL"}
+              </button>
+              <button type="button" onClick={() => switchMode("signin")}>
+                VOLTAR AO LOGIN
+              </button>
+            </div>
+          </section>
+        ) : (
         <form onSubmit={submit}>
           {mode === "signup" && (
             <label>
@@ -276,6 +406,7 @@ export function AuthForm({
                   : "ENVIAR RECUPERAÇÃO"}
           </button>
         </form>
+        )}
 
         <footer>
           {mode === "signin" ? (

@@ -573,3 +573,33 @@ export const seasonSnapshots = sqliteTable(
     ),
   ],
 );
+
+export const supportTickets = sqliteTable(
+  "support_tickets",
+  {
+    id: text("id").primaryKey(),
+    publicId: text("public_id").notNull().unique(),
+    accountId: text("account_id").notNull(),
+    email: text("email").notNull(),
+    category: text("category").notNull(),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    status: text("status").notNull().default("open"),
+    deliveryStatus: text("delivery_status")
+      .notNull()
+      .default("configuration_pending"),
+    providerMessageId: text("provider_message_id"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("support_tickets_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("support_tickets_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);

@@ -42,6 +42,9 @@ test("fluxo público inclui sessão SSR, confirmação, recuperação e document
   assert.match(source, /signUp/);
   assert.match(source, /signInWithPassword/);
   assert.match(source, /resetPasswordForEmail/);
+  assert.match(source, /supabase\.auth\.resend/);
+  assert.match(source, /REENVIAR E-MAIL/);
+  assert.match(source, /resendSeconds/);
   assert.match(source, /exchangeCodeForSession/);
   assert.match(source, /updateUser/);
   assert.match(source, /captchaToken/);
