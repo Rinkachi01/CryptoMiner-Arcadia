@@ -1,0 +1,1 @@
+ALTER TABLE `support_tickets` ADD `player_seen_reply_at` integer;

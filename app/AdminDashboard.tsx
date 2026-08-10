@@ -214,6 +214,7 @@ type AdminOverview = {
   recovery: RecoveryOverview;
   security: SecurityOverview;
   support: {
+    awaitingPlayerCount: number;
     emailEnabled: boolean;
     statusCounts: {
       closed: number;
@@ -229,8 +230,10 @@ type AdminOverview = {
       email: string;
       lastReplyAt: number | null;
       message: string;
+      playerSeenReplyAt: number | null;
       publicId: string;
       replyDeliveryStatus: string;
+      replyUnread: boolean;
       status: string;
       subject: string;
       updatedAt: number;
@@ -1667,6 +1670,7 @@ export function AdminDashboard({
           <small>
             {overview.support.statusCounts.open} ABERTO(S) ·{" "}
             {overview.support.statusCounts.reviewing} EM ANÁLISE ·{" "}
+            {overview.support.awaitingPlayerCount} AGUARDANDO LEITURA ·{" "}
             {overview.support.emailEnabled
               ? "RESPOSTA POR E-MAIL ATIVA"
               : "RESPOSTAS SALVAS INTERNAMENTE"}
@@ -1756,6 +1760,11 @@ export function AdminDashboard({
                     <span>
                       Entrada: {ticket.deliveryStatus} · Resposta:{" "}
                       {ticket.replyDeliveryStatus}
+                      {ticket.lastReplyAt
+                        ? ticket.replyUnread
+                          ? " · AGUARDANDO LEITURA"
+                          : " · LIDA PELO JOGADOR"
+                        : ""}
                     </span>
                     <button
                       type="button"

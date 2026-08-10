@@ -3,6 +3,7 @@ import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import { deliverSupportTicket } from "../../support-email-server";
 import { validateSupportTicketInput } from "../../support-rules";
 import {
+  acknowledgeSupportReplies,
   createSupportPublicId,
   ensureSupportSchema,
   readPersonalSupportTickets,
@@ -32,9 +33,22 @@ async function context() {
 export async function GET() {
   const current = await context();
   if (!current) return json({ error: "Faça login para ver seus chamados." }, 401);
+  const tickets = await readPersonalSupportTickets(current.db, current.accountId);
   return json({
-    tickets: await readPersonalSupportTickets(current.db, current.accountId),
+    tickets,
+    unreadReplies: tickets.filter((ticket) => ticket.replyUnread).length,
   });
+}
+
+export async function PATCH() {
+  const current = await context();
+  if (!current) return json({ error: "Faça login para continuar." }, 401);
+  const acknowledged = await acknowledgeSupportReplies(
+    current.db,
+    current.accountId,
+    Date.now(),
+  );
+  return json({ acknowledged, unreadReplies: 0 });
 }
 
 export async function POST(request: Request) {
@@ -112,14 +126,6 @@ export async function POST(request: Request) {
       id,
       current.accountId,
     )
-    .run();
-
-  await current.db
-    .prepare(
-      `DELETE FROM support_tickets
-       WHERE status IN ('resolved', 'closed') AND updated_at < ?`,
-    )
-    .bind(now - 180 * 24 * 60 * 60 * 1000)
     .run();
 
   return json({

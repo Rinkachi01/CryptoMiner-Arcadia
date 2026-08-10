@@ -18,6 +18,21 @@ econômico separa cada responsabilidade:
 Enquanto o domínio não for comprado, o cadastro pode continuar em homologação,
 mas o e-mail corporativo deve permanecer desativado.
 
+## Antes de comprar o domínio
+
+- O suporte funciona integralmente por protocolos dentro do Arcadia.
+- O jogador recebe um aviso no menu quando existe resposta nova.
+- A Central do Proprietário mostra se a resposta ainda aguarda leitura.
+- O Gmail particular pode continuar como conta administrativa e destino futuro,
+  mas não deve ser publicado como atendimento oficial.
+- Não vale configurar Gmail SMTP para o beta público: isso expõe a identidade
+  operacional, mistura reputação pessoal com a do jogo e não substitui a
+  verificação de um domínio de envio.
+
+Quando o domínio for comprado, os protocolos existentes continuam no mesmo
+banco. Ativar o Resend apenas adiciona uma cópia por e-mail; nenhum chamado
+precisa ser migrado ou recriado.
+
 ## Endereços a criar
 
 Depois de comprar o domínio, criar no Cloudflare Email Routing:
@@ -79,4 +94,3 @@ sair da Central do Proprietário.
 - [ ] Uma resposta da Central do Proprietário chega e também aparece no jogo.
 - [ ] Nenhum segredo aparece no navegador, repositório ou conversa.
 - [ ] O Arcadia nunca pede senha, seed phrase, chave privada ou código MFA.
-

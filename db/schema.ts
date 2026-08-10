@@ -596,6 +596,7 @@ export const supportTickets = sqliteTable(
       .notNull()
       .default("none"),
     replyProviderMessageId: text("reply_provider_message_id"),
+    playerSeenReplyAt: integer("player_seen_reply_at"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

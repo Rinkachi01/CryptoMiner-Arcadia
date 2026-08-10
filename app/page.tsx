@@ -12,6 +12,7 @@ import {
 } from "./identity-server";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PublicSiteFooter } from "./PublicSiteFooter";
+import { readUnreadSupportReplyCount } from "./support-server";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,9 @@ export default async function Home() {
     accountId,
     adminOwnerAccountIdFromEnv(env),
   );
+  const unreadSupportReplies = env.DB
+    ? await readUnreadSupportReplyCount(env.DB, accountId)
+    : 0;
 
   return (
     <GameErrorBoundary>
@@ -97,6 +101,7 @@ export default async function Home() {
         }}
         isOwner={isOwner}
         signOutPath={arcadiaSignOutPath("/", user.provider)}
+        unreadSupportReplies={unreadSupportReplies}
       />
     </GameErrorBoundary>
   );

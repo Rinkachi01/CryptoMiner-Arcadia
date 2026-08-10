@@ -14,8 +14,10 @@ type PersonalTicket = {
   deliveryStatus: string;
   lastReplyAt: number | null;
   message: string;
+  playerSeenReplyAt: number | null;
   publicId: string;
   replyDeliveryStatus: string;
+  replyUnread: boolean;
   status: string;
   subject: string;
   updatedAt: number;
@@ -51,6 +53,7 @@ export function SupportRequestForm({
   const [message, setMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [tickets, setTickets] = useState<PersonalTicket[]>([]);
+  const [unreadReplies, setUnreadReplies] = useState(0);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -59,8 +62,18 @@ export function SupportRequestForm({
       .then(async (response) => {
         const data = (await response.json()) as {
           tickets?: PersonalTicket[];
+          unreadReplies?: number;
         };
-        if (response.ok && data.tickets) setTickets(data.tickets);
+        if (response.ok && data.tickets) {
+          setTickets(data.tickets);
+          const unread = Math.max(0, Number(data.unreadReplies ?? 0));
+          setUnreadReplies(unread);
+          if (unread > 0) {
+            void fetch("/api/support", { method: "PATCH" }).catch(
+              () => undefined,
+            );
+          }
+        }
       })
       .catch(() => undefined);
   }, [signedIn]);
@@ -190,7 +203,11 @@ export function SupportRequestForm({
           <aside className="support-ticket-history">
             <header>
               <span>MEUS PROTOCOLOS</span>
-              <strong>{tickets.length} RECENTES</strong>
+              <strong>
+                {unreadReplies > 0
+                  ? `${unreadReplies} NOVA${unreadReplies > 1 ? "S" : ""}`
+                  : `${tickets.length} RECENTES`}
+              </strong>
             </header>
             {tickets.length === 0 ? (
               <div className="support-ticket-empty">
@@ -199,7 +216,10 @@ export function SupportRequestForm({
               </div>
             ) : (
               tickets.map((ticket) => (
-                <article key={ticket.publicId}>
+                <article
+                  className={ticket.replyUnread ? "reply-unread" : ""}
+                  key={ticket.publicId}
+                >
                   <div>
                     <span>{ticket.publicId}</span>
                     <b className={ticket.status}>
@@ -210,7 +230,11 @@ export function SupportRequestForm({
                   <p>{ticket.message}</p>
                   {ticket.adminReply && (
                     <div className="support-ticket-reply">
-                      <span>RESPOSTA DO ARCADIA</span>
+                      <span>
+                        {ticket.replyUnread
+                          ? "NOVA RESPOSTA DO ARCADIA"
+                          : "RESPOSTA DO ARCADIA"}
+                      </span>
                       <p>{ticket.adminReply}</p>
                       {ticket.lastReplyAt && (
                         <small>{formatTicketDate(ticket.lastReplyAt)}</small>

@@ -11,6 +11,8 @@ Atualizado em 9 de agosto de 2026.
   e espera de 60 segundos;
 - a Central de Suporte registra protocolos por conta, mostra o histórico recente
   e limita abuso mesmo sem um domínio comprado;
+- respostas novas aparecem como aviso na navegação, são confirmadas como lidas
+  por conta e continuam funcionando sem publicar um e-mail pessoal;
 - a segunda conta confirmou o kit inicial correto: um rack e um minerador, sem
   CMA, bateria ou energia gratuita;
 - mineração, inventário, energia, compras, blocos e minigames continuam

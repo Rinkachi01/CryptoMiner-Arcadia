@@ -91,6 +91,7 @@ type ArcadiaGameProps = {
   };
   isOwner: boolean;
   signOutPath: string;
+  unreadSupportReplies: number;
 };
 
 type GameApiResponse = {
@@ -249,7 +250,12 @@ function rackMinerPosition(slotIndex: number): React.CSSProperties {
   };
 }
 
-export function ArcadiaGame({ user, isOwner, signOutPath }: ArcadiaGameProps) {
+export function ArcadiaGame({
+  user,
+  isOwner,
+  signOutPath,
+  unreadSupportReplies,
+}: ArcadiaGameProps) {
   const [activeView, setActiveView] = useState<ViewId>("mine");
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
@@ -908,6 +914,13 @@ export function ArcadiaGame({ user, isOwner, signOutPath }: ArcadiaGameProps) {
               <span>{item.label}</span>
             </button>
           ))}
+          <a className="support-nav-link" href="/support">
+            <span className="nav-glyph">?</span>
+            <span>Central de suporte</span>
+            {unreadSupportReplies > 0 ? (
+              <small>{Math.min(99, unreadSupportReplies)}</small>
+            ) : null}
+          </a>
           {isOwner ? (
             <a className="admin-nav-link" href="/admin">
               <span className="nav-glyph">C</span>
@@ -921,7 +934,6 @@ export function ArcadiaGame({ user, isOwner, signOutPath }: ArcadiaGameProps) {
           <span>SIMULAÇÃO VIRTUAL</span>
           <p>Sem mineração real, depósito ou saque nesta fase.</p>
           <div className="sidebar-public-links">
-            <a href="/support">SUPORTE</a>
             <a href="/legal">TERMOS E PRIVACIDADE</a>
           </div>
         </div>
@@ -1179,6 +1191,13 @@ export function ArcadiaGame({ user, isOwner, signOutPath }: ArcadiaGameProps) {
             {item.shortLabel}
           </button>
         ))}
+        <a className="mobile-support-link" href="/support">
+          <span>?</span>
+          Suporte
+          {unreadSupportReplies > 0 ? (
+            <b>{Math.min(99, unreadSupportReplies)}</b>
+          ) : null}
+        </a>
       </nav>
 
       {roomsOpen && (

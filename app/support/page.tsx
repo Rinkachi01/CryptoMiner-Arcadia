@@ -44,13 +44,13 @@ export default async function SupportPage() {
         </p>
         <div className="support-contact-status">
           <strong>
-            {emailDeliveryEnabled ? "ATENDIMENTO ATIVO" : "PROTOCOLO INTERNO ATIVO"}
+            {emailDeliveryEnabled ? "PROTOCOLO + E-MAIL" : "PROTOCOLO INTERNO ATIVO"}
           </strong>
-          <span>support@cryptominearcadia.com</span>
+          <span>Atendimento dentro da sua conta</span>
           <small>
             {emailDeliveryEnabled
-              ? "Chamados registrados e encaminhados à equipe"
-              : "O e-mail corporativo será ativado depois do domínio"}
+              ? "As respostas aparecem no site e também seguem por e-mail"
+              : "Sem domínio por enquanto; abra e acompanhe tudo nesta página"}
           </small>
         </div>
       </section>

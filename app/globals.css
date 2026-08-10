@@ -17418,6 +17418,97 @@ img {
   color: var(--lime);
 }
 
+/* Caixa de entrada interna do suporte, independente de domínio ou SMTP. */
+.sidebar nav a.support-nav-link {
+  border-color: rgba(54, 216, 242, 0.16);
+  color: #9fc6cf;
+}
+
+.sidebar nav a.support-nav-link small {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 6px;
+  place-items: center;
+  border: 1px solid rgba(169, 255, 63, 0.48);
+  border-radius: 999px;
+  background: rgba(169, 255, 63, 0.12);
+  color: var(--lime);
+  font: 900 0.65rem/1 var(--font-mono);
+}
+
+.support-ticket-history article.reply-unread {
+  margin-inline: -14px;
+  padding-inline: 14px;
+  border: 1px solid rgba(169, 255, 63, 0.28);
+  background:
+    linear-gradient(110deg, rgba(169, 255, 63, 0.075), transparent 70%),
+    rgba(7, 15, 21, 0.74);
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+
+.support-ticket-history article.reply-unread + article {
+  border-top: 0;
+}
+
+.mobile-support-link {
+  position: relative;
+}
+
+.mobile-support-link b {
+  position: absolute;
+  top: 7px;
+  right: 12px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--lime);
+  color: #071006;
+  font: 900 0.58rem/1 var(--font-mono);
+}
+
+@media (max-width: 900px) {
+  .mobile-nav {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(78px, 1fr);
+    grid-template-columns: none;
+  }
+
+  .mobile-nav .mobile-support-link {
+    display: flex;
+    min-width: 78px;
+    min-height: 72px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    color: #94a2af;
+    font-size: 0.63rem;
+    text-decoration: none;
+    scroll-snap-align: start;
+  }
+
+  .mobile-nav .mobile-support-link > span {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 5px;
+    font-weight: 900;
+  }
+
+  .mobile-nav .mobile-support-link:hover,
+  .mobile-nav .mobile-support-link:focus-visible {
+    box-shadow: inset 0 3px 0 var(--lime);
+    color: var(--lime);
+  }
+}
+
 .admin-footer nav {
   display: flex;
   gap: 14px;
