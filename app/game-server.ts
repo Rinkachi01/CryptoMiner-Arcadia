@@ -96,6 +96,7 @@ const BLOCK_INTERVAL_MS = BLOCK_INTERVAL_SECONDS * 1000;
 const MAX_MINER_UNITS = ROOM_COUNT * ROOM_RACK_CAPACITY * 8 + 40;
 const MAX_BOOTSTRAP_MINER_UNITS = 80;
 const MAX_PURCHASE_QUANTITY = 20;
+const MAX_BOOTSTRAP_BATTERY_INVENTORY = 8;
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -334,7 +335,7 @@ export function normalizeBootstrapState(
       safeNumber(candidate.ltcBalanceAtomic, 0, 0, 10_000_000_000_000),
     ),
     batteryCount: Math.floor(
-      safeNumber(candidate.batteryCount, 2, 0, 8),
+      safeNumber(candidate.batteryCount, 0, 0, MAX_BOOTSTRAP_BATTERY_INVENTORY),
     ),
     energyExpiresAt: safeNumber(
       candidate.energyExpiresAt,
@@ -627,7 +628,9 @@ export function applyGameAction(
       throw new Error("Compra de minerador inválida.");
     }
     const miner = getMiner(payload.minerId);
-    if (!miner) throw new Error("Minerador não encontrado.");
+    if (!miner || miner.availability === "season") {
+      throw new Error("Minerador não disponível na loja.");
+    }
     if (getOwnedMinerUnitCount(state) + payload.quantity > MAX_MINER_UNITS) {
       throw new Error("Limite de equipamentos do inventário atingido.");
     }

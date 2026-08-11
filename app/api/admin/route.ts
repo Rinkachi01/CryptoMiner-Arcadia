@@ -44,6 +44,7 @@ import {
   runRecoveryDrill,
 } from "../../recovery-server";
 import {
+  activateSpaceRaceSeason,
   closeActiveSeason,
   createSeason,
   createSeasonSnapshot,
@@ -581,6 +582,58 @@ export async function GET(request: Request) {
     ensureSupportSchema(context.db),
   ]);
   const now = Date.now();
+  const search = new URL(request.url).searchParams.get("q")?.trim() ?? "";
+  if (search) {
+    if (search.length < 2 || search.length > 80) {
+      return json({ error: "Pesquise entre 2 e 80 caracteres." }, 400);
+    }
+    const pattern = `%${search.toLocaleLowerCase("pt-BR")}%`;
+    const rows = await context.db
+      .prepare(
+        `SELECT account_id, display_name, email, state_json, created_at, updated_at
+         FROM game_states
+         WHERE LOWER(COALESCE(display_name, '')) LIKE ?
+            OR LOWER(COALESCE(email, '')) LIKE ?
+         ORDER BY updated_at DESC
+         LIMIT 20`,
+      )
+      .bind(pattern, pattern)
+      .all<{
+        account_id: string;
+        created_at: number;
+        display_name: string | null;
+        email: string | null;
+        state_json: string;
+        updated_at: number;
+      }>();
+    return json({
+      users: rows.results.map((row) => {
+        let state: Partial<PublicGameState> = {};
+        try {
+          state = JSON.parse(row.state_json) as Partial<PublicGameState>;
+        } catch {
+          // The search remains useful even if a legacy state needs repair.
+        }
+        return {
+          accountId: row.account_id,
+          batteryCount: Math.max(0, Number(state.batteryCount ?? 0)),
+          cmaBalance: Math.max(0, Number(state.cmaBalance ?? 0)),
+          createdAt: row.created_at,
+          displayName: row.display_name ?? "Operador Arcadia",
+          email: row.email ?? "",
+          minerCount:
+            (Array.isArray(state.minerInventory) ? state.minerInventory.length : 0) +
+            Object.values(state.rackMiners ?? {}).reduce(
+              (total, units) => total + (Array.isArray(units) ? units.length : 0),
+              0,
+            ),
+          rackCount: Array.isArray(state.racks) ? state.racks.length : 0,
+          roomCount: Array.isArray(state.ownedRoomIds) ? state.ownedRoomIds.length : 1,
+          updatedAt: row.updated_at,
+        };
+      }),
+    });
+  }
   const bucket = recoveryBucketFromEnv(env);
   const [
     settings,
@@ -607,7 +660,7 @@ export async function GET(request: Request) {
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
-    readSeasonOverview(context.db, context.accountId, now),
+    readSeasonOverview(context.db, context.accountId, now, true),
     readSeasonEconomicReport(context.db, now),
   ]);
   return json({
@@ -676,6 +729,38 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "activate-space-race") {
+    try {
+      const activation = await activateSpaceRaceSeason(
+        context.db,
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "space_race_season_activated",
+        activation,
+        now,
+      );
+      return json({
+        message: activation.alreadyActive
+          ? "A Corrida Espacial já está ativa."
+          : "Corrida Espacial ativada por 70 dias.",
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível ativar a Corrida Espacial.",
+        },
+        409,
+      );
+    }
+  }
 
   if (
     body?.action === "update-support-ticket" &&

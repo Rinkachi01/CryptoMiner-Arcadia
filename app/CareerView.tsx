@@ -4,8 +4,9 @@ import { useState } from "react";
 import { ActivityPanel } from "./ActivityPanel";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import { SeasonPanel } from "./SeasonPanel";
+import { ReferralPanel } from "./ReferralPanel";
 
-type CareerTab = "overview" | "season" | "missions" | "activity";
+type CareerTab = "overview" | "season" | "missions" | "referrals" | "activity";
 
 const tabs: Array<{
   id: CareerTab;
@@ -26,6 +27,11 @@ const tabs: Array<{
     id: "missions",
     label: "Missões e carreira",
     description: "Bateria, liga e conquistas",
+  },
+  {
+    id: "referrals",
+    label: "Indicações",
+    description: "Seu link e cadastros",
   },
   {
     id: "activity",
@@ -62,9 +68,9 @@ export function CareerView({
           </p>
         </div>
         <aside>
-          <strong>4</strong>
+          <strong>5</strong>
           <span>ÁREAS ORGANIZADAS</span>
-          <small>Sem prêmio financeiro ou saque</small>
+          <small>Recompensas controladas pelo servidor</small>
         </aside>
       </div>
 
@@ -88,7 +94,12 @@ export function CareerView({
 
       <div className="career-content">
         {activeTab === "season" ? (
-          <SeasonPanel refreshKey={refreshKey} />
+          <SeasonPanel
+            refreshKey={refreshKey}
+            onRefreshAccount={refreshAccount}
+          />
+        ) : activeTab === "referrals" ? (
+          <ReferralPanel />
         ) : activeTab === "activity" ? (
           <ActivityPanel refreshKey={refreshKey} />
         ) : (

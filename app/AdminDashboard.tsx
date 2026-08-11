@@ -253,6 +253,7 @@ type AdminOverview = {
   serverTime: number;
   season: {
     currentPlayer: SeasonLeaderboardEntry | null;
+    draft: PublicSeason | null;
     leaderboard: SeasonLeaderboardEntry[];
     season: PublicSeason | null;
     snapshots: SeasonSnapshot[];
@@ -285,6 +286,18 @@ type AdminDashboardProps = {
 };
 
 type TextScale = "comfortable" | "large" | "extra";
+type AdminUserSearchResult = {
+  accountId: string;
+  batteryCount: number;
+  cmaBalance: number;
+  createdAt: number;
+  displayName: string;
+  email: string;
+  minerCount: number;
+  rackCount: number;
+  roomCount: number;
+  updatedAt: number;
+};
 type AdminSection = "overview" | "economy" | "treasury" | "community" | "operations";
 
 const adminSections: Array<{
@@ -578,6 +591,9 @@ export function AdminDashboard({
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
   const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
+  const [userSearch, setUserSearch] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState<AdminUserSearchResult[]>([]);
+  const [userSearchBusy, setUserSearchBusy] = useState(false);
 
   const loadOverview = useCallback(async () => {
     setError("");
@@ -698,6 +714,35 @@ export function AdminDashboard({
       );
     } finally {
       setBusyAction("");
+    }
+  }
+
+  async function searchUsers() {
+    const query = userSearch.trim();
+    if (query.length < 2) {
+      setError("Digite pelo menos 2 caracteres para pesquisar.");
+      return;
+    }
+    setUserSearchBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin?q=${encodeURIComponent(query)}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        users?: AdminUserSearchResult[];
+      };
+      if (!response.ok) throw new Error(payload.error ?? "Pesquisa indisponível.");
+      setUserSearchResults(payload.users ?? []);
+    } catch (searchError) {
+      setError(
+        searchError instanceof Error
+          ? searchError.message
+          : "Não foi possível pesquisar jogadores.",
+      );
+    } finally {
+      setUserSearchBusy(false);
     }
   }
 
@@ -1206,6 +1251,60 @@ export function AdminDashboard({
             )}
           </div>
         </section>
+      </section>
+
+      <section className="admin-panel admin-user-search" hidden={adminSection !== "community"}>
+        <div className="admin-panel-heading">
+          <div>
+            <span>DIRETÓRIO DE CONTAS</span>
+            <h2>Localizar jogador</h2>
+          </div>
+          <small>VISÍVEL SOMENTE AO FUNDADOR</small>
+        </div>
+        <form
+          className="admin-user-search-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void searchUsers();
+          }}
+        >
+          <label>
+            NOME OU E-MAIL
+            <input
+              maxLength={80}
+              placeholder="Ex.: Mateus ou usuario@email.com"
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={userSearchBusy || userSearch.trim().length < 2}>
+            {userSearchBusy ? "PESQUISANDO…" : "PESQUISAR"}
+          </button>
+        </form>
+        {userSearchResults.length > 0 ? (
+          <div className="admin-user-results">
+            {userSearchResults.map((result) => (
+              <article key={result.accountId}>
+                <header>
+                  <div>
+                    <strong>{result.displayName}</strong>
+                    <small>{result.email || `Conta ${result.accountId.slice(0, 10)}…`}</small>
+                  </div>
+                  <time>{formatDate(result.updatedAt)}</time>
+                </header>
+                <dl>
+                  <div><dt>CMA</dt><dd>{formatNumber(result.cmaBalance)}</dd></div>
+                  <div><dt>Mineradores</dt><dd>{result.minerCount}</dd></div>
+                  <div><dt>Racks</dt><dd>{result.rackCount}</dd></div>
+                  <div><dt>Salas</dt><dd>{result.roomCount}</dd></div>
+                  <div><dt>Baterias</dt><dd>{result.batteryCount}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : userSearch.trim().length >= 2 && !userSearchBusy ? (
+          <p className="admin-inline-empty">Nenhum resultado carregado para esta pesquisa.</p>
+        ) : null}
       </section>
 
       <section className="admin-panel admin-beta-observability" hidden={adminSection !== "community"}>
@@ -2170,8 +2269,46 @@ export function AdminDashboard({
                 <span>CICLOS COMPETITIVOS</span>
                 <h2>Temporadas e snapshots</h2>
               </div>
-              <small>SEM PRÊMIO FINANCEIRO</small>
+              <small>CONTROLE DO FUNDADOR</small>
             </div>
+
+            {overview.season.draft && (
+              <section className="admin-season-launch-card">
+                <div>
+                  <span>PRONTA · AINDA DESATIVADA</span>
+                  <h3>{overview.season.draft.name}</h3>
+                  <p>
+                    70 dias, 50 níveis, trilha gratuita e Premium de 29 CMA.
+                    O cronômetro e o XP só começam depois desta ativação.
+                  </p>
+                </div>
+                <dl>
+                  <div><dt>DURAÇÃO</dt><dd>70 dias</dd></div>
+                  <div><dt>NÍVEIS</dt><dd>50</dd></div>
+                  <div><dt>PREMIUM</dt><dd>29 CMA</dd></div>
+                  <div><dt>STATUS</dt><dd>Desativada</dd></div>
+                </dl>
+                <button
+                  type="button"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Ativar a Corrida Espacial agora? A temporada atual será encerrada e o prazo de 70 dias começará imediatamente.",
+                      )
+                    ) {
+                      void runAdminAction("activate-space-race", {
+                        action: "activate-space-race",
+                      });
+                    }
+                  }}
+                >
+                  {busyAction === "activate-space-race"
+                    ? "ATIVANDO…"
+                    : "ATIVAR CORRIDA ESPACIAL"}
+                </button>
+              </section>
+            )}
 
             {overview.season.season ? (
               <>

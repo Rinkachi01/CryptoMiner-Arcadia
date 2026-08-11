@@ -15,6 +15,7 @@ import {
   getMiner,
   miners,
   pools,
+  storeMiners,
 } from "../app/game-rules.ts";
 
 test("minerador de uma fan ocupa um único slot", () => {
@@ -62,15 +63,16 @@ test("energia trabalha em ciclos de doze horas", () => {
 });
 
 test("catálogo mantém preços acessíveis e progressão virtual conservadora", () => {
-  const paybackDays = miners.map(calculateVirtualPaybackDays);
+  const paybackDays = storeMiners.map(calculateVirtualPaybackDays);
   assert.equal(
     paybackDays.every((days) => Number.isFinite(days) && days > 0),
     true,
   );
-  assert.equal(Math.max(...miners.map((miner) => miner.priceCma)) <= 84, true);
+  assert.equal(Math.max(...storeMiners.map((miner) => miner.priceCma)) <= 84, true);
   assert.equal(RACK_PRICE_CMA, 0.35);
   assert.equal(BATTERY_PRICE_CMA, 0.05);
-  assert.ok(miners.at(-1).powerGh / miners.at(-1).slotSize > miners[0].powerGh);
+  assert.ok(storeMiners.at(-1).powerGh / storeMiners.at(-1).slotSize > storeMiners[0].powerGh);
+  assert.equal(miners.filter((miner) => miner.availability === "season").length, 8);
 });
 
 test("Violet Bit é premium mesmo usando apenas uma fan", () => {

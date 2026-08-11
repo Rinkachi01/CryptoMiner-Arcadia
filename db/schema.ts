@@ -614,6 +614,12 @@ export const seasons = sqliteTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     status: text("status").notNull().default("active"),
+    campaignSlug: text("campaign_slug").notNull().default("legacy"),
+    durationDays: integer("duration_days").notNull().default(30),
+    premiumPriceCmaMicros: integer("premium_price_cma_micros")
+      .notNull()
+      .default(0),
+    configurationJson: text("configuration_json").notNull().default("{}"),
     startsAt: integer("starts_at").notNull(),
     endsAt: integer("ends_at").notNull(),
     createdBy: text("created_by").notNull(),
@@ -623,6 +629,108 @@ export const seasons = sqliteTable(
   (table) => [
     index("seasons_status_ends_at_idx").on(table.status, table.endsAt),
     index("seasons_created_at_idx").on(table.createdAt),
+    index("seasons_campaign_slug_idx").on(table.campaignSlug),
+  ],
+);
+
+export const seasonDailyLogins = sqliteTable(
+  "season_daily_logins",
+  {
+    id: text("id").primaryKey(),
+    seasonId: text("season_id").notNull(),
+    accountId: text("account_id").notNull(),
+    dayKey: text("day_key").notNull(),
+    xp: integer("xp").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("season_daily_logins_unique").on(
+      table.seasonId,
+      table.accountId,
+      table.dayKey,
+    ),
+    index("season_daily_logins_season_account_idx").on(
+      table.seasonId,
+      table.accountId,
+    ),
+  ],
+);
+
+export const seasonPasses = sqliteTable(
+  "season_passes",
+  {
+    seasonId: text("season_id").notNull(),
+    accountId: text("account_id").notNull(),
+    premiumUnlocked: integer("premium_unlocked").notNull().default(0),
+    cmaPaidMicros: integer("cma_paid_micros").notNull().default(0),
+    purchasedAt: integer("purchased_at"),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("season_passes_season_account_unique").on(
+      table.seasonId,
+      table.accountId,
+    ),
+    index("season_passes_account_idx").on(table.accountId),
+  ],
+);
+
+export const seasonRewardClaims = sqliteTable(
+  "season_reward_claims",
+  {
+    id: text("id").primaryKey(),
+    seasonId: text("season_id").notNull(),
+    accountId: text("account_id").notNull(),
+    level: integer("level").notNull(),
+    track: text("track").notNull(),
+    rewardJson: text("reward_json").notNull(),
+    status: text("status").notNull().default("completed"),
+    stateVersionBefore: integer("state_version_before").notNull(),
+    stateVersionAfter: integer("state_version_after").notNull(),
+    createdAt: integer("created_at").notNull(),
+    completedAt: integer("completed_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("season_reward_claims_unique").on(
+      table.seasonId,
+      table.accountId,
+      table.track,
+      table.level,
+    ),
+    index("season_reward_claims_account_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const referralCodes = sqliteTable(
+  "referral_codes",
+  {
+    accountId: text("account_id").primaryKey(),
+    code: text("code").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("referral_codes_code_unique").on(table.code)],
+);
+
+export const referralAttributions = sqliteTable(
+  "referral_attributions",
+  {
+    referredAccountId: text("referred_account_id").primaryKey(),
+    referrerAccountId: text("referrer_account_id").notNull(),
+    referralCode: text("referral_code").notNull(),
+    status: text("status").notNull().default("tracked"),
+    attributedAt: integer("attributed_at").notNull(),
+    validatedAt: integer("validated_at"),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [
+    index("referral_attributions_referrer_idx").on(
+      table.referrerAccountId,
+      table.attributedAt,
+    ),
   ],
 );
 

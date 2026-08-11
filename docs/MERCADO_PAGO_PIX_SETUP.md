@@ -36,9 +36,28 @@ segredos do Worker:
 - `MERCADO_PAGO_ACCESS_TOKEN`
 - `MERCADO_PAGO_WEBHOOK_SECRET`
 
+### Caminho exato no Cloudflare
+
+1. Abra **Workers & Pages** e selecione `crypto-miner-arcadia`.
+2. Entre em **Settings** → **Variables and Secrets**.
+3. Clique em **Add**, escolha o tipo **Secret** e crie
+   `MERCADO_PAGO_ACCESS_TOKEN` com o Access Token do ambiente usado.
+4. Crie `MERCADO_PAGO_WEBHOOK_SECRET` com a assinatura secreta mostrada ao
+   cadastrar o webhook do tópico Order.
+5. Salve e implante a nova versão. O valor fica mascarado e não deve ser
+   incluído em `wrangler.production.jsonc`.
+
+A Public Key pode aparecer no navegador em integrações que usam o SDK do
+Mercado Pago. O fluxo atual do Arcadia cria Orders no servidor e, portanto,
+usa o **Access Token** como segredo. Client Secret não substitui o Access Token.
+
 Depois dos testes de criação, assinatura, repetição do webhook e crédito único,
 altere `PIX_DEPOSITS_ENABLED` para `true`. A troca para produção exige novas
 credenciais e `MERCADO_PAGO_ENVIRONMENT=production`.
+
+Enquanto `PIX_DEPOSITS_ENABLED=false`, a carteira mostra a forma de pagamento,
+mas não cria cobranças reais. Esse bloqueio é intencional para evitar crédito
+antes da homologação completa.
 
 ## Regra financeira
 

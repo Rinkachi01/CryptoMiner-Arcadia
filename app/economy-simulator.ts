@@ -1,4 +1,4 @@
-import { miners } from "./game-rules.ts";
+import { storeMiners } from "./game-rules.ts";
 import { supplyCrates } from "./supply-crate-rules.ts";
 
 export const BASE_DAILY_GAME_POWER_BUDGET_GH = 5_000;
@@ -55,7 +55,7 @@ export function simulateEconomy(input: EconomySimulationInput) {
       priceCma:
         Math.round(crate.priceCma * crateFactor * 100) / 100,
     })),
-    adjustedMiners: miners.map((miner) => ({
+    adjustedMiners: storeMiners.map((miner) => ({
       id: miner.id,
       name: miner.name,
       priceCma:

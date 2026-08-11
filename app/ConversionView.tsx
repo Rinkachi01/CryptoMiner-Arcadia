@@ -704,18 +704,14 @@ export function ConversionView({
     <section className="conversion-center wallet-center">
       <header className="conversion-hero">
         <div>
-          <span>CARTEIRA INDIVIDUAL · LIVRO-RAZÃO DO SERVIDOR</span>
-          <h2>Seus saldos e sua conversão para CMA</h2>
-          <p>
-            BTC, DOGE e LTC pertencem ao registro individual desta conta. A conversão é
-            confirmada pelo servidor, usa uma cotação de dois minutos e só acontece
-            uma vez.
-          </p>
+          <span>CARTEIRA ARCADIA</span>
+          <h2>Saldos, depósitos e conversão</h2>
+          <p>Gerencie suas moedas e compre CMA em um só lugar.</p>
         </div>
         <aside className="wallet-status-card">
           <b>CONVERSÃO INTERNA</b>
           <strong>ATIVA E REGISTRADA</strong>
-          <small>Depósitos reais usam fatura externa e confirmação assinada.</small>
+          <small>Saldo protegido pelo servidor</small>
         </aside>
       </header>
 
@@ -723,22 +719,18 @@ export function ConversionView({
         <article>
           <img src={assetsManifest.cmaCoin.path} alt="" />
           <span><small>SALDO INTERNO</small><strong>{formatCma(cmaBalance)} CMA</strong></span>
-          <em>NÃO SACÁVEL</em>
         </article>
         <article>
           <img src={assetsManifest.bitcoin.path} alt="" />
           <span><small>BITCOIN</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></span>
-          <em>CONVERSÍVEL</em>
         </article>
         <article>
           <img src={assetsManifest.dogecoin.path} alt="" />
           <span><small>DOGECOIN</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></span>
-          <em>CONVERSÍVEL</em>
         </article>
         <article>
           <img src={assetsManifest.litecoin.path} alt="" />
           <span><small>LITECOIN</small><strong>{formatCryptoAtomic(ltcBalanceAtomic)} LTC</strong></span>
-          <em>DEPÓSITO + CONVERSÃO</em>
         </article>
       </div>
 
@@ -750,7 +742,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("deposit")}
         >
-          1 · DEPOSITAR CRIPTO
+          1 · DEPOSITAR
         </button>
         <button
           className={tab === "convert" ? "active" : ""}
@@ -923,26 +915,37 @@ export function ConversionView({
             <p className="conversion-error" role="alert">{error}</p>
           )}
           <header>
-            <span>
-              {wallet?.deposits?.mode === "sandbox"
-                ? "SANDBOX DO PROVEDOR · SEM DINHEIRO REAL"
-                : "DEPÓSITOS VIA NOWPAYMENTS"}
-            </span>
-            <h3>Deposite LTC, DOGE ou BTC no seu saldo interno</h3>
-            <p>
-              O Arcadia não guarda chaves privadas. O provedor cria uma fatura única e
-              envia uma confirmação assinada. O servidor credita exatamente a moeda
-              recebida; converter esse saldo para CMA é uma decisão separada do jogador.
-            </p>
+            <span>FORMAS DE DEPÓSITO</span>
+            <h3>Escolha reais ou criptomoeda</h3>
+            <p>O valor, a rede e o mínimo aparecem antes da confirmação.</p>
           </header>
-          <section className={`wallet-pix-panel ${pix?.enabled ? "ready" : "pending"}`}>
+          <div className="wallet-payment-methods">
+            <button type="button" onClick={() => document.getElementById("wallet-pix")?.scrollIntoView({ behavior: "smooth" })}>
+              <b className="wallet-brl-symbol">R$</b>
+              <span><strong>Pix</strong><small>Pagamento em reais</small></span>
+            </button>
+            {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
+              <button
+                className={depositAsset === id ? "active" : ""}
+                type="button"
+                key={id}
+                onClick={() => {
+                  selectDepositAsset(id);
+                  document.getElementById("wallet-crypto")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <img src={assetVisuals[id].asset} alt="" />
+                <span><strong>{id}</strong><small>{assetVisuals[id].name}</small></span>
+              </button>
+            ))}
+          </div>
+          <section id="wallet-pix" className={`wallet-pix-panel ${pix?.enabled ? "ready" : "pending"}`}>
             <header>
               <div>
                 <span>PIX · MERCADO PAGO</span>
                 <h4>Compre CMA inteiro em reais</h4>
                 <p>
-                  Escolha 1, 2, 3 ou mais CMA. A prévia usa a PTAX oficial do Banco
-                  Central e mostra a margem operacional antes de criar a cobrança.
+                  Escolha uma quantidade inteira de CMA e confira o valor final.
                 </p>
               </div>
               <strong>
@@ -1034,25 +1037,11 @@ export function ConversionView({
               </div>
             )}
           </section>
-          <div className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
+          <div id="wallet-crypto" className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
             <div>
               <small>PROVEDOR DE ENTRADA</small>
               <strong>NOWPayments · somente depósitos</strong>
-              <span>
-                {wallet?.deposits?.enabled
-                  ? wallet.deposits.mode === "sandbox"
-                    ? "Conectado ao ambiente de testes. Não envie criptomoeda real."
-                    : "Conta comercial conectada. Faturas de produção disponíveis."
-                  : wallet?.deposits?.ownerOnly && !wallet.deposits.accessAllowed
-                    ? "Faturas reais estão em homologação exclusiva da conta fundadora."
-                    : wallet?.deposits?.missingSetup?.includes("api_key")
-                    ? "Falta uma chave de API válida no segredo NOWPAYMENTS_API_KEY."
-                    : wallet?.deposits?.missingSetup?.includes("ipn_secret")
-                      ? "Falta um segredo IPN com pelo menos 16 caracteres."
-                      : wallet?.deposits?.missingSetup?.includes("public_url")
-                        ? "Falta configurar a URL pública HTTPS do Arcadia."
-                        : `O provedor está configurado, mas a ativação permanece bloqueada (pedido: ${wallet?.deposits?.activationRequested ? "sim" : "não"}; sandbox: ${wallet?.deposits?.providerSandbox ? "sim" : "não"}; produção: ${wallet?.deposits?.liveActivationRequested ? "sim" : "não"}).`}
-              </span>
+              <span>{wallet?.deposits?.enabled ? "Faturas disponíveis" : "Temporariamente indisponível"}</span>
             </div>
             <label>
               MOEDA E VALOR DA FATURA
@@ -1165,34 +1154,6 @@ export function ConversionView({
               </div>
             </section>
           )}
-          <div className="wallet-deposit-assets">
-            {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
-              <article className={depositAsset === id ? "selected" : ""} key={id}>
-                <img src={assetVisuals[id].asset} alt="" />
-                <div>
-                  <small>REDE SUPORTADA</small>
-                  <strong>{assetVisuals[id].name}</strong>
-                  <span>
-                    {id === "BTC"
-                      ? "Rede Bitcoin"
-                      : id === "DOGE"
-                        ? "Rede Dogecoin"
-                        : "Rede Litecoin · saque manual disponível"}
-                    {depositMinimums[id]
-                      ? ` · mínimo ${formatUsd(depositMinimums[id]!)}`
-                      : " · mínimo em consulta"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={!wallet?.deposits?.enabled || depositMinimumBusy}
-                  onClick={() => selectDepositAsset(id)}
-                >
-                  {depositAsset === id ? "SELECIONADA" : "SELECIONAR"}
-                </button>
-              </article>
-            ))}
-          </div>
           {wallet?.deposits?.recent.some((item) => item.provider === "nowpayments") && (
             <div className="wallet-live-history">
               <span>FATURAS RECENTES · ÚLTIMOS 30 DIAS</span>
@@ -1214,28 +1175,26 @@ export function ConversionView({
                 ))}
             </div>
           )}
-          <div className="wallet-deposit-flow">
-            <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
-            <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>A assinatura, a moeda paga e a liquidação da tesouraria são conferidas.</small></span></article>
-            <article><b>3</b><span><strong>SALDO CRIPTO</strong><small>A moeda recebida entra no livro-razão; nenhum CMA é criado automaticamente.</small></span></article>
-          </div>
           <p className="wallet-provider-notice">
             <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
             Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
             dentro desta tela após a ativação oficial.
           </p>
-          <p className="wallet-provider-notice wallet-checkout-help">
-            <strong>POR QUE O MÍNIMO PODE PASSAR DE US$ 10?</strong>{" "}
-            Esse piso vem da NOWPayments para a moeda escolhida e a liquidação atual da
-            conta. Ele varia com rede, conversão e custos de envio; o Arcadia nunca reduz
-            artificialmente o valor porque o provedor recusaria a fatura.
-          </p>
-          <p className="wallet-provider-notice wallet-checkout-help">
-            <strong>ERRO NA PÁGINA DO PROVEDOR?</strong>{" "}
-            O valor sugerido inclui uma pequena margem sobre o mínimo dinâmico para evitar
-            que a cotação caia abaixo do piso entre a criação e a abertura da fatura. Links
-            vencidos são desativados; crie uma nova cobrança sem reutilizar a anterior.
-          </p>
+          <details className="wallet-faq">
+            <summary>Dúvidas sobre depósitos e conversão</summary>
+            <div>
+              <h4>Por que o mínimo muda?</h4>
+              <p>O provedor recalcula o piso de cada rede. A fatura usa uma pequena margem sobre o mínimo dinâmico para não ser recusada durante uma variação de cotação.</p>
+              <h4>Como as faturas funcionam?</h4>
+              <p>Depósitos reais usam fatura externa. Deposite LTC, DOGE ou BTC no seu saldo interno somente por uma fatura criada nesta tela.</p>
+              <h4>O depósito vira CMA automaticamente?</h4>
+              <p>Não. BTC, DOGE e LTC entram no saldo da moeda escolhida; nenhum CMA é criado automaticamente. A conversão para CMA é manual.</p>
+              <h4>Como funciona o saque?</h4>
+              <p>A solicitação reserva o saldo e segue para conferência e pagamento manual do fundador.</p>
+              <h4>Posso sacar CMA?</h4>
+              <p>CMA é crédito de uso dentro do jogo. Os pedidos de saque usam BTC, DOGE ou LTC.</p>
+            </div>
+          </details>
         </section>
       ) : (
         <section className="wallet-deposit-panel wallet-withdraw-panel">
@@ -1361,12 +1320,17 @@ export function ConversionView({
         </section>
       )}
 
-      <footer className="conversion-safety-note">
-        <div><b>UMA ÚNICA DIREÇÃO</b><p>BTC, DOGE ou LTC → CMA. CMA não volta para cripto.</p></div>
-        <div><b>SEM SAQUE DE CMA</b><p>O CMA compra somente itens e serviços internos.</p></div>
-        <div><b>REGISTRO INDIVIDUAL</b><p>Cada conta tem saldos e histórico separados no servidor.</p></div>
-        <div><b>COTAÇÃO REDUNDANTE</b><p>CoinGecko com alternativa automática da Coinbase.</p></div>
-      </footer>
+      <details className="wallet-faq wallet-global-faq">
+        <summary>Como o saldo e as cotações funcionam?</summary>
+        <div>
+          <h4>Conversão</h4>
+          <p>BTC, DOGE ou LTC podem virar CMA. CMA permanece como crédito de uso dentro do jogo.</p>
+          <h4>Registro individual</h4>
+          <p>Cada conta tem saldos e histórico separados no servidor.</p>
+          <h4>Cotação de mercado</h4>
+          <p>O servidor consulta fontes redundantes e aplica a regra econômica antes de confirmar.</p>
+        </div>
+      </details>
     </section>
   );
 }

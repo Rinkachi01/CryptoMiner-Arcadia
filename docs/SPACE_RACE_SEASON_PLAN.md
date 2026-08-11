@@ -1,86 +1,58 @@
 # Temporada 01 — Corrida Espacial
 
-## Decisão de produto
+## Estado de lançamento
 
-A primeira temporada temática terá **42 dias**, progressão gratuita e 30
-marcos. Nesta versão não haverá passe pago. O objetivo é validar retenção,
-missões, antifraude e impacto econômico antes de vender qualquer trilha de
-progressão.
+A temporada está cadastrada como `draft` e permanece desativada. O fundador
+inicia o ciclo manualmente na Central do Proprietário. A ativação encerra o
+ciclo competitivo anterior, grava uma auditoria e inicia exatamente 70 dias no
+relógio do servidor.
 
-O sistema de temporada já existente continua sendo a fonte autoritativa para
-início, fim, ranking, snapshots e relatório econômico. A Corrida Espacial será
-uma evolução desse sistema, sem relógios ou recompensas decididos pelo
-navegador.
+## Progressão
 
-## Experiência do jogador
+- 70 dias e 50 níveis;
+- 12.250 XP para chegar ao nível 50;
+- 50 XP no primeiro login de cada dia;
+- 20 XP por minigame concluído, limitado a cinco partidas por dia;
+- bônus de missão ao concluir três e cinco partidas no dia;
+- bônus semanais ao concluir 10 e 15 partidas;
+- 5 XP por CMA inteiro gasto na loja, limitado a 50 XP por dia.
 
-- mapa de 30 marcos dividido em Terra, Órbita, Lua, Marte e Espaço Profundo;
-- XP ganho por login, conclusão dos quatro minigames, missões diárias e
-  instalação de equipamentos;
-- três missões diárias e três semanais, todas com limite no servidor;
-- página enxuta com missão atual, próximo prêmio e botão para abrir o mapa;
-- ranking separado da trilha de prêmios, para jogadores casuais não perderem
-  toda a progressão;
-- encerramento com animação de transmissão dos resultados ao servidor.
+Um jogador que entra diariamente e conclui em média três partidas por dia
+chega muito perto do fim apenas com atividade. Os marcos semanais fornecem a
+folga necessária para concluir os 50 níveis sem exigir todas as tarefas nem
+gasto em CMA. Gastar ajuda a recuperar dias perdidos, mas não compra o ranking.
 
-## Recompensas seguras
+## Trilhas e economia
 
-1. cosméticos de perfil, rack e sala;
-2. caixas sazonais com probabilidades públicas e proteção de azar;
-3. baterias em poucos marcos, dentro do orçamento da temporada;
-4. mineradores da Corrida Espacial fornecidos pelo proprietário, cadastrados
-   somente após simulação de poder, preço e ocupação de slots;
-5. nenhum prêmio direto em BTC, DOGE ou LTC e nenhum aumento automático no
-   valor fixo dos blocos.
+- trilha gratuita para todos os jogadores;
+- trilha Premium opcional por 29 CMA;
+- recompensas: oito mineradores sazonais, baterias e poder temporário de 1, 3
+  ou 7 dias;
+- mineradores sazonais não aparecem na loja e só entram no inventário por
+  resgate idempotente;
+- o poder permanente total foi limitado para não superar de forma desproporcional
+  equipamentos equivalentes da loja;
+- nenhum prêmio aumenta o valor fixo dos blocos ou credita BTC, DOGE ou LTC.
 
-Os mineradores recebidos do proprietário precisarão de: nome, sprite/GIF,
-quantidade de fans, slots, raridade e proposta de poder. O preço será calculado
-depois da comparação com Byte Spark, Violet Bit e Helix Gold.
+## Operação e segurança
 
-## Fases de implementação
+Login diário, XP, compra Premium e cada resgate são validados no Worker e
+persistidos no D1. O navegador apenas apresenta o resultado. Resgates usam
+chaves únicas por conta, temporada, trilha e nível, impedindo duplicidade.
+Todas as compras e prêmios deixam registro no livro-razão.
 
-### Fase A — dados e painel
+Antes de ativar:
 
-- tabelas de níveis, missões, progresso e resgates idempotentes;
-- editor do proprietário para datas, XP, recompensas e limites;
-- estado `draft`, `scheduled`, `active`, `closed` e `archived`;
-- prévia completa antes da publicação.
+1. validar a temporada em celular e desktop;
+2. simular a emissão dos oito mineradores no painel econômico;
+3. testar compra Premium e resgates em uma conta de homologação;
+4. confirmar fila antifraude e backup do D1;
+5. clicar em **Ativar Corrida Espacial** somente na data oficial.
 
-### Fase B — experiência pública
+## Indicações
 
-- mapa espacial responsivo;
-- missões diárias/semanais e resgate individual;
-- animações leves com opção de reduzir movimento;
-- contador de temporada baseado no relógio do servidor.
-
-### Fase C — economia e antifraude
-
-- orçamento máximo de energia e poder por dia;
-- detecção de resgates repetidos e sessões automatizadas;
-- snapshots semanais de emissão, gasto de CMA e retenção;
-- encerramento automático e relatório final antes de qualquer rebalanceamento.
-
-## Monetização compatível
-
-Ordem recomendada depois da temporada gratuita:
-
-1. skins de sala, rack, moldura e efeitos sem poder;
-2. patrocínio visual identificado, fora da área dos minigames;
-3. caixas sazonais opcionais em CMA, com chances públicas e limite de compra;
-4. trilha premium apenas numa temporada posterior, sem BTC, DOGE, LTC ou
-   promessa de retorno;
-5. tarefas de parceiros somente após consentimento, revisão jurídica e
-   controles contra bots.
-
-Não usar anúncios para entregar criptomoeda ou recompensas sacáveis. A receita
-da temporada deve vir de personalização e conveniência, não do aumento do bloco
-ou de promessa de rentabilidade.
-
-## Critérios para publicar
-
-- todos os resgates são idempotentes e auditados;
-- emissão máxima da temporada cabe no orçamento definido pelo proprietário;
-- experiência funciona em celular e com redução de movimento;
-- probabilidades e limites estão visíveis antes de qualquer compra;
-- fila antifraude, suporte e recuperação foram testados;
-- relatório da temporada anterior não contém alertas críticos.
+O rastreamento de links já está ativo, mas o pagamento permanece em fase de
+validação. O modelo proposto concede 2% das compras elegíveis em CMA, com teto
+de 2 CMA por semana, espera antifraude de 14 dias e janela de 60 dias por
+indicado. O bônus nunca é retirado do que o jogador minerou e não incide sobre
+BTC, DOGE ou LTC.

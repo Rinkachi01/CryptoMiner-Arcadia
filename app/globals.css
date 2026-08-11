@@ -4545,6 +4545,292 @@ img {
   }
 }
 
+/* Temporada 01, indicações e superfícies financeiras minimalistas. */
+.space-race-season {
+  display: grid;
+  gap: 18px;
+}
+
+.space-race-hero,
+.referral-panel > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid rgba(84, 216, 246, 0.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(149, 92, 255, 0.2), transparent 32%),
+    linear-gradient(135deg, rgba(13, 31, 46, 0.98), rgba(8, 14, 24, 0.98));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.space-race-hero span,
+.referral-panel > header span,
+.season-track-card > header span {
+  color: #72e4ff;
+  font: 750 0.72rem/1.3 var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.space-race-hero h3,
+.referral-panel h3 {
+  margin: 8px 0;
+  color: #f4fbff;
+  font: 850 clamp(1.4rem, 3vw, 2.2rem)/1.05 var(--font-ui);
+}
+
+.space-race-hero p,
+.referral-panel header p {
+  max-width: 760px;
+  margin: 0;
+  color: #aebecb;
+  font: 550 0.9rem/1.65 var(--font-ui);
+}
+
+.space-race-hero aside,
+.referral-panel header aside {
+  display: grid;
+  min-width: 170px;
+  padding: 18px;
+  border: 1px solid rgba(169, 255, 63, 0.28);
+  border-radius: 14px;
+  background: rgba(3, 10, 16, 0.7);
+  text-align: right;
+  align-content: center;
+  gap: 4px;
+}
+
+.space-race-hero aside strong,
+.referral-panel header aside strong {
+  color: var(--lime);
+  font: 900 1.5rem/1 var(--font-ui);
+}
+
+.space-race-progress,
+.season-track-card,
+.referral-panel,
+.referral-link-card,
+.referral-policy-grid article {
+  border: 1px solid rgba(93, 123, 139, 0.3);
+  border-radius: 15px;
+  background: rgba(7, 15, 23, 0.93);
+}
+
+.space-race-progress {
+  padding: 16px 18px;
+}
+
+.space-race-progress > div {
+  display: flex;
+  justify-content: space-between;
+  color: #c8d7df;
+  font: 750 0.72rem/1.2 var(--font-ui);
+}
+
+.space-race-progress > i,
+.season-summary-card .season-progress > i {
+  display: block;
+  height: 9px;
+  margin: 10px 0;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #172633;
+}
+
+.space-race-progress > i em,
+.season-summary-card .season-progress > i em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #41dcff, var(--lime));
+}
+
+.space-race-progress > small {
+  color: #8297a3;
+  font: 600 0.72rem/1.4 var(--font-ui);
+}
+
+.season-xp-sources,
+.referral-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.season-xp-sources article {
+  display: grid;
+  padding: 15px;
+  border: 1px solid rgba(77, 111, 127, 0.28);
+  border-radius: 12px;
+  background: rgba(10, 23, 33, 0.92);
+  gap: 5px;
+}
+
+.season-xp-sources span,
+.season-reward-grid article > span {
+  color: #718994;
+  font: 750 0.64rem/1.2 var(--font-ui);
+  letter-spacing: 0.09em;
+}
+
+.season-xp-sources strong { color: #f4fbff; font: 850 1rem/1.2 var(--font-ui); }
+.season-xp-sources small { color: #81949e; font: 550 0.7rem/1.3 var(--font-ui); }
+
+.season-track-card { padding: 18px; overflow: hidden; }
+.season-track-card > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.season-track-card h4 { margin: 4px 0 0; color: #fff; font: 850 1.25rem/1.1 var(--font-ui); }
+.season-track-card > header button,
+.season-reward-grid button,
+.referral-link-card button,
+.admin-season-launch-card button,
+.admin-user-search-form button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(169, 255, 63, 0.62);
+  border-radius: 9px;
+  background: rgba(169, 255, 63, 0.13);
+  color: #dcffb2;
+  cursor: pointer;
+  font: 800 0.7rem/1 var(--font-ui);
+}
+.season-track-card button:disabled,
+.season-reward-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
+.season-premium-owned { color: var(--lime); font: 850 0.72rem/1 var(--font-ui); }
+
+.season-reward-grid {
+  display: grid;
+  grid-auto-columns: minmax(150px, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  margin-top: 18px;
+  padding-bottom: 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.season-reward-grid article {
+  display: grid;
+  min-height: 235px;
+  padding: 13px;
+  border: 1px solid rgba(83, 116, 132, 0.28);
+  border-radius: 12px;
+  background: #0a151e;
+  align-content: start;
+  gap: 8px;
+}
+.season-reward-grid article.premium { border-color: rgba(189, 121, 255, 0.36); background: linear-gradient(180deg, rgba(69, 37, 93, 0.32), #0a151e); }
+.season-reward-grid article.locked { filter: saturate(0.5); opacity: 0.72; }
+.season-reward-grid img { width: 100%; height: 82px; object-fit: contain; image-rendering: pixelated; }
+.season-reward-grid strong { color: #f1f7f9; font: 750 0.78rem/1.35 var(--font-ui); }
+.season-reward-grid small { color: #8ea1aa; font: 700 0.64rem/1.2 var(--font-ui); }
+.season-reward-grid button { margin-top: auto; }
+
+.season-ranking-card {
+  padding: 18px;
+  border: 1px solid rgba(86, 117, 132, 0.3);
+  border-radius: 15px;
+  background: rgba(7, 15, 23, 0.95);
+}
+.season-ranking-card > div { display: flex; justify-content: space-between; margin-bottom: 10px; color: #d7e6eb; font: 750 0.74rem/1.2 var(--font-ui); }
+.season-ranking-card section { display: grid; gap: 7px; }
+.season-ranking-card article { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 9px; background: rgba(18, 34, 45, 0.72); }
+.season-ranking-card article.current { outline: 1px solid rgba(169, 255, 63, 0.55); }
+.season-ranking-card article b, .season-ranking-card article > span { color: var(--lime); font: 800 0.78rem/1 var(--font-ui); }
+.season-ranking-card article div { display: grid; gap: 3px; }
+.season-ranking-card article strong { color: #edf7f9; font: 750 0.78rem/1.2 var(--font-ui); }
+.season-ranking-card article small { color: #7f959f; font: 550 0.68rem/1.2 var(--font-ui); }
+
+.referral-panel { display: grid; padding: 18px; gap: 14px; }
+.referral-panel > header { margin: -18px -18px 0; }
+.referral-link-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
+.referral-link-card > span { min-width: 0; overflow: hidden; color: #b7c9d0; text-overflow: ellipsis; white-space: nowrap; font: 600 0.78rem/1.3 var(--font-ui); }
+.referral-policy-grid article { display: grid; padding: 15px; gap: 5px; }
+.referral-policy-grid strong { color: var(--lime); font: 850 1.1rem/1 var(--font-ui); }
+.referral-policy-grid span, .referral-note { color: #8499a3; font: 550 0.7rem/1.4 var(--font-ui); }
+
+.admin-user-search-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.admin-user-search-form label { display: grid; gap: 7px; color: #8298a2; font: 700 0.68rem/1.2 var(--font-ui); }
+.admin-user-search-form input { min-height: 44px; padding: 0 13px; border: 1px solid rgba(88, 120, 134, 0.38); border-radius: 9px; background: #08131c; color: #eef8fa; font: 600 0.85rem/1 var(--font-ui); }
+.admin-user-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; margin-top: 16px; }
+.admin-user-results article, .admin-season-launch-card { padding: 15px; border: 1px solid rgba(84, 119, 134, 0.3); border-radius: 12px; background: rgba(8, 19, 28, 0.92); }
+.admin-user-results header { display: flex; justify-content: space-between; gap: 10px; }
+.admin-user-results header div { display: grid; gap: 3px; }
+.admin-user-results header strong { color: #edf7f9; font: 800 0.82rem/1.2 var(--font-ui); }
+.admin-user-results header small, .admin-user-results time { color: #7e949e; font: 550 0.66rem/1.2 var(--font-ui); }
+.admin-user-results dl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 14px 0 0; }
+.admin-user-results dl div { display: grid; gap: 4px; }
+.admin-user-results dt { color: #6f858f; font: 650 0.58rem/1 var(--font-ui); }
+.admin-user-results dd { margin: 0; color: #dcebee; font: 800 0.72rem/1 var(--font-ui); }
+
+.admin-season-launch-card { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr) auto; align-items: center; gap: 18px; margin-bottom: 16px; border-color: rgba(135, 89, 255, 0.4); background: linear-gradient(135deg, rgba(59, 33, 92, 0.3), rgba(7, 20, 28, 0.95)); }
+.admin-season-launch-card > div span { color: #bd91ff; font: 800 0.65rem/1.2 var(--font-ui); letter-spacing: 0.1em; }
+.admin-season-launch-card h3 { margin: 6px 0; color: #f3ecff; font: 850 1.1rem/1.15 var(--font-ui); }
+.admin-season-launch-card p { margin: 0; color: #94a9b2; font: 550 0.74rem/1.5 var(--font-ui); }
+.admin-season-launch-card dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0; }
+.admin-season-launch-card dl div { display: grid; gap: 4px; }
+.admin-season-launch-card dt { color: #728994; font: 700 0.58rem/1 var(--font-ui); }
+.admin-season-launch-card dd { margin: 0; color: #e9f5f7; font: 800 0.72rem/1 var(--font-ui); }
+
+.wallet-payment-methods { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.wallet-payment-methods button { display: flex; min-width: 0; min-height: 68px; padding: 11px; border: 1px solid rgba(83, 116, 132, 0.32); border-radius: 11px; background: rgba(7, 17, 25, 0.94); color: #e8f4f6; cursor: pointer; align-items: center; gap: 10px; text-align: left; }
+.wallet-payment-methods button:hover, .wallet-payment-methods button.active { border-color: rgba(74, 217, 246, 0.58); background: rgba(28, 71, 83, 0.25); }
+.wallet-payment-methods img, .wallet-brl-symbol { display: grid; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; object-fit: contain; place-items: center; }
+.wallet-brl-symbol { background: linear-gradient(135deg, #1b9d63, #76db83); color: #fff; font: 850 0.8rem/1 var(--font-ui); }
+.wallet-payment-methods span { display: grid; min-width: 0; gap: 3px; }
+.wallet-payment-methods strong { font: 800 0.78rem/1.1 var(--font-ui); }
+.wallet-payment-methods small { overflow: hidden; color: #7d929c; text-overflow: ellipsis; white-space: nowrap; font: 550 0.65rem/1.1 var(--font-ui); }
+.wallet-faq, .pool-rule-note { border: 1px solid rgba(82, 115, 130, 0.3); border-radius: 11px; background: rgba(7, 16, 24, 0.88); }
+.wallet-faq summary, .pool-rule-note summary { padding: 14px 16px; color: #c8d7dc; cursor: pointer; font: 750 0.74rem/1.2 var(--font-ui); }
+.wallet-faq > div, .pool-rule-note > p { padding: 0 16px 16px; color: #859aa4; font: 550 0.75rem/1.55 var(--font-ui); }
+.wallet-faq h4 { margin: 12px 0 3px; color: #e7f3f5; font: 750 0.76rem/1.2 var(--font-ui); }
+.wallet-faq p { margin: 0; }
+
+.pool-compact-estimate { display: grid; padding: 11px; border: 1px solid rgba(85, 117, 132, 0.25); border-radius: 9px; background: rgba(3, 11, 17, 0.52); gap: 4px; }
+.pool-compact-estimate span, .pool-compact-estimate small { color: #7f949e; font: 600 0.68rem/1.25 var(--font-ui); }
+.pool-compact-estimate strong { color: #e8f3f5; font: 800 0.78rem/1.2 var(--font-ui); }
+.pool-card dt, .pool-card dd { font-size: 0.72rem; }
+
+@media (max-width: 900px) {
+  .season-xp-sources,
+  .referral-policy-grid,
+  .wallet-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-season-launch-card { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .space-race-hero,
+  .referral-panel > header { flex-direction: column; }
+  .space-race-hero aside,
+  .referral-panel header aside { min-width: 0; text-align: left; }
+  .season-xp-sources { grid-template-columns: 1fr 1fr; }
+  .season-track-card > header { align-items: stretch; flex-direction: column; }
+  .season-ranking-card article { grid-template-columns: 30px minmax(0, 1fr); }
+  .season-ranking-card article > span { grid-column: 2; }
+  .referral-link-card { align-items: stretch; flex-direction: column; }
+  .admin-user-search-form { grid-template-columns: 1fr; }
+  .wallet-payment-methods { grid-template-columns: 1fr 1fr; }
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .metric-strip article,
+  .metric-strip article:nth-child(2) {
+    min-height: 72px;
+    padding: 10px;
+    border: 1px solid #2d3a46 !important;
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+  .metric-strip article > .metric-icon,
+  .metric-strip article > img {
+    width: 30px;
+    height: 30px;
+  }
+  .metric-strip strong { font-size: 0.86rem; }
+  .metric-strip small { font-size: 0.58rem; }
+  .metric-strip em { display: none; }
+}
+
 /* Pix ocupa um bloco compacto e separado das faturas cripto. */
 .wallet-pix-panel {
   display: grid;
@@ -20447,5 +20733,67 @@ img {
 
   .admin-workspace-tabs button {
     min-height: 54px;
+  }
+}
+
+/* Resumo operacional compacto no celular: a sala permanece acima da dobra. */
+@media (max-width: 620px) {
+  .arcadia-shell .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px;
+  }
+
+  .arcadia-shell .metric-strip article,
+  .arcadia-shell .metric-strip article:nth-child(2),
+  .arcadia-shell .metric-strip article:last-child {
+    min-width: 0;
+    min-height: 72px;
+    padding: 10px;
+    border: 1px solid #2d3a46 !important;
+    border-radius: 8px;
+  }
+
+  .arcadia-shell .metric-strip article > .metric-icon,
+  .arcadia-shell .metric-strip article > img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .arcadia-shell .metric-strip article > div {
+    min-width: 0;
+  }
+
+  .arcadia-shell .metric-strip small {
+    font-size: 0.56rem;
+  }
+
+  .arcadia-shell .metric-strip strong {
+    overflow: hidden;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .arcadia-shell .metric-strip em {
+    display: none;
+  }
+
+  .arcadia-shell .room-toolbar > div {
+    display: grid;
+    grid-template-columns: 0.72fr 1.2fr 1.2fr;
+    width: 100%;
+    overflow: visible;
+    gap: 4px;
+  }
+
+  .arcadia-shell .room-toolbar > div button,
+  .arcadia-shell .room-toolbar > div button:last-child {
+    display: flex;
+    min-width: 0;
+    padding-inline: 5px;
+    justify-content: center;
+    font-size: 0.59rem;
+    letter-spacing: 0.02em;
+    white-space: normal;
   }
 }

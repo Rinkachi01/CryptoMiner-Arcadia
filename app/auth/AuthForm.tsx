@@ -11,6 +11,7 @@ type AuthFormProps = {
   initialError?: string;
   initialMode: AuthMode;
   publishableKey: string;
+  referralCode: string | null;
   returnTo: string;
   supabaseUrl: string;
   turnstileSiteKey: string | null;
@@ -55,6 +56,7 @@ export function AuthForm({
   initialError,
   initialMode,
   publishableKey,
+  referralCode,
   returnTo,
   supabaseUrl,
   turnstileSiteKey,
@@ -131,7 +133,7 @@ export function AuthForm({
           setMessage("Aceite os Termos e a Política de Privacidade para continuar.");
           return;
         }
-        const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
+        const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}${referralCode ? `&ref=${encodeURIComponent(referralCode)}` : ""}`;
         submittedToAuth = true;
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -144,6 +146,13 @@ export function AuthForm({
         });
         if (error) throw error;
         if (data.session) {
+          if (referralCode) {
+            await fetch("/api/referrals", {
+              body: JSON.stringify({ code: referralCode }),
+              headers: { "Content-Type": "application/json" },
+              method: "POST",
+            }).catch(() => null);
+          }
           window.location.assign(returnTo);
           return;
         }
@@ -187,7 +196,7 @@ export function AuthForm({
     try {
       const redirectTo =
         sentEmail === "confirmation"
-          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}${referralCode ? `&ref=${encodeURIComponent(referralCode)}` : ""}`
           : `${window.location.origin}/auth/callback?next=/auth/update-password`;
       const { error } =
         sentEmail === "confirmation"

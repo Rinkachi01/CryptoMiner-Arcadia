@@ -30,6 +30,7 @@ import {
   getMiner,
   getUsedSlotCount,
   miners,
+  storeMiners,
   pools,
   type InstalledMiner,
   type PoolId,
@@ -1867,9 +1868,7 @@ function PoolsView({
           <span className="eyebrow">MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS</span>
           <h2>Distribua seu poder</h2>
           <p>
-            Todos os jogadores disputam os mesmos blocos globais processados
-            pelo servidor. Escolha quanto do seu poder vai para CMA, Bitcoin e
-            Dogecoin e Litecoin; a soma precisa fechar em 100%.
+            Divida 100% do seu poder entre CMA, Bitcoin, Dogecoin e Litecoin.
           </p>
         </div>
         <div
@@ -1948,12 +1947,7 @@ function PoolsView({
               </div>
               <span className="pool-code">{pool.symbol} / POOL</span>
               <h3>{pool.name}</h3>
-              <p>{pool.tagline}</p>
               <dl>
-                <div>
-                  <dt>Intervalo</dt>
-                  <dd>10 min</dd>
-                </div>
                 <div>
                   <dt>Poder alocado</dt>
                   <dd>{formatPower(allocatedPower)}</dd>
@@ -1963,28 +1957,17 @@ function PoolsView({
                   <dd>{formatPower(network.playerPowerGh[pool.id])}</dd>
                 </div>
                 <div>
-                  <dt>Bloco fixo total</dt>
-                  <dd>
-                    {formatAtomic(
-                      BigInt(network.blockRewardAtomic[pool.id]),
-                      pool.decimals,
-                    )}{" "}
-                    {pool.symbol}
-                  </dd>
-                </div>
-                <div>
                   <dt>Sua parte por bloco</dt>
                   <dd>
                     {formatAtomic(estimate, pool.decimals)} {pool.symbol}
                   </dd>
                 </div>
-                <div>
-                  <dt>24h estimadas</dt>
-                  <dd>
-                    {formatAtomic(dailyEstimate, pool.decimals)} {pool.symbol}
-                  </dd>
-                </div>
               </dl>
+              <div className="pool-compact-estimate">
+                <span>Bloco de 10 min</span>
+                <strong>{formatAtomic(BigInt(network.blockRewardAtomic[pool.id]), pool.decimals)} {pool.symbol}</strong>
+                <small>Estimativa em 24h: {formatAtomic(dailyEstimate, pool.decimals)} {pool.symbol}</small>
+              </div>
               <div className="pool-allocation-control">
                 <label htmlFor={`allocation-${pool.id}`}>
                   <span>ALOCAÇÃO</span>
@@ -2057,16 +2040,10 @@ function PoolsView({
         </button>
       </div>
 
-      <div className="pool-rule-note">
-        <span>i</span>
-        <p>
-          <strong>Proteção da economia</strong>
-          O navegador apenas exibe a estimativa. O servidor soma o poder
-          energizado de todas as contas, fecha um único bloco por rede e
-          registra cada divisão no ledger. A estimativa não é retorno
-          garantido.
-        </p>
-      </div>
+      <details className="pool-rule-note">
+        <summary>Como a recompensa é calculada?</summary>
+        <p>O servidor fecha um bloco fixo por rede a cada 10 minutos e divide esse bloco proporcionalmente ao poder energizado. A estimativa pode variar conforme outros jogadores mudam a alocação.</p>
+      </details>
     </section>
   );
 }
@@ -2473,7 +2450,7 @@ function ShopView({
 
       {activeCategory === "miners" && (
         <div className="shop-miner-grid">
-          {miners.map((miner) => {
+          {storeMiners.map((miner) => {
             const quantity = minerQuantities[miner.id] ?? 1;
             const owned =
               minerInventory.filter((unit) => unit.minerId === miner.id)

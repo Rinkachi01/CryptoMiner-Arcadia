@@ -5,7 +5,13 @@ import {
   calculateSeasonScore,
   compareSeasonSnapshots,
   normalizeSeasonDurationDays,
+  seasonLevelForXp,
   seasonProgressPercent,
+  seasonXpRequiredForLevel,
+  SPACE_RACE_DURATION_DAYS,
+  SPACE_RACE_LEVELS,
+  SPACE_RACE_PREMIUM_PRICE_CMA,
+  spaceRaceRewards,
 } from "../app/season-rules.ts";
 
 test("pontuação da temporada privilegia vitória e dificuldade validada", () => {
@@ -60,6 +66,21 @@ test("progresso e duração da temporada respeitam limites seguros", () => {
   assert.equal(normalizeSeasonDurationDays(120), 90);
 });
 
+test("Corrida Espacial tem 70 dias, 50 níveis e folga de XP", () => {
+  assert.equal(SPACE_RACE_DURATION_DAYS, 70);
+  assert.equal(SPACE_RACE_LEVELS, 50);
+  assert.equal(SPACE_RACE_PREMIUM_PRICE_CMA, 29);
+  assert.equal(seasonXpRequiredForLevel(50), 12_250);
+  assert.equal(seasonLevelForXp(12_249), 49);
+  assert.equal(seasonLevelForXp(12_250), 50);
+  assert.equal(spaceRaceRewards.some((item) => item.track === "free"), true);
+  assert.equal(spaceRaceRewards.some((item) => item.track === "premium"), true);
+  assert.equal(
+    spaceRaceRewards.filter((item) => item.reward.type === "miner").length,
+    8,
+  );
+});
+
 test("temporadas e snapshots são persistentes e administrados pelo proprietário", async () => {
   const [server, adminRoute, dashboard, migration] = await Promise.all([
     readFile(new URL("../app/season-server.ts", import.meta.url), "utf8"),
@@ -75,7 +96,8 @@ test("temporadas e snapshots são persistentes e administrados pelo proprietári
   assert.match(server, /status IN \('completed', 'failed'\)/);
   assert.match(adminRoute, /season_snapshot_created/);
   assert.match(adminRoute, /season_closed/);
-  assert.match(dashboard, /SEM PRÊMIO FINANCEIRO/);
+  assert.match(adminRoute, /activate-space-race/);
+  assert.match(dashboard, /ATIVAR CORRIDA ESPACIAL/);
   assert.match(server, /readSeasonEconomicReport/);
   assert.match(server, /readyForEconomyReview/);
   assert.match(dashboard, /RELATÓRIO ECONÔMICO DO CICLO/);
@@ -83,12 +105,13 @@ test("temporadas e snapshots são persistentes e administrados pelo proprietári
   assert.match(dashboard, /Nenhum preço ou valor de bloco é alterado/);
 });
 
-test("ranking competitivo não promete CMA, saque ou retorno financeiro", async () => {
+test("temporada não promete saque ou retorno financeiro", async () => {
   const [api, panel] = await Promise.all([
     readFile(new URL("../app/api/season/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/SeasonPanel.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(api, /sem prêmio em CMA, saque ou vantagem financeira/i);
-  assert.match(panel, /RANKING COMPETITIVO/i);
+  assert.match(panel, /RANKING DE OPERADORES/i);
+  assert.match(panel, /70 dias/i);
   assert.doesNotMatch(panel, /ROI|rendimento|retorno garantido/i);
 });

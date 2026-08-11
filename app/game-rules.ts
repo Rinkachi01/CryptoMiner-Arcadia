@@ -36,6 +36,7 @@ export type MinerDefinition = {
   powerGh: number;
   rarity: MinerRarity;
   priceCma: number;
+  availability?: "store" | "season";
 };
 
 export type InstalledMiner = {
@@ -137,7 +138,107 @@ export const miners: MinerDefinition[] = [
     rarity: "legendary",
     priceCma: 84,
   },
+  {
+    id: "lunar-rover-s1",
+    name: "Lunar Rover",
+    asset: assetsManifest.spaceRover.path,
+    alt: assetsManifest.spaceRover.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 120,
+    rarity: "common",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "relay-satellite-s1",
+    name: "Relay Satellite",
+    asset: assetsManifest.spaceSatellite.path,
+    alt: assetsManifest.spaceSatellite.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 180,
+    rarity: "uncommon",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "comet-skiff-s1",
+    name: "Comet Skiff",
+    asset: assetsManifest.spaceSkiff.path,
+    alt: assetsManifest.spaceSkiff.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 260,
+    rarity: "uncommon",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "star-scout-s1",
+    name: "Star Scout",
+    asset: assetsManifest.spaceScout.path,
+    alt: assetsManifest.spaceScout.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 420,
+    rarity: "rare",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "orbit-drill-s1",
+    name: "Orbit Drill",
+    asset: assetsManifest.spaceDrill.path,
+    alt: assetsManifest.spaceDrill.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 600,
+    rarity: "rare",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "void-freighter-s1",
+    name: "Void Freighter",
+    asset: assetsManifest.spaceFreighter.path,
+    alt: assetsManifest.spaceFreighter.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 900,
+    rarity: "epic",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "plasma-cruiser-s1",
+    name: "Plasma Cruiser",
+    asset: assetsManifest.spaceCruiser.path,
+    alt: assetsManifest.spaceCruiser.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 1_250,
+    rarity: "epic",
+    priceCma: 0,
+    availability: "season",
+  },
+  {
+    id: "arcadia-station-s1",
+    name: "Arcadia Station",
+    asset: assetsManifest.spaceStation.path,
+    alt: assetsManifest.spaceStation.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 1_800,
+    rarity: "legendary",
+    priceCma: 0,
+    availability: "season",
+  },
 ];
+
+export const storeMiners = miners.filter(
+  (miner) => miner.availability !== "season",
+);
 
 export const pools: MiningPool[] = [
   {
