@@ -18,6 +18,7 @@ type PixIntentRow = {
   account_id: string;
   brl_cents: number;
   cma_units: number;
+  credited_at: number | null;
   created_at: number;
   expires_at: number;
   id: string;
@@ -209,7 +210,7 @@ export async function readPixOverview(input: {
   const recent = await input.db
     .prepare(`SELECT id, account_id, provider_reference, cma_units, brl_cents,
       usd_brl_micros, margin_bps, status, ticket_url, qr_code, expires_at,
-      created_at, updated_at FROM wallet_pix_deposit_intents
+      credited_at, created_at, updated_at FROM wallet_pix_deposit_intents
       WHERE account_id = ? ORDER BY created_at DESC LIMIT 8`)
     .bind(input.accountId)
     .all<PixIntentRow>();
@@ -228,6 +229,7 @@ export async function readPixOverview(input: {
     recent: (recent.results ?? []).map((row) => ({
       brlAmount: row.brl_cents / 100,
       cmaUnits: row.cma_units,
+      creditedAt: row.credited_at,
       createdAt: row.created_at,
       expiresAt: row.expires_at,
       id: row.id,
@@ -355,23 +357,15 @@ function orderAmountCents(order: MercadoPagoOrder, payment: Record<string, unkno
   return Number.isFinite(candidate) ? Math.round(candidate * 100) : 0;
 }
 
-export async function processMercadoPagoWebhook(input: {
+async function reconcileMercadoPagoOrder(input: {
+  accountId?: string;
   dataId: string;
   db: D1Database;
   environment: unknown;
   now?: number;
-  requestId: string;
-  signatureHeader: string;
 }) {
   const config = readMercadoPagoConfig(input.environment);
   if (!config.providerReady) throw new Error("Mercado Pago não configurado.");
-  const verified = await verifyMercadoPagoWebhook({
-    dataId: input.dataId,
-    requestId: input.requestId,
-    secret: config.webhookSecret,
-    signatureHeader: input.signatureHeader,
-  });
-  if (!verified) throw new Error("Assinatura Mercado Pago inválida.");
   await ensurePixSchema(input.db);
   const response = await fetch(`${config.apiBaseUrl}/v1/orders/${encodeURIComponent(input.dataId)}`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${config.accessToken}` },
@@ -385,11 +379,13 @@ export async function processMercadoPagoWebhook(input: {
   const intent = await input.db
     .prepare(`SELECT id, account_id, provider_reference, cma_units, brl_cents,
       usd_brl_micros, margin_bps, status, ticket_url, qr_code, expires_at,
-      created_at, updated_at FROM wallet_pix_deposit_intents
+      credited_at, created_at, updated_at FROM wallet_pix_deposit_intents
       WHERE id = ? AND provider_reference = ?`)
     .bind(intentId, input.dataId)
     .first<PixIntentRow>();
-  if (!intent) return { accepted: true as const, status: "unknown_intent" as const };
+  if (!intent || (input.accountId && intent.account_id !== input.accountId)) {
+    return { accepted: true as const, status: "unknown_intent" as const };
+  }
   if (intent.status === "credited") return { accepted: true as const, status: "credited" as const };
   const payment = paymentFromOrder(order);
   const method = payment ? paymentMethod(payment) : null;
@@ -482,4 +478,63 @@ export async function processMercadoPagoWebhook(input: {
     throw new Error("Crédito Pix concorreu com outra atualização; reprocessamento necessário.");
   }
   return { accepted: true as const, cmaUnits: intent.cma_units, status: "credited" as const };
+}
+
+export async function processMercadoPagoWebhook(input: {
+  dataId: string;
+  db: D1Database;
+  environment: unknown;
+  now?: number;
+  requestId: string;
+  signatureHeader: string;
+}) {
+  const config = readMercadoPagoConfig(input.environment);
+  if (!config.providerReady) throw new Error("Mercado Pago não configurado.");
+  const verified = await verifyMercadoPagoWebhook({
+    dataId: input.dataId,
+    requestId: input.requestId,
+    secret: config.webhookSecret,
+    signatureHeader: input.signatureHeader,
+  });
+  if (!verified) throw new Error("Assinatura Mercado Pago inválida.");
+  return reconcileMercadoPagoOrder(input);
+}
+
+export async function reconcilePendingPixDeposits(input: {
+  accountId: string;
+  db: D1Database;
+  environment: unknown;
+  now?: number;
+}) {
+  await ensurePixSchema(input.db);
+  const pending = await input.db
+    .prepare(`SELECT provider_reference FROM wallet_pix_deposit_intents
+      WHERE account_id = ? AND provider_reference IS NOT NULL
+      AND status NOT IN ('credited', 'provider_failed')
+      ORDER BY created_at DESC LIMIT 8`)
+    .bind(input.accountId)
+    .all<{ provider_reference: string }>();
+  let checked = 0;
+  let credited = 0;
+  let unavailable = 0;
+  for (const row of pending.results ?? []) {
+    try {
+      const result = await reconcileMercadoPagoOrder({
+        accountId: input.accountId,
+        dataId: row.provider_reference,
+        db: input.db,
+        environment: input.environment,
+        now: input.now,
+      });
+      checked += 1;
+      if (result.status === "credited") credited += 1;
+    } catch (error) {
+      unavailable += 1;
+      console.error(
+        "pix_reconciliation_failed",
+        error instanceof Error ? error.message : "unknown_error",
+      );
+    }
+  }
+  return { checked, credited, unavailable };
 }

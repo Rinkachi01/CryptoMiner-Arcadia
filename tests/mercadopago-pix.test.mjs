@@ -85,11 +85,16 @@ test("Pix usa Orders API, PTAX, idempotência e crédito autoritativo", async ()
   assert.match(server, /status === "processed"/);
   assert.match(server, /statusDetail === "accredited"/);
   assert.match(server, /credit_pix_cma/);
+  assert.match(server, /reconcilePendingPixDeposits/);
+  assert.match(server, /GET ao endpoint|pix_reconciliation_failed|provider_reference/);
   assert.match(playerRoute, /getArcadiaUser/);
+  assert.match(playerRoute, /body\.action === "refresh"/);
   assert.match(webhookRoute, /x-signature/);
   assert.match(webhookRoute, /processMercadoPagoWebhook/);
   assert.match(view, /Compre CMA inteiro em reais/);
   assert.match(view, /PIX COPIA E COLA/);
+  assert.match(view, /EXTRATO PIX/);
+  assert.match(view, /depositMethod === "PIX"/);
   assert.match(schema, /walletPixDepositIntents/);
   assert.match(recovery, /wallet_pix_deposit_intents/);
 });

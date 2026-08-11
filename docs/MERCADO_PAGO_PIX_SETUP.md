@@ -13,6 +13,8 @@ quando o status for `processed` com detalhe `accredited`.
 - idempotência na criação e no crédito;
 - QR Code/copia e cola devolvidos pelo Mercado Pago;
 - webhook em `/api/wallet/mercadopago`;
+- extrato Pix com estados de espera, análise, falha e crédito;
+- conciliação manual segura pelo `GET /v1/orders/{id}` quando o webhook atrasar;
 - produção ativada somente após a homologação do provedor e dos segredos.
 
 ## Estado atual
@@ -23,6 +25,11 @@ persistiu o pedido como `waiting_transfer`. Nenhum CMA foi creditado durante o
 teste, porque a cobrança não foi paga. O crédito continua condicionado ao
 webhook assinado e à confirmação `processed`/`accredited` consultada novamente
 no provedor.
+
+Em 11 de agosto de 2026, a primeira compra real de 1 CMA foi recuperada pela
+conciliação, creditada uma única vez e registrada no livro-razão com chave de
+idempotência própria. Uma cobrança diferente, não paga, permaneceu aguardando
+pagamento sem alterar o saldo.
 
 ## Passos no painel do Mercado Pago
 

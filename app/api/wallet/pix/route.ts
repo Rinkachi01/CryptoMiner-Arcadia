@@ -4,6 +4,7 @@ import {
   createPixDeposit,
   quotePixDeposit,
   readPixOverview,
+  reconcilePendingPixDeposits,
 } from "../../../pix-server";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,21 @@ export async function POST(request: Request) {
           environment: env,
           targetCma: body.targetCma,
         }),
+      });
+    }
+    if (body.action === "refresh") {
+      const accountId = await accountIdForUser(user);
+      const reconciliation = await reconcilePendingPixDeposits({
+        accountId,
+        db: env.DB,
+        environment: env,
+      });
+      return json({
+        message: reconciliation.credited > 0
+          ? `${reconciliation.credited} pagamento Pix confirmado.`
+          : "Extrato Pix atualizado.",
+        overview: await readPixOverview({ accountId, db: env.DB, environment: env }),
+        reconciliation,
       });
     }
     return json({ error: "Ação Pix inválida." }, 400);

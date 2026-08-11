@@ -9,6 +9,7 @@ import type { ConversionAssetId } from "./conversion-rules";
 type ConvertibleAsset = "BTC" | "DOGE" | "LTC";
 type WithdrawableAsset = "BTC" | "DOGE" | "LTC";
 type WalletTab = "convert" | "deposit" | "withdraw";
+type DepositMethod = "PIX" | ConvertibleAsset;
 
 type MarketRate = {
   asset: ConversionAssetId;
@@ -172,6 +173,7 @@ type PixOverview = {
   recent: Array<{
     brlAmount: number;
     cmaUnits: number;
+    creditedAt: number | null;
     createdAt: number;
     expiresAt: number;
     id: string;
@@ -184,6 +186,8 @@ type PixOverview = {
 type PixResponse = {
   error?: string;
   message?: string;
+  overview?: PixOverview;
+  reconciliation?: { checked: number; credited: number; unavailable: number };
   pix?: PixQuote & {
     id: string;
     providerReference: string;
@@ -262,6 +266,19 @@ function withdrawalStatusLabel(status: string) {
   }[status] ?? status.replaceAll("_", " ").toUpperCase();
 }
 
+function pixStatus(status: string) {
+  if (status === "credited") return { label: "CMA CREDITADO", tone: "success" };
+  if (status.includes("processing") || status.includes("in_process")) {
+    return { label: "EM ANÁLISE", tone: "review" };
+  }
+  if (status.includes("rejected") || status.includes("cancel")) {
+    return { label: "RECUSADO", tone: "failed" };
+  }
+  if (status.includes("expired")) return { label: "EXPIRADO", tone: "failed" };
+  if (status === "provider_failed") return { label: "NÃO CRIADO", tone: "failed" };
+  return { label: "AGUARDANDO PAGAMENTO", tone: "waiting" };
+}
+
 export function ConversionView({
   btcBalanceAtomic,
   cmaBalance,
@@ -289,6 +306,7 @@ export function ConversionView({
   const [sandboxMessage, setSandboxMessage] = useState("");
   const [sandboxUsd, setSandboxUsd] = useState("10");
   const [depositAsset, setDepositAsset] = useState<ConvertibleAsset>("LTC");
+  const [depositMethod, setDepositMethod] = useState<DepositMethod>("PIX");
   const [depositUsd, setDepositUsd] = useState("5");
   const [depositMinimums, setDepositMinimums] = useState<
     Partial<Record<ConvertibleAsset, number>>
@@ -306,7 +324,7 @@ export function ConversionView({
   const [pixTargetCma, setPixTargetCma] = useState("1");
   const [pixQuote, setPixQuote] = useState<PixQuote | null>(null);
   const [pixOrder, setPixOrder] = useState<PixResponse["pix"] | null>(null);
-  const [pixBusy, setPixBusy] = useState<"quote" | "create" | null>(null);
+  const [pixBusy, setPixBusy] = useState<"quote" | "create" | "refresh" | null>(null);
   const [pixError, setPixError] = useState("");
   const [pixMessage, setPixMessage] = useState("");
 
@@ -663,9 +681,38 @@ export function ConversionView({
 
   function selectDepositAsset(assetId: ConvertibleAsset) {
     setDepositAsset(assetId);
+    setDepositMethod(assetId);
     setDepositError("");
     const minimumUsd = depositMinimums[assetId];
     if (minimumUsd) setDepositUsd(minimumUsd.toFixed(2));
+  }
+
+  async function refreshPixStatement() {
+    setPixBusy("refresh");
+    setPixError("");
+    setPixMessage("");
+    try {
+      const response = await fetch("/api/wallet/pix", {
+        body: JSON.stringify({ action: "refresh" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as PixResponse;
+      if (!response.ok || !payload.overview) {
+        throw new Error(payload.error ?? "Não foi possível atualizar o extrato Pix.");
+      }
+      setPix(payload.overview);
+      if ((payload.reconciliation?.credited ?? 0) > 0) {
+        await onRefreshAccount();
+      }
+      setPixMessage(payload.message ?? "Extrato Pix atualizado.");
+    } catch (reason) {
+      setPixError(
+        reason instanceof Error ? reason.message : "Não foi possível atualizar o extrato Pix.",
+      );
+    } finally {
+      setPixBusy(null);
+    }
   }
 
   async function submitPix(action: "quote" | "create") {
@@ -690,6 +737,10 @@ export function ConversionView({
         setPixQuote(payload.pix);
         setPixOrder(payload.pix);
         setPixMessage(payload.message ?? "Cobrança Pix criada com segurança.");
+        const overviewResponse = await fetch("/api/wallet/pix", { cache: "no-store" });
+        if (overviewResponse.ok) {
+          setPix((await overviewResponse.json()) as PixOverview);
+        }
       } else {
         throw new Error("Resposta Pix incompleta.");
       }
@@ -920,18 +971,23 @@ export function ConversionView({
             <p>O valor, a rede e o mínimo aparecem antes da confirmação.</p>
           </header>
           <div className="wallet-payment-methods">
-            <button type="button" onClick={() => document.getElementById("wallet-pix")?.scrollIntoView({ behavior: "smooth" })}>
+            <button
+              className={depositMethod === "PIX" ? "active" : ""}
+              aria-pressed={depositMethod === "PIX"}
+              type="button"
+              onClick={() => setDepositMethod("PIX")}
+            >
               <b className="wallet-brl-symbol">R$</b>
               <span><strong>Pix</strong><small>Pagamento em reais</small></span>
             </button>
             {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
               <button
-                className={depositAsset === id ? "active" : ""}
+                className={depositMethod === id ? "active" : ""}
+                aria-pressed={depositMethod === id}
                 type="button"
                 key={id}
                 onClick={() => {
                   selectDepositAsset(id);
-                  document.getElementById("wallet-crypto")?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
                 <img src={assetVisuals[id].asset} alt="" />
@@ -939,6 +995,7 @@ export function ConversionView({
               </button>
             ))}
           </div>
+          {depositMethod === "PIX" ? (
           <section id="wallet-pix" className={`wallet-pix-panel ${pix?.enabled ? "ready" : "pending"}`}>
             <header>
               <div>
@@ -1036,7 +1093,50 @@ export function ConversionView({
                 </a>
               </div>
             )}
+            <section className="wallet-pix-history" aria-labelledby="wallet-pix-history-title">
+              <header>
+                <div>
+                  <span>EXTRATO PIX</span>
+                  <h5 id="wallet-pix-history-title">Acompanhe cada pagamento</h5>
+                </div>
+                <button
+                  type="button"
+                  disabled={pixBusy !== null}
+                  onClick={() => void refreshPixStatement()}
+                >
+                  {pixBusy === "refresh" ? "CONSULTANDO…" : "ATUALIZAR EXTRATO"}
+                </button>
+              </header>
+              {!pix?.recent?.length ? (
+                <p className="wallet-pix-history-empty">Nenhuma cobrança Pix criada nesta conta.</p>
+              ) : (
+                <div className="wallet-pix-history-list">
+                  {pix.recent.map((entry) => {
+                    const state = pixStatus(entry.status);
+                    return (
+                      <article className={`status-${state.tone}`} key={entry.id}>
+                        <div>
+                          <time dateTime={new Date(entry.createdAt).toISOString()}>
+                            {new Date(entry.createdAt).toLocaleString("pt-BR", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </time>
+                          <strong>{entry.cmaUnits} CMA</strong>
+                          <small>{formatBrl(entry.brlAmount)} · #{entry.id.slice(-8).toUpperCase()}</small>
+                        </div>
+                        <span className={`wallet-pix-status ${state.tone}`}>{state.label}</span>
+                        {entry.ticketUrl && state.tone === "waiting" && (
+                          <a href={entry.ticketUrl} rel="noreferrer" target="_blank">ABRIR COBRANÇA</a>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </section>
+          ) : (
           <div id="wallet-crypto" className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
             <div>
               <small>PROVEDOR DE ENTRADA</small>
@@ -1085,6 +1185,7 @@ export function ConversionView({
               </button>
             </label>
           </div>
+          )}
           {depositMinimumError && (
             <p className="conversion-error" role="alert">{depositMinimumError}</p>
           )}
