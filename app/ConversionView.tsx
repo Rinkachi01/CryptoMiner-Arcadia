@@ -124,6 +124,16 @@ type DepositResponse = {
   message?: string;
 };
 
+type DepositMinimumResponse = {
+  error?: string;
+  minimum?: {
+    asset: ConvertibleAsset;
+    minimumUsd: number;
+    observedAt: number;
+    settlementAsset: string;
+  };
+};
+
 type ConversionViewProps = {
   btcBalanceAtomic: number;
   cmaBalance: number;
@@ -185,7 +195,12 @@ export function ConversionView({
   const [sandboxError, setSandboxError] = useState("");
   const [sandboxMessage, setSandboxMessage] = useState("");
   const [sandboxUsd, setSandboxUsd] = useState("10");
-  const [depositUsd, setDepositUsd] = useState("10");
+  const [depositAsset, setDepositAsset] = useState<ConvertibleAsset>("DOGE");
+  const [depositUsd, setDepositUsd] = useState("5");
+  const [depositMinimums, setDepositMinimums] = useState<
+    Partial<Record<ConvertibleAsset, number>>
+  >({});
+  const [depositMinimumError, setDepositMinimumError] = useState("");
   const [depositBusy, setDepositBusy] = useState<ConvertibleAsset | null>(null);
   const [depositError, setDepositError] = useState("");
 
@@ -235,6 +250,55 @@ export function ConversionView({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!wallet?.deposits?.enabled) return;
+    let active = true;
+    const controller = new AbortController();
+    Promise.all(
+      (["BTC", "DOGE"] as ConvertibleAsset[]).map(async (assetId) => {
+        const response = await fetch("/api/wallet", {
+          body: JSON.stringify({ action: "deposit-minimum", asset: assetId }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as DepositMinimumResponse;
+        if (!response.ok || !payload.minimum) {
+          throw new Error(
+            payload.error ?? `Não foi possível consultar o mínimo de ${assetId}.`,
+          );
+        }
+        return payload.minimum;
+      }),
+    )
+      .then((minimums) => {
+        if (!active) return;
+        const values = Object.fromEntries(
+          minimums.map((minimum) => [minimum.asset, minimum.minimumUsd]),
+        ) as Record<ConvertibleAsset, number>;
+        setDepositMinimums(values);
+        setDepositUsd(values.DOGE.toFixed(2));
+      })
+      .catch((reason) => {
+        if (!active || controller.signal.aborted) return;
+        setDepositMinimumError(
+          reason instanceof Error
+            ? reason.message
+            : "Não foi possível consultar os mínimos atuais.",
+        );
+      })
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [wallet?.deposits?.enabled]);
+
+  const depositMinimumBusy = Boolean(
+    wallet?.deposits?.enabled &&
+      !depositMinimums.BTC &&
+      !depositMinimumError,
+  );
 
   const selectedRate = useMemo(
     () => rates.find((rate) => rate.asset === asset),
@@ -388,6 +452,16 @@ export function ConversionView({
   }
 
   async function createDeposit(assetId: ConvertibleAsset) {
+    const minimumUsd = depositMinimums[assetId];
+    const requestedUsd = Number(depositUsd);
+    if (!minimumUsd || !Number.isFinite(requestedUsd) || requestedUsd < minimumUsd) {
+      setDepositError(
+        minimumUsd
+          ? `O mínimo atual para ${assetId} é ${formatUsd(minimumUsd)}.`
+          : `Aguarde a consulta do mínimo atual de ${assetId}.`,
+      );
+      return;
+    }
     setDepositBusy(assetId);
     setDepositError("");
     try {
@@ -411,6 +485,13 @@ export function ConversionView({
       );
       setDepositBusy(null);
     }
+  }
+
+  function selectDepositAsset(assetId: ConvertibleAsset) {
+    setDepositAsset(assetId);
+    setDepositError("");
+    const minimumUsd = depositMinimums[assetId];
+    if (minimumUsd) setDepositUsd(minimumUsd.toFixed(2));
   }
 
   return (
@@ -659,16 +740,49 @@ export function ConversionView({
               </span>
             </div>
             <label>
-              VALOR DE REFERÊNCIA DA FATURA EM USD
+              MOEDA E VALOR DA FATURA
+              <select
+                value={depositAsset}
+                onChange={(event) =>
+                  selectDepositAsset(event.target.value as ConvertibleAsset)
+                }
+              >
+                <option value="DOGE">Dogecoin · DOGE</option>
+                <option value="BTC">Bitcoin · BTC</option>
+              </select>
               <input
                 inputMode="decimal"
+                min={depositMinimums[depositAsset]}
+                step="0.01"
                 value={depositUsd}
                 onChange={(event) => setDepositUsd(event.target.value)}
               />
-              <small>Mínimo local US$ 5 · máximo US$ 1.000</small>
+              <small>
+                {depositMinimumBusy
+                  ? "Consultando o mínimo atual do provedor…"
+                  : depositMinimums[depositAsset]
+                    ? `Mínimo atual ${formatUsd(depositMinimums[depositAsset]!)} · máximo local US$ 1.000`
+                    : "O valor mínimo precisa ser confirmado antes da fatura."}
+              </small>
               <strong className="wallet-deposit-estimate">O VALOR EM BTC OU DOGE APARECE NA FATURA</strong>
+              <button
+                className="wallet-deposit-submit"
+                disabled={
+                  !wallet?.deposits?.enabled ||
+                  depositMinimumBusy ||
+                  !depositMinimums[depositAsset] ||
+                  depositBusy !== null
+                }
+                type="button"
+                onClick={() => void createDeposit(depositAsset)}
+              >
+                {depositBusy === depositAsset ? "CRIANDO FATURA…" : "CRIAR FATURA SEGURA"}
+              </button>
             </label>
           </div>
+          {depositMinimumError && (
+            <p className="conversion-error" role="alert">{depositMinimumError}</p>
+          )}
           {depositError && <p className="conversion-error" role="alert">{depositError}</p>}
           {wallet?.deposits?.sandboxEnabled && (
             <section className="wallet-sandbox-lab" aria-labelledby="wallet-sandbox-title">
@@ -736,25 +850,24 @@ export function ConversionView({
           )}
           <div className="wallet-deposit-assets">
             {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => (
-              <article key={id}>
+              <article className={depositAsset === id ? "selected" : ""} key={id}>
                 <img src={assetVisuals[id].asset} alt="" />
                 <div>
                   <small>REDE SUPORTADA</small>
                   <strong>{assetVisuals[id].name}</strong>
-                  <span>{id === "BTC" ? "Rede Bitcoin" : "Rede Dogecoin"}</span>
+                  <span>
+                    {id === "BTC" ? "Rede Bitcoin" : "Rede Dogecoin"}
+                    {depositMinimums[id]
+                      ? ` · mínimo ${formatUsd(depositMinimums[id]!)}`
+                      : " · mínimo em consulta"}
+                  </span>
                 </div>
                 <button
                   type="button"
-                  disabled={!wallet?.deposits?.enabled || depositBusy !== null}
-                  onClick={() => void createDeposit(id)}
+                  disabled={!wallet?.deposits?.enabled || depositMinimumBusy}
+                  onClick={() => selectDepositAsset(id)}
                 >
-                  {depositBusy === id
-                    ? "CRIANDO FATURA…"
-                    : wallet?.deposits?.enabled
-                      ? wallet.deposits.mode === "sandbox"
-                        ? "CRIAR FATURA SANDBOX"
-                        : "CRIAR FATURA SEGURA"
-                      : "AGUARDANDO CONEXÃO"}
+                  {depositAsset === id ? "SELECIONADA" : "SELECIONAR"}
                 </button>
               </article>
             ))}
@@ -789,6 +902,11 @@ export function ConversionView({
             <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
             Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
             dentro desta tela após a ativação oficial.
+          </p>
+          <p className="wallet-provider-notice wallet-checkout-help">
+            <strong>ERRO 400 NA PÁGINA DO PROVEDOR?</strong>{" "}
+            Confira o e-mail antes de confirmar. Na captura enviada foi digitado
+            <code> gmail.cor</code>; um endereço Gmail válido termina em <code>gmail.com</code>.
           </p>
         </section>
       ) : (

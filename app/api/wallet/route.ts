@@ -4,6 +4,7 @@ import {
   createProviderDepositIntent,
   createSandboxDepositIntent,
   createSandboxWithdrawalIntent,
+  readProviderDepositMinimum,
   readWalletOverview,
 } from "../../wallet-server";
 
@@ -68,6 +69,14 @@ export async function POST(request: Request) {
           db: env.DB,
           environment: env,
           usdAmount: body.usdAmount,
+        }),
+      });
+    }
+    if (body.action === "deposit-minimum") {
+      return json({
+        minimum: await readProviderDepositMinimum({
+          asset: body.asset,
+          environment: env,
         }),
       });
     }

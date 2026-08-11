@@ -53,6 +53,21 @@ No painel do Cloudflare, abra o Worker `crypto-miner-arcadia`, entre em
 **Secret/Encrypted**, nunca como texto visível. Não é necessário informar
 seed phrase ou chave privada ao Arcadia.
 
+## Valor mínimo dinâmico
+
+O Arcadia não mantém mais um piso fixo de US$ 5. Antes de criar a fatura, o
+servidor consulta o mínimo atual de BTC ou DOGE para liquidação em USDT TRC20.
+O valor é arredondado para cima em centavos e validado uma segunda vez no
+servidor. Se a consulta falhar, a fatura não é criada.
+
+```text
+NOWPAYMENTS_SETTLEMENT_ASSET=usdttrc20
+```
+
+O mínimo continua pertencendo ao provedor e à rede; não é possível forçar um
+valor menor sem arriscar pagamento incompleto. Na página externa, o comprador
+também deve digitar um e-mail válido — por exemplo, `gmail.com`, não `gmail.cor`.
+
 ## Teste obrigatório antes da ativação
 
 - fatura criada e expirada sem crédito;

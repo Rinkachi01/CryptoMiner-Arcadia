@@ -6535,13 +6535,36 @@ img {
   font: 800 0.7rem/1.35 var(--font-mono, monospace);
 }
 
-.wallet-provider-gate input {
+.wallet-provider-gate input,
+.wallet-provider-gate select {
   min-height: 46px;
   padding: 0 12px;
   border: 1px solid rgba(99, 234, 255, 0.35);
   background: #07121b;
   color: #fff;
   font: 800 1rem/1 var(--font-mono, monospace);
+}
+
+.wallet-provider-gate select {
+  appearance: none;
+}
+
+.wallet-deposit-submit {
+  min-height: 46px;
+  border: 1px solid #9dff2e;
+  background: #9dff2e;
+  color: #071006;
+  font: 900 0.76rem/1 var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+}
+
+.wallet-deposit-submit:not(:disabled) {
+  cursor: pointer;
+}
+
+.wallet-deposit-submit:disabled {
+  cursor: wait;
+  opacity: 0.45;
 }
 
 .wallet-deposit-estimate {
@@ -6564,6 +6587,16 @@ img {
   padding: 17px;
   border: 1px solid rgba(137, 167, 184, 0.25);
   background: #050b12;
+}
+
+.wallet-deposit-assets article.selected {
+  border-color: rgba(157, 255, 46, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(157, 255, 46, 0.14);
+}
+
+.wallet-checkout-help code {
+  color: #fff;
+  font-weight: 900;
 }
 
 .wallet-deposit-assets img {

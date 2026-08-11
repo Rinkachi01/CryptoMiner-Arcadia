@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   canonicalNowPaymentsPayload,
   normalizeNowPaymentsStatus,
+  parseNowPaymentsMinimumUsd,
   readNowPaymentsConfig,
   signNowPaymentsPayload,
   verifyNowPaymentsPayload,
@@ -41,6 +42,18 @@ test("configuração do provedor falha fechada e exige segredo IPN", () => {
       PUBLIC_BASE_URL: "https://arcadia.example",
     }).depositsEnabled,
     true,
+  );
+});
+
+test("mínimo do provedor é arredondado para cima e falha fechado", () => {
+  assert.equal(parseNowPaymentsMinimumUsd({ fiat_equivalent: 2.341 }), 2.35);
+  assert.equal(parseNowPaymentsMinimumUsd({ fiat_equivalent: "4.20" }), 4.2);
+  assert.equal(parseNowPaymentsMinimumUsd({ fiat_equivalent: 0 }), null);
+  assert.equal(parseNowPaymentsMinimumUsd({ min_amount: 1 }), null);
+  assert.equal(
+    readNowPaymentsConfig({ NOWPAYMENTS_SETTLEMENT_ASSET: "USDTTRC20" })
+      .settlementAsset,
+    "usdttrc20",
   );
 });
 

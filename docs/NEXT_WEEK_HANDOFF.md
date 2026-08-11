@@ -1,6 +1,6 @@
 # Crypto Miner Arcadia — retomada da próxima semana
 
-Atualizado em 10 de agosto de 2026.
+Atualizado em 11 de agosto de 2026.
 
 ## Estado seguro deixado nesta rodada
 
@@ -25,6 +25,10 @@ Atualizado em 10 de agosto de 2026.
   quantidade necessária de BTC ou DOGE pela cotação vigente;
 - o front recebeu uma nova hierarquia visual, entrada pública mais clara,
   tipografia maior, cartões com mais contraste e navegação mais legível.
+- o piso local fixo de US$ 5 foi removido; BTC e DOGE agora usam o mínimo atual
+  informado pelo provedor, com validação repetida no servidor;
+- o caminho Pix foi definido como compra direta de CMA inteiro, sem criar uma
+  carteira BRL sacável dentro do jogo.
 
 ## Ordem de execução recomendada
 
@@ -127,6 +131,14 @@ dispositivo e uma captura. Não usar a conta fundadora para testes destrutivos.
 - termos, privacidade, cookies, suporte e classificação etária publicados;
 - economia observada com contas comuns, sem usar saldo fundador como referência
   de progressão.
+
+### 8. Pix em sandbox, depois da homologação cripto
+
+1. Confirmar com o Mercado Pago que o modelo comercial é aceito.
+2. Criar aplicação e chave Pix em conta vendedora verificada.
+3. Implementar compra de CMA inteiro, QR Code, webhook assinado e reconciliação.
+4. Manter CMA não sacável e impedir conversão reversa.
+5. Não oferecer saque Pix no primeiro lançamento.
 
 ## O que o proprietário pode preparar
 

@@ -6,6 +6,7 @@ export type NowPaymentsEnvironment = {
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
+  NOWPAYMENTS_SETTLEMENT_ASSET?: string;
   PUBLIC_BASE_URL?: string;
 };
 
@@ -50,6 +51,13 @@ export function readNowPaymentsConfig(environment: unknown) {
     source,
     "NOWPAYMENTS_API_BASE_URL",
   );
+  const requestedSettlementAsset = environmentValue(
+    source,
+    "NOWPAYMENTS_SETTLEMENT_ASSET",
+  ).toLowerCase();
+  const settlementAsset = /^[a-z0-9]{2,24}$/.test(requestedSettlementAsset)
+    ? requestedSettlementAsset
+    : "usdttrc20";
   const depositsFlag = environmentValue(source, "CRYPTO_DEPOSITS_ENABLED");
   const liveDepositsFlag = environmentValue(
     source,
@@ -83,11 +91,19 @@ export function readNowPaymentsConfig(environment: unknown) {
     publicBaseUrl,
     publicBaseUrlConfigured,
     sandbox,
+    settlementAsset,
   };
 }
 
 export function isNowPaymentsAsset(value: unknown): value is NowPaymentsAsset {
   return value === "BTC" || value === "DOGE";
+}
+
+export function parseNowPaymentsMinimumUsd(payload: unknown) {
+  if (!payload || typeof payload !== "object") return null;
+  const value = Number((payload as { fiat_equivalent?: unknown }).fiat_equivalent);
+  if (!Number.isFinite(value) || value <= 0 || value > 1_000) return null;
+  return Math.ceil(value * 100) / 100;
 }
 
 function sortCanonical(value: unknown): unknown {

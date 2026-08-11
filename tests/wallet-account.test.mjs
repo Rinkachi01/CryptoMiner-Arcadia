@@ -89,6 +89,11 @@ test("laboratório financeiro registra somente simulações e preserva saldos", 
   assert.match(route, /sandbox-withdrawal/);
   assert.match(route, /create-deposit/);
   assert.match(server, /processNowPaymentsIpn/);
+  assert.match(server, /min-amount/);
+  assert.doesNotMatch(server, /usdAmount < 5/);
+  assert.match(route, /deposit-minimum/);
+  assert.match(view, /Mínimo atual/);
+  assert.match(view, /gmail\.cor/);
   assert.match(view, /ZERO CRÉDITO/);
   assert.match(view, /não altera nenhum saldo/);
   assert.match(schema, /wallet_withdrawal_intents/);

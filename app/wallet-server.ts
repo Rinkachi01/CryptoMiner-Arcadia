@@ -13,6 +13,7 @@ import { readBoundedJsonObject } from "./external-json.ts";
 import {
   isNowPaymentsAsset,
   normalizeNowPaymentsStatus,
+  parseNowPaymentsMinimumUsd,
   readNowPaymentsConfig,
   validNowPaymentsCheckoutUrl,
   verifyNowPaymentsPayload,
@@ -26,6 +27,7 @@ type WalletEnvironment = {
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
+  NOWPAYMENTS_SETTLEMENT_ASSET?: string;
   PUBLIC_BASE_URL?: string;
 };
 
@@ -266,6 +268,43 @@ function cleanProviderValue(value: unknown) {
     : "";
 }
 
+export async function readProviderDepositMinimum(input: {
+  asset: unknown;
+  environment: unknown;
+}) {
+  if (!isNowPaymentsAsset(input.asset)) {
+    throw new Error("Escolha BTC ou DOGE para consultar o mínimo.");
+  }
+  const config = readNowPaymentsConfig(input.environment);
+  if (!config.providerReady) {
+    throw new Error("O provedor de depósitos ainda não está configurado.");
+  }
+  const query = new URLSearchParams({
+    currency_from: input.asset.toLowerCase(),
+    currency_to: config.settlementAsset,
+    fiat_equivalent: "usd",
+    is_fee_paid_by_user: "true",
+    is_fixed_rate: "true",
+  });
+  const response = await fetch(`${config.apiBaseUrl}/min-amount?${query}`, {
+    headers: { "x-api-key": config.apiKey },
+    signal: AbortSignal.timeout(8_000),
+  });
+  const result = await readBoundedJsonObject(response);
+  const minimumUsd = parseNowPaymentsMinimumUsd(result);
+  if (!response.ok || minimumUsd === null) {
+    throw new Error(
+      "Não foi possível confirmar o mínimo atual dessa rede. Tente novamente em instantes.",
+    );
+  }
+  return {
+    asset: input.asset,
+    minimumUsd,
+    observedAt: Date.now(),
+    settlementAsset: config.settlementAsset.toUpperCase(),
+  };
+}
+
 export async function createProviderDepositIntent(input: {
   accountId: string;
   asset: unknown;
@@ -284,10 +323,20 @@ export async function createProviderDepositIntent(input: {
   if (!isNowPaymentsAsset(input.asset)) {
     throw new Error("Escolha BTC ou DOGE para o depósito.");
   }
+  const providerMinimum = await readProviderDepositMinimum({
+    asset: input.asset,
+    environment: input.environment,
+  });
   const rawUsdAmount = Number(input.usdAmount);
   const usdAmount = Math.round(rawUsdAmount * 100) / 100;
-  if (!Number.isFinite(rawUsdAmount) || usdAmount < 5 || usdAmount > 1_000) {
-    throw new Error("Use um valor entre US$ 5 e US$ 1.000.");
+  if (
+    !Number.isFinite(rawUsdAmount) ||
+    usdAmount < providerMinimum.minimumUsd ||
+    usdAmount > 1_000
+  ) {
+    throw new Error(
+      `O mínimo atual para ${input.asset} é US$ ${providerMinimum.minimumUsd.toFixed(2)}. O máximo local é US$ 1.000.`,
+    );
   }
   const now = input.now ?? Date.now();
   await ensureWalletSchema(input.db);
@@ -350,7 +399,12 @@ export async function createProviderDepositIntent(input: {
     const providerReference = cleanProviderValue(result.id);
     const checkoutUrl = validNowPaymentsCheckoutUrl(result.invoice_url);
     if (!response.ok || !providerReference || !checkoutUrl) {
-      throw new Error("O provedor não criou uma fatura válida.");
+      const providerMessage = cleanProviderValue(result.message);
+      throw new Error(
+        providerMessage
+          ? `O provedor recusou a fatura: ${providerMessage.slice(0, 180)}`
+          : "O provedor não criou uma fatura válida.",
+      );
     }
     await input.db
       .prepare(`UPDATE wallet_deposit_intents
