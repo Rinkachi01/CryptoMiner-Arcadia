@@ -10,17 +10,47 @@ function json(value: unknown, status = 200) {
   });
 }
 
+async function readBoundedBody(request: Request, maximumBytes: number) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    receivedBytes += value.byteLength;
+    if (receivedBytes > maximumBytes) {
+      await reader.cancel("payload_too_large").catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const body = new Uint8Array(receivedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(body);
+}
+
 export async function POST(request: Request) {
   if (!env.DB) return json({ error: "service_unavailable" }, 503);
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
   if (declaredLength > 64_000) return json({ error: "payload_too_large" }, 413);
-  const rawBody = await request.text();
-  if (!rawBody || rawBody.length > 64_000) {
+  const rawBody = await readBoundedBody(request, 64_000);
+  if (rawBody === null) return json({ error: "payload_too_large" }, 413);
+  if (!rawBody) {
+    return json({ error: "invalid_payload" }, 400);
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody) as unknown;
+  } catch {
     return json({ error: "invalid_payload" }, 400);
   }
   const signature = request.headers.get("x-nowpayments-sig") ?? "";
   try {
-    const payload = JSON.parse(rawBody) as unknown;
     const result = await processNowPaymentsIpn({
       db: env.DB,
       environment: env,

@@ -95,4 +95,6 @@ test("webhook público verifica assinatura antes de processar crédito", async (
   assert.match(source, /x-nowpayments-sig/);
   assert.match(source, /processNowPaymentsIpn/);
   assert.match(source, /payload_too_large/);
+  assert.match(source, /request\.body\.getReader\(\)/);
+  assert.doesNotMatch(source, /request\.text\(\)/);
 });
