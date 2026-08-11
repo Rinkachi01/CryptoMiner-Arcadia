@@ -20796,4 +20796,14 @@ img {
     letter-spacing: 0.02em;
     white-space: normal;
   }
+
+  .rooms-modal {
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .room-store-grid {
+    grid-template-columns: 1fr;
+  }
 }

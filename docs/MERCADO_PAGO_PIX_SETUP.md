@@ -13,7 +13,16 @@ quando o status for `processed` com detalhe `accredited`.
 - idempotência na criação e no crédito;
 - QR Code/copia e cola devolvidos pelo Mercado Pago;
 - webhook em `/api/wallet/mercadopago`;
-- produção bloqueada por padrão.
+- produção ativada somente após a homologação do provedor e dos segredos.
+
+## Estado atual
+
+Em 11 de agosto de 2026, a integração de produção criou com sucesso uma
+cobrança mínima de 1 CMA, retornou QR Code e link seguro do Mercado Pago e
+persistiu o pedido como `waiting_transfer`. Nenhum CMA foi creditado durante o
+teste, porque a cobrança não foi paga. O crédito continua condicionado ao
+webhook assinado e à confirmação `processed`/`accredited` consultada novamente
+no provedor.
 
 ## Passos no painel do Mercado Pago
 
@@ -51,13 +60,10 @@ A Public Key pode aparecer no navegador em integrações que usam o SDK do
 Mercado Pago. O fluxo atual do Arcadia cria Orders no servidor e, portanto,
 usa o **Access Token** como segredo. Client Secret não substitui o Access Token.
 
-Depois dos testes de criação, assinatura, repetição do webhook e crédito único,
-altere `PIX_DEPOSITS_ENABLED` para `true`. A troca para produção exige novas
-credenciais e `MERCADO_PAGO_ENVIRONMENT=production`.
-
-Enquanto `PIX_DEPOSITS_ENABLED=false`, a carteira mostra a forma de pagamento,
-mas não cria cobranças reais. Esse bloqueio é intencional para evitar crédito
-antes da homologação completa.
+O ambiente publicado usa `PIX_DEPOSITS_ENABLED=true` e
+`MERCADO_PAGO_ENVIRONMENT=production`. Para interromper novas cobranças sem
+remover segredos nem afetar o histórico, altere apenas
+`PIX_DEPOSITS_ENABLED=false` e publique novamente o Worker.
 
 ## Regra financeira
 
