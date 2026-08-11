@@ -36,7 +36,7 @@ export default async function Home() {
                 <article>
                   <b>03</b>
                   <strong>POOLS GLOBAIS</strong>
-                  <span>CMA, BTC e DOGE com distribuição livre de poder.</span>
+                  <span>CMA, BTC, DOGE e LTC com distribuição livre de poder.</span>
                 </article>
                 <article>
                   <b>10m</b>

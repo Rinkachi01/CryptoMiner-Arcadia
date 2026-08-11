@@ -59,7 +59,10 @@ export function OperatorInbox({
   }, [refreshKey]);
 
   const totalAllocation =
-    poolAllocations.cma + poolAllocations.btc + poolAllocations.doge;
+    poolAllocations.cma +
+    poolAllocations.btc +
+    poolAllocations.doge +
+    poolAllocations.ltc;
   const totalPlays = Math.max(0, Number(summary?.totals?.totalPlays ?? 0));
   const missionClaimable =
     summary?.missions?.some((mission) => mission.claimable === true) ?? false;
@@ -136,7 +139,7 @@ export function OperatorInbox({
       label: "Distribua 100% do poder",
       detail:
         totalAllocation === 100
-          ? `${poolAllocations.cma}% CMA · ${poolAllocations.btc}% BTC · ${poolAllocations.doge}% DOGE`
+          ? `${poolAllocations.cma}% CMA · ${poolAllocations.btc}% BTC · ${poolAllocations.doge}% DOGE · ${poolAllocations.ltc}% LTC`
           : `${totalAllocation}% distribuído`,
       complete: onboarding?.eligible
         ? onboarding.milestones.poolsConfirmed

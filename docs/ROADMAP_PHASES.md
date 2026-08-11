@@ -508,3 +508,10 @@ Status: bloqueada até decisão formal.
 
 Critério de saída: aprovação jurídica, operacional e financeira. Nenhuma
 promessa de ROI deve aparecer antes disso.
+
+## Próxima fase — Temporada 01: Corrida Espacial
+
+O desenho funcional está em `docs/SPACE_RACE_SEASON_PLAN.md`. A implementação
+começa por dados, missões e resgates autoritativos; os mineradores sazonais só
+entram após o proprietário fornecer os assets e a simulação econômica aprovar
+poder e preço. A primeira edição será gratuita e terá 42 dias, sem passe pago.

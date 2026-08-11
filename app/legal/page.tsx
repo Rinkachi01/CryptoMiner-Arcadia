@@ -62,10 +62,10 @@ export default function LegalPage() {
           </p>
         </section>
         <section>
-          <h3>4. CMA, BTC e DOGE</h3>
+          <h3>4. CMA, BTC, DOGE e LTC</h3>
           <p>
             CMA é crédito interno, não é criptomoeda sacável e não pode ser resgatado por
-            dinheiro. Quando habilitados, depósitos BTC/DOGE dependerão de confirmação do
+            dinheiro. Quando habilitados, depósitos BTC/DOGE/LTC dependerão de confirmação do
             provedor. Conversões para CMA são definitivas após a confirmação mostrada na tela.
           </p>
         </section>
@@ -192,4 +192,3 @@ export default function LegalPage() {
     </main>
   );
 }
-

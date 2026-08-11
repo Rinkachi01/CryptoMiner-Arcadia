@@ -211,7 +211,9 @@ export function presentLedgerActivity(
       title: "Distribuição de poder atualizada",
       description: `CMA ${numberValue(allocations.cma)}% · BTC ${numberValue(
         allocations.btc,
-      )}% · DOGE ${numberValue(allocations.doge)}%.`,
+      )}% · DOGE ${numberValue(allocations.doge)}% · LTC ${numberValue(
+        allocations.ltc,
+      )}%.`,
     };
   }
   if (action === "use_battery") {

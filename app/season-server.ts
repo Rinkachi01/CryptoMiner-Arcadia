@@ -52,6 +52,7 @@ type SeasonLedgerSummaryRow = {
 type SeasonBlockRewardRow = {
   btc_atomic: number;
   doge_atomic: number;
+  ltc_atomic: number;
 };
 
 type SeasonCountRow = {
@@ -103,6 +104,7 @@ export type SeasonEconomicReport = {
     cmaTestCredits: number;
     crateOpens: number;
     dogeCreditedAtomic: number;
+    ltcCreditedAtomic: number;
     games: number;
     newPlayers: number;
     openReviews: number;
@@ -377,7 +379,8 @@ export async function readSeasonEconomicReport(
       .prepare(
         `SELECT
            COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.btc') AS INTEGER) ELSE 0 END), 0) AS btc_atomic,
-           COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.doge') AS INTEGER) ELSE 0 END), 0) AS doge_atomic
+           COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.doge') AS INTEGER) ELSE 0 END), 0) AS doge_atomic,
+           COALESCE(SUM(CASE WHEN json_valid(metadata_json) THEN CAST(json_extract(metadata_json, '$.rewards.ltc') AS INTEGER) ELSE 0 END), 0) AS ltc_atomic
          FROM ledger_entries
          WHERE action = 'block_settlement'
            AND created_at >= ? AND created_at <= ?`,
@@ -436,6 +439,7 @@ export async function readSeasonEconomicReport(
       cmaTestCredits: Number(ledger?.cma_test_micros ?? 0) / 1_000_000,
       crateOpens: Number(ledger?.crate_opens ?? 0),
       dogeCreditedAtomic: Number(blockRewards?.doge_atomic ?? 0),
+      ltcCreditedAtomic: Number(blockRewards?.ltc_atomic ?? 0),
       games,
       newPlayers: Number(newPlayers?.total ?? 0),
       openReviews: Number(openReviews?.total ?? 0),

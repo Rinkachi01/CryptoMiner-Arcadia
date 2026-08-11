@@ -1195,7 +1195,7 @@ export function ConversionView({
           </div>
           {wallet?.deposits?.recent.some((item) => item.provider === "nowpayments") && (
             <div className="wallet-live-history">
-              <span>FATURAS RECENTES</span>
+              <span>FATURAS RECENTES · ÚLTIMOS 30 DIAS</span>
               {wallet.deposits.recent
                 .filter((item) => item.provider === "nowpayments")
                 .slice(0, 4)
@@ -1232,9 +1232,9 @@ export function ConversionView({
           </p>
           <p className="wallet-provider-notice wallet-checkout-help">
             <strong>ERRO NA PÁGINA DO PROVEDOR?</strong>{" "}
-            A fatura agora preserva o erro real devolvido pela NOWPayments. Se o checkout
-            externo recusar um e-mail válido, registre o protocolo e tente outra moeda;
-            isso não debita nem altera seu saldo no Arcadia.
+            O valor sugerido inclui uma pequena margem sobre o mínimo dinâmico para evitar
+            que a cotação caia abaixo do piso entre a criação e a abertura da fatura. Links
+            vencidos são desativados; crie uma nova cobrança sem reutilizar a anterior.
           </p>
         </section>
       ) : (

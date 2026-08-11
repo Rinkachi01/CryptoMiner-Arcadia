@@ -26,7 +26,7 @@ terceiros.
 
 ## Regras de proteção
 
-- nunca conceder CMA, BTC, DOGE, saque ou prêmio transferível por assistir a um
+- nunca conceder CMA, BTC, DOGE, LTC, saque ou prêmio transferível por assistir a um
   anúncio;
 - escolha voluntária, descrição clara da recompensa e opção de continuar sem
   assistir;

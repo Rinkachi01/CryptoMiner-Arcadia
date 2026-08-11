@@ -204,7 +204,7 @@ test("jornada completa exige instalar, jogar, resgatar, energizar e minerar", ()
   state = applyGameAction(
     state,
     "apply_allocations",
-    { allocations: { cma: 60, btc: 20, doge: 20 } },
+    { allocations: { cma: 60, btc: 20, doge: 20, ltc: 0 } },
     NOW,
   ).state;
   events.push({ action: "apply_allocations", metadata: {} });

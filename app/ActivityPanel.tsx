@@ -13,7 +13,7 @@ type ActivityItem = {
   cmaDelta: number;
   powerGh: number;
   walletRewards: Array<{
-    symbol: "CMA" | "BTC" | "DOGE";
+    symbol: "CMA" | "BTC" | "DOGE" | "LTC";
     amount: number;
   }>;
   category: ActivityCategory;
@@ -74,7 +74,10 @@ function formatCma(value: number) {
   });
 }
 
-function formatWalletAmount(value: number, symbol: "CMA" | "BTC" | "DOGE") {
+function formatWalletAmount(
+  value: number,
+  symbol: "CMA" | "BTC" | "DOGE" | "LTC",
+) {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: symbol === "CMA" ? 2 : 0,
     maximumFractionDigits: symbol === "CMA" ? 6 : 8,

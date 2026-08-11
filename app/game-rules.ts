@@ -10,6 +10,7 @@ export const DEFAULT_BLOCK_REWARD_ATOMIC: Record<PoolId, number> = {
   cma: 5_000,
   btc: 5,
   doge: 1_000_000,
+  ltc: 5_000,
 };
 export const RACK_PRICE_CMA = 0.35;
 export const BATTERY_PRICE_CMA = 0.05;
@@ -43,12 +44,12 @@ export type InstalledMiner = {
   slotIndex: number;
 };
 
-export type PoolId = "cma" | "btc" | "doge";
+export type PoolId = "cma" | "btc" | "doge" | "ltc";
 
 export type MiningPool = {
   id: PoolId;
   name: string;
-  symbol: "CMA" | "BTC" | "DOGE";
+  symbol: "CMA" | "BTC" | "DOGE" | "LTC";
   asset: string;
   decimals: number;
   blockSeconds: number;
@@ -174,6 +175,18 @@ export const pools: MiningPool[] = [
     networkPowerGh: 4_000_000,
     color: "#f4d45f",
     tagline: "Blocos rápidos para uma progressão leve",
+  },
+  {
+    id: "ltc",
+    name: "Litecoin Pool",
+    symbol: "LTC",
+    asset: assetsManifest.litecoin.path,
+    decimals: 8,
+    blockSeconds: BLOCK_INTERVAL_SECONDS,
+    rewardAtomic: BigInt(DEFAULT_BLOCK_REWARD_ATOMIC.ltc),
+    networkPowerGh: 2_500_000,
+    color: "#8da7c8",
+    tagline: "Blocos econômicos com liquidação leve",
   },
 ];
 

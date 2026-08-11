@@ -154,6 +154,7 @@ const blockRewardBounds: Record<
   cma: { minimum: 1_000, maximum: 50_000 },
   btc: { minimum: 1, maximum: 100 },
   doge: { minimum: 100_000, maximum: 10_000_000 },
+  ltc: { minimum: 1_000, maximum: 100_000 },
 };
 
 const adminThresholdBounds: Record<
@@ -454,7 +455,7 @@ async function readAdminOverview(
       const metadata = parseJsonObject(row.metadata_json) as {
         rewards?: Partial<Record<PoolId, unknown>>;
       };
-      for (const poolId of ["cma", "btc", "doge"] as const) {
+      for (const poolId of ["cma", "btc", "doge", "ltc"] as const) {
         const reward = Number(metadata.rewards?.[poolId]);
         if (Number.isFinite(reward) && reward > 0) {
           total[poolId] += Math.floor(reward);
@@ -462,7 +463,7 @@ async function readAdminOverview(
       }
       return total;
     },
-    { cma: 0, btc: 0, doge: 0 } as Record<PoolId, number>,
+    { cma: 0, btc: 0, doge: 0, ltc: 0 } as Record<PoolId, number>,
   );
 
   return {
@@ -928,12 +929,12 @@ export async function POST(request: Request) {
         ? (body.rewards as Partial<Record<PoolId, unknown>>)
         : {};
     const rewards = Object.fromEntries(
-      (["cma", "btc", "doge"] as const).map((poolId) => [
+      (["cma", "btc", "doge", "ltc"] as const).map((poolId) => [
         poolId,
         Number(candidate[poolId]),
       ]),
     ) as Record<PoolId, number>;
-    const invalidPool = (["cma", "btc", "doge"] as const).find((poolId) => {
+    const invalidPool = (["cma", "btc", "doge", "ltc"] as const).find((poolId) => {
       const value = rewards[poolId];
       const bounds = blockRewardBounds[poolId];
       return (
@@ -1085,7 +1086,7 @@ export async function POST(request: Request) {
     );
     const network = await readNetworkPowerSnapshot(context.db, now);
     return json({
-      message: "Poder-base de referência restaurado nas três redes.",
+      message: "Poder-base de referência restaurado nas quatro redes.",
       network,
     });
   }

@@ -18,7 +18,7 @@ test("rede viva soma apenas equipamentos energizados e respeita alocações", ()
   const splitState = createInitialGameState(now);
   cmaState.energyExpiresAt = now + 12 * 60 * 60 * 1000;
   splitState.energyExpiresAt = now + 12 * 60 * 60 * 1000;
-  splitState.poolAllocations = { cma: 50, btc: 30, doge: 20 };
+  splitState.poolAllocations = { cma: 40, btc: 25, doge: 20, ltc: 15 };
   const offlineState = createInitialGameState(now);
   offlineState.energyExpiresAt = now - 1;
 
@@ -36,9 +36,10 @@ test("rede viva soma apenas equipamentos energizados e respeita alocações", ()
     now,
   );
 
-  assert.equal(totals.cma, cmaPower + Math.floor((splitInstalled + 1_000) * 0.5));
-  assert.equal(totals.btc, Math.floor((splitInstalled + 1_000) * 0.3));
+  assert.equal(totals.cma, cmaPower + Math.floor((splitInstalled + 1_000) * 0.4));
+  assert.equal(totals.btc, Math.floor((splitInstalled + 1_000) * 0.25));
   assert.equal(totals.doge, Math.floor((splitInstalled + 1_000) * 0.2));
+  assert.equal(totals.ltc, Math.floor((splitInstalled + 1_000) * 0.15));
 });
 
 test("bloco total fica fixo enquanto o poder altera apenas a participação", () => {
@@ -66,7 +67,7 @@ test("índice incremental preserva potência, alocação e validade da energia",
       slotIndex: 0,
     },
   ];
-  state.poolAllocations = { cma: 20, btc: 30, doge: 50 };
+  state.poolAllocations = { cma: 20, btc: 25, doge: 35, ltc: 20 };
   state.energyExpiresAt = now + 12 * 60 * 60 * 1000;
 
   const contribution = buildAccountNetworkContribution("operator", state);
@@ -106,4 +107,10 @@ test("laboratório do proprietário é limitado, reversível e auditado", async 
   assert.match(dashboard, /Uma quantia fixa é disputada em cada bloco/);
   assert.match(dashboard, /SALVAR ORÇAMENTO FIXO/);
   assert.match(migration, /reward_cma_atomic/);
+  const litecoinMigration = await readFile(
+    new URL("../drizzle/0026_concerned_snowbird.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(litecoinMigration, /reward_ltc_atomic/);
+  assert.match(litecoinMigration, /allocation_ltc/);
 });

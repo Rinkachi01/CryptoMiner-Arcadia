@@ -58,8 +58,10 @@ seed phrase ou chave privada ao Arcadia.
 
 O Arcadia não mantém mais um piso fixo de US$ 5. Antes de criar a fatura, o
 servidor consulta o mínimo atual de LTC, DOGE ou BTC para a liquidação configurada.
-O valor é arredondado para cima em centavos e validado uma segunda vez no
-servidor. Se a consulta falhar, a fatura não é criada.
+O valor é arredondado para cima em centavos, recebe uma margem técnica de 2% e
+é validado uma segunda vez no servidor. A margem evita que uma variação entre a
+consulta e a abertura deixe a quantidade cripto abaixo do mínimo. Se a consulta
+falhar, a fatura não é criada.
 
 ```text
 NOWPAYMENTS_SETTLEMENT_ASSET=ltc
@@ -69,6 +71,31 @@ Só altere a variável depois de mudar a moeda principal no painel da NOWPayment
 as duas configurações precisam coincidir. O mínimo pertence ao provedor e à rede
 e não pode ser forçado para baixo. O Arcadia usa taxa variável e não repassa todas
 as taxas ao comprador, evitando o adicional do modo fixo.
+
+### Diagnóstico do erro 400 na tela de e-mail
+
+Em 11 de agosto de 2026, a fatura de LTC foi reproduzida e o checkout informou
+`Crypto amount is less than minimal`. O e-mail não era a causa. A fatura havia
+sido criada exatamente no piso e ficou abaixo dele quando o checkout tentou
+gerar o pagamento. A margem de 2% corrige esse caso. Faturas anteriores precisam
+ser descartadas e recriadas.
+
+O jogador vê somente as oito faturas mais recentes dos últimos 30 dias. Links
+vencidos são removidos imediatamente. Os registros antigos permanecem no banco
+como trilha financeira e de auditoria; não são carregados na interface e,
+portanto, não tornam a página progressivamente mais pesada.
+
+## Moedas candidatas de baixo custo
+
+Para uma próxima expansão, consultar primeiro XNO (Nano) e XLM (Stellar),
+seguidas de LTC e DOGE. Taxa de rede baixa não garante depósito mínimo baixo: o
+piso é calculado para o par entre a moeda paga e a moeda de liquidação da conta.
+Antes de adicionar um novo saldo interno, comparar o endpoint `min-amount` no
+mesmo dia e com a mesma liquidação usada em produção.
+
+BTC permanece disponível por demanda, não por custo. Não ativar XNO ou XLM até
+existirem livro-razão, conversão, validação de memo/tag quando aplicável, fila de
+saque e reconciliação equivalentes às três moedas atuais.
 
 ## Teste obrigatório antes da ativação
 

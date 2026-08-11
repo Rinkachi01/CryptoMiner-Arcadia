@@ -53,6 +53,7 @@ const walletDecimals = {
   CMA: 1_000_000,
   BTC: 100_000_000,
   DOGE: 100_000_000,
+  LTC: 100_000_000,
 } as const;
 
 function json(value: unknown, status = 200) {
@@ -90,6 +91,10 @@ function walletRewards(metadata: Record<string, unknown>) {
     {
       symbol: "DOGE" as const,
       amount: Number(rewards.doge ?? 0) / walletDecimals.DOGE,
+    },
+    {
+      symbol: "LTC" as const,
+      amount: Number(rewards.ltc ?? 0) / walletDecimals.LTC,
     },
   ].filter((reward) => Number.isFinite(reward.amount) && reward.amount > 0);
 }

@@ -14,6 +14,7 @@ import {
   normalizeNowPaymentsStatus,
   parseNowPaymentsMinimumUsd,
   readNowPaymentsConfig,
+  safeNowPaymentsMinimumUsd,
   validNowPaymentsCheckoutUrl,
   verifyNowPaymentsPayload,
 } from "./nowpayments-rules.ts";
@@ -177,6 +178,8 @@ export const MANUAL_WITHDRAWAL_MINIMUM_ATOMIC: Record<
   DOGE: 1_000_000_000,
   LTC: 1_000_000,
 };
+
+const PLAYER_INVOICE_HISTORY_DAYS = 30;
 
 const MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC: Record<WalletSandboxAsset, number> = {
   BTC: 100_000_000,
@@ -367,7 +370,11 @@ export async function readProviderDepositMinimum(input: {
     signal: AbortSignal.timeout(8_000),
   });
   const result = await readBoundedJsonObject(response);
-  const minimumUsd = parseNowPaymentsMinimumUsd(result);
+  const providerMinimumUsd = parseNowPaymentsMinimumUsd(result);
+  const minimumUsd =
+    providerMinimumUsd === null
+      ? null
+      : safeNowPaymentsMinimumUsd(providerMinimumUsd);
   if (!response.ok || minimumUsd === null) {
     throw new Error(
       "Não foi possível confirmar o mínimo atual dessa rede. Tente novamente em instantes.",
@@ -1381,6 +1388,14 @@ export async function readWalletOverview(input: {
 }): Promise<WalletOverview> {
   const now = input.now ?? Date.now();
   await ensureWalletSchema(input.db);
+  await input.db
+    .prepare(`UPDATE wallet_deposit_intents
+      SET status = 'expired', updated_at = ?
+      WHERE account_id = ? AND provider = 'nowpayments'
+        AND expires_at IS NOT NULL AND expires_at <= ?
+        AND status IN ('creating', 'waiting', 'confirming', 'confirmed', 'sending')`)
+    .bind(now, input.accountId, now)
+    .run();
   const readiness = walletProviderReadiness(input.environment);
   const accessAllowed = await accountMayCreateLiveDeposit(
     input.db,
@@ -1403,10 +1418,13 @@ export async function readWalletOverview(input: {
         requested_usd_micros, received_atomic, credited_cma_micros, settlement_asset,
         settlement_atomic, status, expires_at, created_at
         FROM wallet_deposit_intents
-        WHERE account_id = ?
+        WHERE account_id = ? AND created_at >= ?
         ORDER BY created_at DESC
         LIMIT 8`)
-      .bind(input.accountId)
+      .bind(
+        input.accountId,
+        now - PLAYER_INVOICE_HISTORY_DAYS * 24 * 60 * 60 * 1000,
+      )
       .all<DepositIntentRow>(),
     input.db
       .prepare(`SELECT id, asset, provider, requested_atomic, destination_preview,
@@ -1441,7 +1459,12 @@ export async function readWalletOverview(input: {
       sandboxEnabled: readiness.sandboxEnabled,
       recent: (intents.results ?? []).map((intent) => ({
         asset: intent.asset,
-        checkoutUrl: intent.checkout_url,
+        checkoutUrl:
+          intent.checkout_url &&
+          intent.status !== "expired" &&
+          (!intent.expires_at || intent.expires_at > now)
+            ? intent.checkout_url
+            : null,
         createdAt: intent.created_at,
         expiresAt: intent.expires_at,
         id: intent.id,

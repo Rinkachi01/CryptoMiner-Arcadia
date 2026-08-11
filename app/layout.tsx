@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicBaseUrl),
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com beta observável, seis salas, blocos fixos, três pools e economia controlada pelo servidor.",
+    "Mineração virtual com beta observável, seis salas, blocos fixos, quatro pools e economia controlada pelo servidor.",
   robots: {
     follow: publicIndexingEnabled,
     index: publicIndexingEnabled,

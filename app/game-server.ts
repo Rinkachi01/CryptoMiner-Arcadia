@@ -122,7 +122,12 @@ function isWalletSymbol(value: unknown): value is WalletSymbol {
 function isAllocation(value: unknown): value is PoolAllocations {
   if (!value || typeof value !== "object") return false;
   const allocation = value as Partial<PoolAllocations>;
-  const values = [allocation.cma, allocation.btc, allocation.doge];
+  const values = [
+    allocation.cma,
+    allocation.btc,
+    allocation.doge,
+    allocation.ltc,
+  ];
   return (
     values.every(
       (item) =>
@@ -147,7 +152,7 @@ function currentBlock(now: number) {
 export function createInitialGameState(now: number): PublicGameState {
   return {
     selectedPoolId: "cma",
-    poolAllocations: { cma: 100, btc: 0, doge: 0 },
+    poolAllocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
     displayedBalanceSymbol: "CMA",
     cmaBalance: 0,
     btcBalanceAtomic: 0,
@@ -294,8 +299,14 @@ export function normalizeBootstrapState(
     }
   }
 
-  const poolAllocations = isAllocation(candidate.poolAllocations)
-    ? candidate.poolAllocations
+  const legacyAllocations =
+    candidate.poolAllocations &&
+    typeof candidate.poolAllocations === "object" &&
+    !("ltc" in candidate.poolAllocations)
+      ? { ...candidate.poolAllocations, ltc: 0 }
+      : candidate.poolAllocations;
+  const poolAllocations = isAllocation(legacyAllocations)
+    ? legacyAllocations
     : initial.poolAllocations;
   const selectedPoolId = pools.reduce((largest, pool) =>
     poolAllocations[pool.id] > poolAllocations[largest.id] ? pool : largest,
@@ -372,7 +383,12 @@ export function settleMiningBlocks(
   const energyBlock = Math.floor(next.energyExpiresAt / BLOCK_INTERVAL_MS);
   const eligibleBlock = Math.min(targetBlock, energyBlock);
   const settledBlocks = Math.max(0, eligibleBlock - next.lastSettledBlock);
-  const rewards: Record<PoolId, number> = { cma: 0, btc: 0, doge: 0 };
+  const rewards: Record<PoolId, number> = {
+    cma: 0,
+    btc: 0,
+    doge: 0,
+    ltc: 0,
+  };
 
   if (settledBlocks > 0) {
     const allInstalled = Object.values(next.rackMiners).flat();
@@ -397,6 +413,7 @@ export function settleMiningBlocks(
     next.cmaBalance += rewards.cma / 1_000_000;
     next.btcBalanceAtomic += rewards.btc;
     next.dogeBalanceAtomic += rewards.doge;
+    next.ltcBalanceAtomic += rewards.ltc;
   }
 
   next.lastSettledBlock = targetBlock;

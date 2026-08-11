@@ -29,9 +29,11 @@ type NetworkSettingsRow = {
   base_btc_gh: number;
   base_cma_gh: number;
   base_doge_gh: number;
+  base_ltc_gh: number;
   reward_btc_atomic: number;
   reward_cma_atomic: number;
   reward_doge_atomic: number;
+  reward_ltc_atomic: number;
   reward_bonus_bps: number;
   reward_bonus_ends_at: number;
   updated_at: number;
@@ -46,6 +48,7 @@ type NetworkPowerTotalsRow = {
   cma_gh: number;
   btc_gh: number;
   doge_gh: number;
+  ltc_gh: number;
 };
 
 export type AccountNetworkContribution = {
@@ -61,12 +64,14 @@ export const DEFAULT_NETWORK_BASE_POWER: NetworkPowerMap = {
   cma: pools.find((pool) => pool.id === "cma")?.networkPowerGh ?? 0,
   btc: pools.find((pool) => pool.id === "btc")?.networkPowerGh ?? 0,
   doge: pools.find((pool) => pool.id === "doge")?.networkPowerGh ?? 0,
+  ltc: pools.find((pool) => pool.id === "ltc")?.networkPowerGh ?? 0,
 };
 
 export const ZERO_NETWORK_POWER: NetworkPowerMap = {
   cma: 0,
   btc: 0,
   doge: 0,
+  ltc: 0,
 };
 
 export const DEFAULT_BLOCK_REWARDS: BlockRewardMap = {
@@ -81,15 +86,16 @@ function safePower(value: unknown) {
 
 function validAllocations(value: unknown): PoolAllocations {
   if (!value || typeof value !== "object") {
-    return { cma: 100, btc: 0, doge: 0 };
+    return { cma: 100, btc: 0, doge: 0, ltc: 0 };
   }
   const candidate = value as Partial<PoolAllocations>;
   const cma = safePower(candidate.cma);
   const btc = safePower(candidate.btc);
   const doge = safePower(candidate.doge);
-  return cma + btc + doge === 100
-    ? { cma, btc, doge }
-    : { cma: 100, btc: 0, doge: 0 };
+  const ltc = safePower(candidate.ltc);
+  return cma + btc + doge + ltc === 100
+    ? { cma, btc, doge, ltc }
+    : { cma: 100, btc: 0, doge: 0, ltc: 0 };
 }
 
 export function aggregatePlayerNetworkPower(
@@ -103,7 +109,7 @@ export function aggregatePlayerNetworkPower(
   temporaryPowerByAccount: ReadonlyMap<string, number>,
   now: number,
 ): NetworkPowerMap {
-  const totals: NetworkPowerMap = { cma: 0, btc: 0, doge: 0 };
+  const totals: NetworkPowerMap = { cma: 0, btc: 0, doge: 0, ltc: 0 };
 
   for (const entry of states) {
     if (safePower(entry.state.energyExpiresAt) <= now) continue;
@@ -146,13 +152,14 @@ function contributionUpsert(
     .prepare(
       `INSERT INTO account_network_power (
         account_id, installed_power_gh, allocation_cma, allocation_btc,
-        allocation_doge, energy_expires_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        allocation_doge, allocation_ltc, energy_expires_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(account_id) DO UPDATE SET
         installed_power_gh = excluded.installed_power_gh,
         allocation_cma = excluded.allocation_cma,
         allocation_btc = excluded.allocation_btc,
         allocation_doge = excluded.allocation_doge,
+        allocation_ltc = excluded.allocation_ltc,
         energy_expires_at = excluded.energy_expires_at,
         updated_at = excluded.updated_at`,
     )
@@ -162,6 +169,7 @@ function contributionUpsert(
       contribution.allocations.cma,
       contribution.allocations.btc,
       contribution.allocations.doge,
+      contribution.allocations.ltc,
       contribution.energyExpiresAt,
       safePower(updatedAt),
     );
@@ -175,9 +183,11 @@ export async function ensureNetworkSchema(db: D1Database) {
         base_cma_gh INTEGER DEFAULT 60000000 NOT NULL,
         base_btc_gh INTEGER DEFAULT 1800000 NOT NULL,
         base_doge_gh INTEGER DEFAULT 4000000 NOT NULL,
+        base_ltc_gh INTEGER DEFAULT 2500000 NOT NULL,
         reward_cma_atomic INTEGER DEFAULT 5000 NOT NULL,
         reward_btc_atomic INTEGER DEFAULT 5 NOT NULL,
         reward_doge_atomic INTEGER DEFAULT 1000000 NOT NULL,
+        reward_ltc_atomic INTEGER DEFAULT 5000 NOT NULL,
         reward_bonus_bps INTEGER DEFAULT 10000 NOT NULL,
         reward_bonus_ends_at INTEGER DEFAULT 0 NOT NULL,
         updated_at INTEGER DEFAULT 0 NOT NULL,
@@ -191,6 +201,7 @@ export async function ensureNetworkSchema(db: D1Database) {
         allocation_cma INTEGER DEFAULT 100 NOT NULL,
         allocation_btc INTEGER DEFAULT 0 NOT NULL,
         allocation_doge INTEGER DEFAULT 0 NOT NULL,
+        allocation_ltc INTEGER DEFAULT 0 NOT NULL,
         energy_expires_at INTEGER DEFAULT 0 NOT NULL,
         updated_at INTEGER DEFAULT 0 NOT NULL
       )`,
@@ -201,18 +212,21 @@ export async function ensureNetworkSchema(db: D1Database) {
     ),
     db.prepare(
       `INSERT OR IGNORE INTO network_runtime_settings (
-        singleton_id, base_cma_gh, base_btc_gh, base_doge_gh,
+        singleton_id, base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
         reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
+        reward_ltc_atomic,
         reward_bonus_bps, reward_bonus_ends_at, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, 10000, 0, 0)`,
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 10000, 0, 0)`,
     )
     .bind(
       DEFAULT_NETWORK_BASE_POWER.cma,
       DEFAULT_NETWORK_BASE_POWER.btc,
       DEFAULT_NETWORK_BASE_POWER.doge,
+      DEFAULT_NETWORK_BASE_POWER.ltc,
       DEFAULT_BLOCK_REWARDS.cma,
       DEFAULT_BLOCK_REWARDS.btc,
       DEFAULT_BLOCK_REWARDS.doge,
+      DEFAULT_BLOCK_REWARDS.ltc,
     ),
   ]);
 }
@@ -268,7 +282,7 @@ async function backfillAccountNetworkPower(db: D1Database, now: number) {
             {
               accountId: row.account_id,
               installedPowerGh: 0,
-              allocations: { cma: 100, btc: 0, doge: 0 },
+              allocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
               energyExpiresAt: 0,
             },
             now,
@@ -292,7 +306,8 @@ async function readIndexedPlayerPower(
         `SELECT
            COALESCE(SUM(CAST(installed_power_gh * allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
            COALESCE(SUM(CAST(installed_power_gh * allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
-           COALESCE(SUM(CAST(installed_power_gh * allocation_doge / 100 AS INTEGER)), 0) AS doge_gh
+           COALESCE(SUM(CAST(installed_power_gh * allocation_doge / 100 AS INTEGER)), 0) AS doge_gh,
+           COALESCE(SUM(CAST(installed_power_gh * allocation_ltc / 100 AS INTEGER)), 0) AS ltc_gh
          FROM account_network_power
          WHERE energy_expires_at > ?`,
       )
@@ -303,7 +318,8 @@ async function readIndexedPlayerPower(
         `SELECT
            COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
            COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
-           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_doge / 100 AS INTEGER)), 0) AS doge_gh
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_doge / 100 AS INTEGER)), 0) AS doge_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_ltc / 100 AS INTEGER)), 0) AS ltc_gh
          FROM temporary_power_grants AS grants
          INNER JOIN account_network_power AS accounts
            ON accounts.account_id = grants.account_id
@@ -319,6 +335,7 @@ async function readIndexedPlayerPower(
     cma: safePower(installed?.cma_gh) + safePower(temporary?.cma_gh),
     btc: safePower(installed?.btc_gh) + safePower(temporary?.btc_gh),
     doge: safePower(installed?.doge_gh) + safePower(temporary?.doge_gh),
+    ltc: safePower(installed?.ltc_gh) + safePower(temporary?.ltc_gh),
   };
 }
 
@@ -332,7 +349,7 @@ export async function updateNetworkBasePower(
   await db
     .prepare(
       `UPDATE network_runtime_settings
-       SET base_cma_gh = ?, base_btc_gh = ?, base_doge_gh = ?,
+       SET base_cma_gh = ?, base_btc_gh = ?, base_doge_gh = ?, base_ltc_gh = ?,
            updated_at = ?, updated_by = ?
        WHERE singleton_id = 1`,
     )
@@ -340,6 +357,7 @@ export async function updateNetworkBasePower(
       safePower(values.cma),
       safePower(values.btc),
       safePower(values.doge),
+      safePower(values.ltc),
       now,
       actorAccountId,
     )
@@ -357,13 +375,15 @@ export async function updateBlockRewards(
     .prepare(
       `UPDATE network_runtime_settings
        SET reward_cma_atomic = ?, reward_btc_atomic = ?,
-           reward_doge_atomic = ?, updated_at = ?, updated_by = ?
+           reward_doge_atomic = ?, reward_ltc_atomic = ?,
+           updated_at = ?, updated_by = ?
        WHERE singleton_id = 1`,
     )
     .bind(
       safePower(values.cma),
       safePower(values.btc),
       safePower(values.doge),
+      safePower(values.ltc),
       now,
       actorAccountId,
     )
@@ -403,8 +423,9 @@ export async function readNetworkPowerSnapshot(
   const [settings, playerPowerGh] = await Promise.all([
     db
       .prepare(
-        `SELECT base_cma_gh, base_btc_gh, base_doge_gh,
+        `SELECT base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
                 reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
+                reward_ltc_atomic,
                 reward_bonus_bps, reward_bonus_ends_at, updated_at
          FROM network_runtime_settings
          WHERE singleton_id = 1`,
@@ -416,16 +437,19 @@ export async function readNetworkPowerSnapshot(
     cma: safePower(settings?.base_cma_gh),
     btc: safePower(settings?.base_btc_gh),
     doge: safePower(settings?.base_doge_gh),
+    ltc: safePower(settings?.base_ltc_gh),
   };
   const totalPowerGh: NetworkPowerMap = {
     cma: basePowerGh.cma + playerPowerGh.cma,
     btc: basePowerGh.btc + playerPowerGh.btc,
     doge: basePowerGh.doge + playerPowerGh.doge,
+    ltc: basePowerGh.ltc + playerPowerGh.ltc,
   };
   const baseBlockRewardAtomic: BlockRewardMap = {
     cma: safePower(settings?.reward_cma_atomic),
     btc: safePower(settings?.reward_btc_atomic),
     doge: safePower(settings?.reward_doge_atomic),
+    ltc: safePower(settings?.reward_ltc_atomic),
   };
   const storedBonusBps = Math.max(
     10_000,
@@ -438,6 +462,7 @@ export async function readNetworkPowerSnapshot(
     cma: Math.floor((baseBlockRewardAtomic.cma * bonusBps) / 10_000),
     btc: Math.floor((baseBlockRewardAtomic.btc * bonusBps) / 10_000),
     doge: Math.floor((baseBlockRewardAtomic.doge * bonusBps) / 10_000),
+    ltc: Math.floor((baseBlockRewardAtomic.ltc * bonusBps) / 10_000),
   };
 
   return {

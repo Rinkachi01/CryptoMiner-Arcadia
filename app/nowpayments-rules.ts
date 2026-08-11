@@ -12,6 +12,7 @@ export type NowPaymentsEnvironment = {
 
 const PRODUCTION_API = "https://api.nowpayments.io/v1";
 const SANDBOX_API = "https://api-sandbox.nowpayments.io/v1";
+const MINIMUM_SAFETY_BPS = 200;
 
 function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -104,6 +105,17 @@ export function parseNowPaymentsMinimumUsd(payload: unknown) {
   const value = Number((payload as { fiat_equivalent?: unknown }).fiat_equivalent);
   if (!Number.isFinite(value) || value <= 0 || value > 1_000) return null;
   return Math.ceil(value * 100) / 100;
+}
+
+export function safeNowPaymentsMinimumUsd(providerMinimumUsd: number) {
+  if (!Number.isFinite(providerMinimumUsd) || providerMinimumUsd <= 0) {
+    return null;
+  }
+  return (
+    Math.ceil(
+      providerMinimumUsd * (10_000 + MINIMUM_SAFETY_BPS) / 10_000 * 100,
+    ) / 100
+  );
 }
 
 function sortCanonical(value: unknown): unknown {

@@ -12,10 +12,13 @@ test("traduz o ledger em atividades pessoais compreensíveis", () => {
   assert.match(purchase.title, /2 mineradores/);
 
   const allocation = presentLedgerActivity("apply_allocations", {
-    allocations: { cma: 50, btc: 30, doge: 20 },
+    allocations: { cma: 40, btc: 30, doge: 20, ltc: 10 },
   });
   assert.equal(allocation.category, "mining");
-  assert.match(allocation.description, /CMA 50% · BTC 30% · DOGE 20%/);
+  assert.match(
+    allocation.description,
+    /CMA 40% · BTC 30% · DOGE 20% · LTC 10%/,
+  );
 });
 
 test("diferencia vitória e encerramento sem recompensa no Arcade", () => {

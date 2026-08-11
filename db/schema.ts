@@ -576,11 +576,13 @@ export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
   baseCmaGh: integer("base_cma_gh").notNull().default(60_000_000),
   baseBtcGh: integer("base_btc_gh").notNull().default(1_800_000),
   baseDogeGh: integer("base_doge_gh").notNull().default(4_000_000),
+  baseLtcGh: integer("base_ltc_gh").notNull().default(2_500_000),
   rewardCmaAtomic: integer("reward_cma_atomic").notNull().default(5_000),
   rewardBtcAtomic: integer("reward_btc_atomic").notNull().default(5),
   rewardDogeAtomic: integer("reward_doge_atomic")
     .notNull()
     .default(1_000_000),
+  rewardLtcAtomic: integer("reward_ltc_atomic").notNull().default(5_000),
   rewardBonusBps: integer("reward_bonus_bps").notNull().default(10_000),
   rewardBonusEndsAt: integer("reward_bonus_ends_at").notNull().default(0),
   updatedAt: integer("updated_at").notNull().default(0),
@@ -595,6 +597,7 @@ export const accountNetworkPower = sqliteTable(
     allocationCma: integer("allocation_cma").notNull().default(100),
     allocationBtc: integer("allocation_btc").notNull().default(0),
     allocationDoge: integer("allocation_doge").notNull().default(0),
+    allocationLtc: integer("allocation_ltc").notNull().default(0),
     energyExpiresAt: integer("energy_expires_at").notNull().default(0),
     updatedAt: integer("updated_at").notNull().default(0),
   },

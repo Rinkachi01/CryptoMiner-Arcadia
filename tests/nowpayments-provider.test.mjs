@@ -6,6 +6,7 @@ import {
   normalizeNowPaymentsStatus,
   parseNowPaymentsMinimumUsd,
   readNowPaymentsConfig,
+  safeNowPaymentsMinimumUsd,
   signNowPaymentsPayload,
   verifyNowPaymentsPayload,
 } from "../app/nowpayments-rules.ts";
@@ -50,6 +51,8 @@ test("mínimo do provedor é arredondado para cima e falha fechado", () => {
   assert.equal(parseNowPaymentsMinimumUsd({ fiat_equivalent: "4.20" }), 4.2);
   assert.equal(parseNowPaymentsMinimumUsd({ fiat_equivalent: 0 }), null);
   assert.equal(parseNowPaymentsMinimumUsd({ min_amount: 1 }), null);
+  assert.equal(safeNowPaymentsMinimumUsd(11.98), 12.22);
+  assert.equal(safeNowPaymentsMinimumUsd(0), null);
   assert.equal(
     readNowPaymentsConfig({ NOWPAYMENTS_SETTLEMENT_ASSET: "USDTTRC20" })
       .settlementAsset,

@@ -1559,7 +1559,7 @@ export function AdminDashboard({
             <strong>Uma quantia fixa é disputada em cada bloco</strong>
             <p>
               O poder de um jogador altera apenas sua participação. Ele nunca
-              aumenta a emissão total de CMA, BTC ou DOGE. Se todos dobrarem o
+              aumenta a emissão total de CMA, BTC, DOGE ou LTC. Se todos dobrarem o
               poder, a divisão permanece igual.
             </p>
           </div>
@@ -1651,9 +1651,27 @@ export function AdminDashboard({
                 </span>
                 <input
                   type="number"
-                  min={pool.id === "cma" ? 0.001 : pool.id === "btc" ? 1 : 0.001}
-                  max={pool.id === "cma" ? 0.05 : pool.id === "btc" ? 100 : 0.1}
-                  step={pool.id === "btc" ? 1 : 0.001}
+                  min={
+                    pool.id === "cma"
+                      ? 0.001
+                      : pool.id === "btc"
+                        ? 1
+                        : pool.id === "ltc"
+                          ? 0.00001
+                          : 0.001
+                  }
+                  max={
+                    pool.id === "cma"
+                      ? 0.05
+                      : pool.id === "btc"
+                        ? 100
+                        : pool.id === "ltc"
+                          ? 0.001
+                          : 0.1
+                  }
+                  step={
+                    pool.id === "btc" ? 1 : pool.id === "ltc" ? 0.00001 : 0.001
+                  }
                   value={inputValue}
                   onChange={(event) =>
                     setRewardDrafts((current) => ({
@@ -1692,7 +1710,8 @@ export function AdminDashboard({
               : "REPOR CARTEIRA · 10.000 CMA"}
           </button>
           <small>
-            Faixas seguras: 0,001–0,05 CMA; 1–100 satoshis; 0,001–0,1 DOGE.
+            Faixas seguras: 0,001–0,05 CMA; 1–100 satoshis; 0,001–0,1 DOGE;
+            0,00001–0,001 LTC.
             O saldo de teste não cria saque real.
           </small>
         </div>
@@ -2440,6 +2459,14 @@ export function AdminDashboard({
                         DOGE creditado: {formatAtomic(
                           BigInt(
                             overview.seasonReport.metrics.dogeCreditedAtomic,
+                          ),
+                          8,
+                        )}
+                      </strong>
+                      <strong>
+                        LTC creditado: {formatAtomic(
+                          BigInt(
+                            overview.seasonReport.metrics.ltcCreditedAtomic,
                           ),
                           8,
                         )}

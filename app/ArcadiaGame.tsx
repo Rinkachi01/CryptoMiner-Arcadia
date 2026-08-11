@@ -177,11 +177,12 @@ const defaultPoolAllocations: PoolAllocations = {
   cma: 100,
   btc: 0,
   doge: 0,
+  ltc: 0,
 };
 const defaultNetworkSnapshot: NetworkPowerSnapshot = {
-  basePowerGh: { cma: 0, btc: 0, doge: 0 },
-  playerPowerGh: { cma: 0, btc: 0, doge: 0 },
-  totalPowerGh: { cma: 0, btc: 0, doge: 0 },
+  basePowerGh: { cma: 0, btc: 0, doge: 0, ltc: 0 },
+  playerPowerGh: { cma: 0, btc: 0, doge: 0, ltc: 0 },
+  totalPowerGh: { cma: 0, btc: 0, doge: 0, ltc: 0 },
   baseBlockRewardAtomic: Object.fromEntries(
     pools.map((pool) => [pool.id, Number(pool.rewardAtomic)]),
   ) as Record<PoolId, number>,
@@ -832,7 +833,7 @@ export function ArcadiaGame({
             >
               <div className="wallet-menu-title">
                 <span>CARTEIRA VIRTUAL</span>
-                <small>saque manual de BTC/DOGE</small>
+                <small>saque manual de BTC/DOGE/LTC</small>
               </div>
               {balances.map((balance) => (
                 <button
@@ -1868,7 +1869,7 @@ function PoolsView({
           <p>
             Todos os jogadores disputam os mesmos blocos globais processados
             pelo servidor. Escolha quanto do seu poder vai para CMA, Bitcoin e
-            Dogecoin; a soma precisa fechar em 100%.
+            Dogecoin e Litecoin; a soma precisa fechar em 100%.
           </p>
         </div>
         <div
@@ -1892,19 +1893,21 @@ function PoolsView({
         <span>DISTRIBUIÇÕES RÁPIDAS</span>
         <button
           type="button"
-          onClick={() => setDraft({ cma: 100, btc: 0, doge: 0 })}
+          onClick={() => setDraft({ cma: 100, btc: 0, doge: 0, ltc: 0 })}
         >
           100% CMA
         </button>
         <button
           type="button"
-          onClick={() => setDraft({ cma: 50, btc: 25, doge: 25 })}
+          onClick={() =>
+            setDraft({ cma: 50, btc: 20, doge: 15, ltc: 15 })
+          }
         >
-          50 / 25 / 25
+          50 / 20 / 15 / 15
         </button>
         <button
           type="button"
-          onClick={() => setDraft({ cma: 34, btc: 33, doge: 33 })}
+          onClick={() => setDraft({ cma: 25, btc: 25, doge: 25, ltc: 25 })}
         >
           DIVISÃO IGUAL
         </button>
@@ -2043,7 +2046,7 @@ function PoolsView({
         <div>
           <span>PODER TOTAL</span>
           <strong>{formatPower(installedPower)}</strong>
-          <small>Distribuído entre as três pools</small>
+          <small>Distribuído entre as quatro pools</small>
         </div>
         <button
           type="button"

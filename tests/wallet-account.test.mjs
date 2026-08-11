@@ -93,7 +93,10 @@ test("laboratório financeiro registra somente simulações e preserva saldos", 
   assert.doesNotMatch(server, /usdAmount < 5/);
   assert.match(route, /deposit-minimum/);
   assert.match(view, /Mínimo dinâmico do provedor/);
-  assert.match(view, /preserva o erro real devolvido pela NOWPayments/);
+  assert.match(view, /pequena margem sobre o mínimo dinâmico/);
+  assert.match(server, /PLAYER_INVOICE_HISTORY_DAYS = 30/);
+  assert.match(server, /SET status = 'expired'/);
+  assert.match(view, /ÚLTIMOS 30 DIAS/);
   assert.match(view, /ZERO CRÉDITO/);
   assert.match(view, /não altera nenhum saldo/);
   assert.match(schema, /wallet_withdrawal_intents/);

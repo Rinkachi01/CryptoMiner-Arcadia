@@ -333,6 +333,14 @@ export async function readOperationalHealth(
                                   ) AS INTEGER),
                                   0
                                 )
+                                OR network.allocation_ltc <> COALESCE(
+                                  CAST(json_extract(
+                                    CASE WHEN json_valid(states.state_json) = 1
+                                      THEN states.state_json ELSE '{}' END,
+                                    '$.poolAllocations.ltc'
+                                  ) AS INTEGER),
+                                  0
+                                )
                                 OR network.energy_expires_at <> COALESCE(
                                   CAST(json_extract(
                                     CASE WHEN json_valid(states.state_json) = 1
