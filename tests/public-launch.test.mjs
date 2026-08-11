@@ -13,10 +13,26 @@ test("pré-lançamento falha fechado sem serviços externos", () => {
   assert.equal(readiness.identity.projectConfigured, false);
   assert.equal(readiness.identity.publicLoginEnabled, false);
   assert.equal(readiness.deposits.enabled, false);
+  assert.equal(readiness.pix.configured, false);
+  assert.equal(readiness.pix.enabled, false);
   assert.equal(readiness.withdrawals.cryptoEnabled, false);
   assert.equal(readiness.withdrawals.cmaWithdrawable, false);
   assert.equal(readiness.withdrawals.provider, "manual_review");
   assert.equal(readiness.wallet.privateKeysInArcadia, false);
+});
+
+test("Pix exige token, segredo do webhook, URL pública e flag explícita", () => {
+  const base = {
+    MERCADO_PAGO_ACCESS_TOKEN: `TEST-${"a".repeat(40)}`,
+    MERCADO_PAGO_WEBHOOK_SECRET: "segredo-webhook-mercado-pago",
+    PUBLIC_BASE_URL: "https://jogar.arcadia.example",
+  };
+  assert.equal(readPublicLaunchReadiness(base).pix.configured, true);
+  assert.equal(readPublicLaunchReadiness(base).pix.enabled, false);
+  assert.equal(
+    readPublicLaunchReadiness({ ...base, PIX_DEPOSITS_ENABLED: "true" }).pix.enabled,
+    true,
+  );
 });
 
 test("configuração prepara login e depósito sem ativá-los implicitamente", () => {

@@ -285,6 +285,19 @@ type AdminDashboardProps = {
 };
 
 type TextScale = "comfortable" | "large" | "extra";
+type AdminSection = "overview" | "economy" | "treasury" | "community" | "operations";
+
+const adminSections: Array<{
+  id: AdminSection;
+  label: string;
+  description: string;
+}> = [
+  { id: "overview", label: "Visão geral", description: "Saúde e lançamento" },
+  { id: "economy", label: "Economia", description: "Pools e emissão" },
+  { id: "treasury", label: "Tesouraria", description: "Depósitos e saques" },
+  { id: "community", label: "Jogadores", description: "Suporte e beta" },
+  { id: "operations", label: "Operações", description: "Segurança e recuperação" },
+];
 
 const gameLabels: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
@@ -560,6 +573,8 @@ export function AdminDashboard({
   const [seasonDurationDays, setSeasonDurationDays] = useState(30);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
+  const [adminSection, setAdminSection] =
+    useState<AdminSection>("overview");
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
   const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
@@ -804,7 +819,22 @@ export function AdminDashboard({
         </nav>
       </header>
 
-      <section className="admin-hero">
+      <nav className="admin-workspace-tabs" aria-label="Áreas da Central do Proprietário">
+        {adminSections.map((section) => (
+          <button
+            aria-current={adminSection === section.id ? "page" : undefined}
+            className={adminSection === section.id ? "active" : ""}
+            key={section.id}
+            onClick={() => setAdminSection(section.id)}
+            type="button"
+          >
+            <strong>{section.label}</strong>
+            <small>{section.description}</small>
+          </button>
+        ))}
+      </nav>
+
+      <section className="admin-hero" hidden={adminSection !== "overview"}>
         <div>
           <span>CENTRAL DE OPERAÇÕES · ÚLTIMAS 24 HORAS</span>
           <h1>Saúde econômica e revisão</h1>
@@ -827,7 +857,7 @@ export function AdminDashboard({
         </div>
       )}
 
-      <section className="admin-metric-grid">
+      <section className="admin-metric-grid" hidden={adminSection !== "overview"}>
         <article>
           <span>JOGADORES</span>
           <strong>{formatNumber(overview.metrics.totalPlayers)}</strong>
@@ -860,13 +890,13 @@ export function AdminDashboard({
         </article>
       </section>
 
-      <section className="admin-panel admin-launch-readiness">
+      <section className="admin-panel admin-launch-readiness" hidden={adminSection !== "overview"}>
         <div className="admin-panel-heading">
           <div>
             <span>PRÉ-LANÇAMENTO PÚBLICO · SEGURANÇA E FINANÇAS</span>
             <h2>Portões antes de abrir o Arcadia</h2>
           </div>
-          <small>DEPÓSITOS REAIS EM HOMOLOGAÇÃO · SAQUES CONTINUAM DESATIVADOS</small>
+          <small>CRIPTO CONTROLADO · PIX EM HOMOLOGAÇÃO · SAQUES MANUAIS</small>
         </div>
 
         <div className="admin-launch-grid">
@@ -914,8 +944,8 @@ export function AdminDashboard({
           <article className="ready">
             <b>05</b>
             <span>CONVERSÃO PARA CMA</span>
-            <strong>BTC / DOGE ATIVO</strong>
-            <p>Conversão interna registrada; depósitos entram em BTC ou DOGE e só viram CMA por decisão do jogador.</p>
+            <strong>BTC / DOGE / LTC ATIVO</strong>
+            <p>Conversão interna registrada; depósitos entram em BTC, DOGE ou LTC e só viram CMA por decisão do jogador.</p>
           </article>
           <article className="pending">
             <b>06</b>
@@ -972,7 +1002,7 @@ export function AdminDashboard({
             </article>
             <article className={overview.launch.deposits.configured ? "ready" : "waiting"}>
               <b>04</b>
-              <span>DEPÓSITOS BTC / DOGE</span>
+              <span>DEPÓSITOS BTC / DOGE / LTC</span>
               <strong>Fatura do provedor</strong>
               <p>
                 O provedor cria uma cobrança única vinculada à conta. Somente uma
@@ -993,7 +1023,7 @@ export function AdminDashboard({
               <span>SAQUES</span>
               <strong>Fila manual do proprietário</strong>
               <p>
-                CMA e LTC não são sacáveis. BTC e DOGE ficam reservados no pedido;
+                CMA não é sacável. BTC, DOGE e LTC ficam reservados no pedido;
                 o pagamento externo e a conferência continuam manuais.
               </p>
               <em>
@@ -1002,6 +1032,24 @@ export function AdminDashboard({
                   : overview.launch.withdrawals.sandboxEnabled
                     ? "SOMENTE SIMULAÇÃO"
                     : "PAUSADA"}
+              </em>
+            </article>
+            <article className={overview.launch.pix.configured ? "ready" : "waiting"}>
+              <b>06</b>
+              <span>PIX PARA CMA</span>
+              <strong>Mercado Pago</strong>
+              <p>
+                Checkout Transparente via Orders API, PTAX oficial e crédito único
+                somente depois da confirmação assinada do provedor.
+              </p>
+              <em>
+                {overview.launch.pix.enabled
+                  ? overview.launch.pix.mode === "test"
+                    ? "HOMOLOGAÇÃO ATIVA"
+                    : "PRODUÇÃO ATIVA"
+                  : overview.launch.pix.configured
+                    ? "CONFIGURADO, MAS BLOQUEADO"
+                    : "AGUARDA CREDENCIAIS DE TESTE"}
               </em>
             </article>
           </div>
@@ -1061,7 +1109,7 @@ export function AdminDashboard({
             <article className="blocked">
               <b>4</b>
               <div>
-                <span>DEPÓSITOS BTC / DOGE</span>
+                <span>DEPÓSITOS BTC / DOGE / LTC</span>
                   <strong>Monitorar o provedor conectado</strong>
                 <p>
                   A estrutura individual, o histórico e as faturas de produção estão
@@ -1160,7 +1208,7 @@ export function AdminDashboard({
         </section>
       </section>
 
-      <section className="admin-panel admin-beta-observability">
+      <section className="admin-panel admin-beta-observability" hidden={adminSection !== "community"}>
         <div className="admin-panel-heading">
           <div>
             <span>BETA OBSERVÁVEL · JANELA DE 7 DIAS</span>
@@ -1493,7 +1541,7 @@ export function AdminDashboard({
         </div>
       </section>
 
-      <section className="admin-panel admin-network-lab">
+      <section className="admin-panel admin-network-lab" hidden={adminSection !== "economy"}>
         <div className="admin-panel-heading">
           <div>
             <span>ORÇAMENTO DE EMISSÃO · SERVIDOR AUTORITATIVO</span>
@@ -1713,7 +1761,7 @@ export function AdminDashboard({
         </div>
       </section>
 
-      <section className="admin-panel admin-monetization-panel">
+      <section className="admin-panel admin-monetization-panel" hidden={adminSection !== "economy"}>
         <div className="admin-panel-heading">
           <div>
             <span>PRÓXIMA FRENTE · MONETIZAÇÃO RESPONSÁVEL</span>
@@ -1753,11 +1801,11 @@ export function AdminDashboard({
       </section>
 
       {withdrawals && (
-        <section className="admin-panel admin-withdrawal-panel" id="withdrawal-queue">
+        <section className="admin-panel admin-withdrawal-panel" hidden={adminSection !== "treasury"} id="withdrawal-queue">
           <div className="admin-panel-heading">
             <div>
               <span>TESOURARIA · FILA MANUAL</span>
-              <h2>Pedidos de saque em BTC e DOGE</h2>
+              <h2>Pedidos de saque em BTC, DOGE e LTC</h2>
             </div>
             <small>
               {withdrawals.counts.requested} NOVO(S) · {withdrawals.counts.reviewing}{" "}
@@ -1884,12 +1932,12 @@ export function AdminDashboard({
           )}
           <p className="admin-withdrawal-warning">
             O botão “pago” apenas registra um envio que você já realizou fora do Arcadia.
-            Ele nunca movimenta cripto sozinho. CMA e LTC não podem entrar nesta fila.
+            Ele nunca movimenta cripto sozinho. CMA não pode entrar nesta fila.
           </p>
         </section>
       )}
 
-      <section className="admin-panel admin-support-panel" id="support-queue">
+      <section className="admin-panel admin-support-panel" hidden={adminSection !== "community"} id="support-queue">
         <div className="admin-panel-heading">
           <div>
             <span>ATENDIMENTO OFICIAL · FILA DO PROPRIETÁRIO</span>
@@ -2031,7 +2079,7 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-panel admin-feedback-panel">
+      <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "community"}>
         <div className="admin-panel-heading">
           <div>
             <span>ESCUTA DO BETA · ÚLTIMOS 30 DIAS</span>
@@ -2095,7 +2143,7 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-layout">
+      <section className="admin-layout" hidden={adminSection !== "operations"}>
         <div className="admin-main-column">
           <section className="admin-panel admin-season-panel">
             <div className="admin-panel-heading">

@@ -77,7 +77,7 @@ type WithdrawalIntentRow = {
   updated_at?: number;
 };
 
-export type WalletSandboxAsset = "BTC" | "DOGE";
+export type WalletSandboxAsset = "BTC" | "DOGE" | "LTC";
 
 export type WalletOverview = {
   account: {
@@ -119,7 +119,7 @@ export type WalletOverview = {
   };
   withdrawals: {
     enabled: boolean;
-    assets: ["BTC", "DOGE"];
+    assets: ["BTC", "DOGE", "LTC"];
     minimumAtomic: Record<WalletSandboxAsset, number>;
     recent: Array<{
       amountAtomic: number;
@@ -175,11 +175,13 @@ export const MANUAL_WITHDRAWAL_MINIMUM_ATOMIC: Record<
 > = {
   BTC: 10_000,
   DOGE: 1_000_000_000,
+  LTC: 1_000_000,
 };
 
 const MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC: Record<WalletSandboxAsset, number> = {
   BTC: 100_000_000,
   DOGE: 10_000_000_000_000,
+  LTC: 1_000_000_000_000,
 };
 
 function cleanEnvironment(environment: unknown) {
@@ -313,7 +315,7 @@ export async function ensureWalletSchema(db: D1Database) {
 }
 
 function validSandboxAsset(value: unknown): value is WalletSandboxAsset {
-  return value === "BTC" || value === "DOGE";
+  return value === "BTC" || value === "DOGE" || value === "LTC";
 }
 
 type NowPaymentsIpnPayload = {
@@ -803,7 +805,7 @@ export async function createSandboxDepositIntent(input: {
     throw new Error("Laboratório financeiro indisponível.");
   }
   if (!validSandboxAsset(input.asset)) {
-    throw new Error("Escolha BTC ou DOGE para a simulação.");
+    throw new Error("Escolha BTC, DOGE ou LTC para a simulação.");
   }
   const usdAmount = Number(input.usdAmount);
   if (!Number.isFinite(usdAmount) || usdAmount < 1 || usdAmount > 1_000) {
@@ -860,7 +862,7 @@ export async function createSandboxWithdrawalIntent(input: {
     throw new Error("Laboratório financeiro indisponível.");
   }
   if (!validSandboxAsset(input.asset) || typeof input.amount !== "string") {
-    throw new Error("Informe BTC ou DOGE e uma quantidade válida.");
+    throw new Error("Informe BTC, DOGE ou LTC e uma quantidade válida.");
   }
   const requestedAtomic = amountToAtomic(input.amount, input.asset);
   if (!requestedAtomic) {
@@ -903,6 +905,12 @@ function validWithdrawalAddress(asset: WalletSandboxAsset, value: unknown) {
       );
     return valid ? address : null;
   }
+  if (asset === "LTC") {
+    const valid = /^(?:ltc1[ac-hj-np-z02-9]{11,71}|[LM][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(
+      address,
+    );
+    return valid ? address : null;
+  }
   const valid = /^(?:D[5-9A-HJ-NP-Ua-km-z]{24,33}|[A9][1-9A-HJ-NP-Za-km-z]{25,34})$/.test(
     address,
   );
@@ -914,7 +922,9 @@ function withdrawalDestinationPreview(address: string) {
 }
 
 function withdrawalBalance(state: PublicGameState, asset: WalletSandboxAsset) {
-  return asset === "BTC" ? state.btcBalanceAtomic : state.dogeBalanceAtomic;
+  if (asset === "BTC") return state.btcBalanceAtomic;
+  if (asset === "DOGE") return state.dogeBalanceAtomic;
+  return state.ltcBalanceAtomic;
 }
 
 function setWithdrawalBalance(
@@ -923,7 +933,8 @@ function setWithdrawalBalance(
   atomic: number,
 ) {
   if (asset === "BTC") state.btcBalanceAtomic = atomic;
-  else state.dogeBalanceAtomic = atomic;
+  else if (asset === "DOGE") state.dogeBalanceAtomic = atomic;
+  else state.ltcBalanceAtomic = atomic;
 }
 
 export async function createManualWithdrawalRequest(input: {
@@ -941,7 +952,7 @@ export async function createManualWithdrawalRequest(input: {
     throw new Error("A fila de saques ainda não está liberada.");
   }
   if (!validSandboxAsset(input.asset) || typeof input.amount !== "string") {
-    throw new Error("Escolha BTC ou DOGE e informe uma quantidade válida.");
+    throw new Error("Escolha BTC, DOGE ou LTC e informe uma quantidade válida.");
   }
   if (
     typeof input.expectedVersion !== "number" ||
@@ -1442,7 +1453,7 @@ export async function readWalletOverview(input: {
       })),
     },
     withdrawals: {
-      assets: ["BTC", "DOGE"],
+      assets: ["BTC", "DOGE", "LTC"],
       enabled: manualWithdrawalsEnabled(input.environment),
       minimumAtomic: MANUAL_WITHDRAWAL_MINIMUM_ATOMIC,
       recent: (withdrawals.results ?? [])

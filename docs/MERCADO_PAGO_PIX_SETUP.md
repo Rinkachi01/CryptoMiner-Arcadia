@@ -1,56 +1,48 @@
-# Pix no Arcadia com Mercado Pago
+# Mercado Pago Pix — homologação segura
 
-## Escolha no painel
+O Arcadia usa **Checkout Transparente com Orders API**. Não usa Assinaturas e
+não credita CMA pela tela do navegador. O servidor cria a cobrança, valida a
+assinatura do webhook, consulta novamente a ordem no Mercado Pago e só credita
+quando o status for `processed` com detalhe `accredited`.
 
-Escolher **Checkouts → Checkout Transparente**. Não escolher **Assinaturas**:
-o depósito para comprar CMA é uma cobrança única, não recorrente. Entre as três
-opções da tela:
+## O que já está pronto
 
-- Checkout Pro é o mais simples, mas redireciona o jogador;
-- Checkout Bricks fornece componentes prontos;
-- Checkout Transparente permite manter a experiência do Arcadia e usar Pix por
-  QR Code ou link, com valor e protocolo definidos pelo servidor.
+- compra de 1 a 1.000 CMA em unidades inteiras;
+- conversão de US$ 1 por CMA para BRL pela PTAX oficial do Banco Central;
+- margem operacional configurável e exibida ao jogador (3% inicialmente);
+- idempotência na criação e no crédito;
+- QR Code/copia e cola devolvidos pelo Mercado Pago;
+- webhook em `/api/wallet/mercadopago`;
+- produção bloqueada por padrão.
 
-Para este projeto, usar Checkout Transparente pela **Orders API**, que é o fluxo
-recomendado atualmente pelo Mercado Pago.
+## Passos no painel do Mercado Pago
 
-## Fluxo financeiro correto
+1. Em **Suas integrações**, crie uma aplicação de pagamentos on-line.
+2. Escolha **Checkout Transparente** e a integração pela **Orders API**.
+3. Abra **Credenciais de teste** e copie o Access Token de teste.
+4. Crie uma conta de comprador de teste. Para aprovação automática do Pix em
+   homologação, o servidor já envia o nome de teste recomendado pelo provedor.
+5. Em **Webhooks**, cadastre o tópico **Order** com a URL:
 
-1. O jogador escolhe uma quantidade inteira de CMA.
-2. O servidor calcula o preço em BRL usando uma cotação USD/BRL vigente e cria
-   uma order Pix com referência única.
-3. O navegador exibe QR Code e copia-e-cola devolvidos pelo Mercado Pago.
-4. O webhook chega ao Worker.
-5. O Worker consulta a order diretamente no Mercado Pago e confere referência,
-   valor, moeda e status aprovado.
-6. Somente então o livro-razão credita CMA uma única vez.
+   `https://crypto-miner-arcadia.criptomineracardia.workers.dev/api/wallet/mercadopago`
 
-O navegador nunca confirma pagamento e o CMA não é creditado ao criar o QR Code.
+6. Copie a assinatura secreta do webhook.
 
-## O que preparar
+## Segredos do Worker
 
-1. Criar uma aplicação de teste em **Suas integrações**.
-2. Cadastrar uma chave Pix válida na conta vendedora.
-3. Usar as credenciais de teste e duas contas separadas: vendedor e comprador.
-4. Configurar notificações para a futura rota
-   `/api/wallet/mercadopago`.
-5. Guardar o Access Token exclusivamente como segredo do Cloudflare.
+Nunca coloque os valores em arquivo, Git ou conversa. Salve no Cloudflare como
+segredos do Worker:
 
-Variáveis planejadas:
+- `MERCADO_PAGO_ACCESS_TOKEN`
+- `MERCADO_PAGO_WEBHOOK_SECRET`
 
-```text
-PIX_DEPOSITS_ENABLED=false
-MERCADO_PAGO_ACCESS_TOKEN=<segredo do Cloudflare>
-MERCADO_PAGO_WEBHOOK_SECRET=<segredo do Cloudflare>
-MERCADO_PAGO_ENVIRONMENT=test
-```
+Depois dos testes de criação, assinatura, repetição do webhook e crédito único,
+altere `PIX_DEPOSITS_ENABLED` para `true`. A troca para produção exige novas
+credenciais e `MERCADO_PAGO_ENVIRONMENT=production`.
 
-Não enviar essas credenciais em conversa e não colocá-las no repositório. A
-integração deve permanecer desativada até passar pelos testes de webhook
-duplicado, valor divergente, order expirada, reembolso e chargeback.
+## Regra financeira
 
-Fontes oficiais:
-
-- https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/integration-model
-- https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/payment-integration/pix
-- https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/resources/test-accounts
+O jogador paga em reais e recebe somente a quantidade inteira de CMA escolhida.
+Pix não cria saldo BRL sacável. CMA continua sendo crédito interno e não pode
+ser sacado. BTC, DOGE e LTC permanecem em saldos separados e seus saques entram
+na fila manual do fundador.

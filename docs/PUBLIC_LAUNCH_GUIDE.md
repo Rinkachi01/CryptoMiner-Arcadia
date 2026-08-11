@@ -15,12 +15,12 @@ Atualizado em 2 de agosto de 2026.
   chave privada.
 - **Depósitos:** fatura única LTC/DOGE/BTC vinculada à conta; o navegador nunca
   confirma o crédito.
-- **Saques:** fila manual com reserva para BTC/DOGE. CMA e LTC não são sacáveis;
+- **Saques:** fila manual com reserva para BTC/DOGE/LTC. CMA não é sacável;
   o fundador executa o pagamento externamente e registra a referência.
 
 ## Decisão recomendada
 
-Manter depósitos reais restritos à conta fundadora durante a homologação. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna é somente LTC, BTC ou DOGE para CMA, nunca CMA para cripto. Saques manuais reservam BTC/DOGE no servidor, mas a transferência externa continua sendo responsabilidade do fundador e exige reconciliação.
+Manter depósitos reais restritos à conta fundadora durante a homologação. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna é somente LTC, BTC ou DOGE para CMA, nunca CMA para cripto. Saques manuais reservam BTC/DOGE/LTC no servidor, mas a transferência externa continua sendo responsabilidade do fundador e exige reconciliação.
 
 O caminho de menor risco e custo é:
 
@@ -260,7 +260,7 @@ Fontes oficiais:
 
 O RollerCoin apresenta um endereço de depósito ligado à conta do jogador. Para o Arcadia, a interface será parecida, mas a arquitetura não terá chaves no servidor do jogo:
 
-- cada jogador possui um livro-razão individual no D1, com saldos separados de CMA, BTC e DOGE;
+- cada jogador possui um livro-razão individual no D1, com saldos separados de CMA, BTC, DOGE e LTC;
 - cada depósito real cria uma invoice/endereço único no processador, ligado ao identificador interno do jogador;
 - o processador administra a recepção e liquidação em uma estrutura de custódia/conta comercial maior;
 - o Arcadia credita o livro-razão apenas depois de consultar e validar o estado final da invoice;
@@ -273,7 +273,7 @@ recebimento e os testes de sandbox serem aprovados.
 
 ### Conversão de BTC ou DOGE para CMA
 
-A conversão interna já funciona no beta: o servidor consulta BTC/USD e DOGE/USD, fixa a cotação por dois minutos e mostra CMA bruto, reserva econômica e CMA líquido. Uma leitura vencida pode aparecer como referência visual, mas nunca pode ser executada. A confirmação debita o saldo interno da moeda, credita CMA, consome a cotação uma única vez e grava uma entrada imutável no histórico financeiro. Litecoin continua apenas na fonte de preço e não é conversível enquanto não existir pool/carteira LTC no jogo.
+A conversão interna já funciona no beta: o servidor consulta BTC/USD, DOGE/USD e LTC/USD, fixa a cotação por dois minutos e mostra CMA bruto, reserva econômica e CMA líquido. Uma leitura vencida pode aparecer como referência visual, mas nunca pode ser executada. A confirmação debita o saldo interno da moeda, credita CMA, consome a cotação uma única vez e grava uma entrada imutável no histórico financeiro.
 
 A regra econômica inicial da prévia é 1 CMA por US$ 1 de valor de mercado, com reserva de 3% e mínimo equivalente a US$ 1. Esses parâmetros devem ser revistos com os custos reais do processador antes da ativação.
 

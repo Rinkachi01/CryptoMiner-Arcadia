@@ -39,6 +39,19 @@ test("central do proprietário separa publicação, depósitos e saques", async 
   assert.match(dashboard, /O que você precisa providenciar/);
   assert.match(dashboard, /DEPÓSITOS EM HOMOLOGAÇÃO/);
   assert.match(dashboard, /DEPÓSITOS BTC \/ DOGE/);
-  assert.match(dashboard, /CMA e LTC não são sacáveis/);
+  assert.match(dashboard, /CMA não é sacável/);
   assert.match(dashboard, /FILA MANUAL DO PROPRIETÁRIO/i);
+  assert.match(dashboard, /admin-workspace-tabs/);
+  assert.match(dashboard, /type AdminSection = "overview" \| "economy" \| "treasury" \| "community" \| "operations"/);
+  assert.match(dashboard, /hidden=\{adminSection !== "treasury"\}/);
+});
+
+test("suporte prioriza o protocolo e recolhe os guias extensos", async () => {
+  const support = await readFile(
+    new URL("../app/support/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(support, /support-guide-disclosure/);
+  assert.match(support, /Abra somente quando precisar/);
+  assert.match(support, /saques BTC, DOGE e LTC/);
 });

@@ -7,7 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import type { ConversionAssetId } from "./conversion-rules";
 
 type ConvertibleAsset = "BTC" | "DOGE" | "LTC";
-type WithdrawableAsset = "BTC" | "DOGE";
+type WithdrawableAsset = "BTC" | "DOGE" | "LTC";
 type WalletTab = "convert" | "deposit" | "withdraw";
 
 type MarketRate = {
@@ -86,7 +86,7 @@ type WalletResponse = {
   };
   error?: string;
   withdrawals?: {
-    assets: ["BTC", "DOGE"];
+    assets: ["BTC", "DOGE", "LTC"];
     enabled: boolean;
     minimumAtomic: Record<WithdrawableAsset, number>;
     recent: Array<{
@@ -149,6 +149,51 @@ type DepositMinimumResponse = {
   };
 };
 
+type PixQuote = {
+  brlAmount: number;
+  brlCents: number;
+  expiresAt: number;
+  marginBps: number;
+  observedAt: number;
+  provider: "bcb_ptax";
+  targetCma: number;
+  usdBrl: number;
+};
+
+type PixOverview = {
+  enabled: boolean;
+  error?: string;
+  missingSetup: Array<"access_token" | "webhook_secret" | "public_url">;
+  mode: "test" | "production";
+  operationalMarginBps: number;
+  provider: "mercadopago";
+  providerReady: boolean;
+  requested: boolean;
+  recent: Array<{
+    brlAmount: number;
+    cmaUnits: number;
+    createdAt: number;
+    expiresAt: number;
+    id: string;
+    status: string;
+    ticketUrl: string | null;
+    updatedAt: number;
+  }>;
+};
+
+type PixResponse = {
+  error?: string;
+  message?: string;
+  pix?: PixQuote & {
+    id: string;
+    providerReference: string;
+    qrCode: string;
+    status: "waiting_transfer";
+    ticketUrl: string;
+  };
+  quote?: PixQuote;
+};
+
 type WithdrawalResponse = {
   error?: string;
   message?: string;
@@ -181,6 +226,15 @@ function formatUsd(value: number) {
     currency: "USD",
     maximumFractionDigits: value < 1 ? 6 : 2,
     minimumFractionDigits: value < 1 ? 2 : 2,
+    style: "currency",
+  }).format(value);
+}
+
+function formatBrl(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    currency: "BRL",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
     style: "currency",
   }).format(value);
 }
@@ -248,6 +302,13 @@ export function ConversionView({
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawMessage, setWithdrawMessage] = useState("");
+  const [pix, setPix] = useState<PixOverview | null>(null);
+  const [pixTargetCma, setPixTargetCma] = useState("1");
+  const [pixQuote, setPixQuote] = useState<PixQuote | null>(null);
+  const [pixOrder, setPixOrder] = useState<PixResponse["pix"] | null>(null);
+  const [pixBusy, setPixBusy] = useState<"quote" | "create" | null>(null);
+  const [pixError, setPixError] = useState("");
+  const [pixMessage, setPixMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -290,6 +351,27 @@ export function ConversionView({
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/wallet/pix", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json()) as PixOverview;
+        if (!response.ok) throw new Error(payload.error ?? "Pix indisponível.");
+        return payload;
+      })
+      .then((payload) => {
+        if (active) setPix(payload);
+      })
+      .catch((reason) => {
+        if (active) {
+          setPixError(reason instanceof Error ? reason.message : "Pix indisponível.");
+        }
       });
     return () => {
       active = false;
@@ -586,6 +668,38 @@ export function ConversionView({
     if (minimumUsd) setDepositUsd(minimumUsd.toFixed(2));
   }
 
+  async function submitPix(action: "quote" | "create") {
+    setPixBusy(action);
+    setPixError("");
+    setPixMessage("");
+    if (action === "quote") setPixOrder(null);
+    try {
+      const response = await fetch("/api/wallet/pix", {
+        body: JSON.stringify({ action, targetCma: pixTargetCma }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as PixResponse;
+      if (!response.ok) {
+        throw new Error(payload.error ?? "O servidor recusou o Pix.");
+      }
+      if (action === "quote" && payload.quote) {
+        setPixQuote(payload.quote);
+        setPixMessage("Prévia calculada com a PTAX oficial. Nenhum saldo foi alterado.");
+      } else if (action === "create" && payload.pix) {
+        setPixQuote(payload.pix);
+        setPixOrder(payload.pix);
+        setPixMessage(payload.message ?? "Cobrança Pix criada com segurança.");
+      } else {
+        throw new Error("Resposta Pix incompleta.");
+      }
+    } catch (reason) {
+      setPixError(reason instanceof Error ? reason.message : "Pix indisponível.");
+    } finally {
+      setPixBusy(null);
+    }
+  }
+
   return (
     <section className="conversion-center wallet-center">
       <header className="conversion-hero">
@@ -821,6 +935,105 @@ export function ConversionView({
               recebida; converter esse saldo para CMA é uma decisão separada do jogador.
             </p>
           </header>
+          <section className={`wallet-pix-panel ${pix?.enabled ? "ready" : "pending"}`}>
+            <header>
+              <div>
+                <span>PIX · MERCADO PAGO</span>
+                <h4>Compre CMA inteiro em reais</h4>
+                <p>
+                  Escolha 1, 2, 3 ou mais CMA. A prévia usa a PTAX oficial do Banco
+                  Central e mostra a margem operacional antes de criar a cobrança.
+                </p>
+              </div>
+              <strong>
+                {pix?.enabled
+                  ? pix.mode === "test"
+                    ? "HOMOLOGAÇÃO ATIVA"
+                    : "PRODUÇÃO ATIVA"
+                  : "PREPARADO · AINDA DESATIVADO"}
+              </strong>
+            </header>
+            <div className="wallet-pix-controls">
+              <label>
+                QUANTIDADE INTEIRA DE CMA
+                <span className="wallet-pix-stepper">
+                  <button
+                    aria-label="Diminuir um CMA no Pix"
+                    type="button"
+                    onClick={() => {
+                      const current = /^\d+$/.test(pixTargetCma) ? Number(pixTargetCma) : 1;
+                      setPixTargetCma(String(Math.max(1, current - 1)));
+                      setPixQuote(null);
+                    }}
+                  >−</button>
+                  <input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={pixTargetCma}
+                    onChange={(event) => {
+                      setPixTargetCma(event.target.value.replace(/\D/g, "").slice(0, 4));
+                      setPixQuote(null);
+                      setPixOrder(null);
+                    }}
+                  />
+                  <button
+                    aria-label="Adicionar um CMA no Pix"
+                    type="button"
+                    onClick={() => {
+                      const current = /^\d+$/.test(pixTargetCma) ? Number(pixTargetCma) : 0;
+                      setPixTargetCma(String(Math.min(1_000, Math.max(1, current + 1))));
+                      setPixQuote(null);
+                    }}
+                  >+</button>
+                </span>
+              </label>
+              <div className="wallet-pix-quote" aria-live="polite">
+                <small>VALOR PIX</small>
+                <strong>{pixQuote ? formatBrl(pixQuote.brlAmount) : "GERAR PRÉVIA"}</strong>
+                <span>
+                  {pixQuote
+                    ? `${pixQuote.targetCma} CMA · USD/BRL ${pixQuote.usdBrl.toFixed(4)} · margem ${(pixQuote.marginBps / 100).toFixed(2)}%`
+                    : "Cotação oficial + margem operacional visível"}
+                </span>
+              </div>
+              <div className="wallet-pix-actions">
+                <button
+                  disabled={pixBusy !== null || !/^\d+$/.test(pixTargetCma)}
+                  type="button"
+                  onClick={() => void submitPix("quote")}
+                >
+                  {pixBusy === "quote" ? "CALCULANDO…" : "VER VALOR EM REAIS"}
+                </button>
+                <button
+                  className="primary"
+                  disabled={!pix?.enabled || !pixQuote || pixBusy !== null}
+                  type="button"
+                  onClick={() => void submitPix("create")}
+                >
+                  {pixBusy === "create" ? "CRIANDO PIX…" : "CRIAR PIX"}
+                </button>
+              </div>
+            </div>
+            {!pix?.enabled && (
+              <p className="wallet-pix-setup">
+                A estrutura está pronta, mas pagamentos reais continuam bloqueados.
+                Falta concluir as credenciais de teste e o segredo do webhook no servidor.
+              </p>
+            )}
+            {pixError && <p className="conversion-error" role="alert">{pixError}</p>}
+            {pixMessage && <p className="conversion-success" role="status">{pixMessage}</p>}
+            {pixOrder && (
+              <div className="wallet-pix-ticket">
+                <label>
+                  PIX COPIA E COLA
+                  <textarea readOnly rows={3} value={pixOrder.qrCode} />
+                </label>
+                <a href={pixOrder.ticketUrl} rel="noreferrer" target="_blank">
+                  ABRIR QR CODE SEGURO
+                </a>
+              </div>
+            )}
+          </section>
           <div className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
             <div>
               <small>PROVEDOR DE ENTRADA</small>
@@ -864,7 +1077,7 @@ export function ConversionView({
                 {depositMinimumBusy
                   ? "Consultando o mínimo atual do provedor…"
                   : depositMinimums[depositAsset]
-                    ? `Mínimo atual ${formatUsd(depositMinimums[depositAsset]!)} · máximo local US$ 1.000`
+                    ? `Mínimo dinâmico do provedor ${formatUsd(depositMinimums[depositAsset]!)} · máximo local US$ 1.000`
                     : "O valor mínimo precisa ser confirmado antes da fatura."}
               </small>
               <strong className="wallet-deposit-estimate">O VALOR NA MOEDA ESCOLHIDA APARECE NA FATURA</strong>
@@ -911,6 +1124,7 @@ export function ConversionView({
                   >
                     <option value="BTC">Bitcoin · BTC</option>
                     <option value="DOGE">Dogecoin · DOGE</option>
+                    <option value="LTC">Litecoin · LTC</option>
                   </select>
                 </label>
                 <label>
@@ -963,7 +1177,7 @@ export function ConversionView({
                       ? "Rede Bitcoin"
                       : id === "DOGE"
                         ? "Rede Dogecoin"
-                        : "Rede Litecoin · saque indisponível"}
+                        : "Rede Litecoin · saque manual disponível"}
                     {depositMinimums[id]
                       ? ` · mínimo ${formatUsd(depositMinimums[id]!)}`
                       : " · mínimo em consulta"}
@@ -1011,6 +1225,12 @@ export function ConversionView({
             dentro desta tela após a ativação oficial.
           </p>
           <p className="wallet-provider-notice wallet-checkout-help">
+            <strong>POR QUE O MÍNIMO PODE PASSAR DE US$ 10?</strong>{" "}
+            Esse piso vem da NOWPayments para a moeda escolhida e a liquidação atual da
+            conta. Ele varia com rede, conversão e custos de envio; o Arcadia nunca reduz
+            artificialmente o valor porque o provedor recusaria a fatura.
+          </p>
+          <p className="wallet-provider-notice wallet-checkout-help">
             <strong>ERRO NA PÁGINA DO PROVEDOR?</strong>{" "}
             A fatura agora preserva o erro real devolvido pela NOWPayments. Se o checkout
             externo recusar um e-mail válido, registre o protocolo e tente outra moeda;
@@ -1023,14 +1243,14 @@ export function ConversionView({
             <span>SAQUE CRIPTO · PROCESSAMENTO MANUAL</span>
             <h3>O saque é separado da conversão</h3>
             <p>
-              Somente BTC e DOGE podem ser solicitados. O valor sai do saldo disponível
-              no momento do pedido, fica reservado e chega à fila exclusiva do fundador.
-              LTC serve para depósito e conversão em CMA, mas ainda não pode ser sacado.
+              BTC, DOGE e LTC podem ser solicitados. O valor sai do saldo disponível,
+              fica reservado e chega à fila exclusiva do fundador para pagamento manual.
             </p>
           </header>
           <div className="wallet-withdraw-summary">
             <article><small>DISPONÍVEL EM BTC</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></article>
             <article><small>DISPONÍVEL EM DOGE</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></article>
+            <article><small>DISPONÍVEL EM LTC</small><strong>{formatCryptoAtomic(ltcBalanceAtomic)} LTC</strong></article>
             <article><small>FILA MANUAL</small><strong>{wallet?.withdrawals?.enabled ? "ATIVA" : "PAUSADA"}</strong></article>
           </div>
           <div className="wallet-withdraw-request">
@@ -1044,6 +1264,7 @@ export function ConversionView({
                 }}
               >
                 <option value="DOGE">Dogecoin · DOGE</option>
+                <option value="LTC">Litecoin · LTC</option>
                 <option value="BTC">Bitcoin · BTC</option>
               </select>
             </label>
@@ -1068,7 +1289,9 @@ export function ConversionView({
                 placeholder={
                   withdrawAsset === "BTC"
                     ? "bc1… ou endereço Bitcoin válido"
-                    : "D… endereço Dogecoin válido"
+                    : withdrawAsset === "LTC"
+                      ? "ltc1…, L… ou M… endereço Litecoin válido"
+                      : "D… endereço Dogecoin válido"
                 }
                 value={withdrawAddress}
                 onChange={(event) => setWithdrawAddress(event.target.value.trim())}
@@ -1120,6 +1343,7 @@ export function ConversionView({
                   <select value={sandboxAsset} onChange={(event) => setSandboxAsset(event.target.value as ConvertibleAsset)}>
                     <option value="BTC">Bitcoin · BTC</option>
                     <option value="DOGE">Dogecoin · DOGE</option>
+                    <option value="LTC">Litecoin · LTC</option>
                   </select>
                 </label>
                 <label>

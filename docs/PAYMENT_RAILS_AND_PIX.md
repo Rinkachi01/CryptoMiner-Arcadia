@@ -50,7 +50,8 @@ uma carteira em reais dentro do Arcadia:
 3. o servidor cria uma ordem Pix no Mercado Pago com referência única e chave
    de idempotência;
 4. a tela exibe QR Code e código copia e cola retornados pelo provedor;
-5. o webhook assinado informa `approved` e o servidor consulta a ordem outra vez;
+5. o webhook assinado informa a Order e o servidor consulta a ordem outra vez;
+   o crédito exige `processed` com detalhe `accredited`;
 6. uma transação idempotente credita exatamente a quantidade comprada de CMA;
 7. CMA compra itens, mas não pode ser sacado nem convertido de volta;
 8. a mineração futura gera saldo interno de BTC/DOGE de blocos fixos;
@@ -85,7 +86,8 @@ Fontes oficiais consultadas:
 
 ## Próximo passo técnico
 
-Criar a integração primeiro em teste, atrás de `PIX_DEPOSITS_ENABLED=false`.
-Somente após receber as credenciais pelo painel de segredos do Cloudflare serão
-implementados criação da ordem, consulta, webhook, reconciliação e painel do
-proprietário. Nenhum segredo deve ser enviado por conversa ou salvo no Git.
+A criação da Order, a consulta, a assinatura do webhook, a reconciliação e o
+crédito único já estão implementados atrás de `PIX_DEPOSITS_ENABLED=false`.
+Agora falta salvar as credenciais de teste como segredos do Cloudflare e validar
+o caminho completo em homologação. Nenhum segredo deve ser enviado por conversa
+ou salvo no Git.

@@ -15,6 +15,7 @@ test("fila manual nasce desativada e exige ativação explícita", () => {
   assert.deepEqual(MANUAL_WITHDRAWAL_MINIMUM_ATOMIC, {
     BTC: 10_000,
     DOGE: 1_000_000_000,
+    LTC: 1_000_000,
   });
 });
 
@@ -31,14 +32,14 @@ test("pedido reserva saldo e recusa produz estorno autoritativo", async () => {
   assert.match(server, /refund_crypto_withdrawal/);
   assert.match(server, /status IN \('requested', 'reviewing'\)/);
   assert.match(server, /Saldo .* insuficiente/);
-  assert.match(server, /asset === "BTC" \? state\.btcBalanceAtomic : state\.dogeBalanceAtomic/);
+  assert.match(server, /return state\.ltcBalanceAtomic/);
   assert.match(adminRoute, /claimOrVerifyAdminOwner/);
   assert.match(adminRoute, /manual_withdrawal_/);
   assert.match(schema, /destinationAddress/);
   assert.match(migration, /destination_address/);
 });
 
-test("Litecoin entra em depósito e conversão, mas não na fila de saque", async () => {
+test("Litecoin entra em depósito, conversão e fila manual de saque", async () => {
   const [game, wallet, view] = await Promise.all([
     readFile(new URL("../app/game-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/wallet-server.ts", import.meta.url), "utf8"),
@@ -46,7 +47,7 @@ test("Litecoin entra em depósito e conversão, mas não na fila de saque", asyn
   ]);
   assert.match(game, /ltcBalanceAtomic/);
   assert.match(wallet, /assets: \["BTC", "DOGE", "LTC"\]/);
-  assert.match(wallet, /assets: \["BTC", "DOGE"\]/);
-  assert.match(view, /LTC serve para depósito e conversão em CMA/);
-  assert.match(view, /type WithdrawableAsset = "BTC" \| "DOGE"/);
+  assert.match(wallet, /assets: \["BTC", "DOGE", "LTC"\]/);
+  assert.match(view, /type WithdrawableAsset = "BTC" \| "DOGE" \| "LTC"/);
+  assert.match(view, /endereço Litecoin válido/);
 });

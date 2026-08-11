@@ -16,7 +16,7 @@ const supportTopics = [
   },
   {
     title: "Carteira e depósitos",
-    text: "Status de faturas, confirmações BTC/DOGE, conversão para CMA e contestação de crédito.",
+    text: "Status de faturas, confirmações BTC/DOGE/LTC, conversão para CMA e contestação de crédito.",
   },
   {
     title: "Segurança",
@@ -67,6 +67,13 @@ export default async function SupportPage() {
         signedIn={Boolean(user)}
       />
 
+      <details className="support-guide-disclosure">
+        <summary>
+          <span>GUIAS E SEGURANÇA</span>
+          <strong>Consultar assuntos, fluxo financeiro e perguntas frequentes</strong>
+          <small>Abra somente quando precisar dessas orientações.</small>
+        </summary>
+        <div className="support-guide-content">
       <section className="support-topic-grid" aria-label="Assuntos de suporte">
         {supportTopics.map((topic, index) => (
           <article key={topic.title}>
@@ -85,7 +92,7 @@ export default async function SupportPage() {
         <ol>
           <li>
             <strong>1. Fatura individual</strong>
-            <p>O jogador solicita BTC ou DOGE e recebe uma cobrança única do provedor.</p>
+            <p>O jogador solicita BTC, DOGE ou LTC e recebe uma cobrança única do provedor.</p>
           </li>
           <li>
             <strong>2. Confirmação externa</strong>
@@ -141,8 +148,9 @@ export default async function SupportPage() {
         <details>
           <summary>Depósitos e saques já estão ativos?</summary>
           <p>
-            Não. A interface e os registros estão preparados, mas dinheiro real
-            continuará bloqueado até aprovação do provedor, testes e revisão legal.
+            Depósitos cripto estão em homologação controlada e saques BTC, DOGE e LTC
+            entram numa fila manual do fundador. Pix permanece em teste até a validação
+            completa do webhook e das credenciais do Mercado Pago.
           </p>
         </details>
         <details>
@@ -153,6 +161,8 @@ export default async function SupportPage() {
           </p>
         </details>
       </section>
+        </div>
+      </details>
 
       <PublicSiteFooter />
     </main>

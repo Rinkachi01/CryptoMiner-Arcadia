@@ -141,7 +141,7 @@ test("migração e recuperação incluem execução e carteiras", async () => {
   assert.match(migration, /CREATE TABLE `wallet_deposit_intents`/);
   assert.match(recovery, /conversion_quotes/);
   assert.match(recovery, /wallet_provider_events/);
-  assert.match(admin, /BTC \/ DOGE ATIVO/);
+  assert.match(admin, /BTC \/ DOGE \/ LTC ATIVO/);
   assert.match(guide, /1 CMA usa US\$ 1 como unidade de referência contábil/);
   assert.match(guide, /IPN precisa apresentar HMAC SHA-512 válido/);
 });

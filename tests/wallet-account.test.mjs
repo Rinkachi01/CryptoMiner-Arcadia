@@ -92,7 +92,7 @@ test("laboratório financeiro registra somente simulações e preserva saldos", 
   assert.match(server, /min-amount/);
   assert.doesNotMatch(server, /usdAmount < 5/);
   assert.match(route, /deposit-minimum/);
-  assert.match(view, /Mínimo atual/);
+  assert.match(view, /Mínimo dinâmico do provedor/);
   assert.match(view, /preserva o erro real devolvido pela NOWPayments/);
   assert.match(view, /ZERO CRÉDITO/);
   assert.match(view, /não altera nenhum saldo/);

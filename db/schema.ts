@@ -508,6 +508,39 @@ export const walletProviderEvents = sqliteTable(
   ],
 );
 
+export const walletPixDepositIntents = sqliteTable(
+  "wallet_pix_deposit_intents",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerReference: text("provider_reference"),
+    cmaUnits: integer("cma_units").notNull(),
+    brlCents: integer("brl_cents").notNull(),
+    usdBrlMicros: integer("usd_brl_micros").notNull(),
+    marginBps: integer("margin_bps").notNull(),
+    status: text("status").notNull().default("creating"),
+    ticketUrl: text("ticket_url"),
+    qrCode: text("qr_code"),
+    creditedAt: integer("credited_at"),
+    expiresAt: integer("expires_at").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("wallet_pix_deposit_provider_reference_unique").on(
+      table.providerReference,
+    ),
+    index("wallet_pix_deposit_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("wallet_pix_deposit_status_expiry_idx").on(
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const walletWithdrawalIntents = sqliteTable(
   "wallet_withdrawal_intents",
   {

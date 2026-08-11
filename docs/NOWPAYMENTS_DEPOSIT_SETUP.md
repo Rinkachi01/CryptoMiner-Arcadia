@@ -90,10 +90,10 @@ poucas contas autorizadas e reconciliação diária da tesouraria.
 
 ## Saques manuais
 
-A fila manual aceita somente BTC e DOGE. O pedido reserva imediatamente o saldo,
+A fila manual aceita BTC, DOGE e LTC. O pedido reserva imediatamente o saldo,
 aparece apenas para a conta fundadora e não movimenta blockchain. Depois de pagar
 fora do Arcadia, o fundador registra o hash ou ID da transferência. Se recusar,
-o servidor estorna o valor reservado. LTC e CMA não entram nessa fila.
+o servidor estorna o valor reservado. CMA não entra nessa fila.
 
 Ative somente no Worker público:
 

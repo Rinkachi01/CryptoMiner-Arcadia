@@ -1,10 +1,15 @@
 import { walletProviderReadiness } from "./wallet-server.ts";
+import { readMercadoPagoConfig } from "./mercadopago-rules.ts";
 
 type PublicLaunchEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
   MANUAL_WITHDRAWALS_ENABLED?: string;
+  MERCADO_PAGO_ACCESS_TOKEN?: string;
+  MERCADO_PAGO_ENVIRONMENT?: string;
+  MERCADO_PAGO_WEBHOOK_SECRET?: string;
+  PIX_DEPOSITS_ENABLED?: string;
   PUBLIC_BASE_URL?: string;
   PUBLIC_LOGIN_ENABLED?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
@@ -28,6 +33,12 @@ export type PublicLaunchReadiness = {
     projectConfigured: boolean;
     provider: "supabase";
     publicLoginEnabled: boolean;
+  };
+  pix: {
+    configured: boolean;
+    enabled: boolean;
+    mode: "test" | "production";
+    provider: "mercadopago";
   };
   wallet: {
     custody: "provider_managed";
@@ -96,6 +107,7 @@ export function readPublicLaunchReadiness(
     validSupabaseUrl(source.SUPABASE_URL) &&
     validPublishableKey(source.SUPABASE_PUBLISHABLE_KEY);
   const deposits = walletProviderReadiness(source);
+  const pix = readMercadoPagoConfig(source);
 
   return {
     deposits: {
@@ -111,6 +123,12 @@ export function readPublicLaunchReadiness(
       provider: "supabase",
       publicLoginEnabled:
         identityConfigured && enabled(source.PUBLIC_LOGIN_ENABLED),
+    },
+    pix: {
+      configured: pix.providerReady,
+      enabled: pix.enabled,
+      mode: pix.mode,
+      provider: "mercadopago",
     },
     wallet: {
       custody: "provider_managed",

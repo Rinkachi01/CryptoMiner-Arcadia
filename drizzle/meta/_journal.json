@@ -176,6 +176,13 @@
       "when": 1786473469623,
       "tag": "0024_light_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786476492226,
+      "tag": "0025_tricky_rafael_vega",
+      "breakpoints": true
     }
   ]
 }

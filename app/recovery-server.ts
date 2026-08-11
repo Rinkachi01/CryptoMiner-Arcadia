@@ -1,4 +1,5 @@
 import { ensureConversionSchema } from "./conversion-server.ts";
+import { ensurePixSchema } from "./pix-server.ts";
 import { ensureWalletSchema } from "./wallet-server.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -131,6 +132,7 @@ const requiredTables = [
   "player_wallet_accounts",
   "wallet_deposit_intents",
   "wallet_provider_events",
+  "wallet_pix_deposit_intents",
   "wallet_withdrawal_intents",
   "operational_checkpoints",
 ] as const;
@@ -162,6 +164,7 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   conversion_quotes: 100_000,
   wallet_deposit_intents: 100_000,
   wallet_provider_events: 100_000,
+  wallet_pix_deposit_intents: 100_000,
   wallet_withdrawal_intents: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
@@ -188,6 +191,7 @@ export function recoveryBucketFromEnv(value: unknown) {
 export async function ensureRecoverySchema(db: D1Database) {
   await ensureConversionSchema(db);
   await ensureWalletSchema(db);
+  await ensurePixSchema(db);
   await db.batch([
     db.prepare(
       `CREATE TABLE IF NOT EXISTS recovery_archives (
