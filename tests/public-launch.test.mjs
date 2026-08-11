@@ -15,6 +15,7 @@ test("pré-lançamento falha fechado sem serviços externos", () => {
   assert.equal(readiness.deposits.enabled, false);
   assert.equal(readiness.withdrawals.cryptoEnabled, false);
   assert.equal(readiness.withdrawals.cmaWithdrawable, false);
+  assert.equal(readiness.withdrawals.provider, "manual_review");
   assert.equal(readiness.wallet.privateKeysInArcadia, false);
 });
 
@@ -38,6 +39,14 @@ test("configuração prepara login e depósito sem ativá-los implicitamente", (
   assert.equal(readiness.deposits.enabled, false);
 });
 
+test("saque manual só abre com a flag operacional explícita", () => {
+  assert.equal(
+    readPublicLaunchReadiness({ MANUAL_WITHDRAWALS_ENABLED: "true" })
+      .withdrawals.cryptoEnabled,
+    true,
+  );
+});
+
 test("painel documenta a divisão segura entre os serviços", async () => {
   const dashboard = await readFile(
     new URL("../app/AdminDashboard.tsx", import.meta.url),
@@ -47,5 +56,5 @@ test("painel documenta a divisão segura entre os serviços", async () => {
   assert.match(dashboard, /Sites \+ Cloudflare/);
   assert.match(dashboard, /Supabase Auth/);
   assert.match(dashboard, /Livro-razão individual/);
-  assert.match(dashboard, /Provedor de payout \+ KYC/);
+  assert.match(dashboard, /Fila manual do proprietário/);
 });

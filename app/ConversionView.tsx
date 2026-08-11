@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import type { ConversionAssetId } from "./conversion-rules";
 
-type ConvertibleAsset = "BTC" | "DOGE";
+type ConvertibleAsset = "BTC" | "DOGE" | "LTC";
+type WithdrawableAsset = "BTC" | "DOGE";
 type WalletTab = "convert" | "deposit" | "withdraw";
 
 type MarketRate = {
@@ -58,7 +59,7 @@ type WalletResponse = {
     ledgerModel: "individual";
   };
   deposits?: {
-    assets: ["BTC", "DOGE"];
+    assets: ["BTC", "DOGE", "LTC"];
     accessAllowed: boolean;
     activationRequested: boolean;
     enabled: boolean;
@@ -85,7 +86,21 @@ type WalletResponse = {
   };
   error?: string;
   withdrawals?: {
-    enabled: false;
+    assets: ["BTC", "DOGE"];
+    enabled: boolean;
+    minimumAtomic: Record<WithdrawableAsset, number>;
+    recent: Array<{
+      amountAtomic: number;
+      asset: string;
+      createdAt: number;
+      destinationPreview: string;
+      id: string;
+      resolvedAt: number | null;
+      reviewNote: string | null;
+      status: string;
+      transactionReference: string | null;
+      updatedAt: number;
+    }>;
     recentSandbox: Array<{
       amountAtomic: number;
       asset: string;
@@ -134,10 +149,23 @@ type DepositMinimumResponse = {
   };
 };
 
+type WithdrawalResponse = {
+  error?: string;
+  message?: string;
+  withdrawal?: {
+    amountAtomic: number;
+    asset: WithdrawableAsset;
+    destinationPreview: string;
+    id: string;
+    status: string;
+  };
+};
+
 type ConversionViewProps = {
   btcBalanceAtomic: number;
   cmaBalance: number;
   dogeBalanceAtomic: number;
+  ltcBalanceAtomic: number;
   onRefreshAccount: () => Promise<boolean>;
   serverVersion: number;
 };
@@ -145,6 +173,7 @@ type ConversionViewProps = {
 const assetVisuals: Record<ConvertibleAsset, { asset: string; name: string }> = {
   BTC: { asset: assetsManifest.bitcoin.path, name: "Bitcoin" },
   DOGE: { asset: assetsManifest.dogecoin.path, name: "Dogecoin" },
+  LTC: { asset: assetsManifest.litecoin.path, name: "Litecoin" },
 };
 
 function formatUsd(value: number) {
@@ -170,10 +199,20 @@ function formatCryptoAtomic(value: number, digits = 8) {
   });
 }
 
+function withdrawalStatusLabel(status: string) {
+  return {
+    paid: "PAGO",
+    rejected: "RECUSADO · SALDO ESTORNADO",
+    requested: "AGUARDANDO ANÁLISE",
+    reviewing: "EM ANÁLISE",
+  }[status] ?? status.replaceAll("_", " ").toUpperCase();
+}
+
 export function ConversionView({
   btcBalanceAtomic,
   cmaBalance,
   dogeBalanceAtomic,
+  ltcBalanceAtomic,
   onRefreshAccount,
   serverVersion,
 }: ConversionViewProps) {
@@ -195,7 +234,7 @@ export function ConversionView({
   const [sandboxError, setSandboxError] = useState("");
   const [sandboxMessage, setSandboxMessage] = useState("");
   const [sandboxUsd, setSandboxUsd] = useState("10");
-  const [depositAsset, setDepositAsset] = useState<ConvertibleAsset>("DOGE");
+  const [depositAsset, setDepositAsset] = useState<ConvertibleAsset>("LTC");
   const [depositUsd, setDepositUsd] = useState("5");
   const [depositMinimums, setDepositMinimums] = useState<
     Partial<Record<ConvertibleAsset, number>>
@@ -203,6 +242,12 @@ export function ConversionView({
   const [depositMinimumError, setDepositMinimumError] = useState("");
   const [depositBusy, setDepositBusy] = useState<ConvertibleAsset | null>(null);
   const [depositError, setDepositError] = useState("");
+  const [withdrawAsset, setWithdrawAsset] = useState<WithdrawableAsset>("DOGE");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawMessage, setWithdrawMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -256,7 +301,7 @@ export function ConversionView({
     let active = true;
     const controller = new AbortController();
     Promise.all(
-      (["BTC", "DOGE"] as ConvertibleAsset[]).map(async (assetId) => {
+      (["BTC", "DOGE", "LTC"] as ConvertibleAsset[]).map(async (assetId) => {
         const response = await fetch("/api/wallet", {
           body: JSON.stringify({ action: "deposit-minimum", asset: assetId }),
           headers: { "Content-Type": "application/json" },
@@ -278,7 +323,7 @@ export function ConversionView({
           minimums.map((minimum) => [minimum.asset, minimum.minimumUsd]),
         ) as Record<ConvertibleAsset, number>;
         setDepositMinimums(values);
-        setDepositUsd(values.DOGE.toFixed(2));
+        setDepositUsd(values.LTC.toFixed(2));
       })
       .catch((reason) => {
         if (!active || controller.signal.aborted) return;
@@ -305,7 +350,11 @@ export function ConversionView({
     [asset, rates],
   );
   const selectedBalanceAtomic =
-    asset === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
+    asset === "BTC"
+      ? btcBalanceAtomic
+      : asset === "DOGE"
+        ? dogeBalanceAtomic
+        : ltcBalanceAtomic;
   const targetCmaUnits = /^\d+$/.test(targetCma) ? Number(targetCma) : 0;
   const estimatedAssetAtomic = useMemo(() => {
     if (
@@ -487,6 +536,49 @@ export function ConversionView({
     }
   }
 
+  async function createWithdrawal() {
+    setWithdrawBusy(true);
+    setWithdrawError("");
+    setWithdrawMessage("");
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify({
+          action: "create-withdrawal",
+          amount: withdrawAmount,
+          asset: withdrawAsset,
+          destinationAddress: withdrawAddress,
+          expectedVersion: serverVersion,
+          idempotencyKey: crypto.randomUUID(),
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as WithdrawalResponse;
+      if (!response.ok || !payload.withdrawal) {
+        throw new Error(payload.error ?? "O servidor recusou a solicitação.");
+      }
+      const accountUpdated = await onRefreshAccount();
+      if (!accountUpdated) {
+        throw new Error("Saque reservado, mas a tela precisa ser atualizada.");
+      }
+      const walletResponse = await fetch("/api/wallet", { cache: "no-store" });
+      if (walletResponse.ok) {
+        setWallet((await walletResponse.json()) as WalletResponse);
+      }
+      setWithdrawAmount("");
+      setWithdrawAddress("");
+      setWithdrawMessage(
+        `${payload.message ?? "Solicitação registrada."} Protocolo ${payload.withdrawal.id.slice(-8).toUpperCase()}.`,
+      );
+    } catch (reason) {
+      setWithdrawError(
+        reason instanceof Error ? reason.message : "Não foi possível solicitar.",
+      );
+    } finally {
+      setWithdrawBusy(false);
+    }
+  }
+
   function selectDepositAsset(assetId: ConvertibleAsset) {
     setDepositAsset(assetId);
     setDepositError("");
@@ -501,7 +593,7 @@ export function ConversionView({
           <span>CARTEIRA INDIVIDUAL · LIVRO-RAZÃO DO SERVIDOR</span>
           <h2>Seus saldos e sua conversão para CMA</h2>
           <p>
-            BTC e DOGE pertencem ao registro individual desta conta. A conversão é
+            BTC, DOGE e LTC pertencem ao registro individual desta conta. A conversão é
             confirmada pelo servidor, usa uma cotação de dois minutos e só acontece
             uma vez.
           </p>
@@ -529,6 +621,11 @@ export function ConversionView({
           <span><small>DOGECOIN</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></span>
           <em>CONVERSÍVEL</em>
         </article>
+        <article>
+          <img src={assetsManifest.litecoin.path} alt="" />
+          <span><small>LITECOIN</small><strong>{formatCryptoAtomic(ltcBalanceAtomic)} LTC</strong></span>
+          <em>DEPÓSITO + CONVERSÃO</em>
+        </article>
       </div>
 
       <div className="wallet-tabs" role="tablist" aria-label="Ações da carteira">
@@ -539,7 +636,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("deposit")}
         >
-          1 · DEPOSITAR BTC/DOGE
+          1 · DEPOSITAR CRIPTO
         </button>
         <button
           className={tab === "convert" ? "active" : ""}
@@ -564,9 +661,14 @@ export function ConversionView({
       {tab === "convert" ? (
         <>
           <div className="conversion-rate-strip" aria-live="polite">
-            {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => {
+            {(["BTC", "DOGE", "LTC"] as ConvertibleAsset[]).map((id) => {
               const rate = rates.find((item) => item.asset === id);
-              const balance = id === "BTC" ? btcBalanceAtomic : dogeBalanceAtomic;
+              const balance =
+                id === "BTC"
+                  ? btcBalanceAtomic
+                  : id === "DOGE"
+                    ? dogeBalanceAtomic
+                    : ltcBalanceAtomic;
               return (
                 <button
                   className={asset === id ? "active" : ""}
@@ -712,7 +814,7 @@ export function ConversionView({
                 ? "SANDBOX DO PROVEDOR · SEM DINHEIRO REAL"
                 : "DEPÓSITOS VIA NOWPAYMENTS"}
             </span>
-            <h3>Deposite BTC ou DOGE no seu saldo interno</h3>
+            <h3>Deposite LTC, DOGE ou BTC no seu saldo interno</h3>
             <p>
               O Arcadia não guarda chaves privadas. O provedor cria uma fatura única e
               envia uma confirmação assinada. O servidor credita exatamente a moeda
@@ -748,6 +850,7 @@ export function ConversionView({
                 }
               >
                 <option value="DOGE">Dogecoin · DOGE</option>
+                <option value="LTC">Litecoin · LTC</option>
                 <option value="BTC">Bitcoin · BTC</option>
               </select>
               <input
@@ -764,7 +867,7 @@ export function ConversionView({
                     ? `Mínimo atual ${formatUsd(depositMinimums[depositAsset]!)} · máximo local US$ 1.000`
                     : "O valor mínimo precisa ser confirmado antes da fatura."}
               </small>
-              <strong className="wallet-deposit-estimate">O VALOR EM BTC OU DOGE APARECE NA FATURA</strong>
+              <strong className="wallet-deposit-estimate">O VALOR NA MOEDA ESCOLHIDA APARECE NA FATURA</strong>
               <button
                 className="wallet-deposit-submit"
                 disabled={
@@ -849,14 +952,18 @@ export function ConversionView({
             </section>
           )}
           <div className="wallet-deposit-assets">
-            {(["BTC", "DOGE"] as ConvertibleAsset[]).map((id) => (
+            {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
               <article className={depositAsset === id ? "selected" : ""} key={id}>
                 <img src={assetVisuals[id].asset} alt="" />
                 <div>
                   <small>REDE SUPORTADA</small>
                   <strong>{assetVisuals[id].name}</strong>
                   <span>
-                    {id === "BTC" ? "Rede Bitcoin" : "Rede Dogecoin"}
+                    {id === "BTC"
+                      ? "Rede Bitcoin"
+                      : id === "DOGE"
+                        ? "Rede Dogecoin"
+                        : "Rede Litecoin · saque indisponível"}
                     {depositMinimums[id]
                       ? ` · mínimo ${formatUsd(depositMinimums[id]!)}`
                       : " · mínimo em consulta"}
@@ -896,7 +1003,7 @@ export function ConversionView({
           <div className="wallet-deposit-flow">
             <article><b>1</b><span><strong>FATURA</strong><small>Servidor cria um identificador único ligado à sua conta.</small></span></article>
             <article><b>2</b><span><strong>CONFIRMAÇÃO</strong><small>A assinatura, a moeda paga e a liquidação da tesouraria são conferidas.</small></span></article>
-            <article><b>3</b><span><strong>SALDO CRIPTO</strong><small>O BTC ou DOGE recebido entra no livro-razão; nenhum CMA é criado automaticamente.</small></span></article>
+            <article><b>3</b><span><strong>SALDO CRIPTO</strong><small>A moeda recebida entra no livro-razão; nenhum CMA é criado automaticamente.</small></span></article>
           </div>
           <p className="wallet-provider-notice">
             <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
@@ -904,9 +1011,10 @@ export function ConversionView({
             dentro desta tela após a ativação oficial.
           </p>
           <p className="wallet-provider-notice wallet-checkout-help">
-            <strong>ERRO 400 NA PÁGINA DO PROVEDOR?</strong>{" "}
-            Confira o e-mail antes de confirmar. Na captura enviada foi digitado
-            <code> gmail.cor</code>; um endereço Gmail válido termina em <code>gmail.com</code>.
+            <strong>ERRO NA PÁGINA DO PROVEDOR?</strong>{" "}
+            A fatura agora preserva o erro real devolvido pela NOWPayments. Se o checkout
+            externo recusar um e-mail válido, registre o protocolo e tente outra moeda;
+            isso não debita nem altera seu saldo no Arcadia.
           </p>
         </section>
       ) : (
@@ -915,21 +1023,94 @@ export function ConversionView({
             <span>SAQUE CRIPTO · PROCESSAMENTO MANUAL</span>
             <h3>O saque é separado da conversão</h3>
             <p>
-              Somente saldos internos de BTC e DOGE poderão ser solicitados para saque.
-              CMA é crédito do jogo e não pode ser sacado. A fila real permanece fechada
-              até concluirmos endereço, rede, 2FA, revisão administrativa e reserva.
+              Somente BTC e DOGE podem ser solicitados. O valor sai do saldo disponível
+              no momento do pedido, fica reservado e chega à fila exclusiva do fundador.
+              LTC serve para depósito e conversão em CMA, mas ainda não pode ser sacado.
             </p>
           </header>
           <div className="wallet-withdraw-summary">
             <article><small>DISPONÍVEL EM BTC</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></article>
             <article><small>DISPONÍVEL EM DOGE</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></article>
-            <article><small>STATUS</small><strong>EM PREPARAÇÃO SEGURA</strong></article>
+            <article><small>FILA MANUAL</small><strong>{wallet?.withdrawals?.enabled ? "ATIVA" : "PAUSADA"}</strong></article>
           </div>
+          <div className="wallet-withdraw-request">
+            <label>
+              MOEDA
+              <select
+                value={withdrawAsset}
+                onChange={(event) => {
+                  setWithdrawAsset(event.target.value as WithdrawableAsset);
+                  setWithdrawError("");
+                }}
+              >
+                <option value="DOGE">Dogecoin · DOGE</option>
+                <option value="BTC">Bitcoin · BTC</option>
+              </select>
+            </label>
+            <label>
+              QUANTIDADE EM {withdrawAsset}
+              <input
+                inputMode="decimal"
+                placeholder={
+                  wallet?.withdrawals?.minimumAtomic
+                    ? `Mínimo ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
+                    : "0"
+                }
+                value={withdrawAmount}
+                onChange={(event) => setWithdrawAmount(event.target.value)}
+              />
+            </label>
+            <label className="wallet-withdraw-address">
+              ENDEREÇO NA REDE {withdrawAsset}
+              <input
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={
+                  withdrawAsset === "BTC"
+                    ? "bc1… ou endereço Bitcoin válido"
+                    : "D… endereço Dogecoin válido"
+                }
+                value={withdrawAddress}
+                onChange={(event) => setWithdrawAddress(event.target.value.trim())}
+              />
+            </label>
+            <button
+              className="wallet-deposit-submit"
+              disabled={
+                !wallet?.withdrawals?.enabled ||
+                withdrawBusy ||
+                withdrawAmount.trim().length === 0 ||
+                withdrawAddress.length < 20
+              }
+              type="button"
+              onClick={() => void createWithdrawal()}
+            >
+              {withdrawBusy ? "RESERVANDO NO SERVIDOR…" : "SOLICITAR SAQUE MANUAL"}
+            </button>
+          </div>
+          {withdrawError && <p className="conversion-error" role="alert">{withdrawError}</p>}
+          {withdrawMessage && <p className="conversion-success" role="status">{withdrawMessage}</p>}
           <p className="wallet-provider-notice">
-            <strong>NENHUM SAQUE REAL É EXECUTADO NESTA VERSÃO.</strong>{" "}
-            Quando a fila for ativada, o saldo será reservado na solicitação e só será
-            baixado definitivamente após o proprietário registrar a transação enviada.
+            <strong>CONFIRA MOEDA, REDE E ENDEREÇO ANTES DE ENVIAR.</strong>{" "}
+            O Arcadia faz uma validação estrutural e o fundador revisa o pedido, mas
+            transferências em blockchain não podem ser desfeitas. Uma recusa devolve
+            automaticamente o valor reservado ao saldo interno.
           </p>
+          {wallet?.withdrawals?.recent && wallet.withdrawals.recent.length > 0 && (
+            <div className="wallet-live-history wallet-withdraw-history">
+              <span>PEDIDOS RECENTES</span>
+              {wallet.withdrawals.recent.map((item) => (
+                <article key={item.id}>
+                  <b>{item.asset}</b>
+                  <span>{formatCryptoAtomic(item.amountAtomic)} {item.asset}</span>
+                  <em>{withdrawalStatusLabel(item.status)}</em>
+                  <strong>{item.destinationPreview}</strong>
+                  {item.transactionReference && <small>REF. {item.transactionReference}</small>}
+                  {item.reviewNote && <small>{item.reviewNote}</small>}
+                </article>
+              ))}
+            </div>
+          )}
           {wallet?.withdrawals?.sandboxEnabled && (
             <section className="wallet-sandbox-lab">
               <header><div><span>TESTE DE FLUXO</span><h4>Simular pedido de saque</h4></div><strong>ZERO MOVIMENTAÇÃO</strong></header>
@@ -957,7 +1138,7 @@ export function ConversionView({
       )}
 
       <footer className="conversion-safety-note">
-        <div><b>UMA ÚNICA DIREÇÃO</b><p>BTC ou DOGE → CMA. CMA não volta para cripto.</p></div>
+        <div><b>UMA ÚNICA DIREÇÃO</b><p>BTC, DOGE ou LTC → CMA. CMA não volta para cripto.</p></div>
         <div><b>SEM SAQUE DE CMA</b><p>O CMA compra somente itens e serviços internos.</p></div>
         <div><b>REGISTRO INDIVIDUAL</b><p>Cada conta tem saldos e histórico separados no servidor.</p></div>
         <div><b>COTAÇÃO REDUNDANTE</b><p>CoinGecko com alternativa automática da Coinbase.</p></div>

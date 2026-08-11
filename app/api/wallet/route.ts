@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
   createProviderDepositIntent,
+  createManualWithdrawalRequest,
   createSandboxDepositIntent,
   createSandboxWithdrawalIntent,
   readProviderDepositMinimum,
@@ -43,7 +44,15 @@ export async function POST(request: Request) {
   if (!user) return json({ error: "Faça login para usar o laboratório." }, 401);
   if (!env.DB) return json({ error: "Banco autoritativo indisponível." }, 503);
   const body = (await request.json().catch(() => null)) as
-    | { action?: unknown; amount?: unknown; asset?: unknown; usdAmount?: unknown }
+    | {
+        action?: unknown;
+        amount?: unknown;
+        asset?: unknown;
+        destinationAddress?: unknown;
+        expectedVersion?: unknown;
+        idempotencyKey?: unknown;
+        usdAmount?: unknown;
+      }
     | null;
   if (!body) return json({ error: "Simulação inválida." }, 400);
   const accountId = await accountIdForUser(user);
@@ -62,7 +71,7 @@ export async function POST(request: Request) {
     }
     if (body.action === "create-deposit") {
       return json({
-        message: "Fatura criada pelo provedor. O BTC ou DOGE recebido só entra no saldo interno após confirmação na rede.",
+        message: "Fatura criada pelo provedor. A cripto recebida só entra no saldo interno após confirmação na rede.",
         deposit: await createProviderDepositIntent({
           accountId,
           asset: body.asset,
@@ -89,6 +98,21 @@ export async function POST(request: Request) {
           asset: body.asset,
           db: env.DB,
           environment: env,
+        }),
+      });
+    }
+    if (body.action === "create-withdrawal") {
+      return json({
+        message: "Saque reservado e enviado para a análise do proprietário.",
+        withdrawal: await createManualWithdrawalRequest({
+          accountId,
+          amount: body.amount,
+          asset: body.asset,
+          db: env.DB,
+          destinationAddress: body.destinationAddress,
+          environment: env,
+          expectedVersion: body.expectedVersion,
+          idempotencyKey: body.idempotencyKey,
         }),
       });
     }

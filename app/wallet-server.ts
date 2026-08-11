@@ -5,9 +5,8 @@ import {
 import { amountToAtomic } from "./conversion-rules.ts";
 import {
   applyCryptoDepositBalances,
-  DEPOSIT_SETTLEMENT_ASSET,
-  DEPOSIT_SETTLEMENT_DECIMALS,
   parseDecimalAtomic,
+  settlementAssetDecimals,
 } from "./deposit-rules.ts";
 import { readBoundedJsonObject } from "./external-json.ts";
 import {
@@ -24,6 +23,7 @@ type WalletEnvironment = {
   CRYPTO_LIVE_DEPOSITS_ENABLED?: string;
   CRYPTO_LIVE_DEPOSITS_OWNER_ONLY?: string;
   CRYPTO_SANDBOX_ENABLED?: string;
+  MANUAL_WITHDRAWALS_ENABLED?: string;
   NOWPAYMENTS_API_BASE_URL?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
@@ -60,11 +60,21 @@ type DepositIntentRow = {
 };
 
 type WithdrawalIntentRow = {
+  account_id?: string;
   asset: string;
   created_at: number;
+  destination_address?: string | null;
+  destination_preview?: string;
+  display_name?: string | null;
+  email?: string | null;
   id: string;
+  provider?: string;
   requested_atomic: number;
+  resolved_at?: number | null;
+  review_note?: string | null;
   status: string;
+  transaction_hash?: string | null;
+  updated_at?: number;
 };
 
 export type WalletSandboxAsset = "BTC" | "DOGE";
@@ -79,9 +89,10 @@ export type WalletOverview = {
     btcAtomic: number;
     cma: number;
     dogeAtomic: number;
+    ltcAtomic: number;
   };
   deposits: {
-    assets: ["BTC", "DOGE"];
+    assets: ["BTC", "DOGE", "LTC"];
     enabled: boolean;
     accessAllowed: boolean;
     ownerOnly: boolean;
@@ -107,7 +118,21 @@ export type WalletOverview = {
     }>;
   };
   withdrawals: {
-    enabled: false;
+    enabled: boolean;
+    assets: ["BTC", "DOGE"];
+    minimumAtomic: Record<WalletSandboxAsset, number>;
+    recent: Array<{
+      amountAtomic: number;
+      asset: string;
+      createdAt: number;
+      destinationPreview: string;
+      id: string;
+      resolvedAt: number | null;
+      reviewNote: string | null;
+      status: string;
+      transactionReference: string | null;
+      updatedAt: number;
+    }>;
     recentSandbox: Array<{
       amountAtomic: number;
       asset: string;
@@ -119,8 +144,52 @@ export type WalletOverview = {
   };
 };
 
+export type AdminWithdrawalOverview = {
+  counts: {
+    paid: number;
+    rejected: number;
+    requested: number;
+    reviewing: number;
+  };
+  enabled: boolean;
+  requests: Array<{
+    accountId: string;
+    amountAtomic: number;
+    asset: WalletSandboxAsset;
+    createdAt: number;
+    destinationAddress: string;
+    displayName: string;
+    email: string;
+    id: string;
+    resolvedAt: number | null;
+    reviewNote: string | null;
+    status: string;
+    transactionReference: string | null;
+    updatedAt: number;
+  }>;
+};
+
+export const MANUAL_WITHDRAWAL_MINIMUM_ATOMIC: Record<
+  WalletSandboxAsset,
+  number
+> = {
+  BTC: 10_000,
+  DOGE: 1_000_000_000,
+};
+
+const MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC: Record<WalletSandboxAsset, number> = {
+  BTC: 100_000_000,
+  DOGE: 10_000_000_000_000,
+};
+
 function cleanEnvironment(environment: unknown) {
   return (environment ?? {}) as WalletEnvironment;
+}
+
+export function manualWithdrawalsEnabled(environment: unknown) {
+  return cleanEnvironment(environment).MANUAL_WITHDRAWALS_ENABLED
+    ?.trim()
+    .toLowerCase() === "true";
 }
 
 function liveDepositsOwnerOnly(environment: unknown) {
@@ -226,8 +295,13 @@ export async function ensureWalletSchema(db: D1Database) {
       asset TEXT NOT NULL,
       provider TEXT NOT NULL,
       requested_atomic INTEGER NOT NULL,
+      destination_address TEXT,
       destination_preview TEXT NOT NULL,
       status TEXT DEFAULT 'simulation_only' NOT NULL,
+      review_note TEXT,
+      transaction_hash TEXT,
+      resolved_at INTEGER,
+      resolved_by TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )`),
@@ -273,7 +347,7 @@ export async function readProviderDepositMinimum(input: {
   environment: unknown;
 }) {
   if (!isNowPaymentsAsset(input.asset)) {
-    throw new Error("Escolha BTC ou DOGE para consultar o mínimo.");
+    throw new Error("Escolha BTC, DOGE ou LTC para consultar o mínimo.");
   }
   const config = readNowPaymentsConfig(input.environment);
   if (!config.providerReady) {
@@ -283,8 +357,8 @@ export async function readProviderDepositMinimum(input: {
     currency_from: input.asset.toLowerCase(),
     currency_to: config.settlementAsset,
     fiat_equivalent: "usd",
-    is_fee_paid_by_user: "true",
-    is_fixed_rate: "true",
+    is_fee_paid_by_user: "false",
+    is_fixed_rate: "false",
   });
   const response = await fetch(`${config.apiBaseUrl}/min-amount?${query}`, {
     headers: { "x-api-key": config.apiKey },
@@ -321,7 +395,7 @@ export async function createProviderDepositIntent(input: {
     throw new Error("Depósitos reais estão em homologação exclusiva da conta fundadora.");
   }
   if (!isNowPaymentsAsset(input.asset)) {
-    throw new Error("Escolha BTC ou DOGE para o depósito.");
+    throw new Error("Escolha BTC, DOGE ou LTC para o depósito.");
   }
   const providerMinimum = await readProviderDepositMinimum({
     asset: input.asset,
@@ -379,8 +453,8 @@ export async function createProviderDepositIntent(input: {
       body: JSON.stringify({
         cancel_url: `${config.publicBaseUrl}/?view=wallet&deposit=cancelled`,
         ipn_callback_url: `${config.publicBaseUrl}/api/wallet/nowpayments`,
-        is_fee_paid_by_user: true,
-        is_fixed_rate: true,
+        is_fee_paid_by_user: false,
+        is_fixed_rate: false,
         order_description: "Crédito de saldo no Crypto Miner Arcadia",
         order_id: id,
         pay_currency: input.asset.toLowerCase(),
@@ -522,7 +596,7 @@ export async function processNowPaymentsIpn(input: {
   const settlementAsset = cleanProviderValue(payload.outcome_currency).toUpperCase();
   const settlementAtomic = parseDecimalAtomic(
     payload.outcome_amount,
-    DEPOSIT_SETTLEMENT_DECIMALS,
+    settlementAssetDecimals(settlementAsset),
   );
   if (eventAsset !== intent.asset || !isNowPaymentsAsset(eventAsset)) {
     throw new Error("Moeda recebida não corresponde à fatura.");
@@ -543,7 +617,7 @@ export async function processNowPaymentsIpn(input: {
   const receivedAtomic = amountToAtomic(paidAmount, eventAsset);
   if (!receivedAtomic) throw new Error("Quantidade recebida inválida.");
   if (
-    settlementAsset !== DEPOSIT_SETTLEMENT_ASSET ||
+    settlementAsset !== config.settlementAsset.toUpperCase() ||
     !settlementAtomic
   ) {
     await input.db.batch([
@@ -584,10 +658,12 @@ export async function processNowPaymentsIpn(input: {
     asset: eventAsset,
     btcBalanceAtomic: state.btcBalanceAtomic,
     dogeBalanceAtomic: state.dogeBalanceAtomic,
+    ltcBalanceAtomic: state.ltcBalanceAtomic,
     receivedAtomic,
   });
   state.btcBalanceAtomic = balances.btcBalanceAtomic;
   state.dogeBalanceAtomic = balances.dogeBalanceAtomic;
+  state.ltcBalanceAtomic = balances.ltcBalanceAtomic;
   state.displayedBalanceSymbol = eventAsset;
   const nextVersion = stateRow.version + 1;
   const nextStateJson = JSON.stringify(state);
@@ -816,6 +892,438 @@ export async function createSandboxWithdrawalIntent(input: {
   };
 }
 
+function validWithdrawalAddress(asset: WalletSandboxAsset, value: unknown) {
+  if (typeof value !== "string") return null;
+  const address = value.trim();
+  if (address.length > 96 || /\s/.test(address)) return null;
+  if (asset === "BTC") {
+    const valid =
+      /^(?:bc1[ac-hj-np-z02-9]{11,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(
+        address,
+      );
+    return valid ? address : null;
+  }
+  const valid = /^(?:D[5-9A-HJ-NP-Ua-km-z]{24,33}|[A9][1-9A-HJ-NP-Za-km-z]{25,34})$/.test(
+    address,
+  );
+  return valid ? address : null;
+}
+
+function withdrawalDestinationPreview(address: string) {
+  return `${address.slice(0, 6)}…${address.slice(-6)}`;
+}
+
+function withdrawalBalance(state: PublicGameState, asset: WalletSandboxAsset) {
+  return asset === "BTC" ? state.btcBalanceAtomic : state.dogeBalanceAtomic;
+}
+
+function setWithdrawalBalance(
+  state: PublicGameState,
+  asset: WalletSandboxAsset,
+  atomic: number,
+) {
+  if (asset === "BTC") state.btcBalanceAtomic = atomic;
+  else state.dogeBalanceAtomic = atomic;
+}
+
+export async function createManualWithdrawalRequest(input: {
+  accountId: string;
+  amount: unknown;
+  asset: unknown;
+  db: D1Database;
+  destinationAddress: unknown;
+  environment: unknown;
+  expectedVersion: unknown;
+  idempotencyKey: unknown;
+  now?: number;
+}) {
+  if (!manualWithdrawalsEnabled(input.environment)) {
+    throw new Error("A fila de saques ainda não está liberada.");
+  }
+  if (!validSandboxAsset(input.asset) || typeof input.amount !== "string") {
+    throw new Error("Escolha BTC ou DOGE e informe uma quantidade válida.");
+  }
+  if (
+    typeof input.expectedVersion !== "number" ||
+    !Number.isInteger(input.expectedVersion) ||
+    input.expectedVersion < 1 ||
+    typeof input.idempotencyKey !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(input.idempotencyKey)
+  ) {
+    throw new Error("Atualize a carteira e tente solicitar novamente.");
+  }
+  const destinationAddress = validWithdrawalAddress(
+    input.asset,
+    input.destinationAddress,
+  );
+  if (!destinationAddress) {
+    throw new Error(`O endereço de ${input.asset} não passou na validação básica.`);
+  }
+  const requestedAtomic = amountToAtomic(input.amount, input.asset);
+  if (
+    !requestedAtomic ||
+    requestedAtomic < MANUAL_WITHDRAWAL_MINIMUM_ATOMIC[input.asset] ||
+    requestedAtomic > MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC[input.asset]
+  ) {
+    const minimum =
+      MANUAL_WITHDRAWAL_MINIMUM_ATOMIC[input.asset] / 100_000_000;
+    throw new Error(
+      `O saque mínimo de ${input.asset} é ${minimum.toLocaleString("pt-BR", {
+        maximumFractionDigits: 8,
+      })} ${input.asset}.`,
+    );
+  }
+  const now = input.now ?? Date.now();
+  await ensureWalletSchema(input.db);
+  const id = `withdrawal-${input.idempotencyKey}`;
+  const existing = await input.db
+    .prepare(`SELECT id, asset, requested_atomic, destination_preview, status,
+      review_note, transaction_hash, resolved_at, created_at, updated_at
+      FROM wallet_withdrawal_intents WHERE id = ? AND account_id = ?`)
+    .bind(id, input.accountId)
+    .first<WithdrawalIntentRow>();
+  if (existing) {
+    return {
+      alreadyProcessed: true as const,
+      amountAtomic: existing.requested_atomic,
+      asset: existing.asset,
+      destinationPreview: existing.destination_preview ?? "",
+      id: existing.id,
+      status: existing.status,
+    };
+  }
+  const limits = await input.db
+    .prepare(`SELECT
+      SUM(CASE WHEN status IN ('requested', 'reviewing') THEN 1 ELSE 0 END) AS open_count,
+      SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS daily_count
+      FROM wallet_withdrawal_intents
+      WHERE account_id = ? AND provider = 'manual'`)
+    .bind(now - 24 * 60 * 60 * 1000, input.accountId)
+    .first<{ daily_count: number | null; open_count: number | null }>();
+  if (Number(limits?.open_count ?? 0) >= 3) {
+    throw new Error("Conclua seus pedidos em análise antes de abrir outro saque.");
+  }
+  if (Number(limits?.daily_count ?? 0) >= 5) {
+    throw new Error("Limite de cinco solicitações em 24 horas alcançado.");
+  }
+  const row = await input.db
+    .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
+    .bind(input.accountId)
+    .first<{ state_json: string; version: number }>();
+  if (!row) throw new Error("Abra a conta de jogo antes de solicitar um saque.");
+  if (row.version !== input.expectedVersion) {
+    throw new Error("Seu saldo mudou. Atualize a carteira e tente novamente.");
+  }
+  const state = normalizeBootstrapState(JSON.parse(row.state_json), now);
+  const available = withdrawalBalance(state, input.asset);
+  if (available < requestedAtomic) {
+    throw new Error(`Saldo ${input.asset} insuficiente para este saque.`);
+  }
+  setWithdrawalBalance(state, input.asset, available - requestedAtomic);
+  const nextVersion = row.version + 1;
+  const nextStateJson = JSON.stringify(state);
+  const preview = withdrawalDestinationPreview(destinationAddress);
+  const ledgerId = crypto.randomUUID();
+  const metadataJson = JSON.stringify({
+    asset: input.asset,
+    destinationPreview: preview,
+    requestedAtomic,
+    reservation: true,
+    withdrawalId: id,
+  });
+  const results = await input.db.batch([
+    input.db
+      .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+        WHERE account_id = ? AND version = ?`)
+      .bind(nextStateJson, nextVersion, now, input.accountId, row.version),
+    input.db
+      .prepare(`INSERT INTO wallet_withdrawal_intents (
+        id, account_id, asset, provider, requested_atomic, destination_address,
+        destination_preview, status, created_at, updated_at
+      ) SELECT ?, ?, ?, 'manual', ?, ?, ?, 'requested', ?, ?
+        WHERE EXISTS (SELECT 1 FROM game_states
+          WHERE account_id = ? AND version = ? AND state_json = ?)`)
+      .bind(
+        id,
+        input.accountId,
+        input.asset,
+        requestedAtomic,
+        destinationAddress,
+        preview,
+        now,
+        now,
+        input.accountId,
+        nextVersion,
+        nextStateJson,
+      ),
+    input.db
+      .prepare(`INSERT INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) SELECT ?, ?, 'reserve_crypto_withdrawal', ?, ?, 0, ?, ?
+        WHERE EXISTS (SELECT 1 FROM wallet_withdrawal_intents
+          WHERE id = ? AND account_id = ? AND status = 'requested')`)
+      .bind(
+        ledgerId,
+        input.accountId,
+        `withdrawal-reserve:${input.idempotencyKey}`,
+        nextVersion,
+        metadataJson,
+        now,
+        id,
+        input.accountId,
+      ),
+  ]);
+  const stateChanged = Number(results[0]?.meta.changes ?? 0) === 1;
+  const requestChanged = Number(results[1]?.meta.changes ?? 0) === 1;
+  const ledgerChanged = Number(results[2]?.meta.changes ?? 0) === 1;
+  if (!stateChanged || !requestChanged || !ledgerChanged) {
+    if (stateChanged) {
+      await input.db.batch([
+        input.db
+          .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+            WHERE account_id = ? AND version = ? AND state_json = ?`)
+          .bind(row.state_json, row.version, now, input.accountId, nextVersion, nextStateJson),
+        input.db
+          .prepare(`DELETE FROM wallet_withdrawal_intents
+            WHERE id = ? AND account_id = ? AND status = 'requested'
+              AND NOT EXISTS (SELECT 1 FROM ledger_entries
+                WHERE account_id = ? AND idempotency_key = ?)`)
+          .bind(
+            id,
+            input.accountId,
+            input.accountId,
+            `withdrawal-reserve:${input.idempotencyKey}`,
+          ),
+      ]);
+    }
+    throw new Error("Seu saldo mudou durante a solicitação. Atualize e tente novamente.");
+  }
+  return {
+    alreadyProcessed: false as const,
+    amountAtomic: requestedAtomic,
+    asset: input.asset,
+    destinationPreview: preview,
+    id,
+    status: "requested" as const,
+  };
+}
+
+export async function readAdminWithdrawalOverview(input: {
+  db: D1Database;
+  environment: unknown;
+}) : Promise<AdminWithdrawalOverview> {
+  await ensureWalletSchema(input.db);
+  const result = await input.db
+    .prepare(`SELECT withdrawals.id, withdrawals.account_id, withdrawals.asset,
+      withdrawals.requested_atomic, withdrawals.destination_address,
+      withdrawals.status, withdrawals.review_note, withdrawals.transaction_hash,
+      withdrawals.resolved_at, withdrawals.created_at, withdrawals.updated_at,
+      states.display_name, states.email
+      FROM wallet_withdrawal_intents withdrawals
+      LEFT JOIN game_states states ON states.account_id = withdrawals.account_id
+      WHERE withdrawals.provider = 'manual'
+      ORDER BY CASE withdrawals.status
+        WHEN 'requested' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,
+        withdrawals.created_at DESC
+      LIMIT 100`)
+    .all<WithdrawalIntentRow>();
+  const requests = (result.results ?? []).map((row) => ({
+    accountId: row.account_id ?? "",
+    amountAtomic: row.requested_atomic,
+    asset: row.asset as WalletSandboxAsset,
+    createdAt: row.created_at,
+    destinationAddress: row.destination_address ?? "",
+    displayName: row.display_name || "Operador",
+    email: row.email || "",
+    id: row.id,
+    resolvedAt: row.resolved_at ?? null,
+    reviewNote: row.review_note ?? null,
+    status: row.status,
+    transactionReference: row.transaction_hash ?? null,
+    updatedAt: row.updated_at ?? row.created_at,
+  }));
+  return {
+    counts: {
+      paid: requests.filter((item) => item.status === "paid").length,
+      rejected: requests.filter((item) => item.status === "rejected").length,
+      requested: requests.filter((item) => item.status === "requested").length,
+      reviewing: requests.filter((item) => item.status === "reviewing").length,
+    },
+    enabled: manualWithdrawalsEnabled(input.environment),
+    requests,
+  };
+}
+
+export async function reviewManualWithdrawal(input: {
+  action: "review" | "pay" | "reject";
+  actorAccountId: string;
+  db: D1Database;
+  environment: unknown;
+  note: unknown;
+  now?: number;
+  requestId: unknown;
+  transactionReference: unknown;
+}) {
+  if (!manualWithdrawalsEnabled(input.environment)) {
+    throw new Error("A fila manual está desativada.");
+  }
+  if (
+    typeof input.requestId !== "string" ||
+    !/^withdrawal-[0-9a-f-]{36}$/i.test(input.requestId)
+  ) {
+    throw new Error("Solicitação de saque inválida.");
+  }
+  const now = input.now ?? Date.now();
+  await ensureWalletSchema(input.db);
+  const intent = await input.db
+    .prepare(`SELECT id, account_id, asset, requested_atomic, destination_address,
+      destination_preview, status, review_note, transaction_hash, resolved_at,
+      created_at, updated_at FROM wallet_withdrawal_intents
+      WHERE id = ? AND provider = 'manual'`)
+    .bind(input.requestId)
+    .first<WithdrawalIntentRow>();
+  if (!intent || !validSandboxAsset(intent.asset)) {
+    throw new Error("Solicitação de saque não encontrada.");
+  }
+  if (input.action === "review") {
+    if (intent.status === "reviewing") return { status: "reviewing" as const };
+    if (intent.status !== "requested") {
+      throw new Error("Este saque não pode mais entrar em análise.");
+    }
+    await input.db
+      .prepare(`UPDATE wallet_withdrawal_intents
+        SET status = 'reviewing', updated_at = ?
+        WHERE id = ? AND status = 'requested'`)
+      .bind(now, intent.id)
+      .run();
+    return { status: "reviewing" as const };
+  }
+  if (input.action === "pay") {
+    const reference =
+      typeof input.transactionReference === "string"
+        ? input.transactionReference.trim()
+        : "";
+    if (!/^[A-Za-z0-9:_-]{6,128}$/.test(reference)) {
+      throw new Error("Informe o hash ou identificador real do pagamento.");
+    }
+    if (intent.status === "paid") return { status: "paid" as const };
+    if (!['requested', 'reviewing'].includes(intent.status)) {
+      throw new Error("Este saque não pode ser marcado como pago.");
+    }
+    const changed = await input.db
+      .prepare(`UPDATE wallet_withdrawal_intents SET status = 'paid',
+        transaction_hash = ?, resolved_at = ?, resolved_by = ?, updated_at = ?
+        WHERE id = ? AND status IN ('requested', 'reviewing')`)
+      .bind(reference, now, input.actorAccountId, now, intent.id)
+      .run();
+    if (Number(changed.meta.changes ?? 0) !== 1) {
+      throw new Error("O saque mudou em outra sessão. Atualize a fila.");
+    }
+    return { status: "paid" as const };
+  }
+  const note = typeof input.note === "string" ? input.note.trim() : "";
+  if (note.length < 8 || note.length > 500) {
+    throw new Error("Explique o motivo da recusa em 8 a 500 caracteres.");
+  }
+  if (intent.status === "rejected") return { status: "rejected" as const };
+  if (!['requested', 'reviewing'].includes(intent.status)) {
+    throw new Error("Este saque não pode ser recusado.");
+  }
+  const stateRow = await input.db
+    .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
+    .bind(intent.account_id)
+    .first<{ state_json: string; version: number }>();
+  if (!stateRow) throw new Error("A conta do jogador não foi encontrada.");
+  const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
+  const refunded = withdrawalBalance(state, intent.asset) + intent.requested_atomic;
+  if (!Number.isSafeInteger(refunded)) {
+    throw new Error("O estorno excede o limite seguro da carteira.");
+  }
+  setWithdrawalBalance(state, intent.asset, refunded);
+  const nextVersion = stateRow.version + 1;
+  const nextStateJson = JSON.stringify(state);
+  const ledgerId = crypto.randomUUID();
+  const results = await input.db.batch([
+    input.db
+      .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+        WHERE account_id = ? AND version = ?`)
+      .bind(nextStateJson, nextVersion, now, intent.account_id, stateRow.version),
+    input.db
+      .prepare(`UPDATE wallet_withdrawal_intents SET status = 'rejected',
+        review_note = ?, resolved_at = ?, resolved_by = ?, updated_at = ?
+        WHERE id = ? AND status IN ('requested', 'reviewing')
+          AND EXISTS (SELECT 1 FROM game_states
+            WHERE account_id = ? AND version = ? AND state_json = ?)`)
+      .bind(
+        note,
+        now,
+        input.actorAccountId,
+        now,
+        intent.id,
+        intent.account_id,
+        nextVersion,
+        nextStateJson,
+      ),
+    input.db
+      .prepare(`INSERT INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) SELECT ?, ?, 'refund_crypto_withdrawal', ?, ?, 0, ?, ?
+        WHERE EXISTS (SELECT 1 FROM wallet_withdrawal_intents
+          WHERE id = ? AND status = 'rejected')`)
+      .bind(
+        ledgerId,
+        intent.account_id,
+        `withdrawal-refund:${intent.id}`,
+        nextVersion,
+        JSON.stringify({
+          asset: intent.asset,
+          refundedAtomic: intent.requested_atomic,
+          withdrawalId: intent.id,
+        }),
+        now,
+        intent.id,
+      ),
+  ]);
+  const stateChanged = Number(results[0]?.meta.changes ?? 0) === 1;
+  const intentChanged = Number(results[1]?.meta.changes ?? 0) === 1;
+  const ledgerChanged = Number(results[2]?.meta.changes ?? 0) === 1;
+  if (!stateChanged || !intentChanged || !ledgerChanged) {
+    if (stateChanged) {
+      await input.db.batch([
+        input.db
+          .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+            WHERE account_id = ? AND version = ? AND state_json = ?`)
+          .bind(
+            stateRow.state_json,
+            stateRow.version,
+            now,
+            intent.account_id,
+            nextVersion,
+            nextStateJson,
+          ),
+        input.db
+          .prepare(`UPDATE wallet_withdrawal_intents SET status = ?,
+            review_note = ?, resolved_at = NULL, resolved_by = NULL, updated_at = ?
+            WHERE id = ? AND status = 'rejected'
+              AND NOT EXISTS (SELECT 1 FROM ledger_entries
+                WHERE account_id = ? AND idempotency_key = ?)`)
+          .bind(
+            intent.status,
+            intent.review_note ?? null,
+            now,
+            intent.id,
+            intent.account_id,
+            `withdrawal-refund:${intent.id}`,
+          ),
+      ]);
+    }
+    throw new Error("A conta mudou durante o estorno. Atualize a fila e tente novamente.");
+  }
+  return { status: "rejected" as const };
+}
+
 export async function ensurePlayerWalletAccount(
   db: D1Database,
   accountId: string,
@@ -840,16 +1348,17 @@ export async function ensurePlayerWalletAccount(
 }
 
 function parseBalances(row: WalletGameRow | null) {
-  if (!row) return { btcAtomic: 0, cma: 0, dogeAtomic: 0 };
+  if (!row) return { btcAtomic: 0, cma: 0, dogeAtomic: 0, ltcAtomic: 0 };
   try {
     const state = JSON.parse(row.state_json) as Partial<PublicGameState>;
     return {
       btcAtomic: Math.max(0, Math.floor(Number(state.btcBalanceAtomic) || 0)),
       cma: Math.max(0, Number(state.cmaBalance) || 0),
       dogeAtomic: Math.max(0, Math.floor(Number(state.dogeBalanceAtomic) || 0)),
+      ltcAtomic: Math.max(0, Math.floor(Number(state.ltcBalanceAtomic) || 0)),
     };
   } catch {
-    return { btcAtomic: 0, cma: 0, dogeAtomic: 0 };
+    return { btcAtomic: 0, cma: 0, dogeAtomic: 0, ltcAtomic: 0 };
   }
 }
 
@@ -889,11 +1398,12 @@ export async function readWalletOverview(input: {
       .bind(input.accountId)
       .all<DepositIntentRow>(),
     input.db
-      .prepare(`SELECT id, asset, requested_atomic, status, created_at
+      .prepare(`SELECT id, asset, provider, requested_atomic, destination_preview,
+        status, review_note, transaction_hash, resolved_at, created_at, updated_at
         FROM wallet_withdrawal_intents
-        WHERE account_id = ? AND provider = 'sandbox'
+        WHERE account_id = ?
         ORDER BY created_at DESC
-        LIMIT 8`)
+        LIMIT 20`)
       .bind(input.accountId)
       .all<WithdrawalIntentRow>(),
   ]);
@@ -906,7 +1416,7 @@ export async function readWalletOverview(input: {
     },
     balances: parseBalances(game),
     deposits: {
-      assets: ["BTC", "DOGE"],
+      assets: ["BTC", "DOGE", "LTC"],
       activationRequested: readiness.activationRequested,
       accessAllowed,
       enabled: readiness.depositsEnabled && accessAllowed,
@@ -932,8 +1442,27 @@ export async function readWalletOverview(input: {
       })),
     },
     withdrawals: {
-      enabled: false,
-      recentSandbox: (withdrawals.results ?? []).map((intent) => ({
+      assets: ["BTC", "DOGE"],
+      enabled: manualWithdrawalsEnabled(input.environment),
+      minimumAtomic: MANUAL_WITHDRAWAL_MINIMUM_ATOMIC,
+      recent: (withdrawals.results ?? [])
+        .filter((intent) => intent.provider === "manual")
+        .slice(0, 10)
+        .map((intent) => ({
+          amountAtomic: intent.requested_atomic,
+          asset: intent.asset,
+          createdAt: intent.created_at,
+          destinationPreview: intent.destination_preview ?? "",
+          id: intent.id,
+          resolvedAt: intent.resolved_at ?? null,
+          reviewNote: intent.review_note ?? null,
+          status: intent.status,
+          transactionReference: intent.transaction_hash ?? null,
+          updatedAt: intent.updated_at ?? intent.created_at,
+        })),
+      recentSandbox: (withdrawals.results ?? [])
+        .filter((intent) => intent.provider === "sandbox")
+        .map((intent) => ({
         amountAtomic: intent.requested_atomic,
         asset: intent.asset,
         createdAt: intent.created_at,

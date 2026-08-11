@@ -3,12 +3,13 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   applyCryptoDepositBalances,
-  DEPOSIT_SETTLEMENT_ASSET,
   parseDecimalAtomic,
+  settlementAssetDecimals,
 } from "../app/deposit-rules.ts";
 
-test("depósito preserva a liquidação auditável em USDT", () => {
-  assert.equal(DEPOSIT_SETTLEMENT_ASSET, "USDTTRC20");
+test("depósito audita liquidação com as casas da moeda configurada", () => {
+  assert.equal(settlementAssetDecimals("USDTTRC20"), 6);
+  assert.equal(settlementAssetDecimals("LTC"), 8);
 });
 
 test("depósito credita somente a moeda paga sem criar CMA", () => {
@@ -17,24 +18,37 @@ test("depósito credita somente a moeda paga sem criar CMA", () => {
       asset: "BTC",
       btcBalanceAtomic: 10,
       dogeBalanceAtomic: 20,
+      ltcBalanceAtomic: 0,
       receivedAtomic: 30,
     }),
-    { btcBalanceAtomic: 40, dogeBalanceAtomic: 20 },
+    { btcBalanceAtomic: 40, dogeBalanceAtomic: 20, ltcBalanceAtomic: 0 },
   );
   assert.deepEqual(
     applyCryptoDepositBalances({
       asset: "DOGE",
       btcBalanceAtomic: 10,
       dogeBalanceAtomic: 20,
+      ltcBalanceAtomic: 0,
       receivedAtomic: 30,
     }),
-    { btcBalanceAtomic: 10, dogeBalanceAtomic: 50 },
+    { btcBalanceAtomic: 10, dogeBalanceAtomic: 50, ltcBalanceAtomic: 0 },
+  );
+  assert.deepEqual(
+    applyCryptoDepositBalances({
+      asset: "LTC",
+      btcBalanceAtomic: 10,
+      dogeBalanceAtomic: 20,
+      ltcBalanceAtomic: 30,
+      receivedAtomic: 40,
+    }),
+    { btcBalanceAtomic: 10, dogeBalanceAtomic: 20, ltcBalanceAtomic: 70 },
   );
   assert.throws(() =>
     applyCryptoDepositBalances({
       asset: "BTC",
       btcBalanceAtomic: Number.MAX_SAFE_INTEGER,
       dogeBalanceAtomic: 0,
+      ltcBalanceAtomic: 0,
       receivedAtomic: 1,
     }),
   );
@@ -54,11 +68,11 @@ test("IPN concluído credita a moeda paga e exige conversão manual para CMA", a
     new URL("../app/wallet-server.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /is_fee_paid_by_user: true/);
+  assert.match(source, /is_fee_paid_by_user: false/);
   assert.match(source, /credencial de sandbox separada/);
   assert.match(source, /price_currency/);
   assert.match(source, /outcome_currency/);
-  assert.match(source, /DEPOSIT_SETTLEMENT_ASSET/);
+  assert.match(source, /config\.settlementAsset\.toUpperCase/);
   assert.match(source, /review_required/);
   assert.match(source, /credit_crypto_deposit/);
   assert.match(source, /manualConversionRequired: true/);

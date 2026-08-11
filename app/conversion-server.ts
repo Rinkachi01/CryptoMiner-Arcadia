@@ -10,7 +10,10 @@ import {
   isConversionAsset,
   type ConversionAssetId,
 } from "./conversion-rules.ts";
-import type { PublicGameState } from "./game-server.ts";
+import {
+  normalizeBootstrapState,
+  type PublicGameState,
+} from "./game-server.ts";
 import { readBoundedJsonObject } from "./external-json.ts";
 
 const PRICE_CACHE_MS = 60 * 1000;
@@ -405,7 +408,7 @@ function parseGameState(value: string) {
 function applyQuotedConversion(
   state: PublicGameState,
   quote: ConversionQuoteRow,
-  asset: "BTC" | "DOGE",
+  asset: ConversionAssetId,
 ) {
   const next = structuredClone(state);
   let balances;
@@ -416,6 +419,7 @@ function applyQuotedConversion(
       btcBalanceAtomic: next.btcBalanceAtomic,
       cmaBalance: next.cmaBalance,
       dogeBalanceAtomic: next.dogeBalanceAtomic,
+      ltcBalanceAtomic: next.ltcBalanceAtomic,
       netCmaMicros: quote.net_cma_micros,
     });
   } catch (error) {
@@ -426,6 +430,7 @@ function applyQuotedConversion(
   next.btcBalanceAtomic = balances.btcBalanceAtomic;
   next.cmaBalance = balances.cmaBalance;
   next.dogeBalanceAtomic = balances.dogeBalanceAtomic;
+  next.ltcBalanceAtomic = balances.ltcBalanceAtomic;
   next.displayedBalanceSymbol = "CMA";
   return next;
 }
@@ -501,8 +506,8 @@ export async function executeConversionQuote(input: {
   if (quote.expires_at < now) {
     throw new ConversionExecutionError("A cotação expirou. Gere uma nova.", 409);
   }
-  if (quote.asset !== "BTC" && quote.asset !== "DOGE") {
-    throw new ConversionExecutionError("Somente BTC e DOGE podem ser convertidos nesta fase.");
+  if (!isConversionAsset(quote.asset)) {
+    throw new ConversionExecutionError("Moeda de conversão inválida.");
   }
   if (
     quote.net_cma_micros < CONVERSION_MIN_USD * 1_000_000 ||
@@ -521,7 +526,11 @@ export async function executeConversionQuote(input: {
   }
 
   const asset = quote.asset;
-  const nextState = applyQuotedConversion(parseGameState(row.state_json), quote, asset);
+  const nextState = applyQuotedConversion(
+    normalizeBootstrapState(parseGameState(row.state_json), now),
+    quote,
+    asset,
+  );
   const nextVersion = row.version + 1;
   const nextStateJson = JSON.stringify(nextState);
   const ledgerId = crypto.randomUUID();

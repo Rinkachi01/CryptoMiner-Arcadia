@@ -1,9 +1,9 @@
-# Depósitos BTC e DOGE com NOWPayments
+# Depósitos LTC, DOGE e BTC com NOWPayments
 
 O Arcadia usa o NOWPayments somente como porta de entrada. Cada compra de saldo
-gera uma fatura única. O usuário paga em BTC ou DOGE; o provedor liquida a
-tesouraria em USDT TRC20 e envia um IPN assinado. Depois dessas conferências, o
-servidor credita exatamente BTC ou DOGE no livro-razão individual. O jogador
+gera uma fatura única. O usuário paga em LTC, DOGE ou BTC; o provedor envia um
+IPN assinado e informa a moeda de liquidação configurada. Depois dessas conferências, o
+servidor credita exatamente a moeda paga no livro-razão individual. O jogador
 decide depois quantas unidades inteiras de CMA quer comprar. O CMA continua
 interno e não sacável.
 
@@ -14,9 +14,10 @@ interno e não sacável.
 2. Confirmar com o provedor que jogos de mineração virtual e venda de créditos
    internos são aceitos nos países atendidos.
 3. Ativar 2FA e guardar os códigos de recuperação fora do computador do site.
-4. Manter `USDTTRC20` como moeda principal de liquidação e cadastrar uma
-   carteira externa própria quando a política da conta exigir retirada. O
-   Arcadia nunca deve receber seed phrase ou chave privada.
+4. Solicitar o modo Custody para evitar uma transferência de saída a cada
+   depósito. Se o provedor exigir uma única moeda principal, usar LTC reduz o
+   custo de rede; manter USDT TRC20 exige conversão e costuma elevar o mínimo.
+   O Arcadia nunca deve receber seed phrase ou chave privada.
 5. Criar primeiro uma conta no sandbox e gerar uma chave de API e um segredo
    IPN exclusivos.
 
@@ -56,17 +57,18 @@ seed phrase ou chave privada ao Arcadia.
 ## Valor mínimo dinâmico
 
 O Arcadia não mantém mais um piso fixo de US$ 5. Antes de criar a fatura, o
-servidor consulta o mínimo atual de BTC ou DOGE para liquidação em USDT TRC20.
+servidor consulta o mínimo atual de LTC, DOGE ou BTC para a liquidação configurada.
 O valor é arredondado para cima em centavos e validado uma segunda vez no
 servidor. Se a consulta falhar, a fatura não é criada.
 
 ```text
-NOWPAYMENTS_SETTLEMENT_ASSET=usdttrc20
+NOWPAYMENTS_SETTLEMENT_ASSET=ltc
 ```
 
-O mínimo continua pertencendo ao provedor e à rede; não é possível forçar um
-valor menor sem arriscar pagamento incompleto. Na página externa, o comprador
-também deve digitar um e-mail válido — por exemplo, `gmail.com`, não `gmail.cor`.
+Só altere a variável depois de mudar a moeda principal no painel da NOWPayments;
+as duas configurações precisam coincidir. O mínimo pertence ao provedor e à rede
+e não pode ser forçado para baixo. O Arcadia usa taxa variável e não repassa todas
+as taxas ao comprador, evitando o adicional do modo fixo.
 
 ## Teste obrigatório antes da ativação
 
@@ -74,8 +76,9 @@ também deve digitar um e-mail válido — por exemplo, `gmail.com`, não `gmail
 - pagamento parcial sem crédito completo;
 - assinatura IPN adulterada recusada;
 - repetição do mesmo IPN sem crédito duplicado;
-- pagamento BTC liquidado em USDT TRC20 e creditado uma única vez em BTC;
-- pagamento DOGE liquidado em USDT TRC20 e creditado uma única vez em DOGE;
+- pagamento BTC liquidado na moeda configurada e creditado uma única vez em BTC;
+- pagamento DOGE liquidado na moeda configurada e creditado uma única vez em DOGE;
+- pagamento LTC liquidado na moeda configurada e creditado uma única vez em LTC;
 - depósito confirmado não cria CMA automaticamente;
 - compra manual de 1, 2 e 3 CMA debita somente a cripto calculada na cotação;
 - valor liquidado divergente encaminhado para revisão, sem crédito indevido;
@@ -87,9 +90,16 @@ poucas contas autorizadas e reconciliação diária da tesouraria.
 
 ## Saques manuais
 
-O site não executa saques automaticamente. Uma fila administrativa pode servir
-como solicitação e comprovante, mas a transferência externa feita pelo
-proprietário continua sendo uma operação financeira real. Antes de liberar
-essa fila para jogadores, definir verificação de identidade, endereço de
-destino, limites, análise de risco, confirmação em duas etapas, reserva e
-política de reembolso. "Manual" não significa livre de responsabilidade.
+A fila manual aceita somente BTC e DOGE. O pedido reserva imediatamente o saldo,
+aparece apenas para a conta fundadora e não movimenta blockchain. Depois de pagar
+fora do Arcadia, o fundador registra o hash ou ID da transferência. Se recusar,
+o servidor estorna o valor reservado. LTC e CMA não entram nessa fila.
+
+Ative somente no Worker público:
+
+```text
+MANUAL_WITHDRAWALS_ENABLED=true
+```
+
+"Manual" não significa livre de responsabilidade: antes do público, ainda é
+necessário definir identidade, limites, análise de risco, 2FA e reconciliação.

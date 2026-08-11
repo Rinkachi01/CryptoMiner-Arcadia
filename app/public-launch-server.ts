@@ -4,6 +4,7 @@ type PublicLaunchEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
   NOWPAYMENTS_API_KEY?: string;
   NOWPAYMENTS_IPN_SECRET?: string;
+  MANUAL_WITHDRAWALS_ENABLED?: string;
   PUBLIC_BASE_URL?: string;
   PUBLIC_LOGIN_ENABLED?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
@@ -35,8 +36,8 @@ export type PublicLaunchReadiness = {
   };
   withdrawals: {
     cmaWithdrawable: false;
-    cryptoEnabled: false;
-    provider: "not_selected";
+    cryptoEnabled: boolean;
+    provider: "manual_review";
     sandboxEnabled: boolean;
   };
 };
@@ -118,8 +119,8 @@ export function readPublicLaunchReadiness(
     },
     withdrawals: {
       cmaWithdrawable: false,
-      cryptoEnabled: false,
-      provider: "not_selected",
+      cryptoEnabled: enabled(source.MANUAL_WITHDRAWALS_ENABLED),
+      provider: "manual_review",
       sandboxEnabled: deposits.sandboxEnabled,
     },
   };

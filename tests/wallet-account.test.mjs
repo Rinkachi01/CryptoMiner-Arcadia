@@ -65,7 +65,7 @@ test("carteira usa livro-razão individual e não guarda chaves privadas", async
   assert.match(route, /getArcadiaUser/);
   assert.match(view, /Depósitos reais usam fatura externa/);
   assert.match(view, /Nunca envie criptomoeda/);
-  assert.match(view, /Deposite BTC ou DOGE no seu saldo interno/);
+  assert.match(view, /Deposite LTC, DOGE ou BTC no seu saldo interno/);
   assert.match(view, /nenhum CMA é criado automaticamente/);
   assert.match(view, /SOLICITAR SAQUE/);
   assert.match(view, /Promise\.allSettled/);
@@ -93,7 +93,7 @@ test("laboratório financeiro registra somente simulações e preserva saldos", 
   assert.doesNotMatch(server, /usdAmount < 5/);
   assert.match(route, /deposit-minimum/);
   assert.match(view, /Mínimo atual/);
-  assert.match(view, /gmail\.cor/);
+  assert.match(view, /preserva o erro real devolvido pela NOWPayments/);
   assert.match(view, /ZERO CRÉDITO/);
   assert.match(view, /não altera nenhum saldo/);
   assert.match(schema, /wallet_withdrawal_intents/);

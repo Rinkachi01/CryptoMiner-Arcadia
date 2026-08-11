@@ -13,14 +13,14 @@ Atualizado em 2 de agosto de 2026.
 - **Carteira:** livro-razão individual por jogador, com custódia e endereços
   administrados pelo provedor de pagamento. O Arcadia não guarda seed phrase ou
   chave privada.
-- **Depósitos:** fatura única BTC/DOGE vinculada à conta; o navegador nunca
+- **Depósitos:** fatura única LTC/DOGE/BTC vinculada à conta; o navegador nunca
   confirma o crédito.
-- **Saques:** etapa posterior. CMA não é sacável; BTC/DOGE exigem KYC, limites,
-  reserva e provedor de payout aprovado.
+- **Saques:** fila manual com reserva para BTC/DOGE. CMA e LTC não são sacáveis;
+  o fundador executa o pagamento externamente e registra a referência.
 
 ## Decisão recomendada
 
-Não abrir depósitos ou saques na primeira versão pública. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna ativada no beta é somente BTC ou DOGE para CMA, nunca CMA para cripto. Esses saldos vêm das recompensas simuladas do jogo; depósitos externos continuam bloqueados até existir contrato com provedor, operação aprovada e revisão jurídica.
+Manter depósitos reais restritos à conta fundadora durante a homologação. O CMA é um crédito virtual fechado: não sacável e não transferível. Para a economia interna, 1 CMA usa US$ 1 como unidade de referência contábil, mas isso não é promessa de resgate, paridade financeira ou investimento. A conversão interna é somente LTC, BTC ou DOGE para CMA, nunca CMA para cripto. Saques manuais reservam BTC/DOGE no servidor, mas a transferência externa continua sendo responsabilidade do fundador e exige reconciliação.
 
 O caminho de menor risco e custo é:
 
@@ -28,9 +28,9 @@ O caminho de menor risco e custo é:
 2. comprar somente o domínio;
 3. validar o cadastro Supabase já implementado, o SMTP e os redirecionamentos;
 4. ativar Cloudflare Turnstile e limites de borda;
-5. abrir um beta público sem dinheiro real;
-6. adicionar compra de itens/CMA em sentido único por um processador aprovado;
-7. estudar saque apenas depois de empresa, KYC/AML, jurídico e provedor regulado.
+5. concluir a homologação financeira somente com a conta fundadora;
+6. testar Pix pelo Checkout Transparente/Orders em ambiente de teste;
+7. ampliar depósitos e saques somente depois de empresa, KYC/AML, jurídico e reconciliação.
 
 ## Hospedagem, domínio e HTTPS
 
@@ -196,8 +196,9 @@ também ser cadastrado como segredo do Worker e o desafio do Arcade ser testado.
 - a migração usa pacote compactado, assinatura HMAC, validade de 24 horas,
   vínculo à mesma identidade e bloqueio de repetição. O destino precisa estar
   no estado inicial para impedir sobrescrita de progresso;
-- poder-base de rede é não remunerado e deve continuar existindo no servidor
-  para que o primeiro jogador público não receba sozinho todos os blocos.
+- poder-base de rede é apenas referência visual e nunca recebe recompensa. A
+  divisão financeira usa somente o poder ativo dos jogadores: se houver apenas
+  um minerador ativo numa rede, ele recebe 100% do bloco fixo.
 
 Fonte oficial: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
 

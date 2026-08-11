@@ -30,7 +30,7 @@ import {
 } from "./room-rules.ts";
 
 export type { RoomId } from "./room-rules.ts";
-export type WalletSymbol = "CMA" | "BTC" | "DOGE";
+export type WalletSymbol = "CMA" | "BTC" | "DOGE" | "LTC";
 export type PoolAllocations = Record<PoolId, number>;
 
 export type MinerUnit = {
@@ -51,6 +51,7 @@ export type PublicGameState = {
   cmaBalance: number;
   btcBalanceAtomic: number;
   dogeBalanceAtomic: number;
+  ltcBalanceAtomic: number;
   batteryCount: number;
   energyExpiresAt: number;
   lastEnergyClaimAt: number;
@@ -115,7 +116,7 @@ function getOwnedMinerUnitCount(state: PublicGameState) {
 }
 
 function isWalletSymbol(value: unknown): value is WalletSymbol {
-  return value === "CMA" || value === "BTC" || value === "DOGE";
+  return value === "CMA" || value === "BTC" || value === "DOGE" || value === "LTC";
 }
 
 function isAllocation(value: unknown): value is PoolAllocations {
@@ -151,6 +152,7 @@ export function createInitialGameState(now: number): PublicGameState {
     cmaBalance: 0,
     btcBalanceAtomic: 0,
     dogeBalanceAtomic: 0,
+    ltcBalanceAtomic: 0,
     batteryCount: 0,
     energyExpiresAt: now,
     lastEnergyClaimAt: now,
@@ -316,6 +318,9 @@ export function normalizeBootstrapState(
     ),
     dogeBalanceAtomic: Math.floor(
       safeNumber(candidate.dogeBalanceAtomic, 642_000_000, 0, 1_000_000_000_000),
+    ),
+    ltcBalanceAtomic: Math.floor(
+      safeNumber(candidate.ltcBalanceAtomic, 0, 0, 10_000_000_000_000),
     ),
     batteryCount: Math.floor(
       safeNumber(candidate.batteryCount, 2, 0, 8),

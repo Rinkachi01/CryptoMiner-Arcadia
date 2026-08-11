@@ -35,6 +35,7 @@
     "CRYPTO_LIVE_DEPOSITS_ENABLED": "true",
     "CRYPTO_LIVE_DEPOSITS_OWNER_ONLY": "true",
     "CRYPTO_SANDBOX_ENABLED": "false",
+    "MANUAL_WITHDRAWALS_ENABLED": "true",
     "AUTH_CAPTCHA_REQUIRED": "true",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEEpj8fea0Bp_Y3_",
     "TURNSTILE_HOSTNAME": "crypto-miner-arcadia.criptomineracardia.workers.dev",

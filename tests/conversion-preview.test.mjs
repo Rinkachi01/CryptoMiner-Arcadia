@@ -61,12 +61,14 @@ test("conversão debita a moeda e credita CMA em precisão de micros", () => {
       btcBalanceAtomic: 25_000,
       cmaBalance: 1.25,
       dogeBalanceAtomic: 50_000_000,
+      ltcBalanceAtomic: 0,
       netCmaMicros: 9_700_000,
     }),
     {
       btcBalanceAtomic: 15_000,
       cmaBalance: 10.95,
       dogeBalanceAtomic: 50_000_000,
+      ltcBalanceAtomic: 0,
     },
   );
   assert.throws(
@@ -77,9 +79,27 @@ test("conversão debita a moeda e credita CMA em precisão de micros", () => {
         btcBalanceAtomic: 0,
         cmaBalance: 0,
         dogeBalanceAtomic: 1,
+        ltcBalanceAtomic: 0,
         netCmaMicros: 1,
       }),
     /Saldo DOGE insuficiente/,
+  );
+  assert.deepEqual(
+    applyInternalConversionBalances({
+      asset: "LTC",
+      assetAmountAtomic: 25_000,
+      btcBalanceAtomic: 0,
+      cmaBalance: 0,
+      dogeBalanceAtomic: 0,
+      ltcBalanceAtomic: 50_000,
+      netCmaMicros: 1_000_000,
+    }),
+    {
+      btcBalanceAtomic: 0,
+      cmaBalance: 1,
+      dogeBalanceAtomic: 0,
+      ltcBalanceAtomic: 25_000,
+    },
   );
 });
 

@@ -1,4 +1,4 @@
-export type NowPaymentsAsset = "BTC" | "DOGE";
+export type NowPaymentsAsset = "BTC" | "DOGE" | "LTC";
 
 export type NowPaymentsEnvironment = {
   CRYPTO_DEPOSITS_ENABLED?: string;
@@ -96,7 +96,7 @@ export function readNowPaymentsConfig(environment: unknown) {
 }
 
 export function isNowPaymentsAsset(value: unknown): value is NowPaymentsAsset {
-  return value === "BTC" || value === "DOGE";
+  return value === "BTC" || value === "DOGE" || value === "LTC";
 }
 
 export function parseNowPaymentsMinimumUsd(payload: unknown) {

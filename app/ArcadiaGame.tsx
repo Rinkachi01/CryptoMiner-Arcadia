@@ -273,6 +273,7 @@ export function ArcadiaGame({
   const [cmaBalance, setCmaBalance] = useState(0);
   const [btcBalanceAtomic, setBtcBalanceAtomic] = useState(0);
   const [dogeBalanceAtomic, setDogeBalanceAtomic] = useState(0);
+  const [ltcBalanceAtomic, setLtcBalanceAtomic] = useState(0);
   const [batteryCount, setBatteryCount] = useState(0);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
@@ -353,6 +354,7 @@ export function ArcadiaGame({
     setCmaBalance(state.cmaBalance);
     setBtcBalanceAtomic(state.btcBalanceAtomic);
     setDogeBalanceAtomic(state.dogeBalanceAtomic);
+    setLtcBalanceAtomic(state.ltcBalanceAtomic);
     setBatteryCount(state.batteryCount);
     setEnergyExpiresAt(state.energyExpiresAt);
     setLastSettledBlock(state.lastSettledBlock);
@@ -720,6 +722,15 @@ export function ArcadiaGame({
       asset: assetsManifest.dogecoin.path,
       alt: assetsManifest.dogecoin.alt,
     },
+    {
+      symbol: "LTC",
+      value: (ltcBalanceAtomic / 100_000_000).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 8,
+      }),
+      asset: assetsManifest.litecoin.path,
+      alt: assetsManifest.litecoin.alt,
+    },
   ];
   const displayedBalance =
     balances.find(
@@ -821,7 +832,7 @@ export function ArcadiaGame({
             >
               <div className="wallet-menu-title">
                 <span>CARTEIRA VIRTUAL</span>
-                <small>sem saque nesta fase</small>
+                <small>saque manual de BTC/DOGE</small>
               </div>
               {balances.map((balance) => (
                 <button
@@ -1110,6 +1121,7 @@ export function ArcadiaGame({
             btcBalanceAtomic={btcBalanceAtomic}
             cmaBalance={cmaBalance}
             dogeBalanceAtomic={dogeBalanceAtomic}
+            ltcBalanceAtomic={ltcBalanceAtomic}
             onRefreshAccount={refreshServerState}
             serverVersion={serverVersion}
           />
@@ -1559,7 +1571,8 @@ function MiningRoom({
           </div>
           <small>
             Mais poder altera sua porcentagem na disputa, nunca o valor total
-            emitido pelo bloco. Simulação virtual, sem saque nesta fase.
+            emitido pelo bloco. Se você for o único minerador ativo, recebe 100%
+            do bloco fixo daquela rede.
           </small>
         </div>
 

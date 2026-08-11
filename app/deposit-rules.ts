@@ -1,18 +1,24 @@
-export const DEPOSIT_SETTLEMENT_ASSET = "USDTTRC20" as const;
-export const DEPOSIT_SETTLEMENT_DECIMALS = 6;
+export function settlementAssetDecimals(asset: string) {
+  const normalized = asset.trim().toUpperCase();
+  if (normalized.startsWith("USDT") || normalized.startsWith("USDC")) return 6;
+  return 8;
+}
 
 export function applyCryptoDepositBalances(input: {
-  asset: "BTC" | "DOGE";
+  asset: "BTC" | "DOGE" | "LTC";
   btcBalanceAtomic: number;
   dogeBalanceAtomic: number;
+  ltcBalanceAtomic: number;
   receivedAtomic: number;
 }) {
   if (
     !Number.isSafeInteger(input.btcBalanceAtomic) ||
     !Number.isSafeInteger(input.dogeBalanceAtomic) ||
+    !Number.isSafeInteger(input.ltcBalanceAtomic) ||
     !Number.isSafeInteger(input.receivedAtomic) ||
     input.btcBalanceAtomic < 0 ||
     input.dogeBalanceAtomic < 0 ||
+    input.ltcBalanceAtomic < 0 ||
     input.receivedAtomic <= 0
   ) {
     throw new Error("Crédito de depósito inválido.");
@@ -25,10 +31,18 @@ export function applyCryptoDepositBalances(input: {
     input.asset === "DOGE"
       ? input.dogeBalanceAtomic + input.receivedAtomic
       : input.dogeBalanceAtomic;
-  if (!Number.isSafeInteger(btcBalanceAtomic) || !Number.isSafeInteger(dogeBalanceAtomic)) {
+  const ltcBalanceAtomic =
+    input.asset === "LTC"
+      ? input.ltcBalanceAtomic + input.receivedAtomic
+      : input.ltcBalanceAtomic;
+  if (
+    !Number.isSafeInteger(btcBalanceAtomic) ||
+    !Number.isSafeInteger(dogeBalanceAtomic) ||
+    !Number.isSafeInteger(ltcBalanceAtomic)
+  ) {
     throw new Error("Saldo recebido excede o limite seguro.");
   }
-  return { btcBalanceAtomic, dogeBalanceAtomic };
+  return { btcBalanceAtomic, dogeBalanceAtomic, ltcBalanceAtomic };
 }
 
 export function parseDecimalAtomic(value: unknown, decimals: number) {

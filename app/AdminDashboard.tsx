@@ -33,6 +33,7 @@ import {
   supportCategoryLabels,
   type SupportCategory,
 } from "./support-rules";
+import type { AdminWithdrawalOverview } from "./wallet-server";
 
 type AdminOverview = {
   alerts: AdminAlert[];
@@ -538,6 +539,7 @@ export function AdminDashboard({
   user,
 }: AdminDashboardProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawalOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -559,14 +561,25 @@ export function AdminDashboard({
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
+  const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
+  const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
 
   const loadOverview = useCallback(async () => {
     setError("");
     try {
-      const response = await fetch("/api/admin", { cache: "no-store" });
-      const data = (await response.json()) as AdminOverview & { error?: string };
-      if (!response.ok) throw new Error(data.error ?? "Painel indisponível.");
+      const [overviewResponse, withdrawalResponse] = await Promise.all([
+        fetch("/api/admin", { cache: "no-store" }),
+        fetch("/api/admin/withdrawals", { cache: "no-store" }),
+      ]);
+      const data = (await overviewResponse.json()) as AdminOverview & { error?: string };
+      if (!overviewResponse.ok) throw new Error(data.error ?? "Painel indisponível.");
+      const withdrawalData = (await withdrawalResponse.json()) as
+        AdminWithdrawalOverview & { error?: string };
+      if (!withdrawalResponse.ok) {
+        throw new Error(withdrawalData.error ?? "Fila de saques indisponível.");
+      }
       setOverview(data);
+      setWithdrawals(withdrawalData);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -579,30 +592,9 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/admin", { cache: "no-store" })
-      .then(async (response) => {
-        const data = (await response.json()) as AdminOverview & {
-          error?: string;
-        };
-        if (!response.ok) throw new Error(data.error ?? "Painel indisponível.");
-        if (active) setOverview(data);
-      })
-      .catch((loadError: unknown) => {
-        if (!active) return;
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Não foi possível carregar o painel.",
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    const timer = window.setTimeout(() => void loadOverview(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadOverview]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -654,6 +646,40 @@ export function AdminDashboard({
         actionError instanceof Error
           ? actionError.message
           : "Não foi possível concluir.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function runWithdrawalAction(
+    requestId: string,
+    action: "review" | "pay" | "reject",
+  ) {
+    const actionId = `withdrawal-${action}-${requestId}`;
+    setBusyAction(actionId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/withdrawals", {
+        body: JSON.stringify({
+          action,
+          note: withdrawalNotes[requestId] ?? "",
+          requestId,
+          transactionReference: withdrawalReferences[requestId] ?? "",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string; message?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Ação de saque recusada.");
+      setMessage(payload.message ?? "Fila de saques atualizada.");
+      await loadOverview();
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Não foi possível atualizar o saque.",
       );
     } finally {
       setBusyAction("");
@@ -962,18 +988,20 @@ export function AdminDashboard({
                     : "NOWPAYMENTS AGUARDANDO CONTA"}
               </em>
             </article>
-            <article className="blocked">
+            <article className={overview.launch.withdrawals.cryptoEnabled ? "ready" : "blocked"}>
               <b>05</b>
               <span>SAQUES</span>
-              <strong>Provedor de payout + KYC</strong>
+              <strong>Fila manual do proprietário</strong>
               <p>
-                Fase separada. CMA nunca será sacável; BTC e DOGE dependerão de
-                contrato, identidade verificada, limites e reserva financeira.
+                CMA e LTC não são sacáveis. BTC e DOGE ficam reservados no pedido;
+                o pagamento externo e a conferência continuam manuais.
               </p>
               <em>
-                {overview.launch.withdrawals.sandboxEnabled
-                  ? "SOMENTE SIMULAÇÃO"
-                  : "NÃO ATIVAR AGORA"}
+                {overview.launch.withdrawals.cryptoEnabled
+                  ? "FILA MANUAL ATIVA"
+                  : overview.launch.withdrawals.sandboxEnabled
+                    ? "SOMENTE SIMULAÇÃO"
+                    : "PAUSADA"}
               </em>
             </article>
           </div>
@@ -1047,18 +1075,17 @@ export function AdminDashboard({
                   : "AGUARDA CONTRATO"}
               </em>
             </article>
-            <article className="later">
+            <article className={overview.launch.withdrawals.cryptoEnabled ? "next" : "later"}>
               <b>5</b>
               <div>
                 <span>SAQUES</span>
-                <strong>Fase posterior e separada</strong>
+                <strong>Operar a fila com dupla conferência</strong>
                 <p>
-                  CMA continuará não sacável. Saques de BTC ou DOGE exigirão KYC,
-                  controles contra fraude, limites, reservas e um provedor de payout
-                  autorizado.
+                  Revise endereço e rede, faça o envio externo e só então registre o
+                  hash. Recusas estornam o saldo reservado automaticamente.
                 </p>
               </div>
-              <em>NÃO LIBERAR AGORA</em>
+              <em>{overview.launch.withdrawals.cryptoEnabled ? "ATIVO" : "PAUSADO"}</em>
             </article>
           </div>
         </section>
@@ -1724,6 +1751,143 @@ export function AdminDashboard({
           </article>
         </div>
       </section>
+
+      {withdrawals && (
+        <section className="admin-panel admin-withdrawal-panel" id="withdrawal-queue">
+          <div className="admin-panel-heading">
+            <div>
+              <span>TESOURARIA · FILA MANUAL</span>
+              <h2>Pedidos de saque em BTC e DOGE</h2>
+            </div>
+            <small>
+              {withdrawals.counts.requested} NOVO(S) · {withdrawals.counts.reviewing}{" "}
+              EM ANÁLISE · {withdrawals.counts.paid} PAGO(S)
+            </small>
+          </div>
+          <div className="admin-withdrawal-summary">
+            <article>
+              <span>FILA</span>
+              <strong>{withdrawals.enabled ? "ATIVA" : "PAUSADA"}</strong>
+            </article>
+            <article>
+              <span>ABERTOS</span>
+              <strong>{withdrawals.counts.requested + withdrawals.counts.reviewing}</strong>
+            </article>
+            <article>
+              <span>RECUSADOS + ESTORNADOS</span>
+              <strong>{withdrawals.counts.rejected}</strong>
+            </article>
+          </div>
+          {withdrawals.requests.length === 0 ? (
+            <div className="admin-feedback-empty">Nenhum saque manual foi solicitado.</div>
+          ) : (
+            <div className="admin-withdrawal-queue">
+              {withdrawals.requests.slice(0, 30).map((request) => {
+                const open = request.status === "requested" || request.status === "reviewing";
+                return (
+                  <article className={open ? "open" : request.status} key={request.id}>
+                    <header>
+                      <div>
+                        <span>{request.id.slice(-8).toUpperCase()}</span>
+                        <strong>
+                          {(request.amountAtomic / 100_000_000).toLocaleString("pt-BR", {
+                            maximumFractionDigits: 8,
+                          })}{" "}
+                          {request.asset}
+                        </strong>
+                        <small>
+                          {request.displayName} · {request.email} · {formatDate(request.createdAt)}
+                        </small>
+                      </div>
+                      <em>{request.status.replaceAll("_", " ").toUpperCase()}</em>
+                    </header>
+                    <label className="admin-withdrawal-address">
+                      ENDEREÇO EXTERNO · REVISE A REDE ANTES DE PAGAR
+                      <code>{request.destinationAddress}</code>
+                    </label>
+                    {open ? (
+                      <div className="admin-withdrawal-actions">
+                        <label>
+                          HASH OU ID DO PAGAMENTO
+                          <input
+                            value={withdrawalReferences[request.id] ?? ""}
+                            onChange={(event) =>
+                              setWithdrawalReferences((current) => ({
+                                ...current,
+                                [request.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Cole somente depois do envio real"
+                          />
+                        </label>
+                        <label>
+                          MOTIVO DA RECUSA
+                          <input
+                            maxLength={500}
+                            value={withdrawalNotes[request.id] ?? ""}
+                            onChange={(event) =>
+                              setWithdrawalNotes((current) => ({
+                                ...current,
+                                [request.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="O saldo será devolvido ao jogador"
+                          />
+                        </label>
+                        <div>
+                          {request.status === "requested" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(busyAction)}
+                              onClick={() => void runWithdrawalAction(request.id, "review")}
+                            >
+                              ANALISAR
+                            </button>
+                          )}
+                          <button
+                            className="pay"
+                            type="button"
+                            disabled={
+                              Boolean(busyAction) ||
+                              (withdrawalReferences[request.id]?.trim().length ?? 0) < 6
+                            }
+                            onClick={() => void runWithdrawalAction(request.id, "pay")}
+                          >
+                            REGISTRAR COMO PAGO
+                          </button>
+                          <button
+                            className="reject"
+                            type="button"
+                            disabled={
+                              Boolean(busyAction) ||
+                              (withdrawalNotes[request.id]?.trim().length ?? 0) < 8
+                            }
+                            onClick={() => void runWithdrawalAction(request.id, "reject")}
+                          >
+                            RECUSAR E ESTORNAR
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <footer>
+                        {request.transactionReference && (
+                          <span>Pagamento: {request.transactionReference}</span>
+                        )}
+                        {request.reviewNote && <span>Motivo: {request.reviewNote}</span>}
+                        {request.resolvedAt && <time>{formatDate(request.resolvedAt)}</time>}
+                      </footer>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          <p className="admin-withdrawal-warning">
+            O botão “pago” apenas registra um envio que você já realizou fora do Arcadia.
+            Ele nunca movimenta cripto sozinho. CMA e LTC não podem entrar nesta fila.
+          </p>
+        </section>
+      )}
 
       <section className="admin-panel admin-support-panel" id="support-queue">
         <div className="admin-panel-heading">

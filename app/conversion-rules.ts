@@ -121,11 +121,12 @@ export function calculateConversionQuote(
 }
 
 export function applyInternalConversionBalances(input: {
-  asset: "BTC" | "DOGE";
+  asset: ConversionAssetId;
   assetAmountAtomic: number;
   btcBalanceAtomic: number;
   cmaBalance: number;
   dogeBalanceAtomic: number;
+  ltcBalanceAtomic: number;
   netCmaMicros: number;
 }) {
   if (
@@ -137,7 +138,11 @@ export function applyInternalConversionBalances(input: {
     throw new Error("Conversão interna inválida.");
   }
   const available =
-    input.asset === "BTC" ? input.btcBalanceAtomic : input.dogeBalanceAtomic;
+    input.asset === "BTC"
+      ? input.btcBalanceAtomic
+      : input.asset === "DOGE"
+        ? input.dogeBalanceAtomic
+        : input.ltcBalanceAtomic;
   if (available < input.assetAmountAtomic) {
     throw new Error(`Saldo ${input.asset} insuficiente para esta conversão.`);
   }
@@ -152,5 +157,9 @@ export function applyInternalConversionBalances(input: {
       input.asset === "DOGE"
         ? input.dogeBalanceAtomic - input.assetAmountAtomic
         : input.dogeBalanceAtomic,
+    ltcBalanceAtomic:
+      input.asset === "LTC"
+        ? input.ltcBalanceAtomic - input.assetAmountAtomic
+        : input.ltcBalanceAtomic,
   };
 }
