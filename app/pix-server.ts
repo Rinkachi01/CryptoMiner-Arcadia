@@ -538,3 +538,168 @@ export async function reconcilePendingPixDeposits(input: {
   }
   return { checked, credited, unavailable };
 }
+
+export async function readAdminPixDeposits(db: D1Database) {
+  await ensurePixSchema(db);
+  const rows = await db
+    .prepare(`SELECT pix.id, pix.account_id, pix.provider_reference,
+      pix.cma_units, pix.brl_cents, pix.status, pix.credited_at,
+      pix.created_at, pix.updated_at, states.display_name, states.email
+      FROM wallet_pix_deposit_intents pix
+      LEFT JOIN game_states states ON states.account_id = pix.account_id
+      ORDER BY pix.created_at DESC LIMIT 40`)
+    .all<{
+      account_id: string;
+      brl_cents: number;
+      cma_units: number;
+      created_at: number;
+      credited_at: number | null;
+      display_name: string | null;
+      email: string | null;
+      id: string;
+      provider_reference: string | null;
+      status: string;
+      updated_at: number;
+    }>();
+  const deposits = (rows.results ?? []).map((row) => ({
+    accountId: row.account_id,
+    brlAmount: row.brl_cents / 100,
+    cmaUnits: row.cma_units,
+    createdAt: row.created_at,
+    creditedAt: row.credited_at,
+    displayName: row.display_name ?? row.email ?? "Operador Arcadia",
+    email: row.email ?? "",
+    id: row.id,
+    providerReference: row.provider_reference,
+    status: row.status,
+    updatedAt: row.updated_at,
+  }));
+  return {
+    creditedCount: deposits.filter((deposit) => deposit.status === "credited").length,
+    deposits,
+    pendingCount: deposits.filter((deposit) =>
+      !["credited", "provider_failed"].includes(deposit.status)
+    ).length,
+  };
+}
+
+export async function manuallyCreditPixDeposit(input: {
+  db: D1Database;
+  intentId: string;
+  now?: number;
+  ownerAccountId: string;
+  reason: string;
+}) {
+  const reason = input.reason.trim().replace(/\s+/g, " ").slice(0, 300);
+  if (reason.length < 10) throw new Error("Informe um motivo com pelo menos 10 caracteres.");
+  await ensurePixSchema(input.db);
+  const intent = await input.db
+    .prepare(`SELECT id, account_id, provider_reference, cma_units, brl_cents,
+      usd_brl_micros, margin_bps, status, ticket_url, qr_code, expires_at,
+      credited_at, created_at, updated_at FROM wallet_pix_deposit_intents
+      WHERE id = ?`)
+    .bind(input.intentId)
+    .first<PixIntentRow>();
+  if (!intent) throw new Error("Cobrança Pix não encontrada.");
+  if (!intent.provider_reference) {
+    throw new Error("A cobrança não possui referência confirmada no Mercado Pago.");
+  }
+  if (intent.status === "credited") {
+    return { alreadyCredited: true, cmaUnits: intent.cma_units, intentId: intent.id };
+  }
+  const now = input.now ?? Date.now();
+  const manualKey = `pix-manual-credit:${intent.id}`;
+  const providerKey = `pix-credit:${intent.id}`;
+  const existing = await input.db
+    .prepare(`SELECT id FROM ledger_entries WHERE account_id = ?
+      AND idempotency_key IN (?, ?) LIMIT 1`)
+    .bind(intent.account_id, manualKey, providerKey)
+    .first<{ id: string }>();
+  if (existing) {
+    await input.db
+      .prepare(`UPDATE wallet_pix_deposit_intents SET status = 'credited',
+        credited_at = COALESCE(credited_at, ?), updated_at = ? WHERE id = ?`)
+      .bind(now, now, intent.id)
+      .run();
+    return { alreadyCredited: true, cmaUnits: intent.cma_units, intentId: intent.id };
+  }
+  const claimed = await input.db
+    .prepare(`UPDATE wallet_pix_deposit_intents SET status = 'crediting', updated_at = ?
+      WHERE id = ? AND status NOT IN ('credited', 'crediting')`)
+    .bind(now, intent.id)
+    .run();
+  if (Number(claimed.meta.changes ?? 0) !== 1) {
+    throw new Error("A cobrança está sendo processada; atualize o painel e tente novamente.");
+  }
+  const stateRow = await input.db
+    .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
+    .bind(intent.account_id)
+    .first<{ state_json: string; version: number }>();
+  if (!stateRow) {
+    await input.db
+      .prepare(`UPDATE wallet_pix_deposit_intents SET status = ?, updated_at = ?
+        WHERE id = ? AND status = 'crediting'`)
+      .bind(intent.status, now, intent.id)
+      .run();
+    throw new Error("Conta vinculada à cobrança não encontrada.");
+  }
+  const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
+  const nextCma = state.cmaBalance + intent.cma_units;
+  if (!Number.isSafeInteger(nextCma * 1_000_000)) {
+    await input.db
+      .prepare(`UPDATE wallet_pix_deposit_intents SET status = ?, updated_at = ?
+        WHERE id = ? AND status = 'crediting'`)
+      .bind(intent.status, now, intent.id)
+      .run();
+    throw new Error("Saldo CMA excede o limite seguro.");
+  }
+  state.cmaBalance = nextCma;
+  state.displayedBalanceSymbol = "CMA";
+  const nextVersion = stateRow.version + 1;
+  const nextStateJson = JSON.stringify(state);
+  const results = await input.db.batch([
+    input.db.prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+      WHERE account_id = ? AND version = ? AND EXISTS (
+        SELECT 1 FROM wallet_pix_deposit_intents WHERE id = ? AND status = 'crediting'
+      )`).bind(nextStateJson, nextVersion, now, intent.account_id, stateRow.version, intent.id),
+    input.db.prepare(`INSERT OR IGNORE INTO ledger_entries (
+      id, account_id, action, idempotency_key, state_version,
+      delta_cma_micros, metadata_json, created_at
+    ) SELECT ?, ?, 'manual_credit_pix_cma', ?, ?, ?, ?, ? WHERE EXISTS (
+      SELECT 1 FROM game_states WHERE account_id = ? AND version = ? AND state_json = ?
+    )`).bind(
+      crypto.randomUUID(), intent.account_id, manualKey, nextVersion,
+      intent.cma_units * 1_000_000,
+      JSON.stringify({
+        brlCents: intent.brl_cents,
+        cmaUnits: intent.cma_units,
+        manual: true,
+        ownerAccountId: input.ownerAccountId,
+        provider: "mercadopago",
+        providerReference: intent.provider_reference,
+        reason,
+      }),
+      now, intent.account_id, nextVersion, nextStateJson,
+    ),
+    input.db.prepare(`UPDATE wallet_pix_deposit_intents SET status = 'credited',
+      credited_at = ?, updated_at = ? WHERE id = ? AND status = 'crediting'
+      AND EXISTS (SELECT 1 FROM ledger_entries WHERE account_id = ? AND idempotency_key = ?)`)
+      .bind(now, now, intent.id, intent.account_id, manualKey),
+  ]);
+  if (Number(results[2]?.meta.changes ?? 0) !== 1) {
+    await input.db
+      .prepare(`UPDATE wallet_pix_deposit_intents SET status = ?, updated_at = ?
+        WHERE id = ? AND status = 'crediting'
+        AND NOT EXISTS (SELECT 1 FROM ledger_entries WHERE account_id = ? AND idempotency_key = ?)`)
+      .bind(intent.status, Date.now(), intent.id, intent.account_id, manualKey)
+      .run();
+    throw new Error("A conta mudou durante o crédito; atualize o painel e tente novamente.");
+  }
+  return {
+    accountId: intent.account_id,
+    alreadyCredited: false,
+    brlAmount: intent.brl_cents / 100,
+    cmaUnits: intent.cma_units,
+    intentId: intent.id,
+  };
+}

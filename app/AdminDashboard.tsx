@@ -195,6 +195,23 @@ type AdminOverview = {
     count: number;
   }>;
   launch: PublicLaunchReadiness;
+  pixDeposits: {
+    creditedCount: number;
+    pendingCount: number;
+    deposits: Array<{
+      accountId: string;
+      brlAmount: number;
+      cmaUnits: number;
+      createdAt: number;
+      creditedAt: number | null;
+      displayName: string;
+      email: string;
+      id: string;
+      providerReference: string | null;
+      status: string;
+      updatedAt: number;
+    }>;
+  };
   metrics: {
     activePlayers24h: number;
     batteryClaims24h: number;
@@ -480,6 +497,14 @@ function formatCma(value: number) {
   }).format(Math.abs(value))} CMA`;
 }
 
+function formatBrl(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
+
 function formatBytes(value: number) {
   if (value >= 1024 * 1024) {
     return `${(value / (1024 * 1024)).toLocaleString("pt-BR", {
@@ -591,6 +616,8 @@ export function AdminDashboard({
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
   const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
+  const [pixCreditReasons, setPixCreditReasons] = useState<Record<string, string>>({});
+  const [pixCreditConfirmations, setPixCreditConfirmations] = useState<Record<string, string>>({});
   const [userSearch, setUserSearch] = useState("");
   const [userSearchResults, setUserSearchResults] = useState<AdminUserSearchResult[]>([]);
   const [userSearchBusy, setUserSearchBusy] = useState(false);
@@ -1915,6 +1942,96 @@ export function AdminDashboard({
             </div>
             <span>FUTURO</span>
           </article>
+        </div>
+      </section>
+
+      <section className="admin-panel admin-pix-exception-panel" hidden={adminSection !== "treasury"} id="pix-exceptions">
+        <div className="admin-panel-heading">
+          <div>
+            <span>TESOURARIA · EXCEÇÃO AUDITADA</span>
+            <h2>Crédito manual de pagamentos Pix recebidos</h2>
+          </div>
+          <small>
+            {overview.pixDeposits.pendingCount} PENDENTE(S) · {overview.pixDeposits.creditedCount} CREDITADO(S)
+          </small>
+        </div>
+        <p className="admin-pix-exception-warning">
+          Use somente depois de confirmar o recebimento no extrato do Mercado Pago.
+          O valor creditado é sempre o CMA da cobrança original e nunca pode ser digitado livremente.
+        </p>
+        <div className="admin-pix-exception-list">
+          {overview.pixDeposits.deposits.length === 0 ? (
+            <div className="admin-feedback-empty">Nenhuma cobrança Pix registrada.</div>
+          ) : overview.pixDeposits.deposits.slice(0, 20).map((deposit) => {
+            const pending = deposit.status !== "credited" && deposit.status !== "provider_failed";
+            const reason = pixCreditReasons[deposit.id] ?? "";
+            const confirmation = pixCreditConfirmations[deposit.id] ?? "";
+            const actionId = `manual-pix-${deposit.id}`;
+            return (
+              <article className={pending ? "pending" : deposit.status} key={deposit.id}>
+                <header>
+                  <div>
+                    <span>#{deposit.id.slice(-8).toUpperCase()}</span>
+                    <strong>{deposit.cmaUnits} CMA · {formatBrl(deposit.brlAmount)}</strong>
+                    <small>{deposit.displayName} · {deposit.email || "sem e-mail"} · {formatDate(deposit.createdAt)}</small>
+                  </div>
+                  <em>{deposit.status.replaceAll("_", " ").replaceAll(":", " · ").toUpperCase()}</em>
+                </header>
+                {pending && deposit.providerReference && (
+                  <div className="admin-pix-exception-form">
+                    <label>
+                      MOTIVO E COMPROVAÇÃO DA EXCEÇÃO
+                      <input
+                        maxLength={300}
+                        placeholder="Ex.: pagamento confirmado no extrato Mercado Pago"
+                        value={reason}
+                        onChange={(event) =>
+                          setPixCreditReasons((current) => ({
+                            ...current,
+                            [deposit.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      DIGITE CREDITAR
+                      <input
+                        autoComplete="off"
+                        maxLength={8}
+                        value={confirmation}
+                        onChange={(event) =>
+                          setPixCreditConfirmations((current) => ({
+                            ...current,
+                            [deposit.id]: event.target.value.toUpperCase(),
+                          }))
+                        }
+                      />
+                    </label>
+                    <button
+                      className="pay"
+                      type="button"
+                      disabled={
+                        Boolean(busyAction) || reason.trim().length < 10 || confirmation !== "CREDITAR"
+                      }
+                      onClick={() => {
+                        if (!window.confirm(
+                          `Confirma que ${formatBrl(deposit.brlAmount)} foi recebido e deseja creditar ${deposit.cmaUnits} CMA para ${deposit.displayName}?`,
+                        )) return;
+                        void runAdminAction(actionId, {
+                          action: "manual-credit-pix",
+                          pixConfirmation: confirmation,
+                          pixIntentId: deposit.id,
+                          pixReason: reason,
+                        });
+                      }}
+                    >
+                      {busyAction === actionId ? "CREDITANDO…" : "CONFIRMAR CRÉDITO MANUAL"}
+                    </button>
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
 

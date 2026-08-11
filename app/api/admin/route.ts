@@ -62,6 +62,10 @@ import {
 } from "../../conversion-server";
 import { readPublicLaunchReadiness } from "../../public-launch-server";
 import {
+  manuallyCreditPixDeposit,
+  readAdminPixDeposits,
+} from "../../pix-server";
+import {
   deliverSupportReply,
   readSupportEmailConfig,
 } from "../../support-email-server";
@@ -646,6 +650,7 @@ export async function GET(request: Request) {
     security,
     conversion,
     support,
+    pixDeposits,
   ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
@@ -657,6 +662,7 @@ export async function GET(request: Request) {
     readSecurityOverview(context.db, env, now),
     readConversionOverview(context.db, now),
     readAdminSupportOverview(context.db),
+    readAdminPixDeposits(context.db),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport] = await Promise.all([
@@ -689,6 +695,7 @@ export async function GET(request: Request) {
     recovery,
     security,
     conversion,
+    pixDeposits,
     support: {
       ...support,
       emailEnabled: readSupportEmailConfig(env).enabled,
@@ -713,6 +720,9 @@ export async function POST(request: Request) {
         enabled?: unknown;
         name?: unknown;
         note?: unknown;
+        pixConfirmation?: unknown;
+        pixIntentId?: unknown;
+        pixReason?: unknown;
         bonusBps?: unknown;
         durationHours?: unknown;
         feedbackId?: unknown;
@@ -729,6 +739,43 @@ export async function POST(request: Request) {
     | null;
   const now = Date.now();
   await ensureDefaultSeason(context.db, now);
+
+  if (body?.action === "manual-credit-pix") {
+    const intentId = typeof body.pixIntentId === "string" ? body.pixIntentId.trim() : "";
+    const reason = typeof body.pixReason === "string" ? body.pixReason.trim() : "";
+    if (!/^pix-[0-9a-f-]{36}$/i.test(intentId)) {
+      return json({ error: "Cobrança Pix inválida." }, 400);
+    }
+    if (body.pixConfirmation !== "CREDITAR") {
+      return json({ error: "Digite CREDITAR para confirmar a exceção manual." }, 400);
+    }
+    try {
+      const result = await manuallyCreditPixDeposit({
+        db: context.db,
+        intentId,
+        now,
+        ownerAccountId: context.accountId,
+        reason,
+      });
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "pix_manually_credited",
+        { ...result, reason },
+        now,
+      );
+      return json({
+        message: result.alreadyCredited
+          ? "Esta cobrança já estava creditada; nenhum saldo foi duplicado."
+          : `${result.cmaUnits} CMA creditado manualmente com auditoria.`,
+      });
+    } catch (error) {
+      return json(
+        { error: error instanceof Error ? error.message : "Crédito Pix manual recusado." },
+        409,
+      );
+    }
+  }
 
   if (body?.action === "activate-space-race") {
     try {

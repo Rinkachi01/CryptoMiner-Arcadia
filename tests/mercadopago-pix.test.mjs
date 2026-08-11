@@ -71,13 +71,15 @@ test("assinatura Order usa o manifesto oficial do Mercado Pago", async () => {
 });
 
 test("Pix usa Orders API, PTAX, idempotência e crédito autoritativo", async () => {
-  const [server, playerRoute, webhookRoute, view, schema, recovery] = await Promise.all([
+  const [server, playerRoute, webhookRoute, view, schema, recovery, adminRoute, adminView] = await Promise.all([
     readFile(new URL("../app/pix-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/wallet/pix/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/wallet/mercadopago/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/ConversionView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/recovery-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(server, /olinda\.bcb\.gov\.br/);
   assert.match(server, /\/v1\/orders/);
@@ -97,4 +99,11 @@ test("Pix usa Orders API, PTAX, idempotência e crédito autoritativo", async ()
   assert.match(view, /depositMethod === "PIX"/);
   assert.match(schema, /walletPixDepositIntents/);
   assert.match(recovery, /wallet_pix_deposit_intents/);
+  assert.match(server, /manuallyCreditPixDeposit/);
+  assert.match(server, /manual_credit_pix_cma/);
+  assert.match(server, /pix-manual-credit:/);
+  assert.match(adminRoute, /manual-credit-pix/);
+  assert.match(adminRoute, /pix_manually_credited/);
+  assert.match(adminView, /CONFIRMAR CRÉDITO MANUAL/);
+  assert.match(adminView, /pixConfirmation/);
 });
