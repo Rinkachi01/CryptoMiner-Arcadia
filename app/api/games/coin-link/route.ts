@@ -5,7 +5,6 @@ import {
   COIN_LINK_DAILY_LIMIT,
   COIN_LINK_HOURLY_LIMIT,
   COIN_LINK_MAX_MOVES,
-  COIN_LINK_POWER_DURATION_HOURS,
   coinLinkDurationMs,
   coinLinkRewardPower,
   coinLinkTargetScore,
@@ -14,7 +13,12 @@ import {
   validateCoinLink,
   type CoinLinkMove,
 } from "../../../coin-link-rules";
-import { MAX_GAME_DIFFICULTY } from "../../../packet-catch-rules";
+import {
+  arcadeDifficultyAfterInactivity,
+  arcadePowerDurationDays,
+  arcadePowerExpiresAt,
+  nextArcadeDifficulty,
+} from "../../../arcade-progression-rules";
 import {
   detectAutomationPattern,
   guardArcadeAction,
@@ -36,6 +40,7 @@ type SessionRow = {
 type ProgressRow = {
   level: number;
   next_play_at: number;
+  updated_at: number;
 };
 
 function json(value: unknown, status = 200) {
@@ -119,13 +124,25 @@ async function progress(db: D1Database, accountId: string, now: number) {
     )
     .bind(accountId, now)
     .run();
-  return db
+  const stored = await db
     .prepare(
-      `SELECT level, next_play_at FROM game_progress
+      `SELECT level, next_play_at, updated_at FROM game_progress
        WHERE account_id = ? AND game_id = 'coin-link'`,
     )
     .bind(accountId)
     .first<ProgressRow>();
+  if (!stored) return null;
+  const effectiveLevel = arcadeDifficultyAfterInactivity(stored.level, stored.updated_at, now);
+  if (effectiveLevel !== stored.level) {
+    await db
+      .prepare(
+        `UPDATE game_progress SET level = ?, win_streak = 0, updated_at = ?
+         WHERE account_id = ? AND game_id = 'coin-link'`,
+      )
+      .bind(effectiveLevel, now, accountId)
+      .run();
+  }
+  return { ...stored, level: effectiveLevel, updated_at: now };
 }
 
 async function usage(db: D1Database, accountId: string, now: number) {
@@ -445,9 +462,9 @@ export async function POST(request: Request) {
     session.difficulty,
   );
   const nextPlayAt = now + cooldownSeconds * 1000;
-  const nextDifficulty = Math.min(MAX_GAME_DIFFICULTY, session.difficulty + 1);
-  const powerExpiresAt =
-    now + COIN_LINK_POWER_DURATION_HOURS * 60 * 60 * 1000;
+  const nextDifficulty = nextArcadeDifficulty(session.difficulty);
+  const powerExpiresAt = arcadePowerExpiresAt(now, session.difficulty);
+  const powerDurationDays = arcadePowerDurationDays(session.difficulty);
   await current.db
     .prepare(
       `UPDATE game_progress
@@ -484,6 +501,7 @@ export async function POST(request: Request) {
     emissionBudget,
     temporaryPowerGh: await activeTemporaryPower(current.db, current.accountId, now),
     nextDifficulty,
+    powerDurationDays,
     nextPlayAt,
     cooldownSeconds,
     limits: await usage(current.db, current.accountId, now),

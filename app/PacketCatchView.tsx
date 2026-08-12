@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ArcadeHumanGate from "./ArcadeHumanGate";
 import { ArcadeStartNotice } from "./ArcadeStartNotice";
 import { describeArcadeStart } from "./arcade-start-rules";
+import { ARCADE_POWER_DAYS_BY_LEVEL } from "./arcade-progression-rules";
 import { CircuitRushView } from "./CircuitRushView";
 import { CoinLinkView } from "./CoinLinkView";
 import { gameCoins } from "./game-coin-catalog";
@@ -369,6 +370,22 @@ export function PacketCatchView({
           <small>4 MINIGAMES CONECTADOS</small>
         </div>
       </div>
+
+      <section className="arcade-level-ladder" aria-label="Progressão de dificuldade e duração do poder">
+        <div>
+          <span>PROGRESSÃO DO ARCADE</span>
+          <strong>Quanto maior o nível, mais tempo dura o poder</strong>
+          <small>Um nível é perdido a cada dia completo sem jogar.</small>
+        </div>
+        <ol>
+          {ARCADE_POWER_DAYS_BY_LEVEL.slice(1).map((days, index) => (
+            <li key={days}>
+              <b>N{index + 1}</b>
+              <span>{days} {days === 1 ? "dia" : "dias"}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">

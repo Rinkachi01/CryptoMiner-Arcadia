@@ -1,11 +1,12 @@
 import { gameCoins, type GameCoinId } from "./game-coin-catalog.ts";
+import { ARCADE_DIFFICULTY_MAX } from "./arcade-progression-rules.ts";
 
 export const PACKET_CATCH_DURATION_MS = 30_000;
 export const PACKET_CATCH_HOURLY_LIMIT = 8;
 export const PACKET_CATCH_DAILY_LIMIT = 24;
 export const PACKET_CATCH_POWER_DURATION_HOURS = 6;
 export const PACKET_CATCH_STARTING_LIVES = 3;
-export const MAX_GAME_DIFFICULTY = 10;
+export const MAX_GAME_DIFFICULTY = ARCADE_DIFFICULTY_MAX;
 
 export type PacketTarget = {
   id: string;

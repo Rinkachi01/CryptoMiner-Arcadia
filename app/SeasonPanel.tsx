@@ -8,6 +8,7 @@ import {
 } from "./season-rules";
 import type {
   PublicSeason,
+  PowerLeaderboardEntry,
   SeasonLeaderboardEntry,
   SeasonPlayerProgress,
 } from "./season-server";
@@ -20,6 +21,7 @@ type SeasonResponse = {
   leaderboard: SeasonLeaderboardEntry[];
   message?: string;
   playerProgress: SeasonPlayerProgress | null;
+  powerLeaderboard: PowerLeaderboardEntry[];
   rewardNotice: string;
   rewards: SeasonReward[];
   season: PublicSeason | null;
@@ -31,6 +33,12 @@ function remainingLabel(endsAt: number, now: number) {
   const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
   const hours = Math.floor((remaining / (60 * 60 * 1000)) % 24);
   return days > 0 ? `${days}d ${hours}h restantes` : `${hours}h restantes`;
+}
+
+function formatPower(powerGh: number) {
+  if (powerGh >= 1_000_000) return `${(powerGh / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} PH/s`;
+  if (powerGh >= 1_000) return `${(powerGh / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} TH/s`;
+  return `${powerGh.toLocaleString("pt-BR")} GH/s`;
 }
 
 export function SeasonPanel({
@@ -179,6 +187,13 @@ export function SeasonPanel({
     level: 1,
     nextLevelXp: seasonXpRequiredForLevel(2),
     premiumUnlocked: false,
+    dailyLogin: {
+      claimedToday: false,
+      cycleDay: 1,
+      nextXp: 20,
+      schedule: [20, 30, 40, 50, 60, 80, 100],
+      streakDays: 0,
+    },
     sources: { games: 0, logins: 0, missions: 0, spending: 0 },
     xp: 0,
   };
@@ -221,11 +236,36 @@ export function SeasonPanel({
       </div>
 
       <div className="season-xp-sources">
-        <article><span>LOGIN</span><strong>{progress.sources.logins} XP</strong><small>50 por dia</small></article>
+        <article><span>LOGIN</span><strong>{progress.sources.logins} XP</strong><small>sequência diária crescente</small></article>
         <article><span>MINIGAMES</span><strong>{progress.sources.games} XP</strong><small>até 5 por dia</small></article>
         <article><span>MISSÕES</span><strong>{progress.sources.missions} XP</strong><small>marcos diários e semanais</small></article>
         <article><span>LOJA</span><strong>{progress.sources.spending} XP</strong><small>limite de 50 XP/dia</small></article>
       </div>
+
+      <section className="season-daily-login">
+        <header>
+          <div>
+            <span>BÔNUS DIÁRIO</span>
+            <strong>{progress.dailyLogin.streakDays} dias em sequência</strong>
+          </div>
+          <small>Reinicia às 00:00 UTC</small>
+        </header>
+        <ol>
+          {progress.dailyLogin.schedule.map((xp, index) => {
+            const day = index + 1;
+            const current = day === progress.dailyLogin.cycleDay;
+            return (
+              <li
+                className={`${current ? "current" : ""} ${current && progress.dailyLogin.claimedToday ? "claimed" : ""}`}
+                key={day}
+              >
+                <span>DIA {day}</span>
+                <strong>+{xp} XP</strong>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
 
       <section className="season-giveaway-card">
         <header>
@@ -255,30 +295,39 @@ export function SeasonPanel({
             </button>
           )}
         </header>
-        <div className="season-reward-grid">
-          {rewards.map((reward) => {
-            const key = `${reward.track}:${reward.level}`;
-            const claimed = progress.claimedRewardKeys.includes(key);
-            const unlocked = progress.level >= reward.level;
-            const premiumBlocked = reward.track === "premium" && !progress.premiumUnlocked;
-            return (
-              <article className={`${reward.track} ${unlocked ? "unlocked" : "locked"}`} key={key}>
-                <span>NÍVEL {reward.level}</span>
-                {/* Seasonal rewards are animated GIF sprites and bypass image optimization intentionally. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={reward.asset} alt="" />
-                <strong>{reward.title}</strong>
-                <small>{reward.track === "free" ? "GRÁTIS" : "PREMIUM"}</small>
-                <button
-                  type="button"
-                  disabled={isPreview || claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
-                  onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
-                >
-                  {isPreview ? `NÍVEL ${reward.level}` : claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
-                </button>
-              </article>
-            );
-          })}
+        <div className="season-pass-lanes">
+          {(["premium", "free"] as const).map((track) => (
+            <section className={`season-pass-lane ${track}`} key={track}>
+              <header>
+                <span>{track === "premium" ? "ORBIT PASS · PREMIUM" : "FREE PASS · GRATUITO"}</span>
+                <small>{track === "premium" ? "Mineradores raros e maior poder temporário" : "Recompensas essenciais para todos"}</small>
+              </header>
+              <div className="season-reward-grid">
+                {rewards.filter((reward) => reward.track === track).map((reward) => {
+                  const key = `${reward.track}:${reward.level}`;
+                  const claimed = progress.claimedRewardKeys.includes(key);
+                  const unlocked = progress.level >= reward.level;
+                  const premiumBlocked = reward.track === "premium" && !progress.premiumUnlocked;
+                  return (
+                    <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
+                      <span>NÍVEL {reward.level}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={reward.asset} alt="" />
+                      <strong>{reward.title}</strong>
+                      <small>{reward.reward.type === "miner" ? "MINERADOR" : reward.reward.type === "battery" ? "BATERIA" : "ENERGIA TEMPORÁRIA"}</small>
+                      <button
+                        type="button"
+                        disabled={isPreview || claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
+                        onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
+                      >
+                        {isPreview ? `NÍVEL ${reward.level}` : claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </section>
 
@@ -289,28 +338,39 @@ export function SeasonPanel({
           <strong>CONTAGEM REGRESSIVA SOB CONTROLE DO FUNDADOR</strong>
           <span>Nenhum XP, bilhete, compra Premium ou resgate foi iniciado.</span>
         </div>
-      ) : <SeasonRanking data={data} />}
+      ) : null}
+      <SeasonRanking data={data} />
     </section>
   );
 }
 
 function SeasonRanking({ data }: { data: SeasonResponse }) {
   return (
-    <div className="season-ranking-card">
-      <div><span>RANKING DE OPERADORES</span><small>Atualizado pelo servidor</small></div>
-      <section>
-        {data.leaderboard.length === 0 ? (
-          <p>Nenhum operador pontuou neste ciclo.</p>
-        ) : (
-          data.leaderboard.slice(0, 10).map((entry) => (
+    <div className="season-ranking-grid">
+      <div className="season-ranking-card">
+        <div><span>RANKING DE XP</span><small>Temporada atual</small></div>
+        <section>
+          {data.leaderboard.length === 0 ? <p>O ranking começa com a primeira atividade.</p> : data.leaderboard.slice(0, 10).map((entry) => (
             <article className={data.currentPlayer?.accountId === entry.accountId ? "current" : ""} key={entry.accountId}>
               <b>{String(entry.rank).padStart(2, "0")}</b>
               <div><strong>{entry.displayName}</strong><small>Nível {entry.level} · {entry.wins} conclusões</small></div>
               <span>{(entry.xp || entry.score).toLocaleString("pt-BR")} XP</span>
             </article>
-          ))
-        )}
-      </section>
+          ))}
+        </section>
+      </div>
+      <div className="season-ranking-card power-ranking">
+        <div><span>MAIOR PODER ATIVO</span><small>Atualizado pelo servidor</small></div>
+        <section>
+          {(data.powerLeaderboard ?? []).length === 0 ? <p>Nenhum operador com energia ativa.</p> : (data.powerLeaderboard ?? []).slice(0, 10).map((entry) => (
+            <article key={entry.accountId}>
+              <b>{String(entry.rank).padStart(2, "0")}</b>
+              <div><strong>{entry.displayName}</strong><small>Potência total energizada</small></div>
+              <span>{formatPower(entry.powerGh)}</span>
+            </article>
+          ))}
+        </section>
+      </div>
     </div>
   );
 }

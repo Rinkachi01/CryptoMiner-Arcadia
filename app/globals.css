@@ -4677,6 +4677,26 @@ img {
 .season-xp-sources strong { color: #f4fbff; font: 850 1rem/1.2 var(--font-ui); }
 .season-xp-sources small { color: #81949e; font: 550 0.7rem/1.3 var(--font-ui); }
 
+.season-daily-login {
+  padding: 18px;
+  border: 1px solid rgba(61, 218, 255, 0.3);
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(11, 29, 44, 0.98), rgba(12, 15, 29, 0.98));
+}
+.season-daily-login > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.season-daily-login > header div { display: grid; gap: 5px; }
+.season-daily-login > header span { color: #72e4ff; font: 800 0.66rem/1 var(--font-ui); letter-spacing: 0.12em; }
+.season-daily-login > header strong { color: #f2f9fb; font: 850 1rem/1.2 var(--font-ui); }
+.season-daily-login > header small { color: #8398a3; font: 650 0.68rem/1.3 var(--font-ui); }
+.season-daily-login ol { display: grid; grid-template-columns: repeat(7, minmax(84px, 1fr)); gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.season-daily-login li { display: grid; min-height: 66px; padding: 11px; border: 1px solid rgba(83, 116, 132, 0.3); border-radius: 10px; background: rgba(4, 12, 20, 0.74); place-content: center; gap: 6px; text-align: center; }
+.season-daily-login li span { color: #7c929d; font: 750 0.61rem/1 var(--font-ui); }
+.season-daily-login li strong { color: #dce9ed; font: 850 0.8rem/1 var(--font-ui); }
+.season-daily-login li.current { border-color: #51ddff; box-shadow: 0 0 0 1px rgba(81, 221, 255, 0.18), 0 0 22px rgba(81, 221, 255, 0.1); }
+.season-daily-login li.current strong { color: #72e4ff; }
+.season-daily-login li.claimed { border-color: rgba(169, 255, 63, 0.52); }
+.season-daily-login li.claimed strong { color: var(--lime); }
+
 .season-giveaway-card {
   display: grid;
   padding: 18px;
@@ -4791,6 +4811,15 @@ img {
 .season-reward-grid button:disabled { opacity: 0.45; cursor: not-allowed; }
 .season-premium-owned { color: var(--lime); font: 850 0.72rem/1 var(--font-ui); }
 
+.season-pass-lanes { display: grid; gap: 12px; margin-top: 18px; }
+.season-pass-lane { padding: 14px; overflow: hidden; border: 1px solid rgba(76, 108, 124, 0.28); border-radius: 13px; background: rgba(4, 12, 20, 0.72); }
+.season-pass-lane.premium { border-color: rgba(189, 121, 255, 0.38); background: linear-gradient(110deg, rgba(73, 38, 102, 0.24), rgba(4, 12, 20, 0.86)); }
+.season-pass-lane > header { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.season-pass-lane > header span { color: #79e7ff; font: 850 0.7rem/1 var(--font-ui); letter-spacing: 0.1em; }
+.season-pass-lane.premium > header span { color: #d2aaff; }
+.season-pass-lane > header small { color: #81959f; font: 600 0.68rem/1.3 var(--font-ui); }
+.season-pass-lane .season-reward-grid { margin-top: 12px; }
+
 .season-reward-grid {
   display: grid;
   grid-auto-columns: minmax(150px, 1fr);
@@ -4815,6 +4844,7 @@ img {
 .season-reward-grid article.premium { border-color: rgba(189, 121, 255, 0.36); background: linear-gradient(180deg, rgba(69, 37, 93, 0.32), #0a151e); }
 .season-reward-grid article.locked { filter: saturate(0.5); opacity: 0.72; }
 .season-reward-grid img { width: 100%; height: 82px; object-fit: contain; image-rendering: pixelated; }
+.season-reward-grid article.power img { width: 76px; margin: 0 auto; filter: hue-rotate(190deg) saturate(1.4) drop-shadow(0 0 14px rgba(139, 101, 255, 0.35)); }
 .season-reward-grid strong { color: #f1f7f9; font: 750 0.78rem/1.35 var(--font-ui); }
 .season-reward-grid small { color: #8ea1aa; font: 700 0.64rem/1.2 var(--font-ui); }
 .season-reward-grid button { margin-top: auto; }
@@ -4833,6 +4863,8 @@ img {
 .season-ranking-card article div { display: grid; gap: 3px; }
 .season-ranking-card article strong { color: #edf7f9; font: 750 0.78rem/1.2 var(--font-ui); }
 .season-ranking-card article small { color: #7f959f; font: 550 0.68rem/1.2 var(--font-ui); }
+.season-ranking-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.season-ranking-card.power-ranking article > span { color: #72e4ff; }
 
 .career-season-callout {
   display: grid;
@@ -4937,6 +4969,9 @@ img {
   .career-season-callout { grid-template-columns: auto minmax(0, 1fr); }
   .career-season-callout > b { grid-column: 2; }
   .admin-season-launch-card { grid-template-columns: 1fr; }
+  .season-ranking-grid { grid-template-columns: 1fr; }
+  .season-daily-login ol { overflow-x: auto; grid-template-columns: repeat(7, minmax(92px, 1fr)); }
+  .arcade-level-ladder { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
@@ -4951,6 +4986,9 @@ img {
   .referral-link-card { align-items: stretch; flex-direction: column; }
   .admin-user-search-form { grid-template-columns: 1fr; }
   .wallet-payment-methods { grid-template-columns: 1fr 1fr; }
+  .season-pass-lane > header,
+  .season-daily-login > header { align-items: flex-start; flex-direction: column; }
+  .arcade-level-ladder ol { overflow-x: auto; grid-template-columns: repeat(5, minmax(82px, 1fr)); }
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
@@ -16107,6 +16145,24 @@ body {
   font-size: 7px;
 }
 
+.arcade-level-ladder {
+  display: grid;
+  padding: 14px clamp(18px, 3vw, 36px);
+  border-bottom: 1px solid #263541;
+  background: linear-gradient(90deg, rgba(20, 38, 53, 0.9), rgba(13, 21, 31, 0.96));
+  grid-template-columns: minmax(220px, 0.9fr) minmax(360px, 1.4fr);
+  align-items: center;
+  gap: 20px;
+}
+.arcade-level-ladder > div { display: grid; gap: 4px; }
+.arcade-level-ladder > div span { color: #6be4ff; font: 800 0.66rem/1 var(--font-ui); letter-spacing: 0.1em; }
+.arcade-level-ladder > div strong { color: #edf7f9; font: 800 0.84rem/1.3 var(--font-ui); }
+.arcade-level-ladder > div small { color: #8296a2; font: 600 0.67rem/1.3 var(--font-ui); }
+.arcade-level-ladder ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; }
+.arcade-level-ladder li { display: flex; min-height: 42px; padding: 8px 10px; border: 1px solid #344856; background: rgba(6, 14, 22, 0.78); align-items: center; justify-content: space-between; gap: 6px; }
+.arcade-level-ladder li b { color: var(--lime); font: 850 0.72rem/1 var(--font-ui); }
+.arcade-level-ladder li span { color: #c9d8de; font: 750 0.68rem/1 var(--font-ui); }
+
 .games-grid {
   display: grid;
   padding: 24px clamp(18px, 3vw, 36px);
@@ -19300,7 +19356,7 @@ body {
 
   .mobile-nav {
     height: calc(72px + env(safe-area-inset-bottom));
-    grid-template-columns: repeat(8, minmax(78px, 1fr));
+    grid-template-columns: repeat(9, minmax(78px, 1fr));
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: env(safe-area-inset-bottom);

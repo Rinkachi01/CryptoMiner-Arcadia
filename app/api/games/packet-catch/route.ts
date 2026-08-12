@@ -8,11 +8,9 @@ import {
   reserveDailyGamePower,
 } from "../../../game-emission-budget";
 import {
-  MAX_GAME_DIFFICULTY,
   PACKET_CATCH_DAILY_LIMIT,
   PACKET_CATCH_DURATION_MS,
   PACKET_CATCH_HOURLY_LIMIT,
-  PACKET_CATCH_POWER_DURATION_HOURS,
   PACKET_CATCH_STARTING_LIVES,
   createPacketTargets,
   gameCooldownSeconds,
@@ -22,6 +20,12 @@ import {
   thirdPacketMissAt,
   type PacketCatchEvent,
 } from "../../../packet-catch-rules";
+import {
+  arcadeDifficultyAfterInactivity,
+  arcadePowerDurationDays,
+  arcadePowerExpiresAt,
+  nextArcadeDifficulty,
+} from "../../../arcade-progression-rules";
 import {
   detectAutomationPattern,
   guardArcadeAction,
@@ -46,6 +50,7 @@ type ProgressRow = {
   next_play_at: number;
   total_plays: number;
   total_wins: number;
+  updated_at: number;
 };
 
 function json(value: unknown, status = 200) {
@@ -195,14 +200,30 @@ async function progress(
     )
     .bind(accountId, now)
     .run();
-  return db
+  const stored = await db
     .prepare(
-      `SELECT level, win_streak, next_play_at, total_plays, total_wins
+      `SELECT level, win_streak, next_play_at, total_plays, total_wins, updated_at
        FROM game_progress
        WHERE account_id = ? AND game_id = 'packet-catch'`,
     )
     .bind(accountId)
     .first<ProgressRow>();
+  if (!stored) return null;
+  const effectiveLevel = arcadeDifficultyAfterInactivity(
+    stored.level,
+    stored.updated_at,
+    now,
+  );
+  if (effectiveLevel !== stored.level) {
+    await db
+      .prepare(
+        `UPDATE game_progress SET level = ?, win_streak = 0, updated_at = ?
+         WHERE account_id = ? AND game_id = 'packet-catch'`,
+      )
+      .bind(effectiveLevel, now, accountId)
+      .run();
+  }
+  return { ...stored, level: effectiveLevel, updated_at: now };
 }
 
 export async function GET() {
@@ -527,7 +548,7 @@ export async function POST(request: Request) {
     : 45 + (session.difficulty - 1) * 5;
   const nextPlayAt = now + cooldownSeconds * 1000;
   const nextDifficulty = survived
-    ? Math.min(MAX_GAME_DIFFICULTY, session.difficulty + 1)
+    ? nextArcadeDifficulty(session.difficulty)
     : session.difficulty;
   await current.db
     .prepare(
@@ -548,8 +569,8 @@ export async function POST(request: Request) {
     )
     .run();
 
-  const powerExpiresAt =
-    now + PACKET_CATCH_POWER_DURATION_HOURS * 60 * 60 * 1000;
+  const powerExpiresAt = arcadePowerExpiresAt(now, session.difficulty);
+  const powerDurationDays = arcadePowerDurationDays(session.difficulty);
   if (rewardPowerGh > 0) {
     await current.db
       .prepare(
@@ -581,6 +602,7 @@ export async function POST(request: Request) {
     rewardPowerGh,
     emissionBudget,
     powerExpiresAt: rewardPowerGh > 0 ? powerExpiresAt : null,
+    powerDurationDays,
     temporaryPowerGh: await activeTemporaryPower(
       current.db,
       current.accountId,

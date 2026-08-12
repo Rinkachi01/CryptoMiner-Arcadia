@@ -7,6 +7,7 @@ import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
+import { SeasonPanel } from "./SeasonPanel";
 import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
 import { OperatorInbox } from "./OperatorInbox";
@@ -62,6 +63,7 @@ type ViewId =
   | "inventory"
   | "shop"
   | "games"
+  | "season"
   | "tasks"
   | "career";
 type ShopCategory = "miners" | "racks" | "energy" | "crates";
@@ -123,6 +125,7 @@ const navigation: Array<{
   { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
+  { id: "season", label: "Temporada", shortLabel: "Season", glyph: "S" },
   { id: "tasks", label: "Tarefas", shortLabel: "Tasks", glyph: "T" },
   {
     id: "career",
@@ -969,6 +972,8 @@ export function ArcadiaGame({
                 <>CARTEIRA DO OPERADOR <i /> SALDOS E CONVERSÃO</>
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
+              ) : activeView === "season" ? (
+                <>TEMPORADA 01 <i /> CORRIDA ESPACIAL</>
               ) : activeView === "tasks" ? (
                 <>CENTRAL DE TAREFAS <i /> MISSÕES E FEEDBACK</>
               ) : activeView === "career" ? (
@@ -994,6 +999,8 @@ export function ArcadiaGame({
                         ? "Loja de equipamentos"
                         : activeView === "games"
                           ? "Central de minigames"
+                        : activeView === "season"
+                          ? "Passe da temporada"
                           : activeView === "tasks"
                             ? "Central de tarefas"
                             : "Carreira do operador"}
@@ -1168,6 +1175,13 @@ export function ArcadiaGame({
         {!rackOpen && activeView === "games" && (
           <PacketCatchView
             temporaryPowerGh={temporaryPowerGh}
+            onRefreshAccount={refreshServerState}
+          />
+        )}
+
+        {!rackOpen && activeView === "season" && (
+          <SeasonPanel
+            refreshKey={serverVersion}
             onRefreshAccount={refreshServerState}
           />
         )}

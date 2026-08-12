@@ -77,7 +77,7 @@ test("linhas de 4 e 5 moedas são reconhecidas e recebem bônus", () => {
 test("dificuldade aumenta a variedade sem retirar o fator sorte", () => {
   assert.equal(coinLinkCoinPool(1).length, 5);
   assert.equal(coinLinkCoinPool(5).length, 6);
-  assert.equal(coinLinkCoinPool(9).length, 7);
+  assert.equal(coinLinkCoinPool(9).length, 6);
   assert.deepEqual(coinLinkCoinPool(9), coinLinkCoinPool(9));
 });
 

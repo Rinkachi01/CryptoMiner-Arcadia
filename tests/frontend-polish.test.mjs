@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("mantém os oito atalhos móveis em uma única faixa", async () => {
+test("mantém os nove atalhos móveis em uma única faixa", async () => {
   const [game, styles] = await Promise.all([
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -10,8 +10,8 @@ test("mantém os oito atalhos móveis em uma única faixa", async () => {
 
   const navigation = game.match(/const navigation:[\s\S]*?= \[([\s\S]*?)\n\];/);
   assert.ok(navigation, "lista principal de navegação não encontrada");
-  assert.equal((navigation[1].match(/id:/g) ?? []).length, 8);
-  assert.match(styles, /grid-template-columns:\s*repeat\(8, minmax\(78px, 1fr\)\)/);
+  assert.equal((navigation[1].match(/id:/g) ?? []).length, 9);
+  assert.match(styles, /grid-template-columns:\s*repeat\(9, minmax\(78px, 1fr\)\)/);
   assert.match(styles, /overflow-y:\s*hidden/);
   assert.match(styles, /\.sidebar\s*\{[\s\S]*?overflow-y:\s*auto/);
 });

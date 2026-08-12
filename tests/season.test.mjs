@@ -111,7 +111,7 @@ test("temporada não promete saque ou retorno financeiro", async () => {
     readFile(new URL("../app/SeasonPanel.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(api, /sem prêmio em CMA, saque ou vantagem financeira/i);
-  assert.match(panel, /RANKING DE OPERADORES/i);
+  assert.match(panel, /RANKING DE XP/i);
   assert.match(panel, /durationDays/);
   assert.match(panel, /Giveaways semanais/i);
   assert.doesNotMatch(panel, /ROI|rendimento|retorno garantido/i);

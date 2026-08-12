@@ -30,19 +30,45 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+      const origin = request.headers.get("Origin");
+      if (origin && origin !== url.origin) {
+        return Response.json({ error: "Origem da solicitação recusada." }, { status: 403 });
+      }
+      const contentLength = Number(request.headers.get("Content-Length") ?? 0);
+      if (Number.isFinite(contentLength) && contentLength > 256 * 1024) {
+        return Response.json({ error: "Solicitação acima do limite permitido." }, { status: 413 });
+      }
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(request, {
+      const imageResponse = await handleImageOptimization(request, {
         fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
         transformImage: async (body, { width, format, quality }) => {
           const result = await env.IMAGES.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
           return result.response();
         },
       }, allowedWidths);
+      return withSecurityHeaders(imageResponse, url.pathname);
     }
 
-    return handler.fetch(request, env, ctx);
+    const response = await handler.fetch(request, env, ctx);
+    return withSecurityHeaders(response, url.pathname);
   },
 };
+
+function withSecurityHeaders(response: Response, pathname: string) {
+  const secured = new Response(response.body, response);
+  secured.headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  secured.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(self)");
+  secured.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  secured.headers.set("X-Content-Type-Options", "nosniff");
+  secured.headers.set("X-Frame-Options", "DENY");
+  if (pathname.startsWith("/api/") || pathname.startsWith("/admin")) {
+    secured.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  return secured;
+}
 
 export default worker;

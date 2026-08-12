@@ -1,9 +1,9 @@
 import {
   DEFAULT_SEASON_DURATION_DAYS,
   SEASON_DAILY_GAME_XP_CAP,
+  SEASON_DAILY_LOGIN_XP,
   SEASON_DAILY_SPEND_XP_CAP,
   SEASON_GAME_XP,
-  SEASON_LOGIN_XP,
   SEASON_SPEND_XP_PER_CMA,
   SPACE_RACE_DURATION_DAYS,
   SPACE_RACE_LEVELS,
@@ -20,8 +20,10 @@ import {
   type SeasonReward,
   type SeasonTrack,
 } from "./season-rules";
+import { ensureAdminSchema } from "./admin-settings";
 import { getMiner } from "./game-rules";
 import type { PublicGameState } from "./game-server";
+import { ensureNetworkSchema } from "./network-server";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -63,6 +65,12 @@ type SeasonPassRow = {
 type SeasonClaimRow = {
   level: number;
   track: string;
+};
+
+type SeasonLoginRow = {
+  created_at: number;
+  day_key: string;
+  xp: number;
 };
 
 type StoredGameStateRow = {
@@ -133,6 +141,13 @@ export type SeasonPlayerProgress = {
   level: number;
   nextLevelXp: number;
   premiumUnlocked: boolean;
+  dailyLogin: {
+    claimedToday: boolean;
+    cycleDay: number;
+    nextXp: number;
+    schedule: readonly number[];
+    streakDays: number;
+  };
   sources: {
     games: number;
     logins: number;
@@ -140,6 +155,13 @@ export type SeasonPlayerProgress = {
     spending: number;
   };
   xp: number;
+};
+
+export type PowerLeaderboardEntry = {
+  accountId: string;
+  displayName: string;
+  powerGh: number;
+  rank: number;
 };
 
 export type SeasonSnapshot = {
@@ -443,6 +465,7 @@ export async function readSeasonLeaderboard(
   db: D1Database,
   season: SeasonRow,
 ) {
+  await ensureAdminSchema(db);
   const until =
     season.status === "active"
       ? Math.min(Date.now(), season.ends_at)
@@ -456,8 +479,10 @@ export async function readSeasonLeaderboard(
               COALESCE(MAX(sessions.difficulty), 0) AS highest_difficulty
        FROM game_sessions sessions
        LEFT JOIN game_states states ON states.account_id = sessions.account_id
+       LEFT JOIN admin_owners owner ON owner.account_id = sessions.account_id
        WHERE sessions.started_at >= ? AND sessions.started_at <= ?
          AND sessions.status IN ('completed', 'failed')
+         AND owner.account_id IS NULL
        GROUP BY sessions.account_id, states.display_name`,
     )
     .bind(season.starts_at, until)
@@ -594,6 +619,10 @@ export async function readSeasonLeaderboard(
     ...baseEntries.map((entry) => entry.accountId),
     ...xpByAccount.keys(),
   ]);
+  const owner = await db
+    .prepare("SELECT account_id FROM admin_owners WHERE singleton_id = 1")
+    .first<{ account_id: string }>();
+  if (owner?.account_id) accounts.delete(owner.account_id);
   const displayNames = new Map(
     baseEntries.map((entry) => [entry.accountId, entry.displayName]),
   );
@@ -630,6 +659,7 @@ async function readPlayerProgress(
   season: SeasonRow,
   accountId: string,
   leaderboard: SeasonLeaderboardEntry[],
+  now = Date.now(),
 ): Promise<SeasonPlayerProgress> {
   const [pass, claims] = await Promise.all([
     db
@@ -653,15 +683,16 @@ async function readPlayerProgress(
   const xp = entry?.xp ?? 0;
   const level = seasonLevelForXp(xp);
 
-  const [login, gameDaily, spendingDaily] = await Promise.all([
+  const [loginRows, gameDaily, spendingDaily] = await Promise.all([
     db
       .prepare(
-        `SELECT COALESCE(SUM(xp), 0) AS total
+        `SELECT day_key, xp, created_at
          FROM season_daily_logins
-         WHERE season_id = ? AND account_id = ?`,
+         WHERE season_id = ? AND account_id = ?
+         ORDER BY created_at DESC`,
       )
       .bind(season.id, accountId)
-      .first<{ total: number }>(),
+      .all<SeasonLoginRow>(),
     db
       .prepare(
         `SELECT CAST((completed_at - ?) / ? AS INTEGER) AS activity_key,
@@ -710,6 +741,20 @@ async function readPlayerProgress(
       ),
     0,
   );
+  const loginDays = new Set(
+    loginRows.results.map((row) => Math.floor(Number(row.created_at) / DAY_MS)),
+  );
+  const today = Math.floor(now / DAY_MS);
+  const claimedToday = loginDays.has(today);
+  let streakDays = 0;
+  let cursor = claimedToday ? today : today - 1;
+  while (loginDays.has(cursor)) {
+    streakDays += 1;
+    cursor -= 1;
+  }
+  const cycleDay = claimedToday
+    ? ((Math.max(1, streakDays) - 1) % SEASON_DAILY_LOGIN_XP.length) + 1
+    : (streakDays % SEASON_DAILY_LOGIN_XP.length) + 1;
   return {
     claimedRewardKeys: claims.results.map(
       (claim) => `${claim.track}:${claim.level}`,
@@ -720,14 +765,56 @@ async function readPlayerProgress(
         ? seasonXpRequiredForLevel(SPACE_RACE_LEVELS)
         : seasonXpRequiredForLevel(level + 1),
     premiumUnlocked: pass?.premium_unlocked === 1,
+    dailyLogin: {
+      claimedToday,
+      cycleDay,
+      nextXp: SEASON_DAILY_LOGIN_XP[cycleDay - 1],
+      schedule: SEASON_DAILY_LOGIN_XP,
+      streakDays,
+    },
     sources: {
       games,
-      logins: Number(login?.total ?? 0),
+      logins: loginRows.results.reduce(
+        (total, row) => total + Math.max(0, Number(row.xp)),
+        0,
+      ),
       missions,
       spending,
     },
     xp,
   };
+}
+
+async function readPowerLeaderboard(db: D1Database, now: number) {
+  await Promise.all([ensureAdminSchema(db), ensureNetworkSchema(db)]);
+  const rows = await db
+    .prepare(
+      `SELECT network.account_id,
+              states.display_name,
+              network.installed_power_gh + COALESCE(temp.power_gh, 0) AS power_gh
+       FROM account_network_power network
+       LEFT JOIN game_states states ON states.account_id = network.account_id
+       LEFT JOIN (
+         SELECT account_id, COALESCE(SUM(power_gh), 0) AS power_gh
+         FROM temporary_power_grants
+         WHERE starts_at <= ? AND expires_at > ?
+         GROUP BY account_id
+       ) temp ON temp.account_id = network.account_id
+       LEFT JOIN admin_owners owner ON owner.account_id = network.account_id
+       WHERE network.energy_expires_at > ?
+         AND owner.account_id IS NULL
+         AND network.installed_power_gh + COALESCE(temp.power_gh, 0) > 0
+       ORDER BY power_gh DESC, states.display_name ASC
+       LIMIT 25`,
+    )
+    .bind(now, now, now)
+    .all<{ account_id: string; display_name: string | null; power_gh: number }>();
+  return rows.results.map((row, index): PowerLeaderboardEntry => ({
+    accountId: row.account_id,
+    displayName: row.display_name ?? "Operador Arcadia",
+    powerGh: Math.max(0, Number(row.power_gh)),
+    rank: index + 1,
+  }));
 }
 
 export async function readSeasonOverview(
@@ -742,6 +829,7 @@ export async function readSeasonOverview(
       currentPlayer: null,
       draft: null,
       leaderboard: [] as SeasonLeaderboardEntry[],
+      powerLeaderboard: [] as PowerLeaderboardEntry[],
       playerProgress: null as SeasonPlayerProgress | null,
       rewards: [] as SeasonReward[],
       season: null,
@@ -761,11 +849,12 @@ export async function readSeasonOverview(
     .all<SnapshotRow>();
 
   const isSpaceRace = row.campaign_slug === SPACE_RACE_SLUG;
-  const [playerProgress, draftRow] = await Promise.all([
+  const [playerProgress, draftRow, powerLeaderboard] = await Promise.all([
     isSpaceRace
-      ? readPlayerProgress(db, row, accountId, leaderboard)
+      ? readPlayerProgress(db, row, accountId, leaderboard, now)
       : Promise.resolve(null),
     includeDraft ? readSpaceRaceDraftRow(db) : Promise.resolve(null),
+    readPowerLeaderboard(db, now),
   ]);
   return {
     currentPlayer:
@@ -774,6 +863,7 @@ export async function readSeasonOverview(
       draftRow?.status === "draft" ? publicSeason(draftRow, now) : null,
     leaderboard: leaderboard.slice(0, 25),
     playerProgress,
+    powerLeaderboard,
     rewards: isSpaceRace ? spaceRaceRewards : [],
     season: publicSeason(row, now),
     snapshots: snapshotRows.results.map((snapshot) => {
@@ -844,8 +934,33 @@ export async function registerSeasonDailyLogin(
   if (now < season.starts_at || now >= season.ends_at) {
     throw new Error("O ciclo de XP não está aberto.");
   }
-  const dayIndex = Math.floor((now - season.starts_at) / DAY_MS);
-  const dayKey = `${season.id}:${dayIndex}`;
+  const today = Math.floor(now / DAY_MS);
+  const rows = await db
+    .prepare(
+      `SELECT day_key, xp, created_at
+       FROM season_daily_logins
+       WHERE season_id = ? AND account_id = ?
+       ORDER BY created_at DESC
+       LIMIT 14`,
+    )
+    .bind(season.id, accountId)
+    .all<SeasonLoginRow>();
+  const byDay = new Map(
+    rows.results.map((row) => [Math.floor(Number(row.created_at) / DAY_MS), row]),
+  );
+  const alreadyClaimed = byDay.get(today);
+  if (alreadyClaimed) {
+    return { awarded: false, xp: Math.max(0, Number(alreadyClaimed.xp)) };
+  }
+  let previousStreak = 0;
+  let cursor = today - 1;
+  while (byDay.has(cursor)) {
+    previousStreak += 1;
+    cursor -= 1;
+  }
+  const cycleDay = (previousStreak % SEASON_DAILY_LOGIN_XP.length) + 1;
+  const loginXp = SEASON_DAILY_LOGIN_XP[cycleDay - 1];
+  const dayKey = `${season.id}:utc:${today}`;
   const result = await db
     .prepare(
       `INSERT OR IGNORE INTO season_daily_logins (
@@ -857,11 +972,16 @@ export async function registerSeasonDailyLogin(
       season.id,
       accountId,
       dayKey,
-      SEASON_LOGIN_XP,
+      loginXp,
       now,
     )
     .run();
-  return { awarded: Number(result.meta.changes ?? 0) === 1, xp: SEASON_LOGIN_XP };
+  return {
+    awarded: Number(result.meta.changes ?? 0) === 1,
+    cycleDay,
+    streakDays: previousStreak + 1,
+    xp: loginXp,
+  };
 }
 
 function parseStoredGameState(row: StoredGameStateRow) {
@@ -1011,7 +1131,7 @@ export async function claimSeasonReward(
   const reward = rewardFor(track, level);
   if (!reward) throw new Error("Recompensa sazonal inválida.");
   const leaderboard = await readSeasonLeaderboard(db, season);
-  const progress = await readPlayerProgress(db, season, accountId, leaderboard);
+  const progress = await readPlayerProgress(db, season, accountId, leaderboard, now);
   if (progress.level < reward.level) {
     throw new Error(`Alcance o nível ${reward.level} para resgatar.`);
   }
