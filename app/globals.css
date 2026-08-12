@@ -22340,3 +22340,37 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* vNext cascade lock: keep the premium cockpit after every legacy layer. */
+@media (min-width: 901px) {
+  .arcadia-shell {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+  }
+
+  .arcadia-shell .workspace {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.workspace-mine .mine-grid {
+  width: 100%;
+  max-width: 1480px;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.workspace-mine .room-card,
+.workspace-mine .room-stage {
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-mine .room-stage {
+  min-height: 0;
+  aspect-ratio: 724 / 543;
+}
+
+.workspace-mine .room-background {
+  width: 100%;
+  height: 100%;
+}
