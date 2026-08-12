@@ -134,7 +134,7 @@ export function TasksView({
           review?: AccessibilityReview | null;
         };
         if (!response.ok) {
-          throw new Error(data.error ?? "Teste de acesso indisponível.");
+          throw new Error(data.error ?? "Avaliação de acesso indisponível.");
         }
         if (!active) return;
         setDeviceProfile(data.profile ?? null);
@@ -154,7 +154,7 @@ export function TasksView({
           setAccessibilityMessage(
             error instanceof Error
               ? error.message
-              : "Não foi possível abrir o teste de acesso.",
+              : "Não foi possível abrir a avaliação de acesso.",
           );
         }
       })
@@ -290,11 +290,11 @@ export function TasksView({
         review?: AccessibilityReview | null;
       };
       if (!response.ok) {
-        throw new Error(data.error ?? "Teste recusado pelo servidor.");
+        throw new Error(data.error ?? "Avaliação recusada pelo servidor.");
       }
       setDeviceProfile(data.profile ?? null);
       setAccessibilityReview(data.review ?? null);
-      setAccessibilityMessage(data.message ?? "Teste salvo.");
+      setAccessibilityMessage(data.message ?? "Avaliação salva.");
     } catch (error) {
       setAccessibilityMessage(
         error instanceof Error ? error.message : "Não foi possível salvar.",
@@ -314,17 +314,16 @@ export function TasksView({
           />
         </figure>
         <div>
-          <span>ARCADIA TASK CENTER · BETA FECHADO</span>
+          <span>ARCADIA TASK CENTER</span>
           <h2>Tarefas em uma área própria</h2>
           <p>
-            Missões do jogo ficam disponíveis agora. Pesquisas e anúncios
-            parceiros permanecem isolados até a revisão de privacidade,
-            antifraude e políticas de recompensa.
+            Missões, avaliações e preferências ficam reunidas em um só lugar,
+            com privacidade e limites de recompensa claramente informados.
           </p>
         </div>
         <aside>
-          <span>MONETIZAÇÃO</span>
-          <strong>Preparada, não conectada</strong>
+          <span>ANÚNCIOS E PESQUISAS</span>
+          <strong>Desativados</strong>
           <small>Nenhum anúncio ou pesquisa paga está ativo.</small>
         </aside>
       </div>
@@ -335,8 +334,8 @@ export function TasksView({
           ["mine", "Minhas tarefas", "✓"],
           ["surveys", "Pesquisas", "▤"],
           ["guide", "Como funciona", "?"],
-          ["accessibility", "Teste de acesso", "A"],
-          ["feedback", "Feedback beta", "✦"],
+          ["accessibility", "Acessibilidade", "A"],
+          ["feedback", "Feedback", "✦"],
         ].map(([id, label, glyph]) => (
           <button
             className={tab === id ? "active" : ""}
@@ -375,7 +374,7 @@ export function TasksView({
             <article>
               <img src={assetsManifest.cmaCoin.path} alt="" />
               <div>
-                <span>TELEMETRIA DO BETA</span>
+                <span>EXPERIÊNCIA DO JOGADOR</span>
                 <h4>Avalie sua experiência</h4>
                 <p>Envie sua nota e ajude a definir as próximas correções.</p>
                 <small>Sem prêmio econômico · resposta salva por conta</small>
@@ -389,26 +388,24 @@ export function TasksView({
                 Aa
               </span>
               <div>
-                <span>LABORATÓRIO DO BETA</span>
-                <h4>Teste de leitura e controle</h4>
+                <span>ACESSIBILIDADE</span>
+                <h4>Avaliação de leitura e controle</h4>
                 <p>Confira texto, botões, movimento e montagem dos racks.</p>
                 <small>Sem prêmio · perfil técnico mínimo salvo por conta</small>
               </div>
               <button type="button" onClick={() => setTab("accessibility")}>
-                TESTAR ACESSO
+                AVALIAR ACESSO
               </button>
             </article>
             <article className="locked">
               <span className="task-lock">◇</span>
               <div>
-                <span>FUTURO · PARCEIROS</span>
+                <span>TAREFAS PARCEIRAS</span>
                 <h4>Pesquisas opcionais</h4>
                 <p>Área reservada para provedores aprovados e consentimento.</p>
                 <small>Nenhum parceiro ou recompensa configurado</small>
               </div>
-              <button type="button" disabled>
-                EM ANÁLISE
-              </button>
+              <button type="button" disabled>INDISPONÍVEL</button>
             </article>
           </div>
 
@@ -424,10 +421,10 @@ export function TasksView({
             <div>
               <b>02</b>
               <span>
-                <strong>Consentimento e antifraude</strong>
-                Obrigatórios antes de parceiros
+                <strong>Privacidade e segurança</strong>
+                Proteção obrigatória para conteúdo externo
               </span>
-              <em>PRÓXIMA FASE</em>
+              <em>PROTEGIDO</em>
             </div>
             <div>
               <b>03</b>
@@ -435,7 +432,7 @@ export function TasksView({
                 <strong>Recompensa não monetária</strong>
                 Interna, limitada e não transferível
               </span>
-              <em>FUTURO</em>
+              <em>LIMITADO</em>
             </div>
           </div>
         </>
@@ -474,8 +471,8 @@ export function TasksView({
             <article>
               <b>3</b>
               <div>
-                <strong>Enviar feedback do beta</strong>
-                <span>Ajuda o proprietário a priorizar a próxima fase</span>
+                <strong>Enviar feedback</strong>
+                <span>Ajuda o proprietário a priorizar melhorias</span>
               </div>
               <button type="button" onClick={() => setTab("feedback")}>
                 RESPONDER
@@ -489,11 +486,11 @@ export function TasksView({
         <div className="task-survey-readiness">
           <section className="task-empty-state">
             <span>▤</span>
-            <h3>Pesquisas ainda não conectadas</h3>
+            <h3>Pesquisas externas desativadas</h3>
             <p>
               Nenhum provedor externo recebe dados e nenhuma recompensa
-              publicitária é exibida. Esta escolha prepara o beta; ela não
-              autoriza nenhum compartilhamento agora.
+              publicitária é exibida. Nenhum compartilhamento é autorizado
+              enquanto esta área estiver desativada.
             </p>
             <ul>
               <li>Escolha voluntária, salva por conta e revogável</li>
@@ -532,10 +529,10 @@ export function TasksView({
                 >
                   <b>PERGUNTAR ANTES</b>
                   <span>
-                    Mostrar uma decisão clara se um parceiro for aprovado no
-                    futuro.
+                    Mostrar uma decisão clara antes de liberar qualquer
+                    parceiro.
                   </span>
-                  <em>RECOMENDADO PARA O BETA</em>
+                  <em>RECOMENDADO</em>
                 </button>
                 <button
                   className={
@@ -600,12 +597,11 @@ export function TasksView({
         <div className="accessibility-test-layout">
           <form onSubmit={submitAccessibilityReview}>
             <header>
-              <span>LABORATÓRIO DO BETA · SEM RECOMPENSA</span>
+              <span>AVALIAÇÃO DE ACESSIBILIDADE · SEM RECOMPENSA</span>
               <h3>O Arcadia está fácil de ler e controlar?</h3>
               <p>
                 Responda com base no aparelho que está usando agora. Isso nos
-                ajuda a corrigir problemas de celular, mouse e toque antes de
-                ampliar o beta.
+                ajuda a corrigir problemas de celular, mouse e toque.
               </p>
             </header>
 
@@ -695,7 +691,7 @@ export function TasksView({
               <div>
                 <strong>
                   {accessibilityReview
-                    ? "ÚLTIMO TESTE SALVO"
+                    ? "ÚLTIMA AVALIAÇÃO SALVA"
                     : "AINDA NÃO RESPONDIDO"}
                 </strong>
                 <small>
@@ -713,7 +709,7 @@ export function TasksView({
               >
                 {accessibilityState === "saving"
                   ? "SALVANDO..."
-                  : "SALVAR TESTE"}
+                  : "SALVAR AVALIAÇÃO"}
               </button>
             </footer>
             {accessibilityMessage && (
@@ -724,7 +720,7 @@ export function TasksView({
           </form>
 
           <aside>
-            <span>PRIVACIDADE DO TESTE</span>
+            <span>PRIVACIDADE DA AVALIAÇÃO</span>
             <h3>O que é registrado</h3>
             <dl>
               <div>
@@ -764,7 +760,7 @@ export function TasksView({
               mostra somente grupos e totais.
             </p>
             <small>
-              Este teste não paga CMA, BTC, DOGE, energia ou poder temporário.
+              Esta avaliação não paga CMA, BTC, DOGE, energia ou poder temporário.
             </small>
           </aside>
         </div>
@@ -773,7 +769,7 @@ export function TasksView({
       {tab === "feedback" && (
         <div className="beta-feedback-layout">
           <form onSubmit={submitFeedback}>
-            <span>CANAL DIRETO DO BETA</span>
+            <span>CANAL DIRETO COM A EQUIPE</span>
             <h3>Conte o que precisa melhorar</h3>
             <label>
               Área

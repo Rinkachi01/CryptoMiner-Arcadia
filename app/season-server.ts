@@ -378,6 +378,20 @@ export async function ensureSpaceRaceDraft(db: D1Database, now: number) {
       now,
     )
     .run();
+  await db
+    .prepare(
+      `UPDATE seasons
+       SET duration_days = ?, premium_price_cma_micros = ?,
+           configuration_json = ?
+       WHERE id = ? AND status = 'draft'`,
+    )
+    .bind(
+      SPACE_RACE_DURATION_DAYS,
+      SPACE_RACE_PREMIUM_PRICE_CMA * 1_000_000,
+      JSON.stringify({ levels: SPACE_RACE_LEVELS, rewardVersion: 1 }),
+      SPACE_RACE_SEASON_ID,
+    )
+    .run();
   return readSpaceRaceDraftRow(db);
 }
 
@@ -397,7 +411,7 @@ export async function ensureDefaultSeason(db: D1Database, now: number) {
       )
       .bind(
         "season-alpha-default",
-        "Temporada Alfa · Teste fechado",
+        "Ciclo inaugural Arcadia",
         DEFAULT_SEASON_DURATION_DAYS,
         now,
         now + DEFAULT_SEASON_DURATION_DAYS * DAY_MS,
@@ -405,6 +419,14 @@ export async function ensureDefaultSeason(db: D1Database, now: number) {
       )
       .run();
   }
+  await db
+    .prepare(
+      `UPDATE seasons
+       SET name = 'Ciclo inaugural Arcadia'
+       WHERE id = 'season-alpha-default'
+         AND name = 'Temporada Alfa · Teste fechado'`,
+    )
+    .run();
   await db
     .prepare(
       `UPDATE seasons

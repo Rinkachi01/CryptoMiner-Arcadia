@@ -73,7 +73,7 @@ test("funil separa tela pequena de tela grande sem misturar contas", () => {
   );
 });
 
-test("teste de acessibilidade é autenticado, não paga prêmio e não cria fingerprint", async () => {
+test("avaliação de acessibilidade é autenticada, não paga prêmio e não cria fingerprint", async () => {
   const [route, client, tasks, admin, migration, recovery] = await Promise.all([
     readFile(new URL("../app/api/beta-device/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/beta-device-client.ts", import.meta.url), "utf8"),
@@ -89,9 +89,9 @@ test("teste de acessibilidade é autenticado, não paga prêmio e não cria fing
   assert.match(client, /window\.innerWidth/);
   assert.match(client, /any-pointer: coarse/);
   assert.doesNotMatch(client, /userAgent|navigator\.platform|canvas|WebGL|ip/i);
-  assert.match(tasks, /Este teste não paga CMA, BTC, DOGE, energia ou poder temporário/);
+  assert.match(tasks, /Esta avaliação não paga CMA, BTC, DOGE, energia ou poder temporário/);
   assert.match(admin, /SEM RASTREADOR EXTERNO/);
-  assert.match(admin, /LABORATÓRIO DE TELA E CONTROLE/);
+  assert.match(admin, /EXPERIÊNCIA DE TELA E CONTROLE/);
   assert.match(migration, /CREATE TABLE `beta_device_profiles`/);
   assert.match(migration, /CREATE TABLE `beta_accessibility_reviews`/);
   assert.match(recovery, /beta_device_profiles/);

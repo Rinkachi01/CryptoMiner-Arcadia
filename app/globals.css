@@ -4677,6 +4677,99 @@ img {
 .season-xp-sources strong { color: #f4fbff; font: 850 1rem/1.2 var(--font-ui); }
 .season-xp-sources small { color: #81949e; font: 550 0.7rem/1.3 var(--font-ui); }
 
+.season-giveaway-card {
+  display: grid;
+  padding: 18px;
+  border: 1px solid rgba(189, 121, 255, 0.34);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(189, 121, 255, 0.16), transparent 36%),
+    rgba(8, 17, 27, 0.96);
+  gap: 14px;
+}
+
+.season-giveaway-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.season-giveaway-card > header span {
+  color: #bd91ff;
+  font: 800 0.66rem/1.2 var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.season-giveaway-card h4 {
+  margin: 5px 0 0;
+  color: #fff;
+  font: 850 1.16rem/1.15 var(--font-ui);
+}
+
+.season-giveaway-card > header > strong {
+  padding: 8px 10px;
+  border: 1px solid rgba(189, 121, 255, 0.35);
+  border-radius: 99px;
+  color: #d8bdff;
+  font: 800 0.62rem/1 var(--font-ui);
+}
+
+.season-giveaway-card > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.season-giveaway-card article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 13px;
+  border: 1px solid rgba(92, 122, 139, 0.27);
+  border-radius: 11px;
+  background: rgba(6, 15, 23, 0.72);
+  column-gap: 10px;
+}
+
+.season-giveaway-card article b {
+  grid-row: 1 / 3;
+  color: var(--lime);
+  font: 900 0.72rem/1.2 var(--font-ui);
+}
+
+.season-giveaway-card article strong {
+  color: #eef8fa;
+  font: 800 0.76rem/1.25 var(--font-ui);
+}
+
+.season-giveaway-card article span,
+.season-giveaway-card > small {
+  color: #81949e;
+  font: 550 0.68rem/1.45 var(--font-ui);
+}
+
+.season-preview-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(72, 222, 250, 0.24);
+  border-radius: 12px;
+  background: rgba(7, 18, 27, 0.88);
+}
+
+.season-preview-note strong {
+  color: #72e4ff;
+  font: 800 0.68rem/1.3 var(--font-ui);
+  letter-spacing: 0.08em;
+}
+
+.season-preview-note span {
+  color: #8da1aa;
+  font: 600 0.7rem/1.4 var(--font-ui);
+}
+
 .season-track-card { padding: 18px; overflow: hidden; }
 .season-track-card > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .season-track-card h4 { margin: 4px 0 0; color: #fff; font: 850 1.25rem/1.1 var(--font-ui); }
@@ -4741,6 +4834,50 @@ img {
 .season-ranking-card article strong { color: #edf7f9; font: 750 0.78rem/1.2 var(--font-ui); }
 .season-ranking-card article small { color: #7f959f; font: 550 0.68rem/1.2 var(--font-ui); }
 
+.career-season-callout {
+  display: grid;
+  width: 100%;
+  min-height: 82px;
+  margin-bottom: 14px;
+  padding: 15px 18px;
+  border: 1px solid rgba(160, 102, 255, 0.36);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 85% 10%, rgba(166, 98, 255, 0.2), transparent 34%),
+    linear-gradient(110deg, rgba(15, 33, 48, 0.98), rgba(9, 17, 28, 0.98));
+  color: #eef7fa;
+  cursor: pointer;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.career-season-callout:hover {
+  border-color: rgba(184, 255, 99, 0.5);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
+}
+
+.career-season-callout > span {
+  padding: 8px 10px;
+  border: 1px solid rgba(114, 228, 255, 0.35);
+  border-radius: 8px;
+  color: #72e4ff;
+  font: 850 0.64rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+}
+
+.career-season-callout > div {
+  display: grid;
+  gap: 4px;
+}
+
+.career-season-callout strong { font: 850 1rem/1.1 var(--font-ui); }
+.career-season-callout small { color: #8fa3ad; font: 600 0.72rem/1.35 var(--font-ui); }
+.career-season-callout > b { color: var(--lime); font: 850 0.68rem/1 var(--font-ui); }
+
 .referral-panel { display: grid; padding: 18px; gap: 14px; }
 .referral-panel > header { margin: -18px -18px 0; }
 .referral-link-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
@@ -4795,6 +4932,10 @@ img {
   .season-xp-sources,
   .referral-policy-grid,
   .wallet-payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .season-giveaway-card > div { grid-template-columns: 1fr; }
+  .season-preview-note { align-items: flex-start; flex-direction: column; }
+  .career-season-callout { grid-template-columns: auto minmax(0, 1fr); }
+  .career-season-callout > b { grid-column: 2; }
   .admin-season-launch-card { grid-template-columns: 1fr; }
 }
 

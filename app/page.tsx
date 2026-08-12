@@ -25,7 +25,7 @@ export default async function Home() {
         <div className="login-shell-content">
           <div className="login-entry-layout">
             <section className="login-showcase">
-              <span className="login-kicker">BETA TÉCNICA · ECONOMIA CONTROLADA</span>
+              <span className="login-kicker">ECONOMIA CONTROLADA PELO SERVIDOR</span>
               <h1>Construa sua operação. Dispute blocos globais.</h1>
               <p>
                 Monte salas, organize racks, energize seus mineradores e divida
@@ -51,7 +51,7 @@ export default async function Home() {
               </div>
               <div className="login-beta-note">
                 <span />
-                Beta sem depósito ou saque · progresso salvo por conta
+                Progresso individual protegido e sincronizado por conta
               </div>
             </section>
 

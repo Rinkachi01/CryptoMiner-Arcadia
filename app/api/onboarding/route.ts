@@ -134,7 +134,7 @@ export async function GET() {
 
   if (!stateRow) {
     return Response.json(
-      { error: "A conta ainda está sendo preparada." },
+      { error: "A conta ainda está sendo configurada." },
       { status: 404 },
     );
   }

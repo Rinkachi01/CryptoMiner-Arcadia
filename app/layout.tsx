@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicBaseUrl),
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com beta observável, seis salas, blocos fixos, quatro pools e economia controlada pelo servidor.",
+    "Mineração virtual com seis salas, blocos fixos, quatro pools e economia controlada pelo servidor.",
   robots: {
     follow: publicIndexingEnabled,
     index: publicIndexingEnabled,
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Beta observável com retenção, energia e Arcade medidos pelo servidor, sem anúncios ou tarefas externas conectadas.",
+      "Salas de mineração, energia, Arcade e progressão medidos pelo servidor.",
     type: "website",
     locale: "pt_BR",
     images: [
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — beta observável com retenção, energia e Arcade",
+        alt: "Crypto Miner Arcadia — salas, energia, pools e Arcade",
       },
     ],
   },
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Nova fase de beta observável com consentimento preparado e dados de retenção.",
+      "Mineração virtual com progressão, energia, pools globais e Arcade.",
     images: ["/og.png"],
   },
 };

@@ -60,9 +60,9 @@ export function presentLedgerActivity(
   if (action === "admin_test_cma_grant") {
     return {
       category: "economy",
-      title: "Crédito de teste do proprietário",
+      title: "Crédito administrativo do proprietário",
       description:
-        "CMA virtual foi adicionado para validar compras e o crescimento controlado da rede beta.",
+        "CMA virtual foi adicionado pelo proprietário para equilibrar a operação e validar compras.",
     };
   }
   if (action === "credit_crypto_deposit") {

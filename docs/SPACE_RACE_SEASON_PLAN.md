@@ -4,12 +4,12 @@
 
 A temporada está cadastrada como `draft` e permanece desativada. O fundador
 inicia o ciclo manualmente na Central do Proprietário. A ativação encerra o
-ciclo competitivo anterior, grava uma auditoria e inicia exatamente 70 dias no
+ciclo competitivo anterior, grava uma auditoria e inicia exatamente 120 dias no
 relógio do servidor.
 
 ## Progressão
 
-- 70 dias e 50 níveis;
+- 120 dias e 50 níveis;
 - 12.250 XP para chegar ao nível 50;
 - 50 XP no primeiro login de cada dia;
 - 20 XP por minigame concluído, limitado a cinco partidas por dia;

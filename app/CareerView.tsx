@@ -93,6 +93,20 @@ export function CareerView({
       </nav>
 
       <div className="career-content">
+        {activeTab === "overview" ? (
+          <button
+            className="career-season-callout"
+            type="button"
+            onClick={() => setActiveTab("season")}
+          >
+            <span>SEASON 01</span>
+            <div>
+              <strong>Corrida Espacial</strong>
+              <small>120 dias · 50 níveis · XP · recompensas · giveaways</small>
+            </div>
+            <b>VER TEMPORADA →</b>
+          </button>
+        ) : null}
         {activeTab === "season" ? (
           <SeasonPanel
             refreshKey={refreshKey}

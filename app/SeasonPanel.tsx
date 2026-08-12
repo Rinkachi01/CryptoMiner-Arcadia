@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   seasonXpRequiredForLevel,
+  spaceRaceRewards,
   type SeasonReward,
 } from "./season-rules";
 import type {
@@ -14,6 +15,7 @@ import type {
 type SeasonResponse = {
   competitiveOnly: boolean;
   currentPlayer: SeasonLeaderboardEntry | null;
+  draft?: PublicSeason | null;
   error?: string;
   leaderboard: SeasonLeaderboardEntry[];
   message?: string;
@@ -54,7 +56,10 @@ export function SeasonPanel({
         if (!response.ok) {
           throw new Error(result.error ?? "Temporada indisponível.");
         }
-        if (result.season?.campaignSlug !== "space-race-01") return result;
+        if (
+          result.season?.campaignSlug !== "space-race-01" ||
+          result.season.status !== "active"
+        ) return result;
         const loginResponse = await fetch("/api/season", {
           body: JSON.stringify({ action: "daily-login" }),
           headers: { "Content-Type": "application/json" },
@@ -126,7 +131,12 @@ export function SeasonPanel({
     }
   }
 
-  if (!data?.season) {
+  const presentedSeason =
+    data?.season?.campaignSlug === "space-race-01"
+      ? data.season
+      : data?.draft ?? data?.season ?? null;
+
+  if (!data || !presentedSeason) {
     return (
       <section className="season-panel loading" aria-live="polite">
         {message || "Aguardando a próxima temporada."}
@@ -134,9 +144,9 @@ export function SeasonPanel({
     );
   }
 
-  const season = data.season;
+  const season = presentedSeason;
   const isSpaceRace = season.campaignSlug === "space-race-01";
-  if (!isSpaceRace || !data.playerProgress) {
+  if (!isSpaceRace) {
     return (
       <section className={`season-panel ${season.status}`}>
         <div className="season-summary-card">
@@ -163,7 +173,16 @@ export function SeasonPanel({
     );
   }
 
-  const progress = data.playerProgress;
+  const isPreview = season.status === "draft";
+  const progress: SeasonPlayerProgress = data.playerProgress ?? {
+    claimedRewardKeys: [],
+    level: 1,
+    nextLevelXp: seasonXpRequiredForLevel(2),
+    premiumUnlocked: false,
+    sources: { games: 0, logins: 0, missions: 0, spending: 0 },
+    xp: 0,
+  };
+  const rewards = data.rewards.length > 0 ? data.rewards : spaceRaceRewards;
   const currentLevelStart = seasonXpRequiredForLevel(progress.level);
   const levelProgress =
     progress.level >= 50
@@ -185,20 +204,20 @@ export function SeasonPanel({
       <header className="space-race-hero">
         <div>
           <span>TEMPORADA 01 · CORRIDA ESPACIAL</span>
-          <h3>70 dias para alcançar o Espaço Profundo</h3>
-          <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP. O valor dos blocos não muda.</p>
+          <h3>{season.durationDays} dias para alcançar o Espaço Profundo</h3>
+          <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP. Sorteios semanais complementam a trilha sem alterar o valor dos blocos.</p>
         </div>
         <aside>
-          <strong>NÍVEL {progress.level}</strong>
-          <span>{progress.xp.toLocaleString("pt-BR")} XP</span>
-          <small>{remainingLabel(season.endsAt, data.serverTime)}</small>
+          <strong>{isPreview ? "PROGRAMADA" : `NÍVEL ${progress.level}`}</strong>
+          <span>{isPreview ? "50 NÍVEIS" : `${progress.xp.toLocaleString("pt-BR")} XP`}</span>
+          <small>{isPreview ? `${season.durationDays} dias após a ativação` : remainingLabel(season.endsAt, data.serverTime)}</small>
         </aside>
       </header>
 
       <div className="space-race-progress">
         <div><span>PROGRESSO DO NÍVEL</span><strong>{levelProgress}%</strong></div>
         <i><em style={{ width: `${levelProgress}%` }} /></i>
-        <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
+        <small>{isPreview ? "O XP começa somente quando o fundador ativar a temporada" : progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
       </div>
 
       <div className="season-xp-sources">
@@ -208,6 +227,19 @@ export function SeasonPanel({
         <article><span>LOJA</span><strong>{progress.sources.spending} XP</strong><small>limite de 50 XP/dia</small></article>
       </div>
 
+      <section className="season-giveaway-card">
+        <header>
+          <div><span>SORTEIOS DA TEMPORADA</span><h4>Giveaways semanais</h4></div>
+          <strong>{isPreview ? "ABREM COM A TEMPORADA" : "RODADA SEMANAL"}</strong>
+        </header>
+        <div>
+          <article><b>01</b><strong>Jogue</strong><span>1 bilhete a cada 5 minigames concluídos no dia.</span></article>
+          <article><b>02</b><strong>Mantenha a sequência</strong><span>7 logins seguidos liberam um bilhete adicional.</span></article>
+          <article><b>03</b><strong>Prêmios da rodada</strong><span>Minerador sazonal, baterias e poder temporário.</span></article>
+        </div>
+        <small>Bilhetes são pessoais, expiram ao fim de cada rodada e não têm valor de saque.</small>
+      </section>
+
       <section className="season-track-card">
         <header>
           <div><span>TRILHA DE RECOMPENSAS</span><h4>Gratuita + Premium</h4></div>
@@ -216,15 +248,15 @@ export function SeasonPanel({
           ) : (
             <button
               type="button"
-              disabled={Boolean(busyAction)}
+              disabled={isPreview || Boolean(busyAction)}
               onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
             >
-              LIBERAR PREMIUM · {season.premiumPriceCma} CMA
+              {isPreview ? `PREMIUM · ${season.premiumPriceCma} CMA` : `LIBERAR PREMIUM · ${season.premiumPriceCma} CMA`}
             </button>
           )}
         </header>
         <div className="season-reward-grid">
-          {data.rewards.map((reward) => {
+          {rewards.map((reward) => {
             const key = `${reward.track}:${reward.level}`;
             const claimed = progress.claimedRewardKeys.includes(key);
             const unlocked = progress.level >= reward.level;
@@ -239,10 +271,10 @@ export function SeasonPanel({
                 <small>{reward.track === "free" ? "GRÁTIS" : "PREMIUM"}</small>
                 <button
                   type="button"
-                  disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
+                  disabled={isPreview || claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
                   onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
                 >
-                  {claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
+                  {isPreview ? `NÍVEL ${reward.level}` : claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
                 </button>
               </article>
             );
@@ -252,7 +284,12 @@ export function SeasonPanel({
 
       {error && <p className="season-action-error" role="alert">{error}</p>}
       {message && <p className="season-action-success" role="status">{message}</p>}
-      <SeasonRanking data={data} />
+      {isPreview ? (
+        <div className="season-preview-note">
+          <strong>CONTAGEM REGRESSIVA SOB CONTROLE DO FUNDADOR</strong>
+          <span>Nenhum XP, bilhete, compra Premium ou resgate foi iniciado.</span>
+        </div>
+      ) : <SeasonRanking data={data} />}
     </section>
   );
 }

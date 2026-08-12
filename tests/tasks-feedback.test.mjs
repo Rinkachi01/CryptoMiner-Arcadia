@@ -8,14 +8,14 @@ import {
   isBetaFeedbackStatus,
 } from "../app/feedback-rules.ts";
 
-test("Central de Tarefas separa missões internas de parceiros futuros", async () => {
+test("Central de Tarefas separa missões internas de tarefas parceiras", async () => {
   const [game, tasks] = await Promise.all([
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/TasksView.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(game, /id: "tasks", label: "Tarefas"/);
-  assert.match(tasks, /Pesquisas ainda não conectadas/);
+  assert.match(tasks, /Pesquisas externas desativadas/);
   assert.match(tasks, /Nenhum anúncio ou pesquisa paga está ativo/);
   assert.match(tasks, /Recompensa não monetária/);
   assert.doesNotMatch(tasks, /ganhe CMA|ganhe BTC|ganhe DOGE/i);

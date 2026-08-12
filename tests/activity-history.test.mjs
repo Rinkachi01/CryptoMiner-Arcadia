@@ -53,11 +53,11 @@ test("histórico é pessoal, autenticado e lido de fontes autoritativas", async 
   assert.match(career, /<ActivityPanel/);
 });
 
-test("crédito CMA de teste é identificado sem fingir ser mineração", () => {
+test("crédito CMA administrativo é identificado sem fingir ser mineração", () => {
   const grant = presentLedgerActivity("admin_test_cma_grant", {});
   assert.equal(grant.category, "economy");
-  assert.match(grant.title, /Crédito de teste/);
-  assert.match(grant.description, /virtual|beta/i);
+  assert.match(grant.title, /Crédito administrativo/);
+  assert.match(grant.description, /virtual|equilibrar/i);
 });
 
 test("resumo pessoal não promete retorno financeiro", async () => {

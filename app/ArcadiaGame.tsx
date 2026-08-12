@@ -918,8 +918,10 @@ export function ArcadiaGame({
               type="button"
               key={item.id}
               title={item.label}
-              onClick={() => {
+              onClick={(event) => {
+                event.currentTarget.blur();
                 setRackOpen(false);
+                setWalletOpen(false);
                 if (item.id === "career") setCareerStartTab("overview");
                 setActiveView(item.id);
               }}
@@ -946,7 +948,7 @@ export function ArcadiaGame({
 
         <div className="simulation-note">
           <span>SIMULAÇÃO VIRTUAL</span>
-          <p>Sem mineração real, depósito ou saque nesta fase.</p>
+          <p>Operação virtual com progresso e economia controlados pelo servidor.</p>
           <div className="sidebar-public-links">
             <a href="/legal">TERMOS E PRIVACIDADE</a>
           </div>
@@ -968,7 +970,7 @@ export function ArcadiaGame({
               ) : activeView === "games" ? (
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
               ) : activeView === "tasks" ? (
-                <>CENTRAL DE TAREFAS <i /> BETA E MONETIZAÇÃO FUTURA</>
+                <>CENTRAL DE TAREFAS <i /> MISSÕES E FEEDBACK</>
               ) : activeView === "career" ? (
                 <>CENTRAL DO OPERADOR <i /> PROGRESSO E MISSÕES</>
               ) : (

@@ -794,7 +794,7 @@ export async function POST(request: Request) {
       return json({
         message: activation.alreadyActive
           ? "A Corrida Espacial já está ativa."
-          : "Corrida Espacial ativada por 70 dias.",
+          : "Corrida Espacial ativada por 120 dias.",
       });
     } catch (error) {
       return json(

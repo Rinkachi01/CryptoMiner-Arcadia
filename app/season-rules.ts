@@ -2,11 +2,11 @@ import { assetsManifest } from "./assets.manifest.ts";
 
 export const DEFAULT_SEASON_DURATION_DAYS = 30;
 export const MIN_SEASON_DURATION_DAYS = 7;
-export const MAX_SEASON_DURATION_DAYS = 90;
+export const MAX_SEASON_DURATION_DAYS = 180;
 
 export const SPACE_RACE_SEASON_ID = "season-space-race-01";
 export const SPACE_RACE_SLUG = "space-race-01";
-export const SPACE_RACE_DURATION_DAYS = 70;
+export const SPACE_RACE_DURATION_DAYS = 120;
 export const SPACE_RACE_LEVELS = 50;
 export const SPACE_RACE_PREMIUM_PRICE_CMA = 29;
 

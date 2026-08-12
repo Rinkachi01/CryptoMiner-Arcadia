@@ -69,7 +69,7 @@ test("preferência de tarefas aceita somente escolhas sem ativação automática
   assert.match(api, /getArcadiaUser/);
   assert.match(api, /saveTaskPreference/);
   assert.match(tasks, /Parceiro conectado: <b>NÃO<\/b>/);
-  assert.match(tasks, /Esta escolha prepara o beta/);
+  assert.match(tasks, /Nenhum compartilhamento é autorizado/);
   assert.match(migration, /CREATE TABLE `task_preferences`/);
   assert.match(migration, /CREATE TABLE `task_preference_events`/);
 });

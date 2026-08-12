@@ -1115,9 +1115,9 @@ export function ConversionView({
               <strong>
                 {pix?.enabled
                   ? pix.mode === "test"
-                    ? "HOMOLOGAÇÃO ATIVA"
+                    ? "ACESSO RESTRITO"
                     : "PRODUÇÃO ATIVA"
-                  : "PREPARADO · AINDA DESATIVADO"}
+                  : "INDISPONÍVEL"}
               </strong>
             </header>
             <div className="wallet-pix-controls">
@@ -1184,7 +1184,7 @@ export function ConversionView({
             {!pix?.enabled && (
               <p className="wallet-pix-setup">
                 A estrutura está pronta, mas pagamentos reais continuam bloqueados.
-                Falta concluir as credenciais de teste e o segredo do webhook no servidor.
+                A configuração de pagamento e o webhook ainda não estão disponíveis.
               </p>
             )}
             {pixError && <p className="conversion-error" role="alert">{pixError}</p>}
@@ -1301,8 +1301,8 @@ export function ConversionView({
             <section className="wallet-sandbox-lab" aria-labelledby="wallet-sandbox-title">
               <header>
                 <div>
-                  <span>LABORATÓRIO FINANCEIRO</span>
-                  <h4 id="wallet-sandbox-title">Teste o fluxo sem movimentar dinheiro</h4>
+                  <span>SIMULAÇÃO FINANCEIRA</span>
+                  <h4 id="wallet-sandbox-title">Simule o fluxo sem movimentar dinheiro</h4>
                 </div>
                 <strong>SIMULAÇÃO · ZERO CRÉDITO</strong>
               </header>
@@ -1312,7 +1312,7 @@ export function ConversionView({
               </p>
               <div className="wallet-sandbox-controls">
                 <label>
-                  MOEDA DE TESTE
+                  SALDO SIMULADO
                   <select
                     value={sandboxAsset}
                     onChange={(event) =>
@@ -1348,11 +1348,11 @@ export function ConversionView({
               )}
               <div className="wallet-sandbox-history">
                 <article>
-                  <span>FATURAS DE TESTE</span>
+                  <span>FATURAS SIMULADAS</span>
                   <strong>{wallet.deposits.recent.filter((item) => item.status === "simulation_only").length}</strong>
                 </article>
                 <article>
-                  <span>SAQUES DE TESTE</span>
+                  <span>SAQUES SIMULADOS</span>
                   <strong>{wallet.withdrawals?.recentSandbox.length ?? 0}</strong>
                 </article>
                 <article>
@@ -1384,7 +1384,7 @@ export function ConversionView({
             </div>
           )}
           <p className="wallet-provider-notice">
-            <strong>{wallet?.deposits?.mode === "sandbox" ? "AMBIENTE DE TESTES: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO AINDA DESATIVADO."}</strong>{" "}
+            <strong>{wallet?.deposits?.mode === "sandbox" ? "SIMULAÇÃO ATIVA: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO INDISPONÍVEL."}</strong>{" "}
             Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
             dentro desta tela após a ativação oficial.
           </p>
@@ -1613,7 +1613,7 @@ export function ConversionView({
           )}
           {wallet?.withdrawals?.sandboxEnabled && (
             <section className="wallet-sandbox-lab">
-              <header><div><span>TESTE DE FLUXO</span><h4>Simular pedido de saque</h4></div><strong>ZERO MOVIMENTAÇÃO</strong></header>
+              <header><div><span>SIMULAÇÃO</span><h4>Simular pedido de saque</h4></div><strong>ZERO MOVIMENTAÇÃO</strong></header>
               <div className="wallet-sandbox-controls">
                 <label>
                   MOEDA

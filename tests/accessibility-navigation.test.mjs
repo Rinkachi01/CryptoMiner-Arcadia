@@ -65,4 +65,5 @@ test("controles e navegação mantêm áreas de toque acessíveis", () => {
   assert.match(firstDay, /aria-current/);
   assert.match(firstDay, /Continuar: \$\{nextStepLabel\}/);
   assert.match(styles, /scroll-snap-type: x proximity/);
+  assert.match(game, /event\.currentTarget\.blur\(\)/);
 });

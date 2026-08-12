@@ -23,7 +23,7 @@ async function betaDeviceContext() {
   const user = await getArcadiaUser();
   if (!user) return null;
   const db = env.DB;
-  if (!db) throw new Error("Banco do beta indisponível.");
+  if (!db) throw new Error("Serviço de acessibilidade indisponível.");
   return {
     accountId: await accountIdForUser(user),
     db,
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         profileInput,
         now,
       )),
-      message: "Perfil de teste atualizado.",
+      message: "Perfil de acessibilidade atualizado.",
     });
   }
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       typeof answers.motionComfortable !== "boolean" ||
       typeof answers.rackClear !== "boolean"
     ) {
-      return json({ error: "Responda os quatro itens do teste." }, 400);
+      return json({ error: "Responda os quatro itens da avaliação." }, 400);
     }
     const notes = typeof body.notes === "string" ? body.notes.trim() : "";
     if (notes.length > 500) {
@@ -121,9 +121,9 @@ export async function POST(request: Request) {
         now,
       )),
       message:
-        "Teste salvo. Nenhuma recompensa ou identificador externo foi criado.",
+        "Avaliação salva. Nenhuma recompensa ou identificador externo foi criado.",
     });
   }
 
-  return json({ error: "Ação de teste desconhecida." }, 400);
+  return json({ error: "Ação de acessibilidade desconhecida." }, 400);
 }

@@ -63,11 +63,11 @@ test("progresso e duração da temporada respeitam limites seguros", () => {
   assert.equal(seasonProgressPercent(1_000, 2_000, 500), 0);
   assert.equal(seasonProgressPercent(1_000, 2_000, 3_000), 100);
   assert.equal(normalizeSeasonDurationDays(2), 7);
-  assert.equal(normalizeSeasonDurationDays(120), 90);
+  assert.equal(normalizeSeasonDurationDays(120), 120);
 });
 
-test("Corrida Espacial tem 70 dias, 50 níveis e folga de XP", () => {
-  assert.equal(SPACE_RACE_DURATION_DAYS, 70);
+test("Corrida Espacial tem 120 dias, 50 níveis e folga de XP", () => {
+  assert.equal(SPACE_RACE_DURATION_DAYS, 120);
   assert.equal(SPACE_RACE_LEVELS, 50);
   assert.equal(SPACE_RACE_PREMIUM_PRICE_CMA, 29);
   assert.equal(seasonXpRequiredForLevel(50), 12_250);
@@ -112,6 +112,7 @@ test("temporada não promete saque ou retorno financeiro", async () => {
   ]);
   assert.match(api, /sem prêmio em CMA, saque ou vantagem financeira/i);
   assert.match(panel, /RANKING DE OPERADORES/i);
-  assert.match(panel, /70 dias/i);
+  assert.match(panel, /durationDays/);
+  assert.match(panel, /Giveaways semanais/i);
   assert.doesNotMatch(panel, /ROI|rendimento|retorno garantido/i);
 });

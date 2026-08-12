@@ -53,5 +53,5 @@ test("suporte prioriza o protocolo e recolhe os guias extensos", async () => {
   );
   assert.match(support, /support-guide-disclosure/);
   assert.match(support, /Abra somente quando precisar/);
-  assert.match(support, /saques BTC, DOGE e LTC/);
+  assert.match(support, /Saques\s+BTC, DOGE e LTC/i);
 });

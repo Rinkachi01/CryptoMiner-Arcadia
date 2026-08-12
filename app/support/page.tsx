@@ -8,7 +8,7 @@ import { SupportRequestForm } from "./SupportRequestForm";
 const supportTopics = [
   {
     title: "Conta e acesso",
-    text: "Confirmação de e-mail, recuperação de senha, troca de dispositivo e vínculo do progresso da beta.",
+    text: "Confirmação de e-mail, recuperação de senha, troca de dispositivo e vínculo do progresso da conta.",
   },
   {
     title: "Jogo e inventário",
@@ -47,7 +47,7 @@ export default async function SupportPage() {
           <strong>
             {emailDeliveryEnabled
               ? emailConfig.provider === "google_apps_script"
-                ? "PROTOCOLO + GMAIL BETA"
+                ? "PROTOCOLO + GMAIL"
                 : "PROTOCOLO + E-MAIL"
               : "PROTOCOLO INTERNO ATIVO"}
           </strong>
@@ -87,7 +87,7 @@ export default async function SupportPage() {
       <section className="public-document-section support-safety-flow">
         <header>
           <span>DEPÓSITO SEGURO</span>
-          <h2>Como o crédito deverá funcionar</h2>
+          <h2>Como funciona a confirmação de crédito</h2>
         </header>
         <ol>
           <li>
@@ -123,7 +123,7 @@ export default async function SupportPage() {
           <span>PRAZO E PROVA</span>
           <h2>Guarde o identificador da operação.</h2>
           <p>
-            Quando depósitos forem ativados, o atendimento pedirá o ID da fatura
+            Para localizar um depósito, o atendimento poderá pedir o ID da fatura
             e o hash público da transação. Nunca pedirá credenciais da carteira.
           </p>
         </article>
@@ -146,11 +146,11 @@ export default async function SupportPage() {
           </p>
         </details>
         <details>
-          <summary>Depósitos e saques já estão ativos?</summary>
+          <summary>Como são processados depósitos e saques?</summary>
           <p>
-            Depósitos cripto estão em homologação controlada e saques BTC, DOGE e LTC
-            entram numa fila manual do fundador. Pix permanece em teste até a validação
-            completa do webhook e das credenciais do Mercado Pago.
+            Depósitos confirmados pelo provedor entram no extrato da conta. Saques
+            BTC, DOGE e LTC seguem para a fila manual do fundador; o status de cada
+            pedido permanece visível no histórico.
           </p>
         </details>
         <details>

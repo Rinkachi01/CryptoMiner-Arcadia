@@ -23,6 +23,7 @@ export async function GET() {
     env.DB,
     await accountIdForUser(user),
     now,
+    true,
   );
   const isSpaceRace = overview.season?.campaignSlug === "space-race-01";
   return Response.json(

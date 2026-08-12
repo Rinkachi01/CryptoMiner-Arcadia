@@ -325,7 +325,7 @@ const adminSections: Array<{
   { id: "overview", label: "Visão geral", description: "Saúde e lançamento" },
   { id: "economy", label: "Economia", description: "Pools e emissão" },
   { id: "treasury", label: "Tesouraria", description: "Depósitos e saques" },
-  { id: "community", label: "Jogadores", description: "Suporte e beta" },
+  { id: "community", label: "Jogadores", description: "Suporte e experiência" },
   { id: "operations", label: "Operações", description: "Segurança e recuperação" },
 ];
 
@@ -373,7 +373,7 @@ const actionLabels: Record<string, string> = {
   daily_mission_battery: "Baterias diárias",
   claim_energy: "Energia resgatada",
   open_supply_crate: "Caixas abertas",
-  admin_test_cma_grant: "Crédito CMA de teste",
+  admin_test_cma_grant: "Crédito CMA administrativo",
   block_settlement: "Blocos minerados",
   use_battery: "Baterias utilizadas",
 };
@@ -607,7 +607,7 @@ export function AdminDashboard({
   >({});
   const [simulationInput, setSimulationInput] =
     useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
-  const [seasonName, setSeasonName] = useState("Temporada Beta");
+  const [seasonName, setSeasonName] = useState("Temporada Arcadia");
   const [seasonDurationDays, setSeasonDurationDays] = useState(30);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
@@ -911,7 +911,7 @@ export function AdminDashboard({
           <span>CENTRAL DE OPERAÇÕES · ÚLTIMAS 24 HORAS</span>
           <h1>Saúde econômica e revisão</h1>
           <p>
-            Observe emissão, caixas, energia e alertas. Ajustes de teste do
+            Observe emissão, caixas, energia e alertas. Ajustes administrativos do
             proprietário são limitados, reversíveis e registrados.
           </p>
         </div>
@@ -1086,7 +1086,7 @@ export function AdminDashboard({
                   : overview.launch.deposits.configured
                     ? "CONFIGURADO, MAS BLOQUEADO"
                     : overview.launch.deposits.sandboxEnabled
-                      ? "LABORATÓRIO SEM DINHEIRO ATIVO"
+                      ? "SIMULAÇÃO SEM DINHEIRO ATIVA"
                     : "NOWPAYMENTS AGUARDANDO CONTA"}
               </em>
             </article>
@@ -1121,7 +1121,7 @@ export function AdminDashboard({
                     : "PRODUÇÃO ATIVA"
                   : overview.launch.pix.configured
                     ? "CONFIGURADO, MAS BLOQUEADO"
-                    : "AGUARDA CREDENCIAIS DE TESTE"}
+                    : "AGUARDA CREDENCIAIS DO PROVEDOR"}
               </em>
             </article>
           </div>
@@ -1337,7 +1337,7 @@ export function AdminDashboard({
       <section className="admin-panel admin-beta-observability" hidden={adminSection !== "community"}>
         <div className="admin-panel-heading">
           <div>
-            <span>BETA OBSERVÁVEL · JANELA DE 7 DIAS</span>
+            <span>VISÃO DE USO · JANELA DE 7 DIAS</span>
             <h2>Retenção, energia e Arcade</h2>
           </div>
           <small>DADOS DO SERVIDOR · SEM RASTREADOR EXTERNO</small>
@@ -1421,7 +1421,7 @@ export function AdminDashboard({
         <section className="admin-device-lab">
           <header>
             <div>
-              <span>LABORATÓRIO DE TELA E CONTROLE</span>
+              <span>EXPERIÊNCIA DE TELA E CONTROLE</span>
               <h3>Onde cada tipo de jogador interrompe o primeiro dia</h3>
               <p>
                 Usa somente categorias amplas salvas na conta. Não há IP,
@@ -1515,7 +1515,7 @@ export function AdminDashboard({
             </article>
             <aside>
               <b>{overview.beta.accessibility.reviews30d}</b>
-              <span>teste(s) em 30 dias</span>
+              <span>avaliação(ões) em 30 dias</span>
               <small>
                 {overview.beta.accessibility.touchReviews} por toque/híbrido ·{" "}
                 {overview.beta.accessibility.largeTextProfiles} perfil(is) com
@@ -1838,7 +1838,7 @@ export function AdminDashboard({
           <small>
             Faixas seguras: 0,001–0,05 CMA; 1–100 satoshis; 0,001–0,1 DOGE;
             0,00001–0,001 LTC.
-            O saldo de teste não cria saque real.
+            O crédito administrativo não cria saque real.
           </small>
         </div>
 
@@ -1921,7 +1921,7 @@ export function AdminDashboard({
               <strong>Patrocínio visual</strong>
               <p>Banner identificado no Arcade, longe dos controles do jogo.</p>
             </div>
-            <span>PRIMEIRO TESTE</span>
+            <span>VALIDAÇÃO INICIAL</span>
           </article>
           <article>
             <b>02</b>
@@ -1940,7 +1940,7 @@ export function AdminDashboard({
                 DOGE ou poder.
               </p>
             </div>
-            <span>FUTURO</span>
+            <span>CONFIGURAÇÃO</span>
           </article>
         </div>
       </section>
@@ -2327,7 +2327,7 @@ export function AdminDashboard({
       <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "community"}>
         <div className="admin-panel-heading">
           <div>
-            <span>ESCUTA DO BETA · ÚLTIMOS 30 DIAS</span>
+            <span>VOZ DO JOGADOR · ÚLTIMOS 30 DIAS</span>
             <h2>Feedback enviado pelos operadores</h2>
           </div>
           <small>
@@ -2402,15 +2402,15 @@ export function AdminDashboard({
             {overview.season.draft && (
               <section className="admin-season-launch-card">
                 <div>
-                  <span>PRONTA · AINDA DESATIVADA</span>
+                  <span>TEMPORADA PROGRAMADA</span>
                   <h3>{overview.season.draft.name}</h3>
                   <p>
-                    70 dias, 50 níveis, trilha gratuita e Premium de 29 CMA.
+                    120 dias, 50 níveis, trilha gratuita e Premium de 29 CMA.
                     O cronômetro e o XP só começam depois desta ativação.
                   </p>
                 </div>
                 <dl>
-                  <div><dt>DURAÇÃO</dt><dd>70 dias</dd></div>
+                  <div><dt>DURAÇÃO</dt><dd>120 dias</dd></div>
                   <div><dt>NÍVEIS</dt><dd>50</dd></div>
                   <div><dt>PREMIUM</dt><dd>29 CMA</dd></div>
                   <div><dt>STATUS</dt><dd>Desativada</dd></div>
@@ -2421,7 +2421,7 @@ export function AdminDashboard({
                   onClick={() => {
                     if (
                       window.confirm(
-                        "Ativar a Corrida Espacial agora? A temporada atual será encerrada e o prazo de 70 dias começará imediatamente.",
+                        "Ativar a Corrida Espacial agora? A temporada atual será encerrada e o prazo de 120 dias começará imediatamente.",
                       )
                     ) {
                       void runAdminAction("activate-space-race", {
@@ -2636,7 +2636,7 @@ export function AdminDashboard({
                         </small>
                       </article>
                       <article>
-                        <span>CRÉDITOS DE TESTE</span>
+                        <span>CRÉDITOS ADMINISTRATIVOS</span>
                         <strong>
                           {formatCma(
                             overview.seasonReport.metrics.cmaTestCredits,
@@ -3124,7 +3124,7 @@ export function AdminDashboard({
             <section className="admin-release-readiness">
               <header>
                 <span>PRÓXIMAS FASES ACELERADAS</span>
-                <h3>Prontidão para ampliar o beta</h3>
+                <h3>Prontidão operacional</h3>
               </header>
               <div>
                 <article className={overview.operations.status === "stable" ? "ready" : "waiting"}>
@@ -3158,7 +3158,7 @@ export function AdminDashboard({
                 <article className="external">
                   <b>5</b>
                   <div>
-                    <strong>Teste com jogadores reais</strong>
+                    <strong>Validação com jogadores reais</strong>
                     <span>Leitura, toque e onboarding precisam de validação externa.</span>
                   </div>
                 </article>
@@ -3265,7 +3265,7 @@ export function AdminDashboard({
           <section className="admin-panel admin-simulator-panel">
             <div className="admin-panel-heading">
               <div>
-                <span>LABORATÓRIO ECONÔMICO</span>
+                <span>CONTROLE ECONÔMICO</span>
                 <h2>Simulador de rebalanceamento</h2>
               </div>
               <small>NÃO APLICA MUDANÇAS</small>

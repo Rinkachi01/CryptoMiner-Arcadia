@@ -44,12 +44,11 @@ export default async function AuthPage({ searchParams }: AuthPageProps) {
           <span>ACESSO CONTROLADO</span>
           <h1>O cadastro público ainda não foi liberado.</h1>
           <p>
-            A estrutura do Supabase está preparada, mas o acesso permanece na
-            beta privada até confirmação de e-mail, recuperação de senha e
-            domínio final passarem pela validação.
+            O cadastro está temporariamente fechado. Use o acesso autorizado
+            ou consulte o suporte para acompanhar a disponibilidade.
           </p>
           <div>
-            <a href="/signin-with-chatgpt?return_to=%2F">ENTRAR NA BETA</a>
+            <a href="/signin-with-chatgpt?return_to=%2F">ENTRAR</a>
             <a className="secondary" href="/support">VER SUPORTE</a>
           </div>
         </section>
