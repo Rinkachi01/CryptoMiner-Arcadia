@@ -2040,7 +2040,7 @@ export function AdminDashboard({
           <div className="admin-panel-heading">
             <div>
               <span>TESOURARIA · FILA MANUAL</span>
-              <h2>Pedidos de saque em BTC, DOGE e LTC</h2>
+              <h2>Saques em cripto e Pix</h2>
             </div>
             <small>
               {withdrawals.counts.requested} NOVO(S) · {withdrawals.counts.reviewing}{" "}
@@ -2073,11 +2073,19 @@ export function AdminDashboard({
                       <div>
                         <span>{request.id.slice(-8).toUpperCase()}</span>
                         <strong>
-                          {(request.amountAtomic / 100_000_000).toLocaleString("pt-BR", {
-                            maximumFractionDigits: 8,
-                          })}{" "}
-                          {request.asset}
+                          {request.payoutAsset === "BRL"
+                            ? `${formatBrl(request.payoutBrlCents / 100)} via Pix`
+                            : `${(request.amountAtomic / 100_000_000).toLocaleString("pt-BR", {
+                                maximumFractionDigits: 8,
+                              })} ${request.asset}`}
                         </strong>
+                        {request.payoutAsset === "BRL" && (
+                          <small>
+                            Reserva: {(request.amountAtomic / 100_000_000).toLocaleString("pt-BR", {
+                              maximumFractionDigits: 8,
+                            })} {request.asset}
+                          </small>
+                        )}
                         <small>
                           {request.displayName} · {request.email} · {formatDate(request.createdAt)}
                         </small>
@@ -2085,7 +2093,9 @@ export function AdminDashboard({
                       <em>{request.status.replaceAll("_", " ").toUpperCase()}</em>
                     </header>
                     <label className="admin-withdrawal-address">
-                      ENDEREÇO EXTERNO · REVISE A REDE ANTES DE PAGAR
+                      {request.payoutAsset === "BRL"
+                        ? "CHAVE PIX · CONFIRA TITULAR E VALOR ANTES DE PAGAR"
+                        : "ENDEREÇO EXTERNO · REVISE A REDE ANTES DE PAGAR"}
                       <code>{request.destinationAddress}</code>
                     </label>
                     {open ? (

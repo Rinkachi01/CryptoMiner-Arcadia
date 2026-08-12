@@ -551,6 +551,7 @@ export const walletWithdrawalIntents = sqliteTable(
     requestedAtomic: integer("requested_atomic").notNull(),
     destinationAddress: text("destination_address"),
     destinationPreview: text("destination_preview").notNull(),
+    payoutBrlCents: integer("payout_brl_cents").notNull().default(0),
     status: text("status").notNull().default("simulation_only"),
     reviewNote: text("review_note"),
     transactionHash: text("transaction_hash"),
@@ -567,6 +568,41 @@ export const walletWithdrawalIntents = sqliteTable(
     index("wallet_withdrawal_intents_status_created_idx").on(
       table.status,
       table.createdAt,
+    ),
+  ],
+);
+
+export const walletBrlRateSnapshots = sqliteTable("wallet_brl_rate_snapshots", {
+  asset: text("asset").primaryKey(),
+  brlPriceMicros: integer("brl_price_micros").notNull(),
+  observedAt: integer("observed_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const walletBrlWithdrawalQuotes = sqliteTable(
+  "wallet_brl_withdrawal_quotes",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    sourceAsset: text("source_asset").notNull(),
+    sourceAtomic: integer("source_atomic").notNull(),
+    brlPriceMicros: integer("brl_price_micros").notNull(),
+    grossBrlCents: integer("gross_brl_cents").notNull(),
+    feeBps: integer("fee_bps").notNull(),
+    netBrlCents: integer("net_brl_cents").notNull(),
+    status: text("status").notNull().default("preview"),
+    consumedAt: integer("consumed_at"),
+    expiresAt: integer("expires_at").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("wallet_brl_withdrawal_quotes_account_created_idx").on(
+      table.accountId,
+      table.createdAt,
+    ),
+    index("wallet_brl_withdrawal_quotes_status_expiry_idx").on(
+      table.status,
+      table.expiresAt,
     ),
   ],
 );

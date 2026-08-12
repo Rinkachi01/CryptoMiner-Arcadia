@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import {
+  createBrlWithdrawalQuote,
+  createBrlWithdrawalRequest,
   createProviderDepositIntent,
   createManualWithdrawalRequest,
   createSandboxDepositIntent,
@@ -51,6 +53,10 @@ export async function POST(request: Request) {
         destinationAddress?: unknown;
         expectedVersion?: unknown;
         idempotencyKey?: unknown;
+        pixKey?: unknown;
+        pixKeyType?: unknown;
+        quoteId?: unknown;
+        targetBrl?: unknown;
         usdAmount?: unknown;
       }
     | null;
@@ -113,6 +119,32 @@ export async function POST(request: Request) {
           environment: env,
           expectedVersion: body.expectedVersion,
           idempotencyKey: body.idempotencyKey,
+        }),
+      });
+    }
+    if (body.action === "brl-withdrawal-quote") {
+      return json({
+        quote: await createBrlWithdrawalQuote({
+          accountId,
+          asset: body.asset,
+          db: env.DB,
+          environment: env,
+          targetBrl: body.targetBrl,
+        }),
+      });
+    }
+    if (body.action === "create-brl-withdrawal") {
+      return json({
+        message: "Saldo reservado. O saque Pix entrou na análise do proprietário.",
+        withdrawal: await createBrlWithdrawalRequest({
+          accountId,
+          db: env.DB,
+          environment: env,
+          expectedVersion: body.expectedVersion,
+          idempotencyKey: body.idempotencyKey,
+          pixKey: body.pixKey,
+          pixKeyType: body.pixKeyType,
+          quoteId: body.quoteId,
         }),
       });
     }

@@ -8,6 +8,8 @@ import type { ConversionAssetId } from "./conversion-rules";
 
 type ConvertibleAsset = "BTC" | "DOGE" | "LTC";
 type WithdrawableAsset = "BTC" | "DOGE" | "LTC";
+type WithdrawalMethod = "crypto" | "pix";
+type PixKeyType = "cpf_cnpj" | "email" | "phone" | "random";
 type WalletTab = "convert" | "deposit" | "withdraw";
 type DepositMethod = "PIX" | ConvertibleAsset;
 
@@ -88,14 +90,21 @@ type WalletResponse = {
   error?: string;
   withdrawals?: {
     assets: ["BTC", "DOGE", "LTC"];
+    brlFeeBps: number;
+    brlMinimumCents: number;
+    cryptoMinimumBrlCents: number;
     enabled: boolean;
     minimumAtomic: Record<WithdrawableAsset, number>;
+    ratesAvailable: boolean;
+    ratesObservedAt: number | null;
     recent: Array<{
       amountAtomic: number;
       asset: string;
       createdAt: number;
       destinationPreview: string;
       id: string;
+      payoutAsset: "BRL" | "CRYPTO";
+      payoutBrlCents: number;
       resolvedAt: number | null;
       reviewNote: string | null;
       status: string;
@@ -206,8 +215,28 @@ type WithdrawalResponse = {
     asset: WithdrawableAsset;
     destinationPreview: string;
     id: string;
+    netBrl?: number;
+    sourceAtomic?: number;
     status: string;
   };
+};
+
+type BrlWithdrawalQuote = {
+  asset: WithdrawableAsset;
+  brlPrice: number;
+  expiresAt: number;
+  feeBrl: number;
+  feeBps: number;
+  grossBrl: number;
+  id: string;
+  netBrl: number;
+  observedAt: number;
+  sourceAmount: number;
+  sourceAtomic: number;
+};
+
+type BrlWithdrawalResponse = WithdrawalResponse & {
+  quote?: BrlWithdrawalQuote;
 };
 
 type ConversionViewProps = {
@@ -315,11 +344,17 @@ export function ConversionView({
   const [depositBusy, setDepositBusy] = useState<ConvertibleAsset | null>(null);
   const [depositError, setDepositError] = useState("");
   const [withdrawAsset, setWithdrawAsset] = useState<WithdrawableAsset>("DOGE");
+  const [withdrawMethod, setWithdrawMethod] = useState<WithdrawalMethod>("crypto");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawAddress, setWithdrawAddress] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawMessage, setWithdrawMessage] = useState("");
+  const [brlTarget, setBrlTarget] = useState("20");
+  const [brlQuote, setBrlQuote] = useState<BrlWithdrawalQuote | null>(null);
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType>("email");
+  const [pixWithdrawalKey, setPixWithdrawalKey] = useState("");
+  const [brlWithdrawalBusy, setBrlWithdrawalBusy] = useState<"quote" | "create" | null>(null);
   const [pix, setPix] = useState<PixOverview | null>(null);
   const [pixTargetCma, setPixTargetCma] = useState("1");
   const [pixQuote, setPixQuote] = useState<PixQuote | null>(null);
@@ -676,6 +711,78 @@ export function ConversionView({
       );
     } finally {
       setWithdrawBusy(false);
+    }
+  }
+
+  async function quoteBrlWithdrawal() {
+    setBrlWithdrawalBusy("quote");
+    setWithdrawError("");
+    setWithdrawMessage("");
+    setBrlQuote(null);
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify({
+          action: "brl-withdrawal-quote",
+          asset: withdrawAsset,
+          targetBrl: brlTarget,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as BrlWithdrawalResponse;
+      if (!response.ok || !payload.quote) {
+        throw new Error(payload.error ?? "Não foi possível cotar o saque em real.");
+      }
+      setBrlQuote(payload.quote);
+      setWithdrawMessage("Cotação protegida por 2 minutos. Nenhum saldo foi reservado ainda.");
+    } catch (reason) {
+      setWithdrawError(
+        reason instanceof Error ? reason.message : "Não foi possível cotar o saque.",
+      );
+    } finally {
+      setBrlWithdrawalBusy(null);
+    }
+  }
+
+  async function createBrlWithdrawal() {
+    if (!brlQuote) return;
+    setBrlWithdrawalBusy("create");
+    setWithdrawError("");
+    setWithdrawMessage("");
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify({
+          action: "create-brl-withdrawal",
+          expectedVersion: serverVersion,
+          idempotencyKey: crypto.randomUUID(),
+          pixKey: pixWithdrawalKey,
+          pixKeyType,
+          quoteId: brlQuote.id,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as BrlWithdrawalResponse;
+      if (!response.ok || !payload.withdrawal) {
+        throw new Error(payload.error ?? "O servidor recusou o saque Pix.");
+      }
+      const accountUpdated = await onRefreshAccount();
+      if (!accountUpdated) {
+        throw new Error("Saldo reservado; atualize a página para conferir o protocolo.");
+      }
+      const walletResponse = await fetch("/api/wallet", { cache: "no-store" });
+      if (walletResponse.ok) setWallet((await walletResponse.json()) as WalletResponse);
+      setBrlQuote(null);
+      setPixWithdrawalKey("");
+      setWithdrawMessage(
+        `${payload.message ?? "Saque Pix solicitado."} Protocolo ${payload.withdrawal.id.slice(-8).toUpperCase()}.`,
+      );
+    } catch (reason) {
+      setWithdrawError(
+        reason instanceof Error ? reason.message : "Não foi possível solicitar o saque Pix.",
+      );
+    } finally {
+      setBrlWithdrawalBusy(null);
     }
   }
 
@@ -1291,20 +1398,20 @@ export function ConversionView({
               <h4>O depósito vira CMA automaticamente?</h4>
               <p>Não. BTC, DOGE e LTC entram no saldo da moeda escolhida; nenhum CMA é criado automaticamente. A conversão para CMA é manual.</p>
               <h4>Como funciona o saque?</h4>
-              <p>A solicitação reserva o saldo e segue para conferência e pagamento manual do fundador.</p>
+              <p>A solicitação reserva o saldo e segue para conferência e pagamento manual do fundador. O recebimento pode ser na própria cripto ou, após uma cotação, por Pix em real.</p>
               <h4>Posso sacar CMA?</h4>
-              <p>CMA é crédito de uso dentro do jogo. Os pedidos de saque usam BTC, DOGE ou LTC.</p>
+              <p>CMA é crédito de uso dentro do jogo. O saque usa saldo BTC, DOGE ou LTC como origem.</p>
             </div>
           </details>
         </section>
       ) : (
         <section className="wallet-deposit-panel wallet-withdraw-panel">
           <header>
-            <span>SAQUE CRIPTO · PROCESSAMENTO MANUAL</span>
-            <h3>O saque é separado da conversão</h3>
+            <span>SAQUE · PROCESSAMENTO MANUAL</span>
+            <h3>Escolha como deseja receber</h3>
             <p>
-              BTC, DOGE e LTC podem ser solicitados. O valor sai do saldo disponível,
-              fica reservado e chega à fila exclusiva do fundador para pagamento manual.
+              Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um
+              pagamento Pix cotado em real. O valor fica reservado até a análise.
             </p>
           </header>
           <div className="wallet-withdraw-summary">
@@ -1313,81 +1420,191 @@ export function ConversionView({
             <article><small>DISPONÍVEL EM LTC</small><strong>{formatCryptoAtomic(ltcBalanceAtomic)} LTC</strong></article>
             <article><small>FILA MANUAL</small><strong>{wallet?.withdrawals?.enabled ? "ATIVA" : "PAUSADA"}</strong></article>
           </div>
-          <div className="wallet-withdraw-request">
-            <label>
-              MOEDA
-              <select
-                value={withdrawAsset}
-                onChange={(event) => {
-                  setWithdrawAsset(event.target.value as WithdrawableAsset);
-                  setWithdrawError("");
-                }}
-              >
-                <option value="DOGE">Dogecoin · DOGE</option>
-                <option value="LTC">Litecoin · LTC</option>
-                <option value="BTC">Bitcoin · BTC</option>
-              </select>
-            </label>
-            <label>
-              QUANTIDADE EM {withdrawAsset}
-              <input
-                inputMode="decimal"
-                placeholder={
-                  wallet?.withdrawals?.minimumAtomic
-                    ? `Mínimo ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
-                    : "0"
-                }
-                value={withdrawAmount}
-                onChange={(event) => setWithdrawAmount(event.target.value)}
-              />
-            </label>
-            <label className="wallet-withdraw-address">
-              ENDEREÇO NA REDE {withdrawAsset}
-              <input
-                autoComplete="off"
-                spellCheck={false}
-                placeholder={
-                  withdrawAsset === "BTC"
-                    ? "bc1… ou endereço Bitcoin válido"
-                    : withdrawAsset === "LTC"
-                      ? "ltc1…, L… ou M… endereço Litecoin válido"
-                      : "D… endereço Dogecoin válido"
-                }
-                value={withdrawAddress}
-                onChange={(event) => setWithdrawAddress(event.target.value.trim())}
-              />
-            </label>
+          <nav className="wallet-withdraw-methods" aria-label="Forma de recebimento">
             <button
-              className="wallet-deposit-submit"
-              disabled={
-                !wallet?.withdrawals?.enabled ||
-                withdrawBusy ||
-                withdrawAmount.trim().length === 0 ||
-                withdrawAddress.length < 20
-              }
+              className={withdrawMethod === "crypto" ? "active" : ""}
+              onClick={() => {
+                setWithdrawMethod("crypto");
+                setWithdrawError("");
+                setWithdrawMessage("");
+              }}
               type="button"
-              onClick={() => void createWithdrawal()}
             >
-              {withdrawBusy ? "RESERVANDO NO SERVIDOR…" : "SOLICITAR SAQUE MANUAL"}
+              <span>◈</span><strong>RECEBER EM CRIPTO</strong><small>Mínimo variável ≈ R$ 50</small>
             </button>
-          </div>
+            <button
+              className={withdrawMethod === "pix" ? "active" : ""}
+              onClick={() => {
+                setWithdrawMethod("pix");
+                setWithdrawError("");
+                setWithdrawMessage("");
+              }}
+              type="button"
+            >
+              <span>R$</span><strong>CONVERTER E RECEBER VIA PIX</strong><small>Mínimo R$ 20</small>
+            </button>
+          </nav>
+
+          {withdrawMethod === "crypto" ? (
+            <div className="wallet-withdraw-request">
+              <label>
+                MOEDA
+                <select
+                  value={withdrawAsset}
+                  onChange={(event) => {
+                    setWithdrawAsset(event.target.value as WithdrawableAsset);
+                    setWithdrawError("");
+                  }}
+                >
+                  <option value="DOGE">Dogecoin · DOGE</option>
+                  <option value="LTC">Litecoin · LTC</option>
+                  <option value="BTC">Bitcoin · BTC</option>
+                </select>
+              </label>
+              <label>
+                QUANTIDADE EM {withdrawAsset}
+                <input
+                  inputMode="decimal"
+                  placeholder={
+                    wallet?.withdrawals?.ratesAvailable
+                      ? `Mínimo atual ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
+                      : "Cotação indisponível"
+                  }
+                  value={withdrawAmount}
+                  onChange={(event) => setWithdrawAmount(event.target.value)}
+                />
+              </label>
+              <label className="wallet-withdraw-address">
+                ENDEREÇO NA REDE {withdrawAsset}
+                <input
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={
+                    withdrawAsset === "BTC"
+                      ? "bc1… ou endereço Bitcoin válido"
+                      : withdrawAsset === "LTC"
+                        ? "ltc1…, L… ou M… endereço Litecoin válido"
+                        : "D… endereço Dogecoin válido"
+                  }
+                  value={withdrawAddress}
+                  onChange={(event) => setWithdrawAddress(event.target.value.trim())}
+                />
+              </label>
+              <button
+                className="wallet-deposit-submit"
+                disabled={
+                  !wallet?.withdrawals?.enabled ||
+                  !wallet?.withdrawals?.ratesAvailable ||
+                  withdrawBusy ||
+                  withdrawAmount.trim().length === 0 ||
+                  withdrawAddress.length < 20
+                }
+                type="button"
+                onClick={() => void createWithdrawal()}
+              >
+                {withdrawBusy ? "RESERVANDO NO SERVIDOR…" : "SOLICITAR SAQUE EM CRIPTO"}
+              </button>
+            </div>
+          ) : (
+            <div className="wallet-brl-withdrawal">
+              <div className="wallet-withdraw-request">
+                <label>
+                  USAR SALDO DE
+                  <select
+                    value={withdrawAsset}
+                    onChange={(event) => {
+                      setWithdrawAsset(event.target.value as WithdrawableAsset);
+                      setBrlQuote(null);
+                    }}
+                  >
+                    <option value="DOGE">Dogecoin · DOGE</option>
+                    <option value="LTC">Litecoin · LTC</option>
+                    <option value="BTC">Bitcoin · BTC</option>
+                  </select>
+                </label>
+                <label>
+                  VALOR A RECEBER
+                  <span className="wallet-brl-input"><b>R$</b><input
+                    inputMode="decimal"
+                    min="20"
+                    value={brlTarget}
+                    onChange={(event) => {
+                      setBrlTarget(event.target.value);
+                      setBrlQuote(null);
+                    }}
+                  /></span>
+                </label>
+                <label>
+                  TIPO DE CHAVE PIX
+                  <select value={pixKeyType} onChange={(event) => setPixKeyType(event.target.value as PixKeyType)}>
+                    <option value="email">E-mail</option>
+                    <option value="phone">Telefone</option>
+                    <option value="cpf_cnpj">CPF ou CNPJ</option>
+                    <option value="random">Chave aleatória</option>
+                  </select>
+                </label>
+                <label className="wallet-withdraw-address">
+                  CHAVE PIX
+                  <input
+                    autoComplete="off"
+                    placeholder="Informe a chave do titular"
+                    value={pixWithdrawalKey}
+                    onChange={(event) => setPixWithdrawalKey(event.target.value)}
+                  />
+                </label>
+              </div>
+              {brlQuote ? (
+                <div className="wallet-brl-quote" aria-live="polite">
+                  <div><small>VOCÊ RECEBE</small><strong>{formatBrl(brlQuote.netBrl)}</strong></div>
+                  <div><small>RESERVA EM {brlQuote.asset}</small><strong>{brlQuote.sourceAmount.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} {brlQuote.asset}</strong></div>
+                  <div><small>MARGEM OPERACIONAL</small><strong>{formatBrl(brlQuote.feeBrl)} · {(brlQuote.feeBps / 100).toLocaleString("pt-BR")}%</strong></div>
+                  <button
+                    disabled={brlWithdrawalBusy !== null || pixWithdrawalKey.trim().length < 5}
+                    onClick={() => void createBrlWithdrawal()}
+                    type="button"
+                  >
+                    {brlWithdrawalBusy === "create" ? "RESERVANDO…" : "CONFIRMAR E ENVIAR PARA ANÁLISE"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="wallet-deposit-submit"
+                  disabled={!wallet?.withdrawals?.enabled || brlWithdrawalBusy !== null}
+                  onClick={() => void quoteBrlWithdrawal()}
+                  type="button"
+                >
+                  {brlWithdrawalBusy === "quote" ? "CONSULTANDO COTAÇÃO…" : "VER COTAÇÃO DO SAQUE PIX"}
+                </button>
+              )}
+            </div>
+          )}
           {withdrawError && <p className="conversion-error" role="alert">{withdrawError}</p>}
           {withdrawMessage && <p className="conversion-success" role="status">{withdrawMessage}</p>}
           <p className="wallet-provider-notice">
-            <strong>CONFIRA MOEDA, REDE E ENDEREÇO ANTES DE ENVIAR.</strong>{" "}
-            O Arcadia faz uma validação estrutural e o fundador revisa o pedido, mas
-            transferências em blockchain não podem ser desfeitas. Uma recusa devolve
-            automaticamente o valor reservado ao saldo interno.
+            <strong>
+              {withdrawMethod === "pix"
+                ? "CONFIRA A CHAVE PIX E O VALOR COTADO."
+                : "CONFIRA MOEDA, REDE E ENDEREÇO ANTES DE ENVIAR."}
+            </strong>{" "}
+            O saldo de origem fica reservado até a análise. Se o pedido for recusado,
+            a mesma quantidade de {withdrawAsset} volta automaticamente para a carteira.
           </p>
           {wallet?.withdrawals?.recent && wallet.withdrawals.recent.length > 0 && (
             <div className="wallet-live-history wallet-withdraw-history">
               <span>PEDIDOS RECENTES</span>
               {wallet.withdrawals.recent.map((item) => (
                 <article key={item.id}>
-                  <b>{item.asset}</b>
-                  <span>{formatCryptoAtomic(item.amountAtomic)} {item.asset}</span>
+                  <b>{item.payoutAsset === "BRL" ? "PIX" : item.asset}</b>
+                  <span>
+                    {item.payoutAsset === "BRL"
+                      ? formatBrl(item.payoutBrlCents / 100)
+                      : `${formatCryptoAtomic(item.amountAtomic)} ${item.asset}`}
+                  </span>
                   <em>{withdrawalStatusLabel(item.status)}</em>
                   <strong>{item.destinationPreview}</strong>
+                  {item.payoutAsset === "BRL" && (
+                    <small>ORIGEM {formatCryptoAtomic(item.amountAtomic)} {item.asset}</small>
+                  )}
                   {item.transactionReference && <small>REF. {item.transactionReference}</small>}
                   {item.reviewNote && <small>{item.reviewNote}</small>}
                 </article>

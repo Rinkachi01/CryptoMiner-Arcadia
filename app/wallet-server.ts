@@ -20,6 +20,7 @@ import {
 } from "./nowpayments-rules.ts";
 
 type WalletEnvironment = {
+  COINGECKO_API_KEY?: string;
   CRYPTO_DEPOSITS_ENABLED?: string;
   CRYPTO_LIVE_DEPOSITS_ENABLED?: string;
   CRYPTO_LIVE_DEPOSITS_OWNER_ONLY?: string;
@@ -69,6 +70,7 @@ type WithdrawalIntentRow = {
   display_name?: string | null;
   email?: string | null;
   id: string;
+  payout_brl_cents?: number;
   provider?: string;
   requested_atomic: number;
   resolved_at?: number | null;
@@ -121,13 +123,20 @@ export type WalletOverview = {
   withdrawals: {
     enabled: boolean;
     assets: ["BTC", "DOGE", "LTC"];
+    brlFeeBps: number;
+    brlMinimumCents: number;
+    cryptoMinimumBrlCents: number;
     minimumAtomic: Record<WalletSandboxAsset, number>;
+    ratesAvailable: boolean;
+    ratesObservedAt: number | null;
     recent: Array<{
       amountAtomic: number;
       asset: string;
       createdAt: number;
       destinationPreview: string;
       id: string;
+      payoutAsset: "BRL" | "CRYPTO";
+      payoutBrlCents: number;
       resolvedAt: number | null;
       reviewNote: string | null;
       status: string;
@@ -162,6 +171,9 @@ export type AdminWithdrawalOverview = {
     displayName: string;
     email: string;
     id: string;
+    payoutAsset: "BRL" | "CRYPTO";
+    payoutBrlCents: number;
+    provider: "manual" | "manual_pix";
     resolvedAt: number | null;
     reviewNote: string | null;
     status: string;
@@ -177,6 +189,34 @@ export const MANUAL_WITHDRAWAL_MINIMUM_ATOMIC: Record<
   BTC: 10_000,
   DOGE: 1_000_000_000,
   LTC: 1_000_000,
+};
+
+export const CRYPTO_WITHDRAWAL_MINIMUM_BRL_CENTS = 5_000;
+export const PIX_WITHDRAWAL_MINIMUM_BRL_CENTS = 2_000;
+export const PIX_WITHDRAWAL_FEE_BPS = 250;
+
+const BRL_RATE_CACHE_MS = 60 * 1000;
+const BRL_RATE_MAX_STALE_MS = 15 * 60 * 1000;
+const BRL_WITHDRAWAL_QUOTE_TTL_MS = 2 * 60 * 1000;
+
+type BrlRateRow = {
+  asset: string;
+  brl_price_micros: number;
+  observed_at: number;
+};
+
+type BrlWithdrawalQuoteRow = {
+  account_id: string;
+  brl_price_micros: number;
+  created_at: number;
+  expires_at: number;
+  fee_bps: number;
+  gross_brl_cents: number;
+  id: string;
+  net_brl_cents: number;
+  source_asset: string;
+  source_atomic: number;
+  status: string;
 };
 
 const PLAYER_INVOICE_HISTORY_DAYS = 30;
@@ -302,6 +342,7 @@ export async function ensureWalletSchema(db: D1Database) {
       requested_atomic INTEGER NOT NULL,
       destination_address TEXT,
       destination_preview TEXT NOT NULL,
+      payout_brl_cents INTEGER DEFAULT 0 NOT NULL,
       status TEXT DEFAULT 'simulation_only' NOT NULL,
       review_note TEXT,
       transaction_hash TEXT,
@@ -314,11 +355,244 @@ export async function ensureWalletSchema(db: D1Database) {
       ON wallet_withdrawal_intents (account_id, created_at)`),
     db.prepare(`CREATE INDEX IF NOT EXISTS wallet_withdrawal_intents_status_created_idx
       ON wallet_withdrawal_intents (status, created_at)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS wallet_brl_rate_snapshots (
+      asset TEXT PRIMARY KEY NOT NULL,
+      brl_price_micros INTEGER NOT NULL,
+      observed_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS wallet_brl_withdrawal_quotes (
+      id TEXT PRIMARY KEY NOT NULL,
+      account_id TEXT NOT NULL,
+      source_asset TEXT NOT NULL,
+      source_atomic INTEGER NOT NULL,
+      brl_price_micros INTEGER NOT NULL,
+      gross_brl_cents INTEGER NOT NULL,
+      fee_bps INTEGER NOT NULL,
+      net_brl_cents INTEGER NOT NULL,
+      status TEXT DEFAULT 'preview' NOT NULL,
+      consumed_at INTEGER,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    )`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS wallet_brl_withdrawal_quotes_account_created_idx
+      ON wallet_brl_withdrawal_quotes (account_id, created_at)`),
+    db.prepare(`CREATE INDEX IF NOT EXISTS wallet_brl_withdrawal_quotes_status_expiry_idx
+      ON wallet_brl_withdrawal_quotes (status, expires_at)`),
   ]);
+
+  const withdrawalColumns = await db
+    .prepare(`PRAGMA table_info(wallet_withdrawal_intents)`)
+    .all<{ name: string }>();
+  if (!(withdrawalColumns.results ?? []).some((column) => column.name === "payout_brl_cents")) {
+    await db
+      .prepare(`ALTER TABLE wallet_withdrawal_intents
+        ADD COLUMN payout_brl_cents INTEGER DEFAULT 0 NOT NULL`)
+      .run();
+  }
 }
 
 function validSandboxAsset(value: unknown): value is WalletSandboxAsset {
   return value === "BTC" || value === "DOGE" || value === "LTC";
+}
+
+const brlAssetIds: Record<WalletSandboxAsset, string> = {
+  BTC: "bitcoin",
+  DOGE: "dogecoin",
+  LTC: "litecoin",
+};
+
+export function minimumAtomicForBrl(
+  asset: WalletSandboxAsset,
+  brlPrice: number,
+  minimumBrlCents = CRYPTO_WITHDRAWAL_MINIMUM_BRL_CENTS,
+) {
+  if (!Number.isFinite(brlPrice) || brlPrice <= 0) return 0;
+  const atomic = Math.ceil((minimumBrlCents / 100 / brlPrice) * 100_000_000);
+  return Number.isSafeInteger(atomic) && atomic > 0
+    ? Math.min(atomic, MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC[asset])
+    : 0;
+}
+
+async function readBrlRates(
+  db: D1Database,
+  environment: unknown,
+  now = Date.now(),
+) {
+  await ensureWalletSchema(db);
+  const cachedRows = await db
+    .prepare(`SELECT asset, brl_price_micros, observed_at
+      FROM wallet_brl_rate_snapshots`)
+    .all<BrlRateRow>();
+  const cached = new Map(
+    (cachedRows.results ?? [])
+      .filter((row) => validSandboxAsset(row.asset))
+      .map((row) => [row.asset as WalletSandboxAsset, row]),
+  );
+  const assets: WalletSandboxAsset[] = ["BTC", "DOGE", "LTC"];
+  const allFresh = assets.every(
+    (asset) => now - Number(cached.get(asset)?.observed_at ?? 0) <= BRL_RATE_CACHE_MS,
+  );
+  if (allFresh) {
+    return assets.map((asset) => ({
+      asset,
+      brlPrice: cached.get(asset)!.brl_price_micros / 1_000_000,
+      observedAt: cached.get(asset)!.observed_at,
+    }));
+  }
+
+  try {
+    const source = cleanEnvironment(environment);
+    const ids = assets.map((asset) => brlAssetIds[asset]).join(",");
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=brl&include_last_updated_at=true`,
+      {
+        headers: {
+          Accept: "application/json",
+          ...(source.COINGECKO_API_KEY?.trim()
+            ? { "x-cg-demo-api-key": source.COINGECKO_API_KEY.trim() }
+            : {}),
+        },
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!response.ok) throw new Error("Cotação em real temporariamente indisponível.");
+    const body = await readBoundedJsonObject(response);
+    const rates = assets.map((asset) => {
+      const result = body[brlAssetIds[asset]] as
+        | { brl?: number; last_updated_at?: number }
+        | undefined;
+      const brlPrice = Number(result?.brl);
+      const observedAt = Number(result?.last_updated_at)
+        ? Number(result?.last_updated_at) * 1000
+        : now;
+      if (
+        !Number.isFinite(brlPrice) ||
+        brlPrice <= 0 ||
+        observedAt > now + 60_000 ||
+        now - observedAt > BRL_RATE_MAX_STALE_MS
+      ) {
+        throw new Error(`Cotação de ${asset} em real indisponível.`);
+      }
+      return { asset, brlPrice, observedAt };
+    });
+    await db.batch(
+      rates.map((rate) =>
+        db
+          .prepare(`INSERT INTO wallet_brl_rate_snapshots (
+            asset, brl_price_micros, observed_at, updated_at
+          ) VALUES (?, ?, ?, ?)
+          ON CONFLICT(asset) DO UPDATE SET
+            brl_price_micros = excluded.brl_price_micros,
+            observed_at = excluded.observed_at,
+            updated_at = excluded.updated_at`)
+          .bind(
+            rate.asset,
+            Math.round(rate.brlPrice * 1_000_000),
+            rate.observedAt,
+            now,
+          ),
+      ),
+    );
+    return rates;
+  } catch (error) {
+    const fallbackAvailable = assets.every(
+      (asset) =>
+        now - Number(cached.get(asset)?.observed_at ?? 0) <= BRL_RATE_MAX_STALE_MS,
+    );
+    if (!fallbackAvailable) throw error;
+    return assets.map((asset) => ({
+      asset,
+      brlPrice: cached.get(asset)!.brl_price_micros / 1_000_000,
+      observedAt: cached.get(asset)!.observed_at,
+    }));
+  }
+}
+
+function parseBrlCents(value: unknown) {
+  if (typeof value !== "string" && typeof value !== "number") return 0;
+  const normalized = String(value).trim().replace(",", ".");
+  if (!/^\d{1,7}(?:\.\d{1,2})?$/.test(normalized)) return 0;
+  const cents = Math.round(Number(normalized) * 100);
+  return Number.isSafeInteger(cents) ? cents : 0;
+}
+
+export async function createBrlWithdrawalQuote(input: {
+  accountId: string;
+  asset: unknown;
+  db: D1Database;
+  environment: unknown;
+  now?: number;
+  targetBrl: unknown;
+}) {
+  if (!manualWithdrawalsEnabled(input.environment)) {
+    throw new Error("A fila de saques ainda não está liberada.");
+  }
+  if (!validSandboxAsset(input.asset)) {
+    throw new Error("Escolha BTC, DOGE ou LTC como origem do saque.");
+  }
+  const netBrlCents = parseBrlCents(input.targetBrl);
+  if (netBrlCents < PIX_WITHDRAWAL_MINIMUM_BRL_CENTS || netBrlCents > 5_000_000) {
+    throw new Error("Escolha um saque Pix entre R$ 20,00 e R$ 50.000,00.");
+  }
+  const now = input.now ?? Date.now();
+  await ensureWalletSchema(input.db);
+  const recent = await input.db
+    .prepare(`SELECT COUNT(*) AS total FROM wallet_brl_withdrawal_quotes
+      WHERE account_id = ? AND created_at >= ?`)
+    .bind(input.accountId, now - 10 * 60 * 1000)
+    .first<{ total: number }>();
+  if (Number(recent?.total ?? 0) >= 20) {
+    throw new Error("Muitas cotações em sequência. Aguarde alguns minutos.");
+  }
+  const rates = await readBrlRates(input.db, input.environment, now);
+  const rate = rates.find((item) => item.asset === input.asset)!;
+  const grossBrlCents = Math.ceil(
+    (netBrlCents * 10_000) / (10_000 - PIX_WITHDRAWAL_FEE_BPS),
+  );
+  const sourceAtomic = Math.ceil(
+    (grossBrlCents / 100 / rate.brlPrice) * 100_000_000,
+  );
+  if (
+    !Number.isSafeInteger(sourceAtomic) ||
+    sourceAtomic <= 0 ||
+    sourceAtomic > MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC[input.asset]
+  ) {
+    throw new Error("A quantidade calculada excede o limite seguro da carteira.");
+  }
+  const id = `brl-quote-${crypto.randomUUID()}`;
+  const expiresAt = now + BRL_WITHDRAWAL_QUOTE_TTL_MS;
+  await input.db
+    .prepare(`INSERT INTO wallet_brl_withdrawal_quotes (
+      id, account_id, source_asset, source_atomic, brl_price_micros,
+      gross_brl_cents, fee_bps, net_brl_cents, status, expires_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'preview', ?, ?)`)
+    .bind(
+      id,
+      input.accountId,
+      input.asset,
+      sourceAtomic,
+      Math.round(rate.brlPrice * 1_000_000),
+      grossBrlCents,
+      PIX_WITHDRAWAL_FEE_BPS,
+      netBrlCents,
+      expiresAt,
+      now,
+    )
+    .run();
+  return {
+    asset: input.asset,
+    brlPrice: rate.brlPrice,
+    expiresAt,
+    feeBrl: (grossBrlCents - netBrlCents) / 100,
+    feeBps: PIX_WITHDRAWAL_FEE_BPS,
+    grossBrl: grossBrlCents / 100,
+    id,
+    netBrl: netBrlCents / 100,
+    observedAt: rate.observedAt,
+    sourceAmount: sourceAtomic / 100_000_000,
+    sourceAtomic,
+  };
 }
 
 type NowPaymentsIpnPayload = {
@@ -944,6 +1218,233 @@ function setWithdrawalBalance(
   else state.ltcBalanceAtomic = atomic;
 }
 
+type PixKeyType = "cpf_cnpj" | "email" | "phone" | "random";
+
+function validPixKey(type: unknown, value: unknown) {
+  if (
+    (type !== "cpf_cnpj" && type !== "email" && type !== "phone" && type !== "random") ||
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+  const key = value.trim();
+  if (key.length < 5 || key.length > 120 || /[\r\n\t]/.test(key)) return null;
+  if (type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return null;
+  if (type === "phone" && !/^\+?\d{10,15}$/.test(key.replace(/[ ()-]/g, ""))) return null;
+  if (type === "cpf_cnpj" && !/^(?:\d{11}|\d{14})$/.test(key.replace(/\D/g, ""))) return null;
+  if (type === "random" && !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(key)) return null;
+  return { key, type: type as PixKeyType };
+}
+
+function pixKeyPreview(key: string) {
+  if (key.includes("@")) {
+    const [name, domain] = key.split("@");
+    return `${name.slice(0, 2)}***@${domain}`;
+  }
+  return `${key.slice(0, 4)}…${key.slice(-4)}`;
+}
+
+export async function createBrlWithdrawalRequest(input: {
+  accountId: string;
+  db: D1Database;
+  environment: unknown;
+  expectedVersion: unknown;
+  idempotencyKey: unknown;
+  now?: number;
+  pixKey: unknown;
+  pixKeyType: unknown;
+  quoteId: unknown;
+}) {
+  if (!manualWithdrawalsEnabled(input.environment)) {
+    throw new Error("A fila de saques ainda não está liberada.");
+  }
+  if (
+    typeof input.expectedVersion !== "number" ||
+    !Number.isInteger(input.expectedVersion) ||
+    input.expectedVersion < 1 ||
+    typeof input.idempotencyKey !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(input.idempotencyKey) ||
+    typeof input.quoteId !== "string" ||
+    !/^brl-quote-[0-9a-f-]{36}$/i.test(input.quoteId)
+  ) {
+    throw new Error("Atualize a carteira e gere uma nova cotação.");
+  }
+  const pix = validPixKey(input.pixKeyType, input.pixKey);
+  if (!pix) throw new Error("Confira o tipo e o valor da chave Pix.");
+  const now = input.now ?? Date.now();
+  await ensureWalletSchema(input.db);
+  const id = `withdrawal-${input.idempotencyKey}`;
+  const existing = await input.db
+    .prepare(`SELECT id, asset, requested_atomic, destination_preview,
+      payout_brl_cents, status FROM wallet_withdrawal_intents
+      WHERE id = ? AND account_id = ?`)
+    .bind(id, input.accountId)
+    .first<WithdrawalIntentRow>();
+  if (existing) {
+    return {
+      alreadyProcessed: true as const,
+      asset: existing.asset,
+      destinationPreview: existing.destination_preview ?? "",
+      id: existing.id,
+      netBrl: Number(existing.payout_brl_cents ?? 0) / 100,
+      sourceAtomic: existing.requested_atomic,
+      status: existing.status,
+    };
+  }
+  const quote = await input.db
+    .prepare(`SELECT id, account_id, source_asset, source_atomic,
+      brl_price_micros, gross_brl_cents, fee_bps, net_brl_cents,
+      status, expires_at, created_at
+      FROM wallet_brl_withdrawal_quotes WHERE id = ? AND account_id = ?`)
+    .bind(input.quoteId, input.accountId)
+    .first<BrlWithdrawalQuoteRow>();
+  if (
+    !quote ||
+    !validSandboxAsset(quote.source_asset) ||
+    quote.status !== "preview" ||
+    quote.expires_at <= now
+  ) {
+    throw new Error("A cotação expirou. Gere uma nova antes de confirmar.");
+  }
+  const limits = await input.db
+    .prepare(`SELECT
+      SUM(CASE WHEN status IN ('requested', 'reviewing') THEN 1 ELSE 0 END) AS open_count,
+      SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS daily_count
+      FROM wallet_withdrawal_intents
+      WHERE account_id = ? AND provider IN ('manual', 'manual_pix')`)
+    .bind(now - 24 * 60 * 60 * 1000, input.accountId)
+    .first<{ daily_count: number | null; open_count: number | null }>();
+  if (Number(limits?.open_count ?? 0) >= 3) {
+    throw new Error("Conclua seus pedidos em análise antes de abrir outro saque.");
+  }
+  if (Number(limits?.daily_count ?? 0) >= 5) {
+    throw new Error("Limite de cinco solicitações em 24 horas alcançado.");
+  }
+  const row = await input.db
+    .prepare(`SELECT state_json, version FROM game_states WHERE account_id = ?`)
+    .bind(input.accountId)
+    .first<{ state_json: string; version: number }>();
+  if (!row || row.version !== input.expectedVersion) {
+    throw new Error("Seu saldo mudou. Atualize a carteira e gere outra cotação.");
+  }
+  const state = normalizeBootstrapState(JSON.parse(row.state_json), now);
+  const sourceAsset = quote.source_asset;
+  const available = withdrawalBalance(state, sourceAsset);
+  if (available < quote.source_atomic) {
+    throw new Error(`Saldo ${sourceAsset} insuficiente para este saque em real.`);
+  }
+  setWithdrawalBalance(state, sourceAsset, available - quote.source_atomic);
+  const nextVersion = row.version + 1;
+  const nextStateJson = JSON.stringify(state);
+  const preview = pixKeyPreview(pix.key);
+  const ledgerId = crypto.randomUUID();
+  const results = await input.db.batch([
+    input.db
+      .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+        WHERE account_id = ? AND version = ?`)
+      .bind(nextStateJson, nextVersion, now, input.accountId, row.version),
+    input.db
+      .prepare(`UPDATE wallet_brl_withdrawal_quotes
+        SET status = 'consumed', consumed_at = ?
+        WHERE id = ? AND account_id = ? AND status = 'preview' AND expires_at > ?`)
+      .bind(now, quote.id, input.accountId, now),
+    input.db
+      .prepare(`INSERT INTO wallet_withdrawal_intents (
+        id, account_id, asset, provider, requested_atomic, destination_address,
+        destination_preview, payout_brl_cents, status, created_at, updated_at
+      ) SELECT ?, ?, ?, 'manual_pix', ?, ?, ?, ?, 'requested', ?, ?
+        WHERE EXISTS (SELECT 1 FROM game_states
+          WHERE account_id = ? AND version = ? AND state_json = ?)
+          AND EXISTS (SELECT 1 FROM wallet_brl_withdrawal_quotes
+            WHERE id = ? AND account_id = ? AND status = 'consumed')`)
+      .bind(
+        id,
+        input.accountId,
+        sourceAsset,
+        quote.source_atomic,
+        pix.key,
+        preview,
+        quote.net_brl_cents,
+        now,
+        now,
+        input.accountId,
+        nextVersion,
+        nextStateJson,
+        quote.id,
+        input.accountId,
+      ),
+    input.db
+      .prepare(`INSERT INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) SELECT ?, ?, 'reserve_brl_withdrawal', ?, ?, 0, ?, ?
+        WHERE EXISTS (SELECT 1 FROM wallet_withdrawal_intents
+          WHERE id = ? AND account_id = ? AND status = 'requested')`)
+      .bind(
+        ledgerId,
+        input.accountId,
+        `withdrawal-reserve:${input.idempotencyKey}`,
+        nextVersion,
+        JSON.stringify({
+          feeBps: quote.fee_bps,
+          grossBrlCents: quote.gross_brl_cents,
+          netBrlCents: quote.net_brl_cents,
+          pixKeyType: pix.type,
+          quoteId: quote.id,
+          sourceAsset,
+          sourceAtomic: quote.source_atomic,
+          withdrawalId: id,
+        }),
+        now,
+        id,
+        input.accountId,
+      ),
+  ]);
+  if (
+    Number(results[0]?.meta.changes ?? 0) !== 1 ||
+    Number(results[1]?.meta.changes ?? 0) !== 1 ||
+    Number(results[2]?.meta.changes ?? 0) !== 1 ||
+    Number(results[3]?.meta.changes ?? 0) !== 1
+  ) {
+    await input.db.batch([
+      input.db
+        .prepare(`DELETE FROM ledger_entries
+          WHERE account_id = ? AND idempotency_key = ?`)
+        .bind(input.accountId, `withdrawal-reserve:${input.idempotencyKey}`),
+      input.db
+        .prepare(`DELETE FROM wallet_withdrawal_intents
+          WHERE id = ? AND account_id = ? AND status = 'requested'`)
+        .bind(id, input.accountId),
+      input.db
+        .prepare(`UPDATE wallet_brl_withdrawal_quotes
+          SET status = 'preview', consumed_at = NULL
+          WHERE id = ? AND account_id = ? AND status = 'consumed'`)
+        .bind(quote.id, input.accountId),
+      input.db
+        .prepare(`UPDATE game_states SET state_json = ?, version = ?, updated_at = ?
+          WHERE account_id = ? AND version = ? AND state_json = ?`)
+        .bind(
+          row.state_json,
+          row.version,
+          now,
+          input.accountId,
+          nextVersion,
+          nextStateJson,
+        ),
+    ]);
+    throw new Error("A conta mudou durante a reserva. Atualize e tente novamente.");
+  }
+  return {
+    alreadyProcessed: false as const,
+    asset: sourceAsset,
+    destinationPreview: preview,
+    id,
+    netBrl: quote.net_brl_cents / 100,
+    sourceAtomic: quote.source_atomic,
+    status: "requested" as const,
+  };
+}
+
 export async function createManualWithdrawalRequest(input: {
   accountId: string;
   amount: unknown;
@@ -978,15 +1479,24 @@ export async function createManualWithdrawalRequest(input: {
     throw new Error(`O endereço de ${input.asset} não passou na validação básica.`);
   }
   const requestedAtomic = amountToAtomic(input.amount, input.asset);
+  const withdrawalRates = await readBrlRates(
+    input.db,
+    input.environment,
+    input.now ?? Date.now(),
+  );
+  const currentRate = withdrawalRates.find((item) => item.asset === input.asset)!;
+  const dynamicMinimumAtomic = minimumAtomicForBrl(
+    input.asset,
+    currentRate.brlPrice,
+  );
   if (
     !requestedAtomic ||
-    requestedAtomic < MANUAL_WITHDRAWAL_MINIMUM_ATOMIC[input.asset] ||
+    requestedAtomic < dynamicMinimumAtomic ||
     requestedAtomic > MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC[input.asset]
   ) {
-    const minimum =
-      MANUAL_WITHDRAWAL_MINIMUM_ATOMIC[input.asset] / 100_000_000;
+    const minimum = dynamicMinimumAtomic / 100_000_000;
     throw new Error(
-      `O saque mínimo de ${input.asset} é ${minimum.toLocaleString("pt-BR", {
+      `O saque mínimo de ${input.asset} equivale a R$ 50,00 agora: ${minimum.toLocaleString("pt-BR", {
         maximumFractionDigits: 8,
       })} ${input.asset}.`,
     );
@@ -1015,7 +1525,7 @@ export async function createManualWithdrawalRequest(input: {
       SUM(CASE WHEN status IN ('requested', 'reviewing') THEN 1 ELSE 0 END) AS open_count,
       SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS daily_count
       FROM wallet_withdrawal_intents
-      WHERE account_id = ? AND provider = 'manual'`)
+      WHERE account_id = ? AND provider IN ('manual', 'manual_pix')`)
     .bind(now - 24 * 60 * 60 * 1000, input.accountId)
     .first<{ daily_count: number | null; open_count: number | null }>();
   if (Number(limits?.open_count ?? 0) >= 3) {
@@ -1134,13 +1644,14 @@ export async function readAdminWithdrawalOverview(input: {
   await ensureWalletSchema(input.db);
   const result = await input.db
     .prepare(`SELECT withdrawals.id, withdrawals.account_id, withdrawals.asset,
+      withdrawals.provider, withdrawals.payout_brl_cents,
       withdrawals.requested_atomic, withdrawals.destination_address,
       withdrawals.status, withdrawals.review_note, withdrawals.transaction_hash,
       withdrawals.resolved_at, withdrawals.created_at, withdrawals.updated_at,
       states.display_name, states.email
       FROM wallet_withdrawal_intents withdrawals
       LEFT JOIN game_states states ON states.account_id = withdrawals.account_id
-      WHERE withdrawals.provider = 'manual'
+      WHERE withdrawals.provider IN ('manual', 'manual_pix')
       ORDER BY CASE withdrawals.status
         WHEN 'requested' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,
         withdrawals.created_at DESC
@@ -1155,6 +1666,9 @@ export async function readAdminWithdrawalOverview(input: {
     displayName: row.display_name || "Operador",
     email: row.email || "",
     id: row.id,
+    payoutAsset: row.provider === "manual_pix" ? ("BRL" as const) : ("CRYPTO" as const),
+    payoutBrlCents: Number(row.payout_brl_cents ?? 0),
+    provider: row.provider === "manual_pix" ? ("manual_pix" as const) : ("manual" as const),
     resolvedAt: row.resolved_at ?? null,
     reviewNote: row.review_note ?? null,
     status: row.status,
@@ -1195,10 +1709,11 @@ export async function reviewManualWithdrawal(input: {
   const now = input.now ?? Date.now();
   await ensureWalletSchema(input.db);
   const intent = await input.db
-    .prepare(`SELECT id, account_id, asset, requested_atomic, destination_address,
+    .prepare(`SELECT id, account_id, asset, provider, requested_atomic, destination_address,
+      payout_brl_cents,
       destination_preview, status, review_note, transaction_hash, resolved_at,
       created_at, updated_at FROM wallet_withdrawal_intents
-      WHERE id = ? AND provider = 'manual'`)
+      WHERE id = ? AND provider IN ('manual', 'manual_pix')`)
     .bind(input.requestId)
     .first<WithdrawalIntentRow>();
   if (!intent || !validSandboxAsset(intent.asset)) {
@@ -1402,6 +1917,17 @@ export async function readWalletOverview(input: {
     input.accountId,
     input.environment,
   );
+  const brlRates = await readBrlRates(input.db, input.environment, now).catch(
+    () => null,
+  );
+  const minimumAtomic = brlRates
+    ? Object.fromEntries(
+        brlRates.map((rate) => [
+          rate.asset,
+          minimumAtomicForBrl(rate.asset, rate.brlPrice),
+        ]),
+      ) as Record<WalletSandboxAsset, number>
+    : MANUAL_WITHDRAWAL_MINIMUM_ATOMIC;
   const [account, game, intents, withdrawals] = await Promise.all([
     ensurePlayerWalletAccount(
       input.db,
@@ -1428,6 +1954,7 @@ export async function readWalletOverview(input: {
       .all<DepositIntentRow>(),
     input.db
       .prepare(`SELECT id, asset, provider, requested_atomic, destination_preview,
+        payout_brl_cents,
         status, review_note, transaction_hash, resolved_at, created_at, updated_at
         FROM wallet_withdrawal_intents
         WHERE account_id = ?
@@ -1477,10 +2004,17 @@ export async function readWalletOverview(input: {
     },
     withdrawals: {
       assets: ["BTC", "DOGE", "LTC"],
+      brlFeeBps: PIX_WITHDRAWAL_FEE_BPS,
+      brlMinimumCents: PIX_WITHDRAWAL_MINIMUM_BRL_CENTS,
+      cryptoMinimumBrlCents: CRYPTO_WITHDRAWAL_MINIMUM_BRL_CENTS,
       enabled: manualWithdrawalsEnabled(input.environment),
-      minimumAtomic: MANUAL_WITHDRAWAL_MINIMUM_ATOMIC,
+      minimumAtomic,
+      ratesAvailable: Boolean(brlRates),
+      ratesObservedAt: brlRates
+        ? Math.min(...brlRates.map((rate) => rate.observedAt))
+        : null,
       recent: (withdrawals.results ?? [])
-        .filter((intent) => intent.provider === "manual")
+        .filter((intent) => intent.provider === "manual" || intent.provider === "manual_pix")
         .slice(0, 10)
         .map((intent) => ({
           amountAtomic: intent.requested_atomic,
@@ -1488,6 +2022,8 @@ export async function readWalletOverview(input: {
           createdAt: intent.created_at,
           destinationPreview: intent.destination_preview ?? "",
           id: intent.id,
+          payoutAsset: intent.provider === "manual_pix" ? ("BRL" as const) : ("CRYPTO" as const),
+          payoutBrlCents: Number(intent.payout_brl_cents ?? 0),
           resolvedAt: intent.resolved_at ?? null,
           reviewNote: intent.review_note ?? null,
           status: intent.status,

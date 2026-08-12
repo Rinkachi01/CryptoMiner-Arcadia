@@ -917,6 +917,7 @@ export function ArcadiaGame({
               className={activeView === item.id ? "active" : ""}
               type="button"
               key={item.id}
+              title={item.label}
               onClick={() => {
                 setRackOpen(false);
                 if (item.id === "career") setCareerStartTab("overview");
@@ -927,7 +928,7 @@ export function ArcadiaGame({
               <span>{item.label}</span>
             </button>
           ))}
-          <a className="support-nav-link" href="/support">
+          <a className="support-nav-link" href="/support" title="Central de suporte">
             <span className="nav-glyph">?</span>
             <span>Central de suporte</span>
             {unreadSupportReplies > 0 ? (
@@ -935,7 +936,7 @@ export function ArcadiaGame({
             ) : null}
           </a>
           {isOwner ? (
-            <a className="admin-nav-link" href="/admin">
+            <a className="admin-nav-link" href="/admin" title="Central do proprietário">
               <span className="nav-glyph">C</span>
               <span>Central do proprietário</span>
               <small>OWNER</small>
@@ -952,7 +953,7 @@ export function ArcadiaGame({
         </div>
       </aside>
 
-      <section className="workspace">
+      <section className={`workspace workspace-${activeView}`}>
         <div className="workspace-heading">
           <div>
             <span className="eyebrow">
@@ -999,7 +1000,7 @@ export function ArcadiaGame({
         </div>
 
         <div className="metric-strip">
-          <article>
+          <article className="power-metric">
             <span className="metric-icon power">H</span>
             <div>
               <small>PODER INSTALADO</small>
@@ -1013,7 +1014,7 @@ export function ArcadiaGame({
                   : "ATIVO"}
             </em>
           </article>
-          <article>
+          <article className="rack-metric">
             <span className="metric-icon slots">R</span>
             <div>
               <small>RACKS NESTA SALA</small>
@@ -1031,7 +1032,7 @@ export function ArcadiaGame({
             </div>
             <em>{batteryCount} BATERIAS</em>
           </article>
-          <article>
+          <article className="pool-metric">
             <span className="metric-icon pool">P</span>
             <div>
               <small>REDE PRINCIPAL</small>
@@ -1040,24 +1041,6 @@ export function ArcadiaGame({
             <em>{formatPower(network.playerPowerGh[selectedPool.id])} NA REDE</em>
           </article>
         </div>
-
-        {!rackOpen && activeView === "mine" && (
-          <FirstDayPanel
-            batteryCount={batteryCount}
-            status={onboarding}
-            onNavigate={(target) => {
-              if (target === "career") setCareerStartTab("missions");
-              setActiveView(target);
-            }}
-            onOpenStarterRack={() => {
-              setActiveView("mine");
-              openRack("rack-01");
-            }}
-            onActivateEnergy={() => {
-              void activateBattery();
-            }}
-          />
-        )}
 
         {rackOpen && activeRack && (
           <GameErrorBoundary
@@ -1106,6 +1089,24 @@ export function ArcadiaGame({
             onOpenStore={openStore}
             onOpenGames={() => setActiveView("games")}
             onUseBattery={activateBattery}
+          />
+        )}
+
+        {!rackOpen && activeView === "mine" && (
+          <FirstDayPanel
+            batteryCount={batteryCount}
+            status={onboarding}
+            onNavigate={(target) => {
+              if (target === "career") setCareerStartTab("missions");
+              setActiveView(target);
+            }}
+            onOpenStarterRack={() => {
+              setActiveView("mine");
+              openRack("rack-01");
+            }}
+            onActivateEnergy={() => {
+              void activateBattery();
+            }}
           />
         )}
 
@@ -1279,6 +1280,7 @@ function MiningRoom({
   onOpenGames: () => void;
   onUseBattery: () => void;
 }) {
+  const [operationsOpen, setOperationsOpen] = useState(false);
   const orderedRoomRacks = [...roomRacks].sort(
     (first, second) => first.positionIndex - second.positionIndex,
   );
@@ -1400,6 +1402,25 @@ function MiningRoom({
           </div>
         </div>
 
+        <div className="room-command-dock" aria-label="Resumo da operação">
+          <div className="room-command-status">
+            <span><small>PODER</small><strong>{formatPower(effectivePower)}</strong></span>
+            <span><small>ENERGIA</small><strong>{formatEnergy(energySeconds)}</strong></span>
+            <span><small>PRÓXIMO BLOCO</small><strong>{formatTimer(secondsLeft)}</strong></span>
+          </div>
+          <div className="room-command-actions">
+            <button type="button" onClick={() => setOperationsOpen(true)}>
+              <span>⌁</span> OPERAÇÃO
+            </button>
+            <button type="button" onClick={onOpenPools}>
+              <span>◫</span> POOLS
+            </button>
+            <button type="button" onClick={() => onOpenStore("miners")}>
+              <span>＋</span> LOJA
+            </button>
+          </div>
+        </div>
+
         <nav
           className="mobile-rack-dock"
           aria-label="Acesso rápido aos racks desta sala"
@@ -1483,10 +1504,18 @@ function MiningRoom({
         </nav>
       </section>
 
-      <aside className="operation-panel">
+      {operationsOpen && (
+        <>
+          <button
+            aria-label="Fechar painel da operação"
+            className="operation-drawer-backdrop"
+            onClick={() => setOperationsOpen(false)}
+            type="button"
+          />
+          <aside className="operation-panel operation-drawer" aria-label="Detalhes da operação">
         <div className="panel-title">
           <span>OPERAÇÃO ATUAL</span>
-          <i />
+          <button aria-label="Fechar" onClick={() => setOperationsOpen(false)} type="button">×</button>
         </div>
 
         <EnergyCard
@@ -1578,7 +1607,9 @@ function MiningRoom({
           </small>
         </div>
 
-      </aside>
+          </aside>
+        </>
+      )}
     </div>
   );
 }

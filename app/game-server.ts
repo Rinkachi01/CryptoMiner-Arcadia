@@ -300,12 +300,13 @@ export function normalizeBootstrapState(
     }
   }
 
+  const candidateAllocations = candidate.poolAllocations;
   const legacyAllocations =
-    candidate.poolAllocations &&
-    typeof candidate.poolAllocations === "object" &&
-    !("ltc" in candidate.poolAllocations)
-      ? { ...candidate.poolAllocations, ltc: 0 }
-      : candidate.poolAllocations;
+    candidateAllocations &&
+    typeof candidateAllocations === "object" &&
+    !("ltc" in candidateAllocations)
+      ? { ...(candidateAllocations as Record<string, unknown>), ltc: 0 }
+      : candidateAllocations;
   const poolAllocations = isAllocation(legacyAllocations)
     ? legacyAllocations
     : initial.poolAllocations;

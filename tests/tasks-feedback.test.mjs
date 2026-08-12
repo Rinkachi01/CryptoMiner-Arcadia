@@ -65,12 +65,15 @@ test("sala prioriza energia e não exibe feed decorativo abaixo da operação", 
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  const operationStart = game.indexOf('<aside className="operation-panel">');
+  const operationStart = game.indexOf('<aside className="operation-panel operation-drawer"');
   const operationEnd = game.indexOf("</aside>", operationStart);
   const operation = game.slice(operationStart, operationEnd);
 
   assert.ok(operation.indexOf("<EnergyCard") < operation.indexOf("allocation-summary-card"));
   assert.doesNotMatch(operation, /ATIVIDADE RECENTE/);
+  assert.match(game, /room-command-dock/);
+  assert.match(game, /operationsOpen &&/);
+  assert.match(styles, /\.operation-panel\.operation-drawer/);
   assert.match(styles, /\.metric-strip article \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\)/);
   assert.match(styles, /\.metric-strip em \{[\s\S]*grid-column: 2/);
 });

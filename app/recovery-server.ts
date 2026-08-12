@@ -138,6 +138,8 @@ const requiredTables = [
   "wallet_deposit_intents",
   "wallet_provider_events",
   "wallet_pix_deposit_intents",
+  "wallet_brl_rate_snapshots",
+  "wallet_brl_withdrawal_quotes",
   "wallet_withdrawal_intents",
   "operational_checkpoints",
 ] as const;
@@ -175,6 +177,8 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   wallet_deposit_intents: 100_000,
   wallet_provider_events: 100_000,
   wallet_pix_deposit_intents: 100_000,
+  wallet_brl_rate_snapshots: 20,
+  wallet_brl_withdrawal_quotes: 100_000,
   wallet_withdrawal_intents: 100_000,
   task_preference_events: 50_000,
   task_preferences: 10_000,
