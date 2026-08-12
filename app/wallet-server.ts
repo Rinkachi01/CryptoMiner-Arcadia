@@ -8,7 +8,7 @@ import {
   parseDecimalAtomic,
   settlementAssetDecimals,
 } from "./deposit-rules.ts";
-import { readBoundedJsonObject } from "./external-json.ts";
+import { readBoundedJsonArray, readBoundedJsonObject } from "./external-json.ts";
 import {
   isNowPaymentsAsset,
   normalizeNowPaymentsStatus,
@@ -414,6 +414,39 @@ export function minimumAtomicForBrl(
     : 0;
 }
 
+async function readMercadoBitcoinBrlRates(now: number) {
+  const assets: WalletSandboxAsset[] = ["BTC", "DOGE", "LTC"];
+  const symbols = assets.map((asset) => `${asset}-BRL`).join(",");
+  const response = await fetch(
+    `https://api.mercadobitcoin.net/api/v4/tickers?symbols=${symbols}`,
+    {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5_000),
+    },
+  );
+  if (!response.ok) throw new Error("fallback_rate_unavailable");
+  const body = await readBoundedJsonArray(response);
+  return assets.map((asset) => {
+    const result = body.find(
+      (entry) =>
+        entry &&
+        typeof entry === "object" &&
+        (entry as { pair?: unknown }).pair === `${asset}-BRL`,
+    ) as { last?: unknown; date?: unknown } | undefined;
+    const brlPrice = Number(result?.last);
+    const observedAt = Number(result?.date) ? Number(result?.date) * 1000 : now;
+    if (
+      !Number.isFinite(brlPrice) ||
+      brlPrice <= 0 ||
+      observedAt > now + 60_000 ||
+      now - observedAt > BRL_RATE_MAX_STALE_MS
+    ) {
+      throw new Error(`fallback_rate_invalid_${asset}`);
+    }
+    return { asset, brlPrice, observedAt };
+  });
+}
+
 async function readBrlRates(
   db: D1Database,
   environment: unknown,
@@ -496,6 +529,30 @@ async function readBrlRates(
     );
     return rates;
   } catch (error) {
+    try {
+      const liveFallback = await readMercadoBitcoinBrlRates(now);
+      await db.batch(
+        liveFallback.map((rate) =>
+          db
+            .prepare(`INSERT INTO wallet_brl_rate_snapshots (
+              asset, brl_price_micros, observed_at, updated_at
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(asset) DO UPDATE SET
+              brl_price_micros = excluded.brl_price_micros,
+              observed_at = excluded.observed_at,
+              updated_at = excluded.updated_at`)
+            .bind(
+              rate.asset,
+              Math.round(rate.brlPrice * 1_000_000),
+              rate.observedAt,
+              now,
+            ),
+        ),
+      );
+      return liveFallback;
+    } catch {
+      // The last known validated quote remains usable for a short safe window.
+    }
     const fallbackAvailable = assets.every(
       (asset) =>
         now - Number(cached.get(asset)?.observed_at ?? 0) <= BRL_RATE_MAX_STALE_MS,

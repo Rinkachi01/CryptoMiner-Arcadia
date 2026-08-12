@@ -2,6 +2,25 @@ export async function readBoundedJsonObject(
   response: Response,
   maxBytes = 64_000,
 ) {
+  const parsed = await readBoundedJson(response, maxBytes);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Resposta externa inválida.");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+export async function readBoundedJsonArray(
+  response: Response,
+  maxBytes = 64_000,
+) {
+  const parsed = await readBoundedJson(response, maxBytes);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Resposta externa inválida.");
+  }
+  return parsed as unknown[];
+}
+
+async function readBoundedJson(response: Response, maxBytes: number) {
   const declaredLength = Number(response.headers.get("content-length") ?? 0);
   if (declaredLength > maxBytes) {
     throw new Error("Resposta externa excedeu o limite seguro.");
@@ -28,9 +47,5 @@ export async function readBoundedJsonObject(
   }
   text += decoder.decode();
 
-  const parsed = JSON.parse(text) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Resposta externa inválida.");
-  }
-  return parsed as Record<string, unknown>;
+  return JSON.parse(text) as unknown;
 }

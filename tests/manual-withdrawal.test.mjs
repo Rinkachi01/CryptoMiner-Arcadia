@@ -30,6 +30,16 @@ test("mínimos de saque acompanham o valor econômico em real", () => {
   assert.equal(minimumAtomicForBrl("LTC", 500), 10_000_000);
 });
 
+test("cotação em real possui duas fontes e cache validado", async () => {
+  const server = await readFile(
+    new URL("../app/wallet-server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(server, /api\.coingecko\.com\/api\/v3\/simple\/price/);
+  assert.match(server, /api\.mercadobitcoin\.net\/api\/v4\/tickers/);
+  assert.match(server, /wallet_brl_rate_snapshots/);
+});
+
 test("pedido reserva saldo e recusa produz estorno autoritativo", async () => {
   const [server, route, adminRoute, schema, migration] = await Promise.all([
     readFile(new URL("../app/wallet-server.ts", import.meta.url), "utf8"),
