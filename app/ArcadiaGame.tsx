@@ -223,7 +223,9 @@ function formatTimer(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-function formatPower(powerGh: number) {
+function formatPower(powerGh: number): string {
+  // Normalise NaN / Infinity → 0 (fix #7 - AI recommendation)
+  if (!Number.isFinite(powerGh) || Number.isNaN(powerGh)) powerGh = 0;
   if (powerGh >= 1_000_000) {
     return `${(powerGh / 1_000_000).toLocaleString("pt-BR", {
       maximumFractionDigits: 2,
@@ -1111,10 +1113,12 @@ export function ArcadiaGame({
                 onOpenStore={openStore}
                 onOpenGames={() => setActiveView("games")}
                 onUseBattery={activateBattery}
+                serverVersion={serverVersion}
+                onRefreshAccount={refreshServerState}
               />
             </div>
             <style jsx>{`
-              .mine-view-container {
+              .mine-view-container, .games-view-container {
                 display: flex;
                 flex-direction: row;
                 gap: 24px;
@@ -1123,20 +1127,23 @@ export function ArcadiaGame({
                 margin: 0 auto;
                 align-items: flex-start;
               }
-              .mine-main-content {
+              .mine-main-content, .games-main-content {
                 flex: 1;
                 min-width: 0;
               }
-              .mine-side-panels {
+              .mine-side-panels, .games-side-panels {
                 width: 320px;
                 display: flex;
                 flex-direction: column;
                 gap: 20px;
                 flex-shrink: 0;
               }
-              @media (max-width: 900px) {
-                .mine-view-container {
+              @media (max-width: 1100px) {
+                .mine-view-container, .games-view-container {
                   flex-direction: column;
+                }
+                .mine-side-panels, .games-side-panels {
+                  width: 100%;
                 }
               }
             `}</style>
@@ -1215,14 +1222,14 @@ export function ArcadiaGame({
         )}
 
         {!rackOpen && activeView === "games" && (
-          <div style={{ display: "flex", gap: "24px", maxWidth: "1400px", margin: "0 auto", padding: "0 16px" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="games-view-container">
+            <div className="games-main-content">
               <PacketCatchView
                 temporaryPowerGh={temporaryPowerGh}
                 onRefreshAccount={refreshServerState}
               />
             </div>
-            <div style={{ width: "320px", flexShrink: 0 }}>
+            <div className="games-side-panels">
               <PCStatusPanel refreshKey={serverVersion} />
             </div>
           </div>
@@ -1327,6 +1334,8 @@ function MiningRoom({
   onOpenStore,
   onOpenGames,
   onUseBattery,
+  serverVersion,
+  onRefreshAccount,
 }: {
   activeRoom: RoomDefinition;
   roomRacks: RackInstance[];
@@ -1348,6 +1357,8 @@ function MiningRoom({
   onOpenStore: (category: ShopCategory) => void;
   onOpenGames: () => void;
   onUseBattery: () => void;
+  serverVersion: number;
+  onRefreshAccount: () => Promise<boolean>;
 }) {
   const [operationsOpen, setOperationsOpen] = useState(false);
   const orderedRoomRacks = [...roomRacks].sort(
@@ -1598,7 +1609,7 @@ function MiningRoom({
         <div style={{ padding: "16px" }}>
           <QuestsPanel
             refreshKey={serverVersion}
-            onRefreshAccount={refreshServerState}
+            onRefreshAccount={onRefreshAccount}
           />
         </div>
 
@@ -1641,8 +1652,8 @@ function MiningRoom({
           <div className="fixed-block-heading">
             <span>BLOCO FIXO DA REDE · 10 MIN</span>
             <b>
-              {network.bonusActive
-                ? `EVENTO ${network.bonusBps / 100}%`
+              {network.bonusActive && network.bonusBps != null
+                ? `EVENTO ${(network.bonusBps / 100).toFixed(2)}%`
                 : "EMISSÃO-BASE"}
             </b>
           </div>
@@ -1650,18 +1661,27 @@ function MiningRoom({
             {pools.map((pool) => {
               const allocation = poolAllocations[pool.id] ?? 0;
               const allocatedPower = (effectivePower * allocation) / 100;
-              const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
+              // Safe bigint conversion — prevents BigInt(NaN/undefined/Infinity) crash
+              const blockRewardAtomicNum = (network.blockRewardAtomic[pool.id] ?? 0) as number;
+              const blockRewardAtomicBigInt = (() => {
+                const n = Number(blockRewardAtomicNum);
+                return Number.isFinite(n) && Number.isInteger(n) && n >= 0 ? BigInt(n) : 0n;
+              })();
+              const safeDecimals = (() => {
+                const d = pool.decimals;
+                return Number.isFinite(d) && Number.isInteger(d) && d >= 0 ? d : 0;
+              })();
               const activeNetworkPowerGh = network.playerPowerGh[pool.id] ?? 0;
               const safeBlockCount = 1;
               const personalEstimateAtomic = calculateEstimatedReward(
                 pool,
                 allocatedPower,
                 activeNetworkPowerGh,
-                BigInt(blockRewardAtomic),
+                blockRewardAtomicBigInt,
               );
               // For UI fractional display:
               const rawEstimateStr = activeNetworkPowerGh > 0 
-                ? ((safeBlockCount * Number(blockRewardAtomic) * allocatedPower) / activeNetworkPowerGh) / (10 ** pool.decimals)
+                ? ((safeBlockCount * Number(blockRewardAtomicBigInt) * allocatedPower) / activeNetworkPowerGh) / (10 ** safeDecimals)
                 : 0;
               const formattedFractionalEstimate = rawEstimateStr.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
               return (
@@ -1669,13 +1689,13 @@ function MiningRoom({
                   <img src={pool.asset} alt="" />
                   <strong>
                     {formatAtomic(
-                      BigInt(blockRewardAtomic),
-                      pool.decimals,
+                      blockRewardAtomicBigInt,
+                      safeDecimals,
                     )}{" "}
                     {pool.symbol}
                   </strong>
                   <small>
-                    Sua parte: {personalEstimateAtomic > 0n ? formatAtomic(personalEstimateAtomic, pool.decimals) : formattedFractionalEstimate}{" "}
+                    Sua parte: {personalEstimateAtomic > 0n ? formatAtomic(personalEstimateAtomic, safeDecimals) : formattedFractionalEstimate}{" "}
                     {pool.symbol}
                   </small>
                 </div>
@@ -1786,10 +1806,13 @@ function MiningStatusPanel({
 
       <div className="mining-pool-status-list">
         {activePools.map((pool) => {
-          const allocation = allocations[pool.id];
-          const allocatedPower = Math.floor(
-            (installedPower * allocation) / 100,
-          );
+          // Fix #3: guard allocation against undefined
+          const allocation = allocations[pool.id] ?? 0;
+          // Fix #4: guard installedPower against NaN/Infinity
+          const safePower = typeof installedPower === "number" && Number.isFinite(installedPower) ? installedPower : 0;
+          const allocatedPower = Math.floor((safePower * allocation) / 100);
+          // Fix #2: guard networkPowerGh key against undefined
+          const poolNetworkPower = networkPowerGh[pool.id] ?? 0;
           return (
             <article
               key={pool.id}
@@ -1798,7 +1821,7 @@ function MiningStatusPanel({
               <img src={pool.asset} alt="" />
               <span>
                 <small>{pool.symbol} · {allocation}% DO SEU PODER</small>
-                <strong>{formatPower(networkPowerGh[pool.id])}</strong>
+                <strong>{formatPower(poolNetworkPower)}</strong>
                 <em>Poder total da rede {pool.symbol}</em>
               </span>
               <b>{formatPower(allocatedPower)}</b>
@@ -1816,8 +1839,10 @@ function MiningStatusPanel({
           <i
             style={{
               width: `${
-                ((BLOCK_INTERVAL_SECONDS - secondsLeft) /
-                  BLOCK_INTERVAL_SECONDS) *
+                // Fix #5: guard against division by zero
+                ((BLOCK_INTERVAL_SECONDS > 0 ? BLOCK_INTERVAL_SECONDS : 1) -
+                  (secondsLeft ?? 0)) /
+                  (BLOCK_INTERVAL_SECONDS > 0 ? BLOCK_INTERVAL_SECONDS : 1) *
                 100
               }%`,
             }}

@@ -9,6 +9,7 @@ export const SPACE_RACE_SLUG = "space-race-01";
 export const SPACE_RACE_DURATION_DAYS = 120;
 export const SPACE_RACE_LEVELS = 50;
 export const SPACE_RACE_PREMIUM_PRICE_CMA = 29;
+export const SPACE_RACE_PREMIUM_MAX_PRICE_CMA = 100;
 
 export const SEASON_LOGIN_XP = 50;
 export const SEASON_DAILY_LOGIN_XP = [20, 30, 40, 50, 60, 80, 100] as const;

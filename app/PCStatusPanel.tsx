@@ -20,12 +20,12 @@ export function PCStatusPanel({
   const highestLevel = useMemo(() => {
     if (!summary?.games?.length) return 1;
     return summary.games.reduce(
-      (highest, game) => Math.max(highest, game.level),
+      (highest: number, game: { level: number }) => Math.max(highest, game.level),
       1,
     );
   }, [summary]);
 
-  const winsToday = (summary as any)?.totals?.winsToday ?? 0;
+  const winsToday = summary?.totals?.winsToday ?? 0;
   
   // Calculate next PC level requirements
   const nextLevelWins = highestLevel === 1 ? 10 : highestLevel === 2 ? 30 : highestLevel === 3 ? 60 : 60;
@@ -73,70 +73,6 @@ export function PCStatusPanel({
         )}
       </div>
 
-      <style jsx>{`
-        .pc-status-panel {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          padding: 16px;
-          color: white;
-          width: 100%;
-          margin-bottom: 20px;
-        }
-        .pc-info {
-          text-align: center;
-          margin-bottom: 12px;
-        }
-        .pc-info h3 {
-          margin: 0;
-          font-size: 16px;
-          color: #888;
-          text-transform: uppercase;
-        }
-        .pc-level {
-          font-size: 20px;
-          font-weight: bold;
-          margin: 4px 0;
-          color: #a9ff3f;
-        }
-        .power-duration {
-          font-size: 12px;
-          margin: 0;
-          color: #888;
-        }
-        .power-duration strong {
-          color: #ccc;
-        }
-        .pc-visual {
-          font-size: 72px;
-          line-height: 1;
-          margin-bottom: 16px;
-        }
-        .pc-progress {
-          width: 100%;
-        }
-        .progress-text {
-          font-size: 12px;
-          text-align: center;
-          margin-bottom: 8px;
-          color: #888;
-        }
-        .progress-bar-bg {
-          background: rgba(255, 255, 255, 0.1);
-          height: 6px;
-          border-radius: 4px;
-          overflow: hidden;
-          width: 100%;
-        }
-        .progress-bar-fill {
-          background: #a9ff3f;
-          height: 100%;
-          transition: width 0.3s ease;
-        }
-      `}</style>
     </div>
   );
 }

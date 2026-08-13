@@ -231,6 +231,10 @@ type AdminOverview = {
   operations: OperationalHealthReport;
   recovery: RecoveryOverview;
   security: SecurityOverview;
+  treasury: {
+    depositsCma: number;
+    withdrawalsCma: number;
+  };
   support: {
     awaitingPlayerCount: number;
     emailEnabled: boolean;
@@ -315,17 +319,18 @@ type AdminUserSearchResult = {
   roomCount: number;
   updatedAt: number;
 };
-type AdminSection = "overview" | "economy" | "treasury" | "community" | "operations";
+type AdminSection = "overview" | "economy" | "treasury" | "support" | "players" | "operations";
 
 const adminSections: Array<{
   id: AdminSection;
   label: string;
   description: string;
 }> = [
-  { id: "overview", label: "Visão geral", description: "Saúde e lançamento" },
+  { id: "overview", label: "Cockpit", description: "Visão geral e Alertas" },
+  { id: "treasury", label: "Tesouraria", description: "Fluxo de caixa" },
+  { id: "support", label: "Suporte (CRM)", description: "Atendimento aos jogadores" },
   { id: "economy", label: "Economia", description: "Pools e emissão" },
-  { id: "treasury", label: "Tesouraria", description: "Depósitos e saques" },
-  { id: "community", label: "Jogadores", description: "Suporte e experiência" },
+  { id: "players", label: "Jogadores", description: "Retenção e feedback" },
   { id: "operations", label: "Operações", description: "Segurança e recuperação" },
 ];
 
@@ -613,6 +618,7 @@ export function AdminDashboard({
     useState<TextScale>("comfortable");
   const [adminSection, setAdminSection] =
     useState<AdminSection>("overview");
+  const [supportTab, setSupportTab] = useState<"open" | "resolved">("open");
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
   const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
@@ -845,66 +851,49 @@ export function AdminDashboard({
 
   return (
     <main className={`admin-shell text-scale-${textScale}`}>
-      <header className="admin-topbar">
-        <Link className="admin-brand" href="/">
-          <b>CMA</b>
-          <span>
-            <small>CRYPTO MINER</small>
-            <strong>ARCADIA CONTROL</strong>
-          </span>
-        </Link>
-        <div className="admin-owner-lock">
-          <i />
-          <span>
-            <small>OWNER LOCK ATIVO</small>
-            <strong>{overview.owner.displayName}</strong>
-          </span>
-        </div>
-        <nav>
-          <button
-            type="button"
-            aria-label={`Tamanho do texto: ${
-              textScale === "comfortable"
-                ? "confortável"
-                : textScale === "large"
-                  ? "grande"
-                  : "extra grande"
-            }. Clique para alterar.`}
-            onClick={cycleTextScale}
-          >
-            TEXTO{" "}
-            {textScale === "comfortable"
-              ? "A+"
-              : textScale === "large"
-                ? "A++"
-                : "A"}
-          </button>
-          <button type="button" onClick={() => void loadOverview()}>
-            ATUALIZAR
-          </button>
-          <a href="/api/admin/export" download>
-            EXPORTAR CSV
-          </a>
+      <aside className="admin-sidebar">
+        <header className="admin-sidebar-header">
+          <Link className="admin-brand" href="/">
+            <b>CMA</b>
+            <span>
+              <small>CRYPTO MINER</small>
+              <strong>ARCADIA CONTROL</strong>
+            </span>
+          </Link>
+          <div className="admin-owner-lock">
+            <i />
+            <span>
+              <small>OWNER LOCK</small>
+              <strong>{overview.owner.displayName}</strong>
+            </span>
+          </div>
+        </header>
+        
+        <nav className="admin-sidebar-nav" aria-label="Navegação do CRM">
+          {adminSections.map((section) => (
+            <button
+              aria-current={adminSection === section.id ? "page" : undefined}
+              className={adminSection === section.id ? "active" : ""}
+              key={section.id}
+              onClick={() => setAdminSection(section.id)}
+              type="button"
+            >
+              <strong>{section.label}</strong>
+              <small>{section.description}</small>
+            </button>
+          ))}
+        </nav>
+
+        <nav className="admin-sidebar-footer">
+          <button type="button" onClick={() => void loadOverview()}>ATUALIZAR DADOS</button>
+          <a href="/api/admin/export" download>EXPORTAR CSV</a>
           <a href="/admin/transfer">MIGRAR CONTA</a>
           <Link href="/">VOLTAR AO JOGO</Link>
-          <a href={signOutPath}>SAIR</a>
+          <a href={signOutPath} className="admin-logout-btn">ENCERRAR SESSÃO</a>
         </nav>
-      </header>
+      </aside>
 
-      <nav className="admin-workspace-tabs" aria-label="Áreas da Central do Proprietário">
-        {adminSections.map((section) => (
-          <button
-            aria-current={adminSection === section.id ? "page" : undefined}
-            className={adminSection === section.id ? "active" : ""}
-            key={section.id}
-            onClick={() => setAdminSection(section.id)}
-            type="button"
-          >
-            <strong>{section.label}</strong>
-            <small>{section.description}</small>
-          </button>
-        ))}
-      </nav>
+      <div className="admin-content-wrapper">
 
       <section className="admin-hero" hidden={adminSection !== "overview"}>
         <div>
@@ -1280,7 +1269,7 @@ export function AdminDashboard({
         </section>
       </section>
 
-      <section className="admin-panel admin-user-search" hidden={adminSection !== "community"}>
+      <section className="admin-panel admin-user-search" hidden={adminSection !== "players"}>
         <div className="admin-panel-heading">
           <div>
             <span>DIRETÓRIO DE CONTAS</span>
@@ -1334,7 +1323,7 @@ export function AdminDashboard({
         ) : null}
       </section>
 
-      <section className="admin-panel admin-beta-observability" hidden={adminSection !== "community"}>
+      <section className="admin-panel admin-beta-observability" hidden={adminSection !== "players"}>
         <div className="admin-panel-heading">
           <div>
             <span>VISÃO DE USO · JANELA DE 7 DIAS</span>
@@ -1945,6 +1934,21 @@ export function AdminDashboard({
         </div>
       </section>
 
+      <section className="admin-hero" hidden={adminSection !== "treasury"}>
+        <div>
+          <span>FLUXO DE CAIXA</span>
+          <h1>Visão Geral da Tesouraria</h1>
+          <p>
+            Acompanhe o saldo total depositado no servidor e confirme saídas reais.
+          </p>
+        </div>
+        <aside>
+          <small>RESERVAS E SAÍDAS</small>
+          <strong style={{ color: "var(--lime)" }}>{formatCma(overview.treasury.depositsCma)} CMA ENTROU</strong>
+          <span><b style={{ color: "var(--danger)" }}>{formatCma(overview.treasury.withdrawalsCma)} CMA</b> CONFIRMADO EM SAQUES</span>
+        </aside>
+      </section>
+
       <section className="admin-panel admin-pix-exception-panel" hidden={adminSection !== "treasury"} id="pix-exceptions">
         <div className="admin-panel-heading">
           <div>
@@ -2182,7 +2186,7 @@ export function AdminDashboard({
         </section>
       )}
 
-      <section className="admin-panel admin-support-panel" hidden={adminSection !== "community"} id="support-queue">
+      <section className="admin-panel admin-support-panel" hidden={adminSection !== "support"} id="support-queue">
         <div className="admin-panel-heading">
           <div>
             <span>ATENDIMENTO OFICIAL · FILA DO PROPRIETÁRIO</span>
@@ -2211,13 +2215,32 @@ export function AdminDashboard({
           )}
         </div>
 
-        {overview.support.tickets.length === 0 ? (
+        <div className="admin-support-tabs" style={{ display: "flex", gap: "10px", marginTop: "16px", marginBottom: "16px", padding: "4px", background: "var(--panel-2)", borderRadius: "8px", width: "fit-content" }}>
+          <button 
+            type="button" 
+            onClick={() => setSupportTab("open")} 
+            style={{ padding: "8px 16px", borderRadius: "6px", background: supportTab === "open" ? "var(--line)" : "transparent", color: supportTab === "open" ? "var(--text)" : "var(--muted)", border: "none", cursor: "pointer", fontWeight: "bold" }}
+          >
+            Caixa de Entrada
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setSupportTab("resolved")} 
+            style={{ padding: "8px 16px", borderRadius: "6px", background: supportTab === "resolved" ? "var(--line)" : "transparent", color: supportTab === "resolved" ? "var(--text)" : "var(--muted)", border: "none", cursor: "pointer", fontWeight: "bold" }}
+          >
+            Resolvidos (Auto-delete 30d)
+          </button>
+        </div>
+
+        {overview.support.tickets.filter(t => supportTab === "open" ? ["open", "reviewing"].includes(t.status) : ["resolved", "closed"].includes(t.status)).length === 0 ? (
           <div className="admin-feedback-empty">
-            Nenhum protocolo foi criado pelos jogadores.
+            Nenhum protocolo nesta lista.
           </div>
         ) : (
           <div className="admin-support-queue">
-            {overview.support.tickets.map((ticket) => {
+            {overview.support.tickets
+              .filter(t => supportTab === "open" ? ["open", "reviewing"].includes(t.status) : ["resolved", "closed"].includes(t.status))
+              .map((ticket) => {
               const reply = supportReplies[ticket.publicId] ?? ticket.adminNote;
               return (
                 <article key={ticket.publicId}>
@@ -2324,7 +2347,7 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "community"}>
+      <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "players"}>
         <div className="admin-panel-heading">
           <div>
             <span>VOZ DO JOGADOR · ÚLTIMOS 30 DIAS</span>
@@ -3689,6 +3712,7 @@ export function AdminDashboard({
           <a href="/legal">DOCUMENTOS PÚBLICOS</a>
         </nav>
       </footer>
+      </div>
     </main>
   );
 }

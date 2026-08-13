@@ -414,7 +414,10 @@ export function calculateEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
   liveNetworkPowerGh = pool.networkPowerGh,
-  blockRewardAtomic: bigint = BigInt(pool.rewardAtomic),
+  blockRewardAtomic: bigint = (() => {
+    const n = Number(pool.rewardAtomic);
+    return Number.isFinite(n) && Number.isInteger(n) && n >= 0 ? BigInt(n) : 0n;
+  })(),
   blockCount = 1,
 ) {
   const activeNetworkPowerGh = Math.max(0, Math.floor(liveNetworkPowerGh));

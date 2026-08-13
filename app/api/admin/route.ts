@@ -304,6 +304,7 @@ async function readAdminOverview(
     recentCrates,
     stateRows,
     auditRows,
+    treasuryTotals,
   ] = await Promise.all([
     db
       .prepare("SELECT COUNT(*) AS total FROM game_states")
@@ -414,9 +415,17 @@ async function readAdminOverview(
         `SELECT action, metadata_json, created_at
          FROM admin_audit_log
          ORDER BY created_at DESC
-         LIMIT 12`,
+         LIMIT 100`,
       )
       .all<AuditRow>(),
+    db
+      .prepare(
+        `SELECT action, COALESCE(SUM(delta_cma_micros), 0) AS cma_micros
+         FROM ledger_entries
+         WHERE action IN ('pix_deposit', 'crypto_deposit', 'crypto_withdrawal')
+         GROUP BY action`,
+      )
+      .all<{ action: string; cma_micros: number }>(),
   ]);
 
   const minerCounts = new Map<string, number>();
@@ -471,11 +480,25 @@ async function readAdminOverview(
     { cma: 0, btc: 0, doge: 0, ltc: 0 } as Record<PoolId, number>,
   );
 
+  const treasury = {
+    depositsCma: 0,
+    withdrawalsCma: 0,
+  };
+  for (const row of treasuryTotals.results) {
+    if (row.action === 'pix_deposit' || row.action === 'crypto_deposit') {
+      treasury.depositsCma += Number(row.cma_micros) / 1_000_000;
+    }
+    if (row.action === 'crypto_withdrawal') {
+      treasury.withdrawalsCma += Math.abs(Number(row.cma_micros) / 1_000_000);
+    }
+  }
+
   return {
     emission24h: {
       rewardsAtomic: emissionRewardsAtomic,
       settlementRecords: blockSettlements.results.length,
     },
+    treasury,
     metrics: {
       activePlayers24h: Number(activePlayers?.total ?? 0),
       batteryClaims24h: Number(batteryClaims?.total ?? 0),

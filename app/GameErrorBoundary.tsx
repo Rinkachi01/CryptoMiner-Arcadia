@@ -13,6 +13,7 @@ type GameErrorBoundaryProps = {
 
 type GameErrorBoundaryState = {
   hasError: boolean;
+  errorMsg?: string;
 };
 
 export class GameErrorBoundary extends Component<
@@ -21,8 +22,12 @@ export class GameErrorBoundary extends Component<
 > {
   state: GameErrorBoundaryState = { hasError: false };
 
-  static getDerivedStateFromError(): GameErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): GameErrorBoundaryState {
+    return { hasError: true, errorMsg: error.message };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("GameErrorBoundary caught an error:", error, errorInfo);
   }
 
   componentDidUpdate(previousProps: GameErrorBoundaryProps) {
@@ -30,12 +35,12 @@ export class GameErrorBoundary extends Component<
       this.state.hasError &&
       previousProps.resetKey !== this.props.resetKey
     ) {
-      this.setState({ hasError: false });
+      this.setState({ hasError: false, errorMsg: undefined });
     }
   }
 
   private recover = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, errorMsg: undefined });
     this.props.onRecover?.();
   };
 
@@ -52,6 +57,9 @@ export class GameErrorBoundary extends Component<
         <p>
           {this.props.message ??
             "Seus dados continuam salvos no servidor. Recarregue a interface para continuar."}
+        </p>
+        <p style={{ color: "#ff4444", fontSize: "12px", fontFamily: "monospace", marginTop: "10px", wordBreak: "break-all" }}>
+          Detalhe Técnico: {this.state.errorMsg}
         </p>
         <div>
           {this.props.onRecover && (

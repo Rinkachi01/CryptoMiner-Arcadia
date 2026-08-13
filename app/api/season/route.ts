@@ -60,8 +60,9 @@ export async function POST(request: Request) {
       message = result.awarded
         ? `Login do dia: +${result.xp} XP.`
         : "O XP de login de hoje já foi registrado.";
-    } else if (body?.action === "buy-premium") {
-      const result = await purchaseSeasonPremium(env.DB, accountId, now);
+    } else if (body?.action === "buy-premium" || body?.action === "buy-premium-max") {
+      const isMax = body?.action === "buy-premium-max";
+      const result = await purchaseSeasonPremium(env.DB, accountId, now, isMax);
       message = result.alreadyOwned
         ? "A trilha premium já pertence à sua conta."
         : `Trilha premium liberada por ${result.priceCma} CMA.`;

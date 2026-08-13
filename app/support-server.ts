@@ -71,7 +71,7 @@ export async function pruneSupportTickets(
   return db
     .prepare(`DELETE FROM support_tickets
       WHERE status IN ('resolved', 'closed') AND updated_at < ?`)
-    .bind(now - 180 * 24 * 60 * 60 * 1000)
+    .bind(now - 30 * 24 * 60 * 60 * 1000)
     .run();
 }
 

@@ -13,7 +13,7 @@ import type {
   SeasonPlayerProgress,
 } from "./season-server";
 
-type SeasonResponse = {
+export type SeasonResponse = {
   competitiveOnly: boolean;
   currentPlayer: SeasonLeaderboardEntry | null;
   draft?: PublicSeason | null;
@@ -181,6 +181,7 @@ export function SeasonPanel({
       streakDays: 0,
     },
     sources: { games: 0, logins: 0, missions: 0, spending: 0 },
+    quests: { daily: [], weekly: [] },
     xp: 0,
   };
   const rewards = (data.rewards && data.rewards.length > 0) ? data.rewards : spaceRaceRewards;
@@ -206,7 +207,7 @@ export function SeasonPanel({
         <div>
           <span>TEMPORADA 01 · CORRIDA ESPACIAL</span>
           <h3>{season.durationDays} dias para alcançar o Espaço Profundo</h3>
-          <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP. Sorteios semanais complementam a trilha sem alterar o valor dos blocos.</p>
+          <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP.</p>
         </div>
         <aside>
           <strong>NÍVEL {progress.level}</strong>
@@ -252,33 +253,43 @@ export function SeasonPanel({
         </div>
       </section>
 
-      <section className="season-giveaway-card">
-        <header>
-          <div><span>SORTEIOS DA TEMPORADA</span><h4>Giveaways semanais</h4></div>
-          <strong>RODADA SEMANAL</strong>
-        </header>
-        <div>
-          <article><b>01</b><strong>Jogue</strong><span>1 bilhete a cada 5 minigames concluídos no dia.</span></article>
-          <article><b>02</b><strong>Mantenha a sequência</strong><span>7 logins seguidos liberam um bilhete adicional.</span></article>
-          <article><b>03</b><strong>Prêmios da rodada</strong><span>Minerador sazonal, baterias e poder temporário.</span></article>
-        </div>
-        <small>Bilhetes são pessoais, expiram ao fim de cada rodada e não têm valor de saque.</small>
-      </section>
-
       <section className="season-track-card">
         <header>
           <div><span>TRILHA DE RECOMPENSAS</span><h4>Gratuita + Premium</h4></div>
-          {progress.premiumUnlocked ? (
-            <strong className="season-premium-owned">PREMIUM LIBERADO</strong>
-          ) : (
-            <button
-              type="button"
-              disabled={Boolean(busyAction)}
-              onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
-            >
-              {`LIBERAR PREMIUM · ${season.premiumPriceCma} CMA`}
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {error && <span style={{ color: "#ef4444", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right", lineHeight: 1.2 }}>{error}</span>}
+            {progress.premiumUnlocked ? (
+              <strong className="season-premium-owned">PREMIUM LIBERADO</strong>
+            ) : (
+              <button
+                type="button"
+                disabled={Boolean(busyAction)}
+                onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
+                style={{ background: "#2a3845", color: "#e2e8f0" }}
+              >
+                {`BÁSICO · ${season.premiumPriceCma} CMA`}
+              </button>
+            )}
+            {progress.level < 50 && (() => {
+              const premiumDiscount = progress.premiumUnlocked ? season.premiumPriceCma : 0;
+              const levelDiscount = (progress.level - 1) * 1.42;
+              const calcPrice = season.premiumMaxPriceCma - premiumDiscount - levelDiscount;
+              const dynamicPrice = Math.max(0, Math.floor(calcPrice));
+              
+              return (
+                <button
+                  type="button"
+                  disabled={Boolean(busyAction)}
+                  onClick={() => void runAction("buy-premium-max", { action: "buy-premium-max" })}
+                  className="btn-max-upgrade"
+                >
+                  {progress.premiumUnlocked
+                    ? `UPGRADE MAX · ${dynamicPrice} CMA`
+                    : `MAX (DESBLOQUEIO TOTAL) · ${dynamicPrice} CMA`}
+                </button>
+              );
+            })()}
+          </div>
         </header>
         <div className="season-pass-lanes">
           {(["premium", "free"] as const).map((track) => (
@@ -316,7 +327,7 @@ export function SeasonPanel({
         </div>
       </section>
 
-      {error && <p className="season-action-error" role="alert">{error}</p>}
+
       {message && <p className="season-action-success" role="status">{message}</p>}
     </section>
   );

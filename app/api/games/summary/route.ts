@@ -50,6 +50,47 @@ type ClaimRow = {
   state_version_after: number | null;
 };
 
+export type GameSummaryResult = {
+  serverTime: number;
+  operator: ReturnType<typeof calculateOperatorProgress>;
+  totals: {
+    totalPlays: number;
+    totalWins: number;
+    playsToday: number;
+    winsToday: number;
+    powerToday: number;
+    flaggedSessions: number;
+  };
+  emission: Awaited<ReturnType<typeof readDailyGamePowerBudget>> & {
+    rollingPower24h: number;
+    status: "limited" | "attention" | "stable";
+  };
+  games: {
+    id: string;
+    level: number;
+    winStreak: number;
+    nextPlayAt: number;
+    totalPlays: number;
+    totalWins: number;
+    winRate: number;
+    playsToday: number;
+    winsToday: number;
+  }[];
+  missions: {
+    id: string;
+    label: string;
+    current: number;
+    target: number;
+    eligible?: boolean;
+    claimed?: boolean;
+    claimable?: boolean;
+    reward?: {
+      type: string;
+      amount: number;
+    };
+  }[];
+};
+
 function json(value: unknown, status = 200) {
   return Response.json(value, {
     status,

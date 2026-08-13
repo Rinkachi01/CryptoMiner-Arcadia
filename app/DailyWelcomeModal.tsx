@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PublicSeason, SeasonPlayerProgress } from "./season-server";
+import type { SeasonResponse } from "./SeasonPanel";
 
 export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
   const [mounted, setMounted] = useState(false);
@@ -18,7 +19,7 @@ export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
     setMounted(true);
     fetch("/api/season", { cache: "no-store" })
       .then((res) => res.json())
-      .then((result) => setData(result))
+      .then((result: unknown) => setData(result as SeasonResponse))
       .catch(() => {});
   }, []);
 
@@ -37,7 +38,7 @@ export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "daily-login" }),
       });
-      const result = await response.json();
+      const result: any = await response.json();
       if (response.ok) {
         setMessage(result.message ?? "XP resgatado!");
         setTimeout(() => {

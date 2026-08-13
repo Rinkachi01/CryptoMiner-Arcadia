@@ -8,6 +8,7 @@ import {
   SPACE_RACE_DURATION_DAYS,
   SPACE_RACE_LEVELS,
   SPACE_RACE_PREMIUM_PRICE_CMA,
+  SPACE_RACE_PREMIUM_MAX_PRICE_CMA,
   SPACE_RACE_SEASON_ID,
   SPACE_RACE_SLUG,
   calculateSeasonScore,
@@ -119,6 +120,7 @@ export type PublicSeason = {
   id: string;
   name: string;
   premiumPriceCma: number;
+  premiumMaxPriceCma: number;
   progressPercent: number;
   startsAt: number;
   status: "active" | "closed" | "draft";
@@ -376,6 +378,7 @@ function publicSeason(row: SeasonRow, now: number): PublicSeason {
     id: row.id,
     name: row.name,
     premiumPriceCma: row.premium_price_cma_micros / 1_000_000,
+    premiumMaxPriceCma: SPACE_RACE_PREMIUM_MAX_PRICE_CMA,
     progressPercent:
       row.status === "draft"
         ? 0
@@ -734,7 +737,7 @@ async function readPlayerProgress(
       .all<SeasonClaimRow>(),
   ]);
   const entry = leaderboard.find((item) => item.accountId === accountId);
-  const xp = entry?.xp ?? 0;
+  const xp = entry?.score ?? 0;
   const level = seasonLevelForXp(xp);
 
   const [loginRows, gameDaily, spendingDaily, questClaims, crateDaily] = await Promise.all([
@@ -917,7 +920,14 @@ async function readPlayerProgress(
       missions,
       spending,
     },
-    xp,
+    xp:
+      games +
+      missions +
+      spending +
+      loginRows.results.reduce(
+        (total, row) => total + Math.max(0, Number(row.xp)),
+        0,
+      ),
   };
 }
 
@@ -1130,8 +1140,12 @@ export async function purchaseSeasonPremium(
   db: D1Database,
   accountId: string,
   now: number,
+  isMax: boolean = false
 ) {
+  const overview = await readSeasonOverview(db, accountId, now);
+  if (!overview.season || !overview.playerProgress) throw new Error("Temporada não encontrada.");
   const season = activeSpaceRace(await ensureDefaultSeason(db, now));
+
   const existing = await db
     .prepare(
       `SELECT premium_unlocked, cma_paid_micros, purchased_at
@@ -1139,10 +1153,27 @@ export async function purchaseSeasonPremium(
     )
     .bind(season.id, accountId)
     .first<SeasonPassRow>();
+  
   if (existing?.premium_unlocked === 1) {
-    return { alreadyOwned: true, priceCma: existing.cma_paid_micros / 1_000_000 };
+    if (!isMax) {
+      return { alreadyOwned: true, priceCma: existing.cma_paid_micros / 1_000_000 };
+    }
   }
-  const priceMicros = season.premium_price_cma_micros;
+
+  let priceMicros = season.premium_price_cma_micros;
+  let xpToGrant = 0;
+
+  if (isMax) {
+    const currentLevel = overview.playerProgress.level;
+    const currentXp = overview.playerProgress.xp;
+    
+    const levelDiscount = (currentLevel - 1) * 1.42;
+    const premiumDiscount = existing?.premium_unlocked === 1 ? 29 : 0;
+    const calculatedPrice = SPACE_RACE_PREMIUM_MAX_PRICE_CMA - premiumDiscount - levelDiscount;
+    
+    priceMicros = Math.max(0, Math.floor(calculatedPrice)) * 1_000_000;
+    xpToGrant = Math.max(0, 12250 - currentXp);
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const stored = await db
       .prepare("SELECT state_json, version FROM game_states WHERE account_id = ?")
@@ -1159,15 +1190,17 @@ export async function purchaseSeasonPremium(
     const nextVersion = stored.version + 1;
     const ledgerId = crypto.randomUUID();
     try {
-      const results = await db.batch([
+      const batchOps = [
         db
           .prepare(
             `UPDATE game_states
              SET state_json = ?, version = ?, updated_at = ?
              WHERE account_id = ? AND version = ?
-               AND NOT EXISTS (
-                 SELECT 1 FROM season_passes
-                 WHERE season_id = ? AND account_id = ? AND premium_unlocked = 1
+               AND (
+                 ? = 1 OR NOT EXISTS (
+                   SELECT 1 FROM season_passes
+                   WHERE season_id = ? AND account_id = ? AND premium_unlocked = 1
+                 )
                )`,
           )
           .bind(
@@ -1176,6 +1209,7 @@ export async function purchaseSeasonPremium(
             now,
             accountId,
             stored.version,
+            isMax ? 1 : 0,
             season.id,
             accountId,
           ),
@@ -1189,7 +1223,10 @@ export async function purchaseSeasonPremium(
             WHERE EXISTS (
               SELECT 1 FROM game_states
               WHERE account_id = ? AND version = ? AND state_json = ?
-            )`,
+            )
+            ON CONFLICT (season_id, account_id) DO UPDATE SET 
+              cma_paid_micros = cma_paid_micros + excluded.cma_paid_micros,
+              updated_at = excluded.updated_at`,
           )
           .bind(
             season.id,
@@ -1216,19 +1253,30 @@ export async function purchaseSeasonPremium(
           .bind(
             ledgerId,
             accountId,
-            `season-premium:${season.id}:${accountId}`,
+            `season-premium:${season.id}:${accountId}:${now}`,
             nextVersion,
             -priceMicros,
-            JSON.stringify({ priceCma: priceMicros / 1_000_000, seasonId: season.id }),
+            JSON.stringify({ priceCma: priceMicros / 1_000_000, seasonId: season.id, isMax }),
             now,
             season.id,
             accountId,
           ),
-      ]);
-      if (
-        Number(results[0]?.meta.changes ?? 0) === 1 &&
-        Number(results[1]?.meta.changes ?? 0) === 1
-      ) {
+      ];
+
+      if (isMax && xpToGrant > 0) {
+        batchOps.push(
+          db
+            .prepare(
+              `INSERT INTO season_quest_claims (
+                id, season_id, account_id, quest_id, cycle_key, xp, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(crypto.randomUUID(), season.id, accountId, 'buy-premium-max', `max_${now}`, xpToGrant, now)
+        );
+      }
+
+      const results = await db.batch(batchOps);
+      if (Number(results[0]?.meta.changes ?? 0) === 1) {
         return { alreadyOwned: false, priceCma: priceMicros / 1_000_000 };
       }
     } catch (error) {

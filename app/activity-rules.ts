@@ -238,6 +238,15 @@ export function presentLedgerActivity(
         "Os três minigames do ciclo foram verificados antes da entrega.",
     };
   }
+  if (action === "season_premium_purchase") {
+    const isMax = Boolean(metadata.isMax);
+    const priceCma = numberValue(metadata.priceCma);
+    return {
+      category: "economy",
+      title: isMax ? "Orbit Pass MAX adquirido" : "Orbit Pass adquirido",
+      description: `O acesso premium da temporada foi liberado por ${priceCma.toLocaleString("pt-BR")} CMA.`,
+    };
+  }
 
   return {
     category: "account",
