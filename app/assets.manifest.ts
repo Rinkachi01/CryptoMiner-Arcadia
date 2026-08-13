@@ -375,4 +375,15 @@ export const assetsManifest = {
     alt: "Estação Arcadia da primeira temporada Corrida Espacial",
     version: 1,
   },
+  pixelEnergy: {
+    id: "ui_pixel_energy_v1",
+    type: "uiIcon",
+    path: "/pixel-energy.jpg",
+    width: 126,
+    height: 100,
+    slots: 0,
+    anchor: { x: 0.5, y: 0.5 },
+    alt: "Energia Temporária",
+    version: 1,
+  },
 } satisfies Record<string, AssetManifestEntry>;

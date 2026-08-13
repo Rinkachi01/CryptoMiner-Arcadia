@@ -32,27 +32,27 @@ export type SeasonReward = {
 
 export const spaceRaceRewards: SeasonReward[] = [
   { level: 2, track: "free", title: "2 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 2 } },
-  { level: 5, track: "free", title: "250 GH/s por 1 dia", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 250, days: 1 } },
+  { level: 5, track: "free", title: "250 GH/s por 1 dia", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 250, days: 1 } },
   { level: 10, track: "free", title: "Lunar Rover", asset: assetsManifest.spaceRover.path, reward: { type: "miner", minerId: "lunar-rover-s1", quantity: 1 } },
   { level: 15, track: "free", title: "2 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 2 } },
-  { level: 20, track: "free", title: "400 GH/s por 3 dias", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 400, days: 3 } },
+  { level: 20, track: "free", title: "400 GH/s por 3 dias", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 400, days: 3 } },
   { level: 30, track: "free", title: "Relay Satellite", asset: assetsManifest.spaceSatellite.path, reward: { type: "miner", minerId: "relay-satellite-s1", quantity: 1 } },
   { level: 40, track: "free", title: "3 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 3 } },
-  { level: 50, track: "free", title: "600 GH/s por 7 dias", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 600, days: 7 } },
+  { level: 50, track: "free", title: "600 GH/s por 7 dias", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 600, days: 7 } },
 
   { level: 1, track: "premium", title: "3 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 3 } },
   { level: 5, track: "premium", title: "Comet Skiff", asset: assetsManifest.spaceSkiff.path, reward: { type: "miner", minerId: "comet-skiff-s1", quantity: 1 } },
-  { level: 8, track: "premium", title: "500 GH/s por 1 dia", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 500, days: 1 } },
+  { level: 8, track: "premium", title: "500 GH/s por 1 dia", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 500, days: 1 } },
   { level: 10, track: "premium", title: "Star Scout", asset: assetsManifest.spaceScout.path, reward: { type: "miner", minerId: "star-scout-s1", quantity: 1 } },
   { level: 14, track: "premium", title: "3 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 3 } },
   { level: 18, track: "premium", title: "Orbit Drill", asset: assetsManifest.spaceDrill.path, reward: { type: "miner", minerId: "orbit-drill-s1", quantity: 1 } },
-  { level: 22, track: "premium", title: "750 GH/s por 3 dias", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 750, days: 3 } },
+  { level: 22, track: "premium", title: "750 GH/s por 3 dias", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 750, days: 3 } },
   { level: 26, track: "premium", title: "Void Freighter", asset: assetsManifest.spaceFreighter.path, reward: { type: "miner", minerId: "void-freighter-s1", quantity: 1 } },
   { level: 32, track: "premium", title: "4 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 4 } },
   { level: 36, track: "premium", title: "Plasma Cruiser", asset: assetsManifest.spaceCruiser.path, reward: { type: "miner", minerId: "plasma-cruiser-s1", quantity: 1 } },
-  { level: 42, track: "premium", title: "1.000 GH/s por 7 dias", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 1_000, days: 7 } },
+  { level: 42, track: "premium", title: "1.000 GH/s por 7 dias", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 1_000, days: 7 } },
   { level: 46, track: "premium", title: "Arcadia Station", asset: assetsManifest.spaceStation.path, reward: { type: "miner", minerId: "arcadia-station-s1", quantity: 1 } },
-  { level: 50, track: "premium", title: "1.200 GH/s por 7 dias", asset: assetsManifest.battery.path, reward: { type: "power", powerGh: 1_200, days: 7 } },
+  { level: 50, track: "premium", title: "1.200 GH/s por 7 dias", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 1_200, days: 7 } },
 ];
 
 export type SeasonScoreInput = {

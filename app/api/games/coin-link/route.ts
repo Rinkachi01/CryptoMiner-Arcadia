@@ -443,7 +443,13 @@ export async function POST(request: Request) {
     requestedRewardPowerGh,
     now,
   );
-  const rewardPowerGh = emissionBudget.awardedPowerGh;
+  let rewardPowerGh = emissionBudget.awardedPowerGh;
+  let drop = null;
+  if (Math.random() < 0.3) {
+    rewardPowerGh += 300;
+    drop = { type: "power", quantity: 300 };
+  }
+
   await current.db
     .prepare(`UPDATE game_sessions SET reward_power_gh = ? WHERE id = ?`)
     .bind(rewardPowerGh, session.id)
@@ -498,6 +504,7 @@ export async function POST(request: Request) {
     outcome: "completed",
     score: result.score,
     rewardPowerGh,
+    drop,
     emissionBudget,
     temporaryPowerGh: await activeTemporaryPower(current.db, current.accountId, now),
     nextDifficulty,

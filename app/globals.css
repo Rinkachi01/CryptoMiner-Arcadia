@@ -4696,6 +4696,11 @@ img {
 .season-daily-login li.current strong { color: #72e4ff; }
 .season-daily-login li.claimed { border-color: rgba(169, 255, 63, 0.52); }
 .season-daily-login li.claimed strong { color: var(--lime); }
+.season-daily-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(81, 221, 255, 0.15); }
+.season-daily-actions span { color: #8398a3; font: 600 0.8rem/1 var(--font-ui); }
+.season-daily-actions button { display: flex; align-items: center; justify-content: center; height: 38px; padding: 0 20px; border-radius: 8px; border: none; background: #51ddff; color: #040c14; font: 850 0.8rem/1 var(--font-ui); cursor: pointer; transition: all 0.2s ease; }
+.season-daily-actions button:hover:not(:disabled) { background: #fff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(81, 221, 255, 0.3); }
+.season-daily-actions button:disabled { background: rgba(83, 116, 132, 0.2); color: #7c929d; cursor: not-allowed; }
 
 .season-giveaway-card {
   display: grid;
@@ -4988,6 +4993,7 @@ img {
   .wallet-payment-methods { grid-template-columns: 1fr 1fr; }
   .season-pass-lane > header,
   .season-daily-login > header { align-items: flex-start; flex-direction: column; }
+  .season-daily-actions { flex-direction: column; align-items: stretch; gap: 12px; text-align: center; }
   .arcade-level-ladder ol { overflow-x: auto; grid-template-columns: repeat(5, minmax(82px, 1fr)); }
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -16162,6 +16168,8 @@ body {
 .arcade-level-ladder li { display: flex; min-height: 42px; padding: 8px 10px; border: 1px solid #344856; background: rgba(6, 14, 22, 0.78); align-items: center; justify-content: space-between; gap: 6px; }
 .arcade-level-ladder li b { color: var(--lime); font: 850 0.72rem/1 var(--font-ui); }
 .arcade-level-ladder li span { color: #c9d8de; font: 750 0.68rem/1 var(--font-ui); }
+.arcade-level-ladder li.current { border-color: var(--lime); background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 15px rgba(0,255,136,0.2) inset; }
+.arcade-level-ladder li.current span { color: #fff; font-weight: 900; }
 
 .games-grid {
   display: grid;

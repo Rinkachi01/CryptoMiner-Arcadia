@@ -7,6 +7,8 @@ import { ArcadeStartNotice } from "./ArcadeStartNotice";
 import { describeArcadeStart } from "./arcade-start-rules";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
+import { PlaysCounter } from "./PlaysCounter";
+import { DropNotification } from "./DropNotification";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type Reveal = {
@@ -53,6 +55,7 @@ export function HashMatchView({
     "Encontre os pares de moedas antes que o tempo termine.",
   );
   const [reward, setReward] = useState(0);
+  const [drop, setDrop] = useState<number | null>(null);
   const [clockNow, setClockNow] = useState(0);
   const localStartedAt = useRef(0);
   const timeoutSent = useRef(false);
@@ -137,6 +140,7 @@ export function HashMatchView({
     setPhase("loading");
     setMessage("Montando um tabuleiro seguro...");
     setReward(0);
+    setDrop(null);
     try {
       const response = await fetch("/api/games/hash-match", {
         method: "POST",
@@ -196,6 +200,7 @@ export function HashMatchView({
         nextPlayAt?: number;
         message?: string;
         error?: string;
+        drop?: any;
       };
       if (!response.ok) throw new Error(data.error ?? "Carta recusada.");
       const reveals = data.reveals ?? [];
@@ -215,6 +220,7 @@ export function HashMatchView({
       if (data.completed) {
         setPhase("finishing");
         setReward(data.rewardPowerGh ?? 0);
+        setDrop(data.drop ?? null);
         setDifficulty(data.nextDifficulty ?? difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
         setMessage(data.message ?? "Todos os pares foram encontrados.");
@@ -354,11 +360,10 @@ export function HashMatchView({
           <div className="packet-message" role="status" aria-live="polite">
             {message}
           </div>
-          <small>
-            {limits.dayRemaining} tabuleiros disponíveis nas últimas 24h.
-          </small>
+          <PlaysCounter remaining={limits.dayRemaining} />
         </aside>
       </div>
+      <DropNotification dropAmount={drop} />
     </section>
   );
 }

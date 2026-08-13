@@ -132,9 +132,38 @@ export type SeasonLeaderboardEntry = {
   rank: number;
   score: number;
   wins: number;
-  xp: number;
   level: number;
 };
+
+export type Quest = {
+  id: string;
+  type: "games_played" | "games_won" | "cma_spent" | "crates_opened";
+  requirement: number;
+  xp: number;
+  title: string;
+};
+
+export type QuestProgress = {
+  quest: Quest;
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
+};
+
+export const DAILY_QUESTS: Quest[] = [
+  { id: "daily_games_10", type: "games_played", requirement: 10, xp: 10, title: "Jogar 10 minigames" },
+  { id: "daily_wins_5", type: "games_won", requirement: 5, xp: 15, title: "Vencer 5 minigames" },
+  { id: "daily_spend_2", type: "cma_spent", requirement: 2, xp: 10, title: "Gastar 2 CMA na Loja" },
+  { id: "daily_spend_5", type: "cma_spent", requirement: 5, xp: 15, title: "Gastar 5 CMA na Loja" },
+];
+
+export const WEEKLY_QUESTS: Quest[] = [
+  { id: "weekly_games_50", type: "games_played", requirement: 50, xp: 40, title: "Jogar 50 minigames" },
+  { id: "weekly_wins_30", type: "games_won", requirement: 30, xp: 50, title: "Vencer 30 minigames" },
+  { id: "weekly_spend_10", type: "cma_spent", requirement: 10, xp: 25, title: "Gastar 10 CMA na Loja" },
+  { id: "weekly_spend_50", type: "cma_spent", requirement: 50, xp: 50, title: "Gastar 50 CMA na Loja" },
+  { id: "weekly_crate_1", type: "crates_opened", requirement: 1, xp: 30, title: "Abrir 1 Caixa de Suprimentos" },
+];
 
 export type SeasonPlayerProgress = {
   claimedRewardKeys: string[];
@@ -147,6 +176,10 @@ export type SeasonPlayerProgress = {
     nextXp: number;
     schedule: readonly number[];
     streakDays: number;
+  };
+  quests: {
+    daily: QuestProgress[];
+    weekly: QuestProgress[];
   };
   sources: {
     games: number;
@@ -314,6 +347,21 @@ export async function ensureSeasonSchema(db: D1Database) {
     db.prepare(
       `CREATE INDEX IF NOT EXISTS season_reward_claims_account_idx
        ON season_reward_claims (account_id, created_at)`,
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS season_quest_claims (
+        id TEXT PRIMARY KEY,
+        season_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        quest_id TEXT NOT NULL,
+        cycle_key TEXT NOT NULL,
+        xp INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS season_quest_claims_unique
+       ON season_quest_claims (season_id, account_id, quest_id, cycle_key)`,
     ),
   ]);
 }
@@ -528,7 +576,7 @@ export async function readSeasonLeaderboard(
       }));
   }
 
-  const [loginRows, gameRows, spendingRows] = await Promise.all([
+  const [loginRows, gameRows, spendingRows, questClaims] = await Promise.all([
     db
       .prepare(
         `SELECT account_id, 'login' AS activity_key, COALESCE(SUM(xp), 0) AS total
@@ -562,6 +610,15 @@ export async function readSeasonLeaderboard(
       )
       .bind(season.starts_at, DAY_MS, season.starts_at, until)
       .all<DailyActivityRow>(),
+    db
+      .prepare(
+        `SELECT account_id, 'quest' AS activity_key, COALESCE(SUM(xp), 0) AS total
+         FROM season_quest_claims
+         WHERE season_id = ?
+         GROUP BY account_id`,
+      )
+      .bind(season.id)
+      .all<DailyActivityRow>(),
   ]);
 
   const xpByAccount = new Map<
@@ -581,6 +638,11 @@ export async function readSeasonLeaderboard(
     progress.logins += Math.max(0, Number(row.total));
   }
 
+  for (const row of questClaims.results) {
+    const progress = ensureXp(row.account_id);
+    progress.missions += Math.max(0, Number(row.total));
+  }
+
   const weeklyGames = new Map<string, number>();
   for (const row of gameRows.results) {
     const dailyGames = Math.max(0, Number(row.total));
@@ -589,17 +651,9 @@ export async function readSeasonLeaderboard(
       SEASON_DAILY_GAME_XP_CAP,
       dailyGames * SEASON_GAME_XP,
     );
-    if (dailyGames >= 3) progress.missions += 30;
-    if (dailyGames >= 5) progress.missions += 40;
     const week = Math.floor(Number(row.activity_key) / 7);
     const key = `${row.account_id}:${week}`;
     weeklyGames.set(key, (weeklyGames.get(key) ?? 0) + dailyGames);
-  }
-  for (const [key, games] of weeklyGames) {
-    const accountId = key.slice(0, key.lastIndexOf(":"));
-    const progress = ensureXp(accountId);
-    if (games >= 10) progress.missions += 100;
-    if (games >= 15) progress.missions += 150;
   }
 
   for (const row of spendingRows.results) {
@@ -683,7 +737,7 @@ async function readPlayerProgress(
   const xp = entry?.xp ?? 0;
   const level = seasonLevelForXp(xp);
 
-  const [loginRows, gameDaily, spendingDaily] = await Promise.all([
+  const [loginRows, gameDaily, spendingDaily, questClaims, crateDaily] = await Promise.all([
     db
       .prepare(
         `SELECT day_key, xp, created_at
@@ -696,14 +750,15 @@ async function readPlayerProgress(
     db
       .prepare(
         `SELECT CAST((completed_at - ?) / ? AS INTEGER) AS activity_key,
-                COUNT(*) AS total
+                COUNT(*) AS total,
+                SUM(CASE WHEN score > 0 THEN 1 ELSE 0 END) AS wins
          FROM game_sessions
          WHERE account_id = ? AND completed_at >= ? AND completed_at <= ?
            AND status = 'completed'
          GROUP BY activity_key`,
       )
       .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
-      .all<DailyActivityRow>(),
+      .all<{ activity_key: string; total: number; wins: number }>(),
     db
       .prepare(
         `SELECT CAST((created_at - ?) / ? AS INTEGER) AS activity_key,
@@ -715,30 +770,70 @@ async function readPlayerProgress(
       )
       .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
       .all<DailyActivityRow>(),
+    db
+      .prepare(
+        `SELECT quest_id, cycle_key, xp
+         FROM season_quest_claims
+         WHERE season_id = ? AND account_id = ?`,
+      )
+      .bind(season.id, accountId)
+      .all<{ quest_id: string; cycle_key: string; xp: number }>(),
+    db
+      .prepare(
+        `SELECT CAST((created_at - ?) / ? AS INTEGER) AS activity_key,
+                COUNT(*) AS total
+         FROM ledger_entries
+         WHERE account_id = ? AND created_at >= ? AND created_at <= ?
+           AND action = 'open_supply_crate'
+         GROUP BY activity_key`,
+      )
+      .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
+      .all<DailyActivityRow>(),
   ]);
   let games = 0;
   let missions = 0;
+  let totalGamesToday = 0;
+  let totalWinsToday = 0;
+  let totalGamesWeek = 0;
+  let totalWinsWeek = 0;
+  let cratesToday = 0;
+  let cratesWeek = 0;
+  
+  const todayActivityKey = Math.floor((now - season.starts_at) / DAY_MS);
+  const currentWeek = Math.floor((now - season.starts_at) / (7 * DAY_MS));
+  
   const weekly = new Map<number, number>();
   for (const row of gameDaily.results) {
     const count = Math.max(0, Number(row.total));
+    const wins = Math.max(0, Number(row.wins));
     games += Math.min(SEASON_DAILY_GAME_XP_CAP, count * SEASON_GAME_XP);
-    if (count >= 3) missions += 30;
-    if (count >= 5) missions += 40;
+    
+    if (Number(row.activity_key) === todayActivityKey) {
+      totalGamesToday += count;
+      totalWinsToday += wins;
+    }
+    
     const week = Math.floor(Number(row.activity_key) / 7);
-    weekly.set(week, (weekly.get(week) ?? 0) + count);
+    if (week === currentWeek) {
+      totalGamesWeek += count;
+      totalWinsWeek += wins;
+    }
   }
-  for (const count of weekly.values()) {
-    if (count >= 10) missions += 100;
-    if (count >= 15) missions += 150;
-  }
+
+  let spendingTodayCma = 0;
+  let spendingWeekCma = 0;
   const spending = spendingDaily.results.reduce(
-    (total, row) =>
-      total +
-      Math.min(
-        SEASON_DAILY_SPEND_XP_CAP,
-        Math.floor(Math.max(0, Number(row.total)) / 1_000_000) *
-          SEASON_SPEND_XP_PER_CMA,
-      ),
+    (total, row) => {
+      const spentCma = Math.floor(Math.max(0, Number(row.total)) / 1_000_000);
+      if (Number(row.activity_key) === todayActivityKey) {
+        spendingTodayCma += spentCma;
+      }
+      const week = Math.floor(Number(row.activity_key) / 7);
+      if (week === currentWeek) {
+        spendingWeekCma += spentCma;
+      }
+      return total + Math.min(SEASON_DAILY_SPEND_XP_CAP, spentCma * SEASON_SPEND_XP_PER_CMA);
+    },
     0,
   );
   const loginDays = new Set(
@@ -755,6 +850,46 @@ async function readPlayerProgress(
   const cycleDay = claimedToday
     ? ((Math.max(1, streakDays) - 1) % SEASON_DAILY_LOGIN_XP.length) + 1
     : (streakDays % SEASON_DAILY_LOGIN_XP.length) + 1;
+
+  // Quest Evaluation
+  const cycleKeyDaily = `daily_${today}`;
+  const cycleKeyWeekly = `weekly_${Math.floor(now / (7 * DAY_MS))}`;
+  const claimedSet = new Set(questClaims.results.map(c => `${c.quest_id}:${c.cycle_key}`));
+  
+  missions = questClaims.results.reduce((acc, c) => acc + c.xp, 0);
+
+  function evaluateQuest(quest: Quest, progressVal: number, cycleKey: string): QuestProgress {
+    const completed = progressVal >= quest.requirement;
+    const claimed = claimedSet.has(`${quest.id}:${cycleKey}`);
+    return { quest, progress: Math.min(progressVal, quest.requirement), completed, claimed };
+  }
+
+  for (const row of crateDaily.results) {
+    const count = Math.max(0, Number(row.total));
+    if (Number(row.activity_key) === todayActivityKey) cratesToday += count;
+    const week = Math.floor(Number(row.activity_key) / 7);
+    if (week === currentWeek) cratesWeek += count;
+  }
+
+  const quests = {
+    daily: DAILY_QUESTS.map(q => {
+      let p = 0;
+      if (q.type === "games_played") p = totalGamesToday;
+      if (q.type === "games_won") p = totalWinsToday;
+      if (q.type === "cma_spent") p = spendingTodayCma;
+      if (q.type === "crates_opened") p = cratesToday;
+      return evaluateQuest(q, p, cycleKeyDaily);
+    }),
+    weekly: WEEKLY_QUESTS.map(q => {
+      let p = 0;
+      if (q.type === "games_played") p = totalGamesWeek;
+      if (q.type === "games_won") p = totalWinsWeek;
+      if (q.type === "cma_spent") p = spendingWeekCma;
+      if (q.type === "crates_opened") p = cratesWeek;
+      return evaluateQuest(q, p, cycleKeyWeekly);
+    }),
+  };
+
   return {
     claimedRewardKeys: claims.results.map(
       (claim) => `${claim.track}:${claim.level}`,
@@ -772,6 +907,7 @@ async function readPlayerProgress(
       schedule: SEASON_DAILY_LOGIN_XP,
       streakDays,
     },
+    quests,
     sources: {
       games,
       logins: loginRows.results.reduce(
@@ -850,9 +986,7 @@ export async function readSeasonOverview(
 
   const isSpaceRace = row.campaign_slug === SPACE_RACE_SLUG;
   const [playerProgress, draftRow, powerLeaderboard] = await Promise.all([
-    isSpaceRace
-      ? readPlayerProgress(db, row, accountId, leaderboard, now)
-      : Promise.resolve(null),
+    readPlayerProgress(db, row, accountId, leaderboard, now),
     includeDraft ? readSpaceRaceDraftRow(db) : Promise.resolve(null),
     readPowerLeaderboard(db, now),
   ]);
@@ -864,7 +998,7 @@ export async function readSeasonOverview(
     leaderboard: leaderboard.slice(0, 25),
     playerProgress,
     powerLeaderboard,
-    rewards: isSpaceRace ? spaceRaceRewards : [],
+    rewards: spaceRaceRewards,
     season: publicSeason(row, now),
     snapshots: snapshotRows.results.map((snapshot) => {
       return {
@@ -1491,4 +1625,50 @@ export async function createSeasonSnapshot(
     .bind(id, season.id, JSON.stringify(metrics), createdBy, now)
     .run();
   return { id, seasonId: season.id };
+}
+
+export async function claimSeasonQuest(
+  db: D1Database,
+  accountId: string,
+  questId: string,
+  cycleKey: string,
+  now: number,
+) {
+  const overview = await readSeasonOverview(db, accountId, now);
+  if (!overview.season || overview.season.status !== "active") {
+    throw new Error("Temporada inativa ou não encontrada.");
+  }
+  
+  const dailyMatch = overview.playerProgress?.quests.daily.find(q => q.quest.id === questId);
+  const weeklyMatch = overview.playerProgress?.quests.weekly.find(q => q.quest.id === questId);
+  
+  const match = dailyMatch ?? weeklyMatch;
+  if (!match) {
+    throw new Error("Quest não encontrada.");
+  }
+  if (!match.completed) {
+    throw new Error("Você ainda não concluiu esta Quest.");
+  }
+  if (match.claimed) {
+    throw new Error("Recompensa já resgatada.");
+  }
+
+  const expectedCycleKey = dailyMatch
+    ? `daily_${Math.floor(now / DAY_MS)}`
+    : `weekly_${Math.floor(now / (7 * DAY_MS))}`;
+    
+  if (cycleKey !== expectedCycleKey) {
+    throw new Error("O ciclo da Quest expirou.");
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO season_quest_claims (
+        id, season_id, account_id, quest_id, cycle_key, xp, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(crypto.randomUUID(), overview.season.id, accountId, questId, cycleKey, match.quest.xp, now)
+    .run();
+    
+  return { xp: match.quest.xp, title: match.quest.title };
 }

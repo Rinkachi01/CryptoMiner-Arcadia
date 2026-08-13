@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import type { SeasonTrack } from "../../season-rules";
 import {
+  claimSeasonQuest,
   claimSeasonReward,
   purchaseSeasonPremium,
   readSeasonOverview,
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
   const body = (await request.json().catch(() => null)) as
-    | { action?: unknown; level?: unknown; track?: unknown }
+    | { action?: unknown; level?: unknown; track?: unknown; questId?: unknown; cycleKey?: unknown }
     | null;
   const accountId = await accountIdForUser(user);
   const now = Date.now();
@@ -80,6 +81,19 @@ export async function POST(request: Request) {
       message = result.alreadyClaimed
         ? "Este prêmio já foi resgatado."
         : `${result.reward.title} enviado para sua conta.`;
+    } else if (
+      body?.action === "claim-quest" &&
+      typeof body.questId === "string" &&
+      typeof body.cycleKey === "string"
+    ) {
+      const result = await claimSeasonQuest(
+        env.DB,
+        accountId,
+        body.questId,
+        body.cycleKey,
+        now,
+      );
+      message = `Quest concluída: +${result.xp} XP.`;
     } else {
       return Response.json({ error: "Ação sazonal inválida." }, { status: 400 });
     }

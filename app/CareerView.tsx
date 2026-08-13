@@ -116,6 +116,14 @@ export function CareerView({
           <ReferralPanel />
         ) : activeTab === "activity" ? (
           <ActivityPanel refreshKey={refreshKey} />
+        ) : activeTab === "missions" ? (
+          <div className="missions-tab-layout">
+            <OperatorProgressPanel
+              refreshKey={refreshKey}
+              section={activeTab}
+              onRefreshAccount={refreshAccount}
+            />
+          </div>
         ) : (
           <OperatorProgressPanel
             refreshKey={refreshKey}

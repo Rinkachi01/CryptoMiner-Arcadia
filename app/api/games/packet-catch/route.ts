@@ -523,7 +523,13 @@ export async function POST(request: Request) {
         now,
       )
     : await readDailyGamePowerBudget(current.db, current.accountId, now);
-  const rewardPowerGh = emissionBudget.awardedPowerGh;
+  let rewardPowerGh = emissionBudget.awardedPowerGh;
+  let drop = null;
+  if (survived && Math.random() < 0.3) {
+    rewardPowerGh += 300;
+    drop = { type: "power", quantity: 300 };
+  }
+
   if (survived) {
     await current.db
       .prepare(
@@ -600,6 +606,7 @@ export async function POST(request: Request) {
     score: survived ? scoreResult.score : 0,
     coinHits: survived ? scoreResult.coinHits : 0,
     rewardPowerGh,
+    drop,
     emissionBudget,
     powerExpiresAt: rewardPowerGh > 0 ? powerExpiresAt : null,
     powerDurationDays,

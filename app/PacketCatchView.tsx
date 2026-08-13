@@ -12,6 +12,8 @@ import { CoinLinkView } from "./CoinLinkView";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
+import { PlaysCounter } from "./PlaysCounter";
+import { DropNotification } from "./DropNotification";
 import {
   PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
@@ -90,6 +92,7 @@ export function PacketCatchView({
     outcome: "completed" | "bomb" | "lives";
     score: number;
     rewardPowerGh: number;
+    drop?: any;
   } | null>(null);
   const localStartedAt = useRef(0);
   const eventsRef = useRef<PacketCatchEvent[]>([]);
@@ -159,12 +162,14 @@ export function PacketCatchView({
           limits?: Limits;
           message?: string;
           error?: string;
+          drop?: any;
         };
         if (!response.ok) throw new Error(data.error ?? "Partida não validada.");
         setResult({
           outcome: data.outcome ?? "completed",
           score: data.score ?? 0,
           rewardPowerGh: data.rewardPowerGh ?? 0,
+          drop: data.drop,
         });
         setDifficulty(data.nextDifficulty ?? activeSession.difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
@@ -379,7 +384,7 @@ export function PacketCatchView({
         </div>
         <ol>
           {ARCADE_POWER_DAYS_BY_LEVEL.slice(1).map((days, index) => (
-            <li key={days}>
+            <li key={days} className={difficulty === index + 1 ? "current" : ""}>
               <b>N{index + 1}</b>
               <span>{days} {days === 1 ? "dia" : "dias"}</span>
             </li>
@@ -612,13 +617,12 @@ export function PacketCatchView({
             <div className="packet-message" role="status" aria-live="polite">
               {message}
             </div>
-            <small>
-              {limits.dayRemaining} partidas disponíveis nas últimas 24h.
-            </small>
+            <PlaysCounter remaining={limits.dayRemaining} />
           </aside>
           </div>
               </div>
             )}
+            <DropNotification dropAmount={result?.drop ?? null} />
 
           {activeGame === "hash" && (
             <HashMatchView onRefreshAccount={refreshArcadeAccount} />

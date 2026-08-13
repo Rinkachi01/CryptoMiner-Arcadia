@@ -14,6 +14,8 @@ import {
 } from "./coin-link-rules";
 import { gameCoins, type GameCoinId } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
+import { PlaysCounter } from "./PlaysCounter";
+import { DropNotification } from "./DropNotification";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type CoinLinkSession = {
@@ -69,6 +71,7 @@ export function CoinLinkView({
     "Troque duas moedas vizinhas e forme linhas com três ou mais.",
   );
   const [reward, setReward] = useState(0);
+  const [drop, setDrop] = useState<number | null>(null);
   const [lastGain, setLastGain] = useState(0);
   const [resolving, setResolving] = useState(false);
   const [motion, setMotion] = useState<BoardMotion | null>(null);
@@ -136,10 +139,12 @@ export function CoinLinkView({
           limits?: Limits;
           message?: string;
           error?: string;
+          drop?: any;
         };
         if (!response.ok) throw new Error(data.error ?? "Combinação recusada.");
         setScore(data.score ?? scoreRef.current);
         setReward(data.rewardPowerGh ?? 0);
+        setDrop(data.drop ?? null);
         setDifficulty(data.nextDifficulty ?? activeSession.difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
         if (data.limits) setLimits(data.limits);
@@ -186,6 +191,7 @@ export function CoinLinkView({
     setPhase("loading");
     setMessage("Preparando um tabuleiro exclusivo...");
     setReward(0);
+    setDrop(null);
     setLastGain(0);
     try {
       const response = await fetch("/api/games/coin-link", {
@@ -494,9 +500,10 @@ export function CoinLinkView({
             <li>Trocas sem combinação não gastam jogada.</li>
           </ul>
           <p role="status" aria-live="polite">{message}</p>
-          <small>{limits.dayRemaining} partidas disponíveis nas últimas 24h.</small>
+          <PlaysCounter remaining={limits.dayRemaining} />
         </aside>
       </div>
+      <DropNotification dropAmount={drop} />
     </section>
   );
 }

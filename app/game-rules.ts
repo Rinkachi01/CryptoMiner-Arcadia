@@ -420,6 +420,7 @@ export function calculateEstimatedReward(
   const activeNetworkPowerGh = Math.max(0, Math.floor(liveNetworkPowerGh));
   const safeBlockCount = Math.max(0, Math.floor(blockCount));
   if (
+    Number.isNaN(playerPowerGh) ||
     playerPowerGh <= 0 ||
     activeNetworkPowerGh <= 0 ||
     safeBlockCount <= 0 ||

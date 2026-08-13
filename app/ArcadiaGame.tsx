@@ -5,12 +5,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
+import { DailyWelcomeModal } from "./DailyWelcomeModal";
 import { PacketCatchView } from "./PacketCatchView";
 import { CareerView } from "./CareerView";
 import { SeasonPanel } from "./SeasonPanel";
 import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
+import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
+import { OperatorProgressPanel } from "./OperatorProgressPanel";
+import { PCStatusPanel } from "./PCStatusPanel";
+import { QuestsPanel } from "./QuestsPanel";
 import { TasksView } from "./TasksView";
 import { readClientBetaDeviceProfile } from "./beta-device-client";
 import {
@@ -64,6 +69,7 @@ type ViewId =
   | "shop"
   | "games"
   | "season"
+  | "leaderboard"
   | "tasks"
   | "career";
 type ShopCategory = "miners" | "racks" | "energy" | "crates";
@@ -126,6 +132,7 @@ const navigation: Array<{
   { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
   { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
   { id: "season", label: "Temporada", shortLabel: "Season", glyph: "S" },
+  { id: "leaderboard", label: "Ranking Global", shortLabel: "Ranking", glyph: "R" },
   { id: "tasks", label: "Tarefas", shortLabel: "Tasks", glyph: "T" },
   {
     id: "career",
@@ -904,6 +911,8 @@ export function ArcadiaGame({
         <small>BLOCO SINCRONIZADO #{lastSettledBlock}</small>
       </div>
 
+      <DailyWelcomeModal onClose={() => {}} />
+
       <aside className="sidebar" aria-label="Navegação principal">
         <div className="player-card">
           <div className="avatar-frame">{playerInitial}</div>
@@ -974,6 +983,8 @@ export function ArcadiaGame({
                 <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
               ) : activeView === "season" ? (
                 <>TEMPORADA 01 <i /> CORRIDA ESPACIAL</>
+              ) : activeView === "leaderboard" ? (
+                <>RANKING GLOBAL <i /> MAIORES MINERADORES</>
               ) : activeView === "tasks" ? (
                 <>CENTRAL DE TAREFAS <i /> MISSÕES E FEEDBACK</>
               ) : activeView === "career" ? (
@@ -1077,28 +1088,69 @@ export function ArcadiaGame({
         )}
 
         {!rackOpen && activeView === "mine" && (
-          <MiningRoom
-            activeRoom={activeRoom}
-            roomRacks={currentRoomRacks}
-            rackMiners={rackMiners}
-            editMode={editMode}
-            poolAllocations={poolAllocations}
-            network={network}
-            effectivePower={effectivePower}
-            secondsLeft={secondsLeft}
-            energySeconds={energySeconds}
-            batteryCount={batteryCount}
-            rackInventoryCount={rackInventoryCount}
-            ownedRooms={ownedRoomIds.length}
-            onSetEditMode={setEditMode}
-            onOpenRack={openRack}
-            onPlaceRack={placeRack}
-            onOpenPools={() => setActiveView("pools")}
-            onOpenRooms={() => setRoomsOpen(true)}
-            onOpenStore={openStore}
-            onOpenGames={() => setActiveView("games")}
-            onUseBattery={activateBattery}
-          />
+          <div className="mine-view-container">
+            <div className="mine-main-content">
+              <MiningRoom
+                activeRoom={activeRoom}
+                roomRacks={currentRoomRacks}
+                rackMiners={rackMiners}
+                editMode={editMode}
+                poolAllocations={poolAllocations}
+                network={network}
+                effectivePower={effectivePower}
+                secondsLeft={secondsLeft}
+                energySeconds={energySeconds}
+                batteryCount={batteryCount}
+                rackInventoryCount={rackInventoryCount}
+                ownedRooms={ownedRoomIds.length}
+                onSetEditMode={setEditMode}
+                onOpenRack={openRack}
+                onPlaceRack={placeRack}
+                onOpenPools={() => setActiveView("pools")}
+                onOpenRooms={() => setRoomsOpen(true)}
+                onOpenStore={openStore}
+                onOpenGames={() => setActiveView("games")}
+                onUseBattery={activateBattery}
+              />
+            </div>
+            <div className="mine-side-panels">
+              <PCStatusPanel refreshKey={serverVersion} />
+              <QuestsPanel
+                refreshKey={serverVersion}
+                onRefreshAccount={refreshServerState}
+              />
+            </div>
+            <style jsx>{`
+              .mine-view-container {
+                display: flex;
+                flex-direction: row;
+                gap: 24px;
+                padding: 0 16px;
+                max-width: 1400px;
+                margin: 0 auto;
+                align-items: flex-start;
+              }
+              .mine-main-content {
+                flex: 1;
+                min-width: 0;
+              }
+              .mine-side-panels {
+                width: 320px;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                flex-shrink: 0;
+              }
+              @media (max-width: 900px) {
+                .mine-view-container {
+                  flex-direction: column;
+                }
+                .mine-side-panels {
+                  width: 100%;
+                }
+              }
+            `}</style>
+          </div>
         )}
 
         {!rackOpen && activeView === "mine" && (
@@ -1203,6 +1255,10 @@ export function ArcadiaGame({
             initialTab={careerStartTab}
             onRefreshAccount={refreshServerState}
           />
+        )}
+
+        {!rackOpen && activeView === "leaderboard" && (
+          <LeaderboardPanel />
         )}
       </section>
 
@@ -1588,22 +1644,23 @@ function MiningRoom({
           </div>
           <div className="reward-split-list">
             {pools.map((pool) => {
-              const allocation = poolAllocations[pool.id];
+              const allocation = poolAllocations[pool.id] ?? 0;
               const allocatedPower = Math.floor(
                 (effectivePower * allocation) / 100,
               );
+              const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
               const personalEstimate = calculateEstimatedReward(
                 pool,
                 allocatedPower,
-                network.playerPowerGh[pool.id],
-                BigInt(network.blockRewardAtomic[pool.id]),
+                network.playerPowerGh[pool.id] ?? 0,
+                BigInt(blockRewardAtomic),
               );
               return (
                 <div key={pool.id}>
                   <img src={pool.asset} alt="" />
                   <strong>
                     {formatAtomic(
-                      BigInt(network.blockRewardAtomic[pool.id]),
+                      BigInt(blockRewardAtomic),
                       pool.decimals,
                     )}{" "}
                     {pool.symbol}
@@ -1961,15 +2018,16 @@ function PoolsView({
 
       <div className="pool-grid">
         {pools.map((pool) => {
-          const allocation = draft[pool.id];
+          const allocation = draft[pool.id] ?? 0;
           const allocatedPower = Math.floor(
             (installedPower * allocation) / 100,
           );
+          const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
           const estimate = calculateEstimatedReward(
             pool,
             allocatedPower,
             network.playerPowerGh[pool.id],
-            BigInt(network.blockRewardAtomic[pool.id]),
+            BigInt(blockRewardAtomic),
           );
           const dailyEstimate = calculateDailyEstimatedReward(
             pool,
@@ -2163,6 +2221,8 @@ function InventoryView({
             (unit) => unit.minerId === miner.id,
           ).length;
           const ownedCount = availableCount + installedCount;
+
+          if (ownedCount === 0) return null;
 
           return (
             <article

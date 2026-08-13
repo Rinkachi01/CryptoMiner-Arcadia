@@ -5,6 +5,8 @@ import { ArcadeStartNotice } from "./ArcadeStartNotice";
 import { describeArcadeStart } from "./arcade-start-rules";
 import type { CircuitEvent, CircuitStep } from "./circuit-rush-rules";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
+import { PlaysCounter } from "./PlaysCounter";
+import { DropNotification } from "./DropNotification";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type CircuitSession = {
@@ -37,6 +39,7 @@ export function CircuitRushView({
     "Siga o pulso verde e não toque nos circuitos vermelhos.",
   );
   const [reward, setReward] = useState(0);
+  const [drop, setDrop] = useState<number | null>(null);
   const localStartedAt = useRef(0);
   const eventsRef = useRef<CircuitEvent[]>([]);
   const finishStarted = useRef(false);
@@ -95,9 +98,11 @@ export function CircuitRushView({
           limits?: Limits;
           message?: string;
           error?: string;
+          drop?: any;
         };
         if (!response.ok) throw new Error(data.error ?? "Circuito recusado.");
         setReward(data.rewardPowerGh ?? 0);
+        setDrop(data.drop ?? null);
         setDifficulty(data.nextDifficulty ?? activeSession.difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
         if (data.limits) setLimits(data.limits);
@@ -144,6 +149,7 @@ export function CircuitRushView({
     setPhase("loading");
     setMessage("Sincronizando o circuito...");
     setReward(0);
+    setDrop(null);
     try {
       const response = await fetch("/api/games/circuit-rush", {
         method: "POST",
@@ -304,11 +310,10 @@ export function CircuitRushView({
           <div className="packet-message" role="status" aria-live="polite">
             {message}
           </div>
-          <small>
-            {limits.dayRemaining} corridas disponíveis nas últimas 24h.
-          </small>
+          <PlaysCounter remaining={limits.dayRemaining} />
         </aside>
       </div>
+      <DropNotification dropAmount={drop} />
     </section>
   );
 }

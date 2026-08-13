@@ -68,19 +68,8 @@ export function SeasonPanel({
           result.season?.campaignSlug !== "space-race-01" ||
           result.season.status !== "active"
         ) return result;
-        const loginResponse = await fetch("/api/season", {
-          body: JSON.stringify({ action: "daily-login" }),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-          signal: controller.signal,
-        });
-        const loginResult = (await loginResponse.json()) as SeasonResponse;
-        if (!loginResponse.ok) {
-          throw new Error(loginResult.error ?? "O XP diário não foi registrado.");
-        }
         return {
           ...result,
-          ...loginResult,
           competitiveOnly: false,
           rewardNotice: result.rewardNotice,
         };
@@ -176,12 +165,9 @@ export function SeasonPanel({
           </div>
           <small className="season-no-reward">{data.rewardNotice}</small>
         </div>
-        <SeasonRanking data={data} />
       </section>
     );
   }
-
-  const isPreview = season.status === "draft";
   const progress: SeasonPlayerProgress = data.playerProgress ?? {
     claimedRewardKeys: [],
     level: 1,
@@ -197,8 +183,8 @@ export function SeasonPanel({
     sources: { games: 0, logins: 0, missions: 0, spending: 0 },
     xp: 0,
   };
-  const rewards = data.rewards.length > 0 ? data.rewards : spaceRaceRewards;
-  const currentLevelStart = seasonXpRequiredForLevel(progress.level);
+  const rewards = (data.rewards && data.rewards.length > 0) ? data.rewards : spaceRaceRewards;
+  const currentLevelStart = seasonXpRequiredForLevel(progress.level || 1);
   const levelProgress =
     progress.level >= 50
       ? 100
@@ -223,54 +209,53 @@ export function SeasonPanel({
           <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP. Sorteios semanais complementam a trilha sem alterar o valor dos blocos.</p>
         </div>
         <aside>
-          <strong>{isPreview ? "PROGRAMADA" : `NÍVEL ${progress.level}`}</strong>
-          <span>{isPreview ? "50 NÍVEIS" : `${progress.xp.toLocaleString("pt-BR")} XP`}</span>
-          <small>{isPreview ? `${season.durationDays} dias após a ativação` : remainingLabel(season.endsAt, data.serverTime)}</small>
+          <strong>NÍVEL {progress.level}</strong>
+          <span>{progress.xp.toLocaleString("pt-BR")} XP</span>
+          <small>{remainingLabel(season.endsAt, data.serverTime)}</small>
         </aside>
       </header>
 
       <div className="space-race-progress">
         <div><span>PROGRESSO DO NÍVEL</span><strong>{levelProgress}%</strong></div>
         <i><em style={{ width: `${levelProgress}%` }} /></i>
-        <small>{isPreview ? "O XP começa somente quando o fundador ativar a temporada" : progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
-      </div>
-
-      <div className="season-xp-sources">
-        <article><span>LOGIN</span><strong>{progress.sources.logins} XP</strong><small>sequência diária crescente</small></article>
-        <article><span>MINIGAMES</span><strong>{progress.sources.games} XP</strong><small>até 5 por dia</small></article>
-        <article><span>MISSÕES</span><strong>{progress.sources.missions} XP</strong><small>marcos diários e semanais</small></article>
-        <article><span>LOJA</span><strong>{progress.sources.spending} XP</strong><small>limite de 50 XP/dia</small></article>
+        <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
       </div>
 
       <section className="season-daily-login">
         <header>
-          <div>
-            <span>BÔNUS DIÁRIO</span>
-            <strong>{progress.dailyLogin.streakDays} dias em sequência</strong>
-          </div>
-          <small>Reinicia às 00:00 UTC</small>
+          <div><span>LOGIN DIÁRIO</span><h4>Resgate seu XP</h4></div>
+          <strong>DIA {progress.dailyLogin.cycleDay} / 7</strong>
         </header>
-        <ol>
+        <ol className="season-daily-schedule">
           {progress.dailyLogin.schedule.map((xp, index) => {
-            const day = index + 1;
-            const current = day === progress.dailyLogin.cycleDay;
+            const dayNum = index + 1;
+            const alreadyClaimed = dayNum < progress.dailyLogin.cycleDay || (dayNum === progress.dailyLogin.cycleDay && progress.dailyLogin.claimedToday);
+            const isToday = dayNum === progress.dailyLogin.cycleDay && !progress.dailyLogin.claimedToday;
             return (
-              <li
-                className={`${current ? "current" : ""} ${current && progress.dailyLogin.claimedToday ? "claimed" : ""}`}
-                key={day}
-              >
-                <span>DIA {day}</span>
-                <strong>+{xp} XP</strong>
+              <li key={dayNum} className={`${alreadyClaimed ? "claimed" : ""} ${isToday ? "current" : ""}`}>
+                <small>DIA {dayNum}</small>
+                <strong>+{xp}</strong>
+                <span>XP</span>
               </li>
             );
           })}
         </ol>
+        <div className="season-daily-actions">
+          <span>Sequência: {progress.dailyLogin.streakDays} {progress.dailyLogin.streakDays === 1 ? "dia" : "dias"} seguidos</span>
+          <button
+            type="button"
+            disabled={progress.dailyLogin.claimedToday || Boolean(busyAction)}
+            onClick={() => void runAction("daily-login", { action: "daily-login" })}
+          >
+            {progress.dailyLogin.claimedToday ? "XP DO DIA RESGATADO ✓" : `RESGATAR +${progress.dailyLogin.nextXp} XP`}
+          </button>
+        </div>
       </section>
 
       <section className="season-giveaway-card">
         <header>
           <div><span>SORTEIOS DA TEMPORADA</span><h4>Giveaways semanais</h4></div>
-          <strong>{isPreview ? "ABREM COM A TEMPORADA" : "RODADA SEMANAL"}</strong>
+          <strong>RODADA SEMANAL</strong>
         </header>
         <div>
           <article><b>01</b><strong>Jogue</strong><span>1 bilhete a cada 5 minigames concluídos no dia.</span></article>
@@ -288,10 +273,10 @@ export function SeasonPanel({
           ) : (
             <button
               type="button"
-              disabled={isPreview || Boolean(busyAction)}
+              disabled={Boolean(busyAction)}
               onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
             >
-              {isPreview ? `PREMIUM · ${season.premiumPriceCma} CMA` : `LIBERAR PREMIUM · ${season.premiumPriceCma} CMA`}
+              {`LIBERAR PREMIUM · ${season.premiumPriceCma} CMA`}
             </button>
           )}
         </header>
@@ -305,8 +290,8 @@ export function SeasonPanel({
               <div className="season-reward-grid">
                 {rewards.filter((reward) => reward.track === track).map((reward) => {
                   const key = `${reward.track}:${reward.level}`;
-                  const claimed = progress.claimedRewardKeys.includes(key);
-                  const unlocked = progress.level >= reward.level;
+                  const claimed = progress.claimedRewardKeys?.includes(key) ?? false;
+                  const unlocked = (progress.level || 1) >= reward.level;
                   const premiumBlocked = reward.track === "premium" && !progress.premiumUnlocked;
                   return (
                     <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
@@ -317,10 +302,10 @@ export function SeasonPanel({
                       <small>{reward.reward.type === "miner" ? "MINERADOR" : reward.reward.type === "battery" ? "BATERIA" : "ENERGIA TEMPORÁRIA"}</small>
                       <button
                         type="button"
-                        disabled={isPreview || claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
+                        disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
                         onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
                       >
-                        {isPreview ? `NÍVEL ${reward.level}` : claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
+                        {claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
                       </button>
                     </article>
                   );
@@ -333,44 +318,6 @@ export function SeasonPanel({
 
       {error && <p className="season-action-error" role="alert">{error}</p>}
       {message && <p className="season-action-success" role="status">{message}</p>}
-      {isPreview ? (
-        <div className="season-preview-note">
-          <strong>CONTAGEM REGRESSIVA SOB CONTROLE DO FUNDADOR</strong>
-          <span>Nenhum XP, bilhete, compra Premium ou resgate foi iniciado.</span>
-        </div>
-      ) : null}
-      <SeasonRanking data={data} />
     </section>
-  );
-}
-
-function SeasonRanking({ data }: { data: SeasonResponse }) {
-  return (
-    <div className="season-ranking-grid">
-      <div className="season-ranking-card">
-        <div><span>RANKING DE XP</span><small>Temporada atual</small></div>
-        <section>
-          {data.leaderboard.length === 0 ? <p>O ranking começa com a primeira atividade.</p> : data.leaderboard.slice(0, 10).map((entry) => (
-            <article className={data.currentPlayer?.accountId === entry.accountId ? "current" : ""} key={entry.accountId}>
-              <b>{String(entry.rank).padStart(2, "0")}</b>
-              <div><strong>{entry.displayName}</strong><small>Nível {entry.level} · {entry.wins} conclusões</small></div>
-              <span>{(entry.xp || entry.score).toLocaleString("pt-BR")} XP</span>
-            </article>
-          ))}
-        </section>
-      </div>
-      <div className="season-ranking-card power-ranking">
-        <div><span>MAIOR PODER ATIVO</span><small>Atualizado pelo servidor</small></div>
-        <section>
-          {(data.powerLeaderboard ?? []).length === 0 ? <p>Nenhum operador com energia ativa.</p> : (data.powerLeaderboard ?? []).slice(0, 10).map((entry) => (
-            <article key={entry.accountId}>
-              <b>{String(entry.rank).padStart(2, "0")}</b>
-              <div><strong>{entry.displayName}</strong><small>Potência total energizada</small></div>
-              <span>{formatPower(entry.powerGh)}</span>
-            </article>
-          ))}
-        </section>
-      </div>
-    </div>
   );
 }
