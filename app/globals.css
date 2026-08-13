@@ -21062,6 +21062,35 @@ body {
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
 }
 
+/* As artes da Corrida Espacial têm silhuetas largas e alturas diferentes.
+   O berço abaixo transforma cada uma em um módulo de rack consistente sem
+   distorcer o GIF nem alterar os mineradores clássicos. */
+.rack-miner[data-rack-art="season"],
+.preview-miner.corrected[data-rack-art="season"] img,
+.mobile-rack-sprite .rack-miner[data-rack-art="season"] {
+  box-sizing: border-box;
+  padding: 2px 3px 3px;
+  border: 1px solid rgba(87, 217, 255, 0.42);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(77, 210, 255, 0.12), transparent 42%),
+    linear-gradient(90deg, rgba(6, 12, 20, 0.96), rgba(17, 27, 39, 0.98));
+  box-shadow:
+    inset 0 -3px 0 rgba(128, 255, 74, 0.16),
+    0 2px 5px rgba(0, 0, 0, 0.68);
+  object-position: center bottom;
+}
+
+.preview-miner.corrected[data-rack-art="season"] {
+  overflow: visible;
+  border-radius: 3px;
+}
+
+.preview-miner.corrected[data-rack-art="season"]:hover img,
+.preview-miner.corrected[data-rack-art="season"]:focus-visible img {
+  border-color: rgba(255, 103, 113, 0.78);
+}
+
 @media (max-width: 900px) {
   .mobile-rack-dock {
     display: grid;

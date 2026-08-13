@@ -5,6 +5,16 @@
   "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "cryptominerarcadia.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.cryptominerarcadia.com",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "binding": "ASSETS",
     "directory": "dist/client"
@@ -24,7 +34,7 @@
     }
   ],
   "vars": {
-    "PUBLIC_BASE_URL": "https://crypto-miner-arcadia.criptomineracardia.workers.dev",
+    "PUBLIC_BASE_URL": "https://cryptominerarcadia.com",
     "PUBLIC_INDEXING_ENABLED": "false",
     "SUPABASE_URL": "https://tgsofsumjyvrjohlghay.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_D-zur7SjizAWlwxf_0rD3Q_Xh7lJvrq",
@@ -42,7 +52,7 @@
     "PIX_OPERATIONAL_MARGIN_BPS": "300",
     "AUTH_CAPTCHA_REQUIRED": "true",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAEEpj8fea0Bp_Y3_",
-    "TURNSTILE_HOSTNAME": "crypto-miner-arcadia.criptomineracardia.workers.dev",
+    "TURNSTILE_HOSTNAME": "cryptominerarcadia.com",
     "TURNSTILE_REQUIRED": "true",
     "EMAIL_PROVIDER": "google_apps_script",
     "GOOGLE_MAIL_WEBHOOK_URL": "https://script.google.com/macros/s/AKfycbxL3adoOmYzRwR0ylImzpPFI074_GQn2zIn58Rh_p3M3r6o2qtp-CYjKJarfgzPK_RlIA/exec",

@@ -61,6 +61,6 @@ test("metadados públicos acompanham o endereço externo configurado", async () 
   );
 
   assert.match(layout, /process\.env\.PUBLIC_BASE_URL/);
-  assert.match(layout, /crypto-miner-arcadia\.criptomineracardia\.workers\.dev/);
+  assert.match(layout, /https:\/\/cryptominerarcadia\.com/);
   assert.doesNotMatch(layout, /mateusmoraes12345678\.chatgpt\.site/);
 });

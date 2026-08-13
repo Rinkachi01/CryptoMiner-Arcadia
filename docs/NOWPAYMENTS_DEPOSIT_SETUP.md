@@ -46,7 +46,7 @@ CRYPTO_SANDBOX_ENABLED=false
 O callback que deve ser autorizado no provedor é:
 
 ```text
-https://crypto-miner-arcadia.criptomineracardia.workers.dev/api/wallet/nowpayments
+https://cryptominerarcadia.com/api/wallet/nowpayments
 ```
 
 No painel do Cloudflare, abra o Worker `crypto-miner-arcadia`, entre em

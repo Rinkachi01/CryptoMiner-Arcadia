@@ -1,0 +1,4 @@
+Contact: mailto:cryptominerarcadia.support@gmail.com
+Canonical: https://cryptominerarcadia.com/.well-known/security.txt
+Preferred-Languages: pt-BR, en
+Expires: 2027-08-13T23:59:59Z

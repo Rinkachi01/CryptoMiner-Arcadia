@@ -1461,6 +1461,9 @@ function MiningRoom({
                     return (
                       <img
                         className={`rack-miner size-${miner.slotSize}`}
+                        data-rack-art={
+                          miner.availability === "season" ? "season" : "standard"
+                        }
                         key={placement.instanceId}
                         src={miner.asset}
                         alt={miner.alt}
@@ -1540,6 +1543,9 @@ function MiningRoom({
                       return (
                         <img
                           className={`rack-miner size-${miner.slotSize}`}
+                          data-rack-art={
+                            miner.availability === "season" ? "season" : "standard"
+                          }
                           key={placement.instanceId}
                           src={miner.asset}
                           alt=""
@@ -2833,6 +2839,9 @@ function RackManager({
                   <button
                     type="button"
                     className={`preview-miner corrected size-${miner.slotSize}`}
+                    data-rack-art={
+                      miner.availability === "season" ? "season" : "standard"
+                    }
                     key={placement.instanceId}
                     style={rackMinerPosition(placement.slotIndex)}
                     onClick={() => onRemove(placement.instanceId)}

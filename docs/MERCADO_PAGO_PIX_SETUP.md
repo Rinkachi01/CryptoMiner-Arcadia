@@ -40,7 +40,7 @@ pagamento sem alterar o saldo.
    homologação, o servidor já envia o nome de teste recomendado pelo provedor.
 5. Em **Webhooks**, cadastre o tópico **Order** com a URL:
 
-   `https://crypto-miner-arcadia.criptomineracardia.workers.dev/api/wallet/mercadopago`
+   `https://cryptominerarcadia.com/api/wallet/mercadopago`
 
 6. Copie a assinatura secreta do webhook.
 

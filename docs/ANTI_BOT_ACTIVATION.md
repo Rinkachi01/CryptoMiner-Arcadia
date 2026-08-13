@@ -18,9 +18,9 @@ Atualizado em 9 de agosto de 2026.
 O segredo cadastrado no Supabase protege somente cadastro e login. Para proteger
 os minigames, o mesmo widget precisa estar configurado no ambiente do Worker.
 
-1. No widget Turnstile, autorizar o hostname atual
-   `crypto-miner-arcadia.criptomineracardia.workers.dev` e, futuramente, o
-   domínio definitivo.
+1. No widget Turnstile, autorizar `cryptominerarcadia.com` e
+   `www.cryptominerarcadia.com`. Manter o endereço `workers.dev` apenas durante
+   a transição de DNS.
 2. Salvar `TURNSTILE_SECRET` como segredo do Worker. Nunca colocá-lo em arquivo
    público ou variável do navegador.
 3. Confirmar `TURNSTILE_SITE_KEY` e `TURNSTILE_HOSTNAME` nas variáveis do Worker.

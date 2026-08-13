@@ -50,6 +50,8 @@ O jogador visualiza os 10 protocolos mais recentes. Protocolos resolvidos ou enc
 
 ## Limites desta fase
 
-- O endereco `support@cryptominearcadia.com` e apenas uma reserva visual enquanto o dominio nao pertence ao projeto.
+- O endereço oficial planejado é `support@cryptominerarcadia.com`; até o
+  encaminhamento do domínio ser ativado, o destino continua sendo a caixa Gmail
+  de suporte existente.
 - Nao existe envio corporativo ativo sem dominio verificado e segredo do Resend.
 - Esta entrega nao ativa deposito, saque nem conversao com dinheiro real.

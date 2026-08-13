@@ -11,7 +11,8 @@ atual. A conta Cloudflare foi conectada em 2 de agosto de 2026.
   `crypto-miner-arcadia-production` (região ENAM);
 - configuração pronta em `wrangler.production.jsonc`;
 - R2 habilitado e bucket `crypto-miner-arcadia-recovery` criado na região ENAM;
-- domínio `cryptominearcadia.com` ainda não aparece como zona da conta;
+- domínio `cryptominerarcadia.com` ativo como zona da conta desde 13 de agosto
+  de 2026;
 - Worker pode ser publicado com D1 e R2 vinculados, sem depender do ambiente Sites.
 
 ## Recursos Cloudflare
@@ -41,15 +42,14 @@ no D1 e a autorização ocorre no servidor.
 
 ## Ordem segura de publicação
 
-1. Publicar primeiro no subdomínio gratuito
-   `crypto-miner-arcadia.criptomineracardia.workers.dev`; após a compra do
-   domínio, usar `beta.cryptominearcadia.com` para homologação.
+1. Publicar no domínio oficial `https://cryptominerarcadia.com`; manter o
+   subdomínio `workers.dev` somente como retorno técnico durante a propagação.
 2. Rodar as migrações do D1 antes de permitir contas reais.
 3. Testar criação de conta, confirmação de e-mail, login, sair e recuperação.
 4. Testar kit inicial, racks, compras, energia, pools, blocos e minigames.
 5. Testar cópia R2 e recuperação em banco vazio.
 6. Ativar Turnstile e limites de borda.
-7. Só então apontar o domínio principal.
+7. Confirmar o certificado e os callbacks no domínio principal.
 8. Manter `CRYPTO_DEPOSITS_ENABLED=false` e saques inexistentes no beta público.
 
 ## Custo inicial esperado

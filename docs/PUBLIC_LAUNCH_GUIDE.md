@@ -108,15 +108,15 @@ Requisitos mínimos do login público:
 
 ### Configuração obrigatória no painel do Supabase
 
-Status em 2 de agosto de 2026: Site URL e as duas Redirect URLs do endereço
-`crypto-miner-arcadia.criptomineracardia.workers.dev` foram configuradas pelo
-proprietário. O endpoint público confirma cadastro por e-mail habilitado,
-cadastro aberto e confirmação automática desabilitada.
+Status em 13 de agosto de 2026: a Site URL do Supabase usa
+`https://cryptominerarcadia.com`, e os retornos de confirmação e recuperação
+do domínio oficial estão autorizados. Os retornos antigos permanecem somente
+durante a transição de DNS.
 
 Em **Authentication → URL Configuration**:
 
 - Site URL de homologação: URL privada atual;
-- Site URL de produção: `https://cryptominearcadia.com` depois de o domínio existir;
+- Site URL de produção: `https://cryptominerarcadia.com`;
 - Redirect URLs: adicionar a origem de homologação e produção com
   `/auth/callback` e `/auth/update-password`;
 - não usar curingas amplos em produção.
@@ -130,7 +130,7 @@ Em **Authentication → Email**:
 O SMTP padrão do Supabase serve apenas para testes com endereços autorizados da
 equipe e possui limite muito baixo. A opção inicial recomendada é Resend Free:
 3 mil e-mails/mês e 100/dia. Para receber suporte sem pagar caixa postal,
-Cloudflare Email Routing pode encaminhar `support@cryptominearcadia.com` para
+Cloudflare Email Routing pode encaminhar `support@cryptominerarcadia.com` para
 uma caixa pessoal verificada. Envio transacional continua no Resend/Supabase.
 
 Fontes oficiais:
@@ -311,8 +311,8 @@ Fontes oficiais:
 ## Checklist do proprietário
 
 - [ ] Definir nome empresarial, CNPJ e conta bancária empresarial.
-- [ ] Comprar o domínio e proteger a conta do registrador com MFA.
-- [ ] Confirmar se `cryptominearcadia.com` foi realmente registrado; hoje não foi detectado DNS ativo.
+- [x] Comprar o domínio e ativá-lo como zona Cloudflare.
+- [ ] Proteger a conta do registrador e da Cloudflare com MFA.
 - [ ] Criar `support@`, `privacy@` e `security@` no Email Routing.
 - [ ] Criar domínio no Resend e configurar SPF, DKIM e DMARC no Cloudflare.
 - [ ] Configurar SMTP do Resend no Supabase e testar confirmação/recuperação.
@@ -337,11 +337,11 @@ O Arcadia só está pronto para ficar público quando domínio/HTTPS, login púb
 
 ## Sequência exata para o proprietário
 
-1. No Cloudflare, adicionar ou registrar `cryptominearcadia.com` e ativar MFA.
+1. No Cloudflare, manter `cryptominerarcadia.com` ativo e ativar MFA.
    A conta já possui `criptomineracardia.workers.dev`; o D1 de produção foi
    criado e migrado, e o bucket R2 de recuperação já está habilitado.
 2. No Cloudflare Email Routing, verificar uma caixa de destino e criar
-   `support@cryptominearcadia.com`, `privacy@...` e `security@...`.
+   `support@cryptominerarcadia.com`, `privacy@...` e `security@...`.
 3. No Resend, adicionar o domínio, copiar os registros SPF/DKIM/DMARC para o
    DNS do Cloudflare e obter as credenciais SMTP.
 4. No Supabase, configurar SMTP, Site URL e Redirect URLs; testar cadastro,
@@ -349,7 +349,7 @@ O Arcadia só está pronto para ficar público quando domínio/HTTPS, login púb
 5. Criar no Cloudflare um Worker, um banco D1 e um bucket R2. Conectar os
    bindings `DB` e `RECOVERY_ARCHIVE` e cadastrar as variáveis públicas do
    Supabase. Segredos são cadastrados no painel, nunca no código.
-6. Conectar `cryptominearcadia.com` ao Worker. O Cloudflare cria DNS e HTTPS.
+6. Conectar `cryptominerarcadia.com` ao Worker. O Cloudflare cria DNS e HTTPS.
 7. Ativar Turnstile e regras de frequência somente após testar login e jogos.
 8. Abrir primeiro um beta público sem depósito e sem saque.
 9. Criar uma empresa e solicitar conta comercial no provedor financeiro.
