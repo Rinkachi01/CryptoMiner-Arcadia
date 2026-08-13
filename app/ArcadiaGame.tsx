@@ -1113,13 +1113,6 @@ export function ArcadiaGame({
                 onUseBattery={activateBattery}
               />
             </div>
-            <div className="mine-side-panels">
-              <PCStatusPanel refreshKey={serverVersion} />
-              <QuestsPanel
-                refreshKey={serverVersion}
-                onRefreshAccount={refreshServerState}
-              />
-            </div>
             <style jsx>{`
               .mine-view-container {
                 display: flex;
@@ -1144,9 +1137,6 @@ export function ArcadiaGame({
               @media (max-width: 900px) {
                 .mine-view-container {
                   flex-direction: column;
-                }
-                .mine-side-panels {
-                  width: 100%;
                 }
               }
             `}</style>
@@ -1225,10 +1215,17 @@ export function ArcadiaGame({
         )}
 
         {!rackOpen && activeView === "games" && (
-          <PacketCatchView
-            temporaryPowerGh={temporaryPowerGh}
-            onRefreshAccount={refreshServerState}
-          />
+          <div style={{ display: "flex", gap: "24px", maxWidth: "1400px", margin: "0 auto", padding: "0 16px" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <PacketCatchView
+                temporaryPowerGh={temporaryPowerGh}
+                onRefreshAccount={refreshServerState}
+              />
+            </div>
+            <div style={{ width: "320px", flexShrink: 0 }}>
+              <PCStatusPanel refreshKey={serverVersion} />
+            </div>
+          </div>
         )}
 
         {!rackOpen && activeView === "season" && (
@@ -1598,6 +1595,13 @@ function MiningRoom({
           onUseBattery={onUseBattery}
         />
 
+        <div style={{ padding: "16px" }}>
+          <QuestsPanel
+            refreshKey={serverVersion}
+            onRefreshAccount={refreshServerState}
+          />
+        </div>
+
         <div className="allocation-summary-card">
           <div className="allocation-summary-heading">
             <span>DISTRIBUIÇÃO DE PODER</span>
@@ -1649,12 +1653,19 @@ function MiningRoom({
                 (effectivePower * allocation) / 100,
               );
               const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
-              const personalEstimate = calculateEstimatedReward(
+              const activeNetworkPowerGh = network.playerPowerGh[pool.id] ?? 0;
+              const safeBlockCount = 1;
+              const personalEstimateAtomic = calculateEstimatedReward(
                 pool,
                 allocatedPower,
-                network.playerPowerGh[pool.id] ?? 0,
+                activeNetworkPowerGh,
                 BigInt(blockRewardAtomic),
               );
+              // For UI fractional display:
+              const rawEstimateStr = activeNetworkPowerGh > 0 
+                ? ((safeBlockCount * Number(blockRewardAtomic) * allocatedPower) / activeNetworkPowerGh) / (10 ** pool.decimals)
+                : 0;
+              const formattedFractionalEstimate = rawEstimateStr.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
               return (
                 <div key={pool.id}>
                   <img src={pool.asset} alt="" />
@@ -1666,7 +1677,7 @@ function MiningRoom({
                     {pool.symbol}
                   </strong>
                   <small>
-                    Sua parte: {formatAtomic(personalEstimate, pool.decimals)}{" "}
+                    Sua parte: {personalEstimateAtomic > 0n ? formatAtomic(personalEstimateAtomic, pool.decimals) : formattedFractionalEstimate}{" "}
                     {pool.symbol}
                   </small>
                 </div>
