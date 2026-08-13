@@ -1936,7 +1936,7 @@ export function AdminDashboard({
 
       <section className="admin-hero" hidden={adminSection !== "treasury"}>
         <div>
-          <span>FLUXO DE CAIXA</span>
+          <span>FLUXO DE CAIXA · TESOURARIA</span>
           <h1>Visão Geral da Tesouraria</h1>
           <p>
             Acompanhe o saldo total depositado no servidor e confirme saídas reais.
@@ -1944,9 +1944,27 @@ export function AdminDashboard({
         </div>
         <aside>
           <small>RESERVAS E SAÍDAS</small>
-          <strong style={{ color: "var(--lime)" }}>{formatCma(overview.treasury.depositsCma)} CMA ENTROU</strong>
-          <span><b style={{ color: "var(--danger)" }}>{formatCma(overview.treasury.withdrawalsCma)} CMA</b> CONFIRMADO EM SAQUES</span>
+          <strong style={{ color: "var(--lime)" }}>{formatCma(overview.treasury.depositsCma)} entrou</strong>
+          <span><b style={{ color: "var(--danger)" }}>{formatCma(overview.treasury.withdrawalsCma)}</b> confirmado em saques</span>
         </aside>
+      </section>
+
+      <section className="admin-metric-grid" hidden={adminSection !== "treasury"}>
+        <article>
+          <span>ENTRADAS (PIX &amp; CRYPTO)</span>
+          <strong>{formatCma(overview.treasury.depositsCma)}</strong>
+          <small>Total depositado e processado</small>
+        </article>
+        <article>
+          <span>SAQUES CONFIRMADOS</span>
+          <strong style={{ color: overview.treasury.withdrawalsCma > 0 ? "var(--danger)" : undefined }}>{formatCma(overview.treasury.withdrawalsCma)}</strong>
+          <small>Transferido para carteiras externas</small>
+        </article>
+        <article>
+          <span>SALDO LÍQUIDO</span>
+          <strong style={{ color: "var(--lime)" }}>{formatCma(overview.treasury.depositsCma - overview.treasury.withdrawalsCma)}</strong>
+          <small>Depósitos menos saques</small>
+        </article>
       </section>
 
       <section className="admin-panel admin-pix-exception-panel" hidden={adminSection !== "treasury"} id="pix-exceptions">

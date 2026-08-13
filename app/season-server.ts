@@ -1144,7 +1144,8 @@ export async function purchaseSeasonPremium(
 ) {
   const overview = await readSeasonOverview(db, accountId, now);
   if (!overview.season || !overview.playerProgress) throw new Error("Temporada não encontrada.");
-  const season = activeSpaceRace(await ensureDefaultSeason(db, now));
+  const seasonRow = await readSeasonRow(db);
+  const season = activeSpaceRace(seasonRow);
 
   const existing = await db
     .prepare(
@@ -1225,6 +1226,7 @@ export async function purchaseSeasonPremium(
               WHERE account_id = ? AND version = ? AND state_json = ?
             )
             ON CONFLICT (season_id, account_id) DO UPDATE SET 
+              premium_unlocked = excluded.premium_unlocked,
               cma_paid_micros = cma_paid_micros + excluded.cma_paid_micros,
               updated_at = excluded.updated_at`,
           )
