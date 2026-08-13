@@ -1,11 +1,20 @@
-import { useMemo, useState, useEffect } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { type GameSummaryResult } from "./api/games/summary/route";
 import { ARCADE_POWER_DAYS_BY_LEVEL } from "./arcade-progression-rules";
+import {
+  pcLevelForPlays,
+  pcNextPlayTarget,
+  pcProgressPercent,
+} from "./pc-progression-rules";
 
 export function PCStatusPanel({
   refreshKey,
+  temporaryPowerGh = 0,
 }: {
   refreshKey?: number;
+  temporaryPowerGh?: number;
 }) {
   const [summary, setSummary] = useState<GameSummaryResult | null>(null);
 
@@ -16,62 +25,51 @@ export function PCStatusPanel({
       .catch(() => {});
   }, [refreshKey]);
 
-  const highestLevel = useMemo(() => {
-    if (!summary?.games?.length) return 1;
-    return summary.games.reduce(
-      (highest: number, game: { level: number }) => Math.max(highest, game.level),
-      1,
-    );
-  }, [summary]);
-
-  const winsToday = summary?.totals?.winsToday ?? 0;
-  
-  // Calculate next PC level requirements
-  const nextLevelWins = highestLevel === 1 ? 10 : highestLevel === 2 ? 30 : highestLevel === 3 ? 60 : 60;
-  const progress = Math.min(100, Math.floor((winsToday / nextLevelWins) * 100));
-
-  const powerDays = ARCADE_POWER_DAYS_BY_LEVEL[highestLevel] || 1;
-  const pcEmoji =
-    highestLevel === 4
-      ? "🖥️" // Max Level PC
-      : highestLevel === 3
-        ? "💻" // Laptop
-        : highestLevel === 2
-          ? "📟" // Old PC
-          : "📱"; // Basic device
+  const totalPlays = summary?.totals?.totalPlays ?? 0;
+  const pcLevel = pcLevelForPlays(totalPlays);
+  const nextPlayTarget = pcNextPlayTarget(pcLevel + 1);
+  const progress = pcProgressPercent(totalPlays, pcLevel);
+  const powerDays = ARCADE_POWER_DAYS_BY_LEVEL[pcLevel] ?? 0;
+  const pcEmoji = pcLevel >= 5 ? "🖥️" : pcLevel >= 3 ? "💻" : pcLevel >= 1 ? "📟" : "📱";
 
   return (
-    <div className="pc-status-panel">
+    <section className="pc-status-panel" aria-label="Progresso do PC">
       <div className="pc-info">
         <h3>Seu PC</h3>
-        <p className="pc-level">Nível {highestLevel}</p>
+        <p className="pc-level">Nível {pcLevel}</p>
         <p className="power-duration">
-          Energia válida por: <strong>{powerDays} dia{powerDays > 1 ? "s" : ""}</strong>
+          {powerDays > 0 ? (
+            <>Bônus de energia válido por: <strong>{powerDays} dia{powerDays > 1 ? "s" : ""}</strong></>
+          ) : (
+            <>Jogue 10 partidas para liberar o primeiro bônus.</>
+          )}
         </p>
+        {temporaryPowerGh > 0 && (
+          <p className="pc-active-bonus">
+            +{temporaryPowerGh.toLocaleString("pt-BR")} GH/s ativo
+          </p>
+        )}
       </div>
-      
-      <div className="pc-visual">
+
+      <div className="pc-visual" aria-hidden="true">
         <span className="pc-emoji">{pcEmoji}</span>
       </div>
 
       <div className="pc-progress">
-        {highestLevel < 4 ? (
+        {pcLevel < 5 ? (
           <>
             <div className="progress-text">
-              Vença {nextLevelWins - winsToday > 0 ? nextLevelWins - winsToday : 0} jogos para um novo PC
+              {Math.max(0, nextPlayTarget - totalPlays)} partida(s) para o próximo PC
             </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${progress}%` }}
-              ></div>
+            <div className="progress-bar-bg" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+              <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
             </div>
+            <small className="pc-play-count">{totalPlays} partidas jogadas</small>
           </>
         ) : (
-          <div className="progress-text">PC Nível Máximo Alcançado!</div>
+          <div className="progress-text">PC nível máximo alcançado!</div>
         )}
       </div>
-
-    </div>
+    </section>
   );
 }

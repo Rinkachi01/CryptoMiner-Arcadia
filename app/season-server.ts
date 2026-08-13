@@ -800,7 +800,7 @@ async function readPlayerProgress(
                 SUM(CASE WHEN score > 0 THEN 1 ELSE 0 END) AS wins
          FROM game_sessions
          WHERE account_id = ? AND completed_at >= ? AND completed_at <= ?
-           AND status = 'completed'
+           AND status IN ('completed', 'failed')
          GROUP BY activity_key`,
       )
       .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)

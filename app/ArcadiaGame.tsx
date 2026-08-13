@@ -13,6 +13,7 @@ import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
+import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import { PCStatusPanel } from "./PCStatusPanel";
 import { QuestsPanel } from "./QuestsPanel";
 import { TasksView } from "./TasksView";
@@ -1229,7 +1230,15 @@ export function ArcadiaGame({
               />
             </div>
             <div className="games-side-panels">
-              <PCStatusPanel refreshKey={serverVersion} />
+              <PCStatusPanel
+                refreshKey={serverVersion}
+                temporaryPowerGh={temporaryPowerGh}
+              />
+              <OperatorProgressPanel
+                refreshKey={serverVersion}
+                section="missions"
+                onRefreshAccount={refreshServerState}
+              />
             </div>
           </div>
         )}

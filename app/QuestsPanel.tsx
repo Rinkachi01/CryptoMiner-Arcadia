@@ -17,6 +17,7 @@ export function QuestsPanel({
     serverTime: number;
   } | null>(null);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [activeTab, setActiveTab] = useState<"daily" | "weekly">("daily");
 
@@ -27,6 +28,10 @@ export function QuestsPanel({
       .then((result: unknown) => {
         if (!controller.signal.aborted) {
           const payload = result as SeasonResponse;
+          if (!payload.season) {
+            throw new Error("As missões estarão disponíveis quando a temporada estiver ativa.");
+          }
+          setLoadError("");
           setData({
             playerProgress: payload.playerProgress,
             season: payload.season,
@@ -34,7 +39,15 @@ export function QuestsPanel({
           });
         }
       })
-      .catch(() => {});
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar as missões.",
+          );
+        }
+      });
     return () => controller.abort();
   }, [refreshKey]);
 
@@ -67,6 +80,14 @@ export function QuestsPanel({
     } finally {
       setBusyAction("");
     }
+  }
+
+  if (loadError) {
+    return (
+      <section className="quests-panel empty" aria-live="polite">
+        <p>{loadError}</p>
+      </section>
+    );
   }
 
   if (!data || !data.season || data.season.status !== "active") {
@@ -106,6 +127,7 @@ export function QuestsPanel({
           <button
             type="button"
             className={activeTab === "daily" ? "active" : ""}
+            aria-pressed={activeTab === "daily"}
             onClick={() => setActiveTab("daily")}
           >
             Diárias
@@ -113,6 +135,7 @@ export function QuestsPanel({
           <button
             type="button"
             className={activeTab === "weekly" ? "active" : ""}
+            aria-pressed={activeTab === "weekly"}
             onClick={() => setActiveTab("weekly")}
           >
             Semanais
