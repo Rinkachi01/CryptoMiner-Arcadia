@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { notFound, redirect } from "next/navigation";
-import { ArcadiaGame, viewFromPath, type ViewId } from "../ArcadiaGame";
+import { ArcadiaGame, type ViewId } from "../ArcadiaGame";
 import {
   accountIdForUser,
   arcadiaSignInPath,
@@ -35,7 +35,7 @@ export default async function ViewRoute({
   params: Promise<{ view: string }>;
 }) {
   const { view } = await params;
-  const initialView = routeAliases[view] ?? viewFromPath(`/${view}`);
+  const initialView = routeAliases[view];
   if (!initialView) notFound();
 
   const user = await getArcadiaUser();
