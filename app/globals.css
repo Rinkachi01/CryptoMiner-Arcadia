@@ -21068,16 +21068,12 @@ body {
 .rack-miner[data-rack-art="season"],
 .preview-miner.corrected[data-rack-art="season"] img,
 .mobile-rack-sprite .rack-miner[data-rack-art="season"] {
-  box-sizing: border-box;
-  padding: 2px 3px 3px;
-  border: 1px solid rgba(87, 217, 255, 0.42);
-  border-radius: 3px;
-  background:
-    linear-gradient(180deg, rgba(77, 210, 255, 0.12), transparent 42%),
-    linear-gradient(90deg, rgba(6, 12, 20, 0.96), rgba(17, 27, 39, 0.98));
-  box-shadow:
-    inset 0 -3px 0 rgba(128, 255, 74, 0.16),
-    0 2px 5px rgba(0, 0, 0, 0.68);
+  box-sizing: content-box;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.68);
   object-position: center bottom;
 }
 
@@ -21088,7 +21084,7 @@ body {
 
 .preview-miner.corrected[data-rack-art="season"]:hover img,
 .preview-miner.corrected[data-rack-art="season"]:focus-visible img {
-  border-color: rgba(255, 103, 113, 0.78);
+  filter: drop-shadow(0 0 5px rgba(255, 103, 113, 0.7));
 }
 
 @media (max-width: 900px) {
@@ -23116,4 +23112,43 @@ body {
   .quests-panel .tabs button { flex: 1; }
   .quest-card { align-items: stretch; flex-direction: column; }
   .quest-action { flex-direction: row; align-items: center; justify-content: space-between; }
+}
+
+/* Founder CRM: grid fluida e navegação que não corta conteúdo em telas menores. */
+.admin-shell { overflow-x: clip; }
+.admin-content-wrapper { overflow: hidden; background: radial-gradient(circle at 78% 0%, rgba(54, 216, 242, .035), transparent 34%); }
+.admin-content-wrapper > section { box-sizing: border-box; width: 100%; }
+.admin-hero { border-bottom: 1px solid rgba(74, 115, 133, .22); }
+.admin-metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.admin-panel-heading { flex-wrap: wrap; }
+.admin-crm-command-center { margin-inline: clamp(16px, 3.2vw, 48px); border-radius: 18px; }
+.admin-crm-command-grid > button { min-height: 132px; }
+
+@media (max-width: 1050px) {
+  .admin-sidebar { width: 232px; }
+  .admin-content-wrapper > section { padding-inline: 24px; }
+  .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-hero { align-items: stretch; flex-direction: column; }
+  .admin-hero > aside { min-width: 0; text-align: left; }
+}
+
+@media (max-width: 720px) {
+  .admin-shell { display: block; }
+  .admin-sidebar { position: sticky; z-index: 30; top: 0; width: 100%; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .admin-sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
+  .admin-owner-lock { min-width: 0; padding: 8px 10px; }
+  .admin-sidebar-nav { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 6px; max-height: 132px; padding: 8px; overflow-x: auto; overflow-y: hidden; }
+  .admin-sidebar-nav button { min-height: 50px; padding: 9px 10px; }
+  .admin-sidebar-nav button strong { font-size: .74rem; }
+  .admin-sidebar-nav button small { font-size: .62rem; }
+  .admin-sidebar-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 8px; }
+  .admin-sidebar-footer button, .admin-sidebar-footer a { min-height: 34px; padding: 8px 7px; font-size: .64rem; text-align: center; }
+  .admin-sidebar-footer .admin-logout-btn { grid-column: 1 / -1; }
+  .admin-content-wrapper > section { padding: 22px 16px; }
+  .admin-hero { padding: 28px 16px 20px; }
+  .admin-hero h1 { font-size: clamp(2rem, 10vw, 3rem); }
+  .admin-metric-grid { grid-template-columns: 1fr; padding-inline: 16px; }
+  .admin-crm-command-center { margin-inline: 16px; }
+  .admin-crm-command-grid { grid-template-columns: 1fr; }
+  .admin-crm-command-grid > button { min-height: 104px; }
 }

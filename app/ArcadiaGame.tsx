@@ -61,7 +61,7 @@ import {
   type SupplyCrateOpening,
 } from "./supply-crate-rules";
 
-type ViewId =
+export type ViewId =
   | "mine"
   | "pools"
   | "conversion"
@@ -101,6 +101,7 @@ type ArcadiaGameProps = {
   isOwner: boolean;
   signOutPath: string;
   unreadSupportReplies: number;
+  initialView?: ViewId;
 };
 
 type GameApiResponse = {
@@ -141,6 +142,28 @@ const navigation: Array<{
     glyph: "C",
   },
 ];
+
+const viewPaths: Record<ViewId, string> = {
+  mine: "/sala",
+  pools: "/pools",
+  conversion: "/carteira",
+  inventory: "/inventario",
+  shop: "/loja",
+  games: "/minigames",
+  season: "/temporada",
+  leaderboard: "/ranking",
+  tasks: "/tarefas",
+  career: "/operador",
+};
+
+export function viewFromPath(pathname: string): ViewId | null {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  if (normalized === "/" || normalized === "/sala") return "mine";
+  const match = (Object.entries(viewPaths) as Array<[ViewId, string]>).find(
+    ([, path]) => path === normalized,
+  );
+  return match?.[0] ?? null;
+}
 
 const roomDefinitions: RoomDefinition[] = roomCatalog.map((room) => ({
   ...room,
@@ -269,8 +292,9 @@ export function ArcadiaGame({
   isOwner,
   signOutPath,
   unreadSupportReplies,
+  initialView = "mine",
 }: ArcadiaGameProps) {
-  const [activeView, setActiveView] = useState<ViewId>("mine");
+  const [activeView, setActiveView] = useState<ViewId>(initialView);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
@@ -326,6 +350,21 @@ export function ArcadiaGame({
   const [toast, setToast] = useState("");
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const lastBetaProfileKey = useRef("");
+
+  useEffect(() => {
+    const targetPath = viewPaths[activeView];
+    if (window.location.pathname !== "/" && window.location.pathname !== targetPath) {
+      window.history.replaceState({}, "", targetPath);
+    } else if (activeView !== "mine" && window.location.pathname !== targetPath) {
+      window.history.replaceState({}, "", targetPath);
+    }
+    const handlePopState = () => {
+      const nextView = viewFromPath(window.location.pathname);
+      if (nextView) setActiveView(nextView);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [activeView]);
 
   const selectedPool =
     pools.find((pool) => pool.id === selectedPoolId) ?? pools[0];
@@ -1791,7 +1830,11 @@ function EnergyCard({
           IR PARA LOJA
         </button>
       </div>
-      <p>O Tour do Arcade concede 1 bateria após validar os três jogos.</p>
+      <p>
+        Jogue uma partida em cada jogo do Tour — Packet Catch, Hash Match e
+        Circuit Rush. Uma vitória ou derrota validada conta; depois, resgate
+        1 bateria por ciclo de 24 horas.
+      </p>
     </div>
   );
 }

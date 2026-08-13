@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // Arcadia intentionally uses plain anchors for auth, API downloads and
+    // external callbacks; internal app routes are handled by the view router.
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
