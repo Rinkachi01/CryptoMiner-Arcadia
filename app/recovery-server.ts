@@ -4,7 +4,7 @@ import { ensureWalletSchema } from "./wallet-server.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_ARCHIVE_BYTES = 24 * 1024 * 1024;
-const ARCHIVE_SCHEMA_VERSION = "arcadia-recovery-v1";
+const ARCHIVE_SCHEMA_VERSION = "arcadia-recovery-v2";
 const PAGE_SIZE = 500;
 
 type BackupRow = Record<string, string | number | null>;
@@ -117,6 +117,7 @@ const requiredTables = [
   "season_snapshots",
   "season_daily_logins",
   "season_passes",
+  "season_pass_max",
   "season_reward_claims",
   "referral_codes",
   "referral_attributions",
@@ -168,6 +169,7 @@ const tableLimits: Record<(typeof requiredTables)[number], number> = {
   referral_codes: 10_000,
   season_daily_logins: 100_000,
   season_passes: 50_000,
+  season_pass_max: 50_000,
   season_reward_claims: 100_000,
   season_snapshots: 10_000,
   seasons: 1_000,

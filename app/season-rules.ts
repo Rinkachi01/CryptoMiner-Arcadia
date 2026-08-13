@@ -11,6 +11,24 @@ export const SPACE_RACE_LEVELS = 50;
 export const SPACE_RACE_PREMIUM_PRICE_CMA = 29;
 export const SPACE_RACE_PREMIUM_MAX_PRICE_CMA = 100;
 
+export function seasonPremiumMaxPriceCma(
+  level: number,
+  premiumUnlocked: boolean,
+) {
+  const normalizedLevel = Math.max(
+    1,
+    Math.min(SPACE_RACE_LEVELS, Math.floor(level || 1)),
+  );
+  const completedLevelDiscount = Math.floor((normalizedLevel - 1) * 1.42);
+  const premiumDiscount = premiumUnlocked ? SPACE_RACE_PREMIUM_PRICE_CMA : 0;
+  return Math.max(
+    1,
+    SPACE_RACE_PREMIUM_MAX_PRICE_CMA -
+      premiumDiscount -
+      completedLevelDiscount,
+  );
+}
+
 export const SEASON_LOGIN_XP = 50;
 export const SEASON_DAILY_LOGIN_XP = [20, 30, 40, 50, 60, 80, 100] as const;
 export const SEASON_GAME_XP = 20;

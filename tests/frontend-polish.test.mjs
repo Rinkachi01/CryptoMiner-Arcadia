@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("mantém os nove atalhos móveis em uma única faixa", async () => {
+test("mantém os dez atalhos móveis em uma única faixa", async () => {
   const [game, styles] = await Promise.all([
     readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -10,8 +10,8 @@ test("mantém os nove atalhos móveis em uma única faixa", async () => {
 
   const navigation = game.match(/const navigation:[\s\S]*?= \[([\s\S]*?)\n\];/);
   assert.ok(navigation, "lista principal de navegação não encontrada");
-  assert.equal((navigation[1].match(/id:/g) ?? []).length, 9);
-  assert.match(styles, /grid-template-columns:\s*repeat\(9, minmax\(78px, 1fr\)\)/);
+  assert.equal((navigation[1].match(/id:/g) ?? []).length, 10);
+  assert.match(styles, /grid-template-columns:\s*repeat\(10, minmax\(78px, 1fr\)\)/);
   assert.match(styles, /overflow-y:\s*hidden/);
   assert.match(styles, /\.sidebar\s*\{[\s\S]*?overflow-y:\s*auto/);
 });
@@ -38,11 +38,14 @@ test("central do proprietário separa publicação, depósitos e saques", async 
 
   assert.match(dashboard, /O que você precisa providenciar/);
   assert.match(dashboard, /DEPÓSITOS EM HOMOLOGAÇÃO/);
-  assert.match(dashboard, /DEPÓSITOS BTC \/ DOGE/);
+  assert.match(dashboard, /DEPÓSITOS BTC \/ DOGE \/ LTC/);
   assert.match(dashboard, /CMA não é sacável/);
   assert.match(dashboard, /FILA MANUAL DO PROPRIETÁRIO/i);
-  assert.match(dashboard, /admin-workspace-tabs/);
-  assert.match(dashboard, /type AdminSection = "overview" \| "economy" \| "treasury" \| "community" \| "operations"/);
+  assert.match(dashboard, /admin-sidebar-nav/);
+  assert.match(dashboard, /\| "season"/);
+  assert.match(dashboard, /Comando executivo/);
+  assert.match(dashboard, /CAPITAL OPERACIONAL DO FUNDADOR/);
+  assert.match(dashboard, /replenish-owner-wallet/);
   assert.match(dashboard, /hidden=\{adminSection !== "treasury"\}/);
 });
 

@@ -285,6 +285,57 @@ async function completeOwnerTestBalance(
   );
 }
 
+async function readOwnerOperatingBalance(
+  db: D1Database,
+  accountId: string,
+) {
+  const row = await db
+    .prepare("SELECT state_json FROM game_states WHERE account_id = ?")
+    .bind(accountId)
+    .first<Pick<OwnerStateRow, "state_json">>();
+  if (!row) return 0;
+  try {
+    const state = JSON.parse(row.state_json) as Partial<PublicGameState>;
+    const balance = Number(state.cmaBalance ?? 0);
+    return Number.isFinite(balance) ? Math.max(0, balance) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function readSeasonSalesSummary(
+  db: D1Database,
+  seasonId: string | null,
+) {
+  if (!seasonId) {
+    return { maxAccounts: 0, premiumAccounts: 0, revenueCma: 0 };
+  }
+  const [passes, maxPasses] = await Promise.all([
+    db
+      .prepare(
+        `SELECT COUNT(*) AS total,
+                COALESCE(SUM(cma_paid_micros), 0) AS revenue_micros
+         FROM season_passes
+         WHERE season_id = ? AND premium_unlocked = 1`,
+      )
+      .bind(seasonId)
+      .first<{ revenue_micros: number; total: number }>(),
+    db
+      .prepare(
+        `SELECT COUNT(*) AS total
+         FROM season_pass_max
+         WHERE season_id = ?`,
+      )
+      .bind(seasonId)
+      .first<{ total: number }>(),
+  ]);
+  return {
+    maxAccounts: Math.max(0, Number(maxPasses?.total ?? 0)),
+    premiumAccounts: Math.max(0, Number(passes?.total ?? 0)),
+    revenueCma: Math.max(0, Number(passes?.revenue_micros ?? 0)) / 1_000_000,
+  };
+}
+
 async function readAdminOverview(
   db: D1Database,
   now: number,
@@ -688,13 +739,19 @@ export async function GET(request: Request) {
     readAdminPixDeposits(context.db),
   ]);
   await ensureDefaultSeason(context.db, now);
-  const [season, seasonReport] = await Promise.all([
+  const [season, seasonReport, ownerBalanceCma] = await Promise.all([
     readSeasonOverview(context.db, context.accountId, now, true),
     readSeasonEconomicReport(context.db, now),
+    readOwnerOperatingBalance(context.db, context.accountId),
   ]);
+  const seasonSales = await readSeasonSalesSummary(
+    context.db,
+    season.season?.id ?? season.draft?.id ?? null,
+  );
   return json({
     owner: {
       claimedAt: context.owner?.created_at ?? now,
+      cmaBalance: ownerBalanceCma,
       displayName: context.user.displayName,
       email: context.user.email,
     },
@@ -710,6 +767,7 @@ export async function GET(request: Request) {
     ),
     settings,
     season,
+    seasonSales,
     seasonReport,
     network,
     feedback,
@@ -1219,6 +1277,42 @@ export async function POST(request: Request) {
             error instanceof Error
               ? error.message
               : "Não foi possível preparar o teste econômico.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (body?.action === "replenish-owner-wallet") {
+    try {
+      const grant = await completeOwnerTestBalance(
+        context.db,
+        context.accountId,
+        now,
+      );
+      await writeAdminAudit(
+        context.db,
+        context.accountId,
+        "owner_wallet_replenished",
+        {
+          grantedCma: grant.deltaCma,
+          ownerBalanceCma: grant.balanceCma,
+        },
+        now,
+      );
+      return json({
+        message:
+          grant.deltaCma > 0
+            ? `Reserva operacional: +${grant.deltaCma.toLocaleString("pt-BR")} CMA. Saldo atual: ${grant.balanceCma.toLocaleString("pt-BR")} CMA.`
+            : "A reserva operacional já possui 10.000 CMA ou mais.",
+      });
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível repor a reserva operacional.",
         },
         409,
       );

@@ -1,7 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const ARCADE_DIFFICULTY_MAX = 4;
-export const ARCADE_POWER_DAYS_BY_LEVEL = [0, 1, 3, 5, 7] as const;
+export const ARCADE_DIFFICULTY_MAX = 5;
+export const ARCADE_POWER_DAYS_BY_LEVEL = [0, 1, 2, 3, 5, 7] as const;
 
 export function normalizeArcadeDifficulty(value: number) {
   return Math.max(1, Math.min(ARCADE_DIFFICULTY_MAX, Math.floor(value || 1)));

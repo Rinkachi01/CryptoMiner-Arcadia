@@ -100,6 +100,8 @@ test("laboratório do proprietário é limitado, reversível e auditado", async 
   assert.match(route, /OWNER_TEST_BALANCE_CMA = 10_000/);
   assert.match(route, /admin_test_cma_grant/);
   assert.match(route, /economic_test_prepared/);
+  assert.match(route, /owner_wallet_replenished/);
+  assert.match(route, /replenish-owner-wallet/);
   assert.match(route, /set-block-budget/);
   assert.match(route, /start-block-bonus/);
   assert.match(route, /blockRewardBounds/);

@@ -19364,7 +19364,7 @@ body {
 
   .mobile-nav {
     height: calc(72px + env(safe-area-inset-bottom));
-    grid-template-columns: repeat(9, minmax(78px, 1fr));
+    grid-template-columns: repeat(10, minmax(78px, 1fr));
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: env(safe-area-inset-bottom);
@@ -22678,6 +22678,275 @@ body {
 
 .admin-sidebar-footer .admin-logout-btn {
   color: var(--danger);
+}
+
+/* Founder CRM and authoritative Season Pass Max */
+.admin-crm-command-center {
+  overflow: hidden;
+}
+
+.admin-crm-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-crm-command-grid > button {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 16px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 90% 0%, rgba(136, 255, 68, 0.1), transparent 44%),
+    rgba(6, 15, 25, 0.78);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.admin-crm-command-grid > button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(136, 255, 68, 0.48);
+  background-color: rgba(9, 23, 34, 0.94);
+}
+
+.admin-crm-command-grid span,
+.admin-crm-command-grid small {
+  display: block;
+  color: var(--muted);
+  font: 700 0.72rem/1.35 var(--font-ui);
+  letter-spacing: 0.08em;
+}
+
+.admin-crm-command-grid strong {
+  display: block;
+  margin: 10px 0 7px;
+  color: var(--lime);
+  font: 850 clamp(1.05rem, 2vw, 1.55rem)/1 var(--font-ui);
+}
+
+.admin-owner-reserve {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+  align-items: center;
+  gap: 22px;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(179, 120, 255, 0.14), transparent 38%),
+    linear-gradient(135deg, rgba(8, 22, 32, 0.96), rgba(9, 13, 24, 0.96));
+}
+
+.admin-owner-reserve > div > span,
+.admin-owner-reserve aside > small {
+  color: #8edcff;
+  font: 800 0.72rem/1.2 var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.admin-owner-reserve h2 {
+  margin: 8px 0;
+}
+
+.admin-owner-reserve p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-owner-reserve aside {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(179, 120, 255, 0.28);
+  border-radius: 16px;
+  background: rgba(8, 11, 21, 0.72);
+}
+
+.admin-owner-reserve aside strong {
+  color: #d8b7ff;
+  font: 900 clamp(1.35rem, 3vw, 2rem)/1 var(--font-ui);
+}
+
+.admin-owner-reserve aside button {
+  width: 100%;
+}
+
+.admin-season-business-metrics {
+  display: grid;
+  margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-season-business-metrics > article {
+  padding: 15px;
+  border: 1px solid rgba(107, 145, 166, 0.2);
+  border-radius: 13px;
+  background: rgba(3, 12, 20, 0.68);
+}
+
+.admin-season-business-metrics span,
+.admin-season-business-metrics small {
+  display: block;
+  color: var(--muted);
+  font: 750 0.69rem/1.35 var(--font-ui);
+  letter-spacing: 0.07em;
+}
+
+.admin-season-business-metrics strong {
+  display: block;
+  margin: 8px 0 5px;
+  color: #d9b8ff;
+  font: 900 1.25rem/1 var(--font-ui);
+}
+
+.season-pass-purchase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.season-max-owned {
+  padding: 9px 12px;
+  border: 1px solid rgba(210, 170, 255, 0.52);
+  border-radius: 999px;
+  color: #e1c7ff;
+  background: rgba(126, 66, 170, 0.2);
+  box-shadow: 0 0 22px rgba(177, 103, 255, 0.12);
+  font: 850 0.72rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+}
+
+.season-reward-grid article.premium.unlocked:has(button:not(:disabled)) {
+  box-shadow: inset 0 0 0 1px rgba(210, 170, 255, 0.16), 0 12px 32px rgba(68, 25, 102, 0.18);
+}
+
+.season-community-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: 14px;
+}
+
+.season-community-grid > article {
+  padding: 20px;
+  border: 1px solid rgba(87, 133, 157, 0.28);
+  border-radius: 18px;
+  background: rgba(5, 14, 23, 0.82);
+}
+
+.season-community-grid article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.season-community-grid header span,
+.season-community-grid header small,
+.season-giveaway-card > div span {
+  color: var(--cyan);
+  font: 800 0.68rem/1.25 var(--font-ui);
+  letter-spacing: 0.1em;
+}
+
+.season-community-grid h4 {
+  margin: 6px 0 0;
+}
+
+.season-ranking-card ol {
+  display: grid;
+  margin: 16px 0 0;
+  padding: 0;
+  gap: 7px;
+  list-style: none;
+}
+
+.season-ranking-card li {
+  display: grid;
+  min-height: 44px;
+  padding: 9px 11px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(93, 127, 145, 0.18);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.season-ranking-card li b {
+  color: var(--lime);
+}
+
+.season-ranking-card li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.season-ranking-card li strong {
+  color: #d9e8ef;
+  font-size: 0.8rem;
+}
+
+.season-giveaway-card {
+  background:
+    radial-gradient(circle at 90% 12%, rgba(54, 216, 242, 0.13), transparent 42%),
+    rgba(5, 14, 23, 0.88) !important;
+}
+
+.season-giveaway-card p {
+  margin: 18px 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.season-giveaway-card > div {
+  display: grid;
+  padding: 14px;
+  border: 1px solid rgba(54, 216, 242, 0.24);
+  border-radius: 12px;
+  gap: 6px;
+}
+
+.season-giveaway-card > div strong {
+  color: #e5f6fb;
+}
+
+@media (max-width: 1080px) {
+  .admin-crm-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-owner-reserve {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-season-business-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .season-community-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .admin-crm-command-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .season-pass-purchase-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .season-pass-purchase-actions > button,
+  .season-pass-purchase-actions > strong {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .admin-content-wrapper {

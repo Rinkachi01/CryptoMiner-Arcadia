@@ -64,8 +64,12 @@ export async function POST(request: Request) {
       const isMax = body?.action === "buy-premium-max";
       const result = await purchaseSeasonPremium(env.DB, accountId, now, isMax);
       message = result.alreadyOwned
-        ? "A trilha premium já pertence à sua conta."
-        : `Trilha premium liberada por ${result.priceCma} CMA.`;
+        ? isMax
+          ? "O Orbit Pass Max já pertence à sua conta."
+          : "A trilha Premium já pertence à sua conta."
+        : isMax
+          ? `Orbit Pass Max ativado por ${result.priceCma} CMA. Todas as recompensas Premium foram liberadas para resgate.`
+          : `Trilha Premium liberada por ${result.priceCma} CMA.`;
     } else if (
       body?.action === "claim-reward" &&
       (body.track === "free" || body.track === "premium") &&

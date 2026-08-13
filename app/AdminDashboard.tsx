@@ -225,6 +225,7 @@ type AdminOverview = {
   network: NetworkPowerSnapshot;
   owner: {
     claimedAt: number;
+    cmaBalance: number;
     displayName: string;
     email: string;
   };
@@ -279,6 +280,11 @@ type AdminOverview = {
     season: PublicSeason | null;
     snapshots: SeasonSnapshot[];
   };
+  seasonSales: {
+    maxAccounts: number;
+    premiumAccounts: number;
+    revenueCma: number;
+  };
   seasonReport: SeasonEconomicReport | null;
   settings: AdminRuntimeSettings;
   suspiciousSessions: Array<{
@@ -319,7 +325,14 @@ type AdminUserSearchResult = {
   roomCount: number;
   updatedAt: number;
 };
-type AdminSection = "overview" | "economy" | "treasury" | "support" | "players" | "operations";
+type AdminSection =
+  | "overview"
+  | "treasury"
+  | "season"
+  | "support"
+  | "economy"
+  | "players"
+  | "operations";
 
 const adminSections: Array<{
   id: AdminSection;
@@ -328,6 +341,7 @@ const adminSections: Array<{
 }> = [
   { id: "overview", label: "Cockpit", description: "Visão geral e Alertas" },
   { id: "treasury", label: "Tesouraria", description: "Fluxo de caixa" },
+  { id: "season", label: "Temporada", description: "Passe, XP e resultados" },
   { id: "support", label: "Suporte (CRM)", description: "Atendimento aos jogadores" },
   { id: "economy", label: "Economia", description: "Pools e emissão" },
   { id: "players", label: "Jogadores", description: "Retenção e feedback" },
@@ -885,6 +899,13 @@ export function AdminDashboard({
         </nav>
 
         <nav className="admin-sidebar-footer">
+          <button
+            aria-label={`Tamanho do texto: ${textScale}`}
+            type="button"
+            onClick={cycleTextScale}
+          >
+            TAMANHO DO TEXTO · {textScale === "comfortable" ? "PADRÃO" : textScale === "large" ? "GRANDE" : "EXTRA"}
+          </button>
           <button type="button" onClick={() => void loadOverview()}>ATUALIZAR DADOS</button>
           <a href="/api/admin/export" download>EXPORTAR CSV</a>
           <a href="/admin/transfer">MIGRAR CONTA</a>
@@ -949,6 +970,38 @@ export function AdminDashboard({
           <strong>{formatNumber(overview.metrics.batteryClaims24h)}</strong>
           <small>{overview.inventory.playersWithEnergy} contas energizadas</small>
         </article>
+      </section>
+
+      <section className="admin-panel admin-crm-command-center" hidden={adminSection !== "overview"}>
+        <div className="admin-panel-heading">
+          <div>
+            <span>GESTÃO DO NEGÓCIO</span>
+            <h2>Comando executivo</h2>
+          </div>
+          <small>FINANÇAS · CLIENTES · TEMPORADA · RISCO</small>
+        </div>
+        <div className="admin-crm-command-grid">
+          <button type="button" onClick={() => setAdminSection("treasury")}>
+            <span>FINANCEIRO</span>
+            <strong>{formatCma(overview.treasury.depositsCma - overview.treasury.withdrawalsCma)}</strong>
+            <small>fluxo líquido registrado</small>
+          </button>
+          <button type="button" onClick={() => setAdminSection("season")}>
+            <span>TEMPORADA</span>
+            <strong>{overview.season.season?.status === "active" ? "ATIVA" : "AGUARDANDO"}</strong>
+            <small>{overview.season.leaderboard.length} operador(es) ranqueado(s)</small>
+          </button>
+          <button type="button" onClick={() => setAdminSection("support")}>
+            <span>RELACIONAMENTO</span>
+            <strong>{overview.support.statusCounts.open + overview.support.statusCounts.reviewing}</strong>
+            <small>atendimentos em andamento</small>
+          </button>
+          <button type="button" onClick={() => setAdminSection("operations")}>
+            <span>OPERAÇÕES</span>
+            <strong>{overview.operations.status === "stable" ? "SAUDÁVEL" : "ATENÇÃO"}</strong>
+            <small>{activeAlertCount} alerta(s) econômico(s)</small>
+          </button>
+        </div>
       </section>
 
       <section className="admin-panel admin-launch-readiness" hidden={adminSection !== "overview"}>
@@ -1967,6 +2020,42 @@ export function AdminDashboard({
         </article>
       </section>
 
+      <section className="admin-panel admin-owner-reserve" hidden={adminSection !== "treasury"}>
+        <div>
+          <span>CAPITAL OPERACIONAL DO FUNDADOR</span>
+          <h2>Reserva interna para operação da rede</h2>
+          <p>
+            Este saldo CMA serve para compras e testes operacionais da conta fundadora.
+            A reposição fica registrada e não cria BTC, DOGE, LTC ou saldo sacável.
+          </p>
+        </div>
+        <aside>
+          <small>SALDO DA CONTA FUNDADORA</small>
+          <strong>{formatCma(overview.owner.cmaBalance)}</strong>
+          <button
+            type="button"
+            disabled={Boolean(busyAction) || overview.owner.cmaBalance >= 10_000}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Repor a reserva interna da conta fundadora até 10.000 CMA? A operação será auditada.",
+                )
+              ) {
+                void runAdminAction("replenish-owner-wallet", {
+                  action: "replenish-owner-wallet",
+                });
+              }
+            }}
+          >
+            {busyAction === "replenish-owner-wallet"
+              ? "REPROCESSANDO…"
+              : overview.owner.cmaBalance >= 10_000
+                ? "RESERVA COMPLETA"
+                : "REPOR ATÉ 10.000 CMA"}
+          </button>
+        </aside>
+      </section>
+
       <section className="admin-panel admin-pix-exception-panel" hidden={adminSection !== "treasury"} id="pix-exceptions">
         <div className="admin-panel-heading">
           <div>
@@ -2429,7 +2518,7 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-layout" hidden={adminSection !== "operations"}>
+      <section className="admin-layout admin-season-workspace" hidden={adminSection !== "season"}>
         <div className="admin-main-column">
           <section className="admin-panel admin-season-panel">
             <div className="admin-panel-heading">
@@ -2438,6 +2527,24 @@ export function AdminDashboard({
                 <h2>Temporadas e snapshots</h2>
               </div>
               <small>CONTROLE DO FUNDADOR</small>
+            </div>
+
+            <div className="admin-season-business-metrics">
+              <article>
+                <span>PASSES PREMIUM</span>
+                <strong>{formatNumber(overview.seasonSales.premiumAccounts)}</strong>
+                <small>contas com trilha paga</small>
+              </article>
+              <article>
+                <span>UPGRADES MAX</span>
+                <strong>{formatNumber(overview.seasonSales.maxAccounts)}</strong>
+                <small>trilhas completas liberadas</small>
+              </article>
+              <article>
+                <span>RECEITA DA TEMPORADA</span>
+                <strong>{formatCma(overview.seasonSales.revenueCma)}</strong>
+                <small>compras registradas no ledger</small>
+              </article>
             </div>
 
             {overview.season.draft && (
@@ -2829,6 +2936,12 @@ export function AdminDashboard({
               </div>
             )}
           </section>
+
+        </div>
+      </section>
+
+      <section className="admin-layout" hidden={adminSection !== "operations"}>
+        <div className="admin-main-column">
 
           <section className="admin-panel admin-operations-panel">
             <div className="admin-panel-heading">

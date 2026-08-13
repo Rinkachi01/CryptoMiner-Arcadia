@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  seasonPremiumMaxPriceCma,
   seasonXpRequiredForLevel,
   spaceRaceRewards,
   type SeasonReward,
@@ -33,12 +34,6 @@ function remainingLabel(endsAt: number, now: number) {
   const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
   const hours = Math.floor((remaining / (60 * 60 * 1000)) % 24);
   return days > 0 ? `${days}d ${hours}h restantes` : `${hours}h restantes`;
-}
-
-function formatPower(powerGh: number) {
-  if (powerGh >= 1_000_000) return `${(powerGh / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} PH/s`;
-  if (powerGh >= 1_000) return `${(powerGh / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} TH/s`;
-  return `${powerGh.toLocaleString("pt-BR")} GH/s`;
 }
 
 export function SeasonPanel({
@@ -171,6 +166,7 @@ export function SeasonPanel({
   const progress: SeasonPlayerProgress = data.playerProgress ?? {
     claimedRewardKeys: [],
     level: 1,
+    maxUnlocked: false,
     nextLevelXp: seasonXpRequiredForLevel(2),
     premiumUnlocked: false,
     dailyLogin: {
@@ -256,9 +252,11 @@ export function SeasonPanel({
       <section className="season-track-card">
         <header>
           <div><span>TRILHA DE RECOMPENSAS</span><h4>Gratuita + Premium</h4></div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div className="season-pass-purchase-actions">
             {error && <span style={{ color: "#ef4444", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right", lineHeight: 1.2 }}>{error}</span>}
-            {progress.premiumUnlocked ? (
+            {progress.maxUnlocked ? (
+              <strong className="season-max-owned">ORBIT PASS MAX ATIVO</strong>
+            ) : progress.premiumUnlocked ? (
               <strong className="season-premium-owned">PREMIUM LIBERADO</strong>
             ) : (
               <button
@@ -270,12 +268,11 @@ export function SeasonPanel({
                 {`BÁSICO · ${season.premiumPriceCma} CMA`}
               </button>
             )}
-            {progress.level < 50 && (() => {
-              const premiumDiscount = progress.premiumUnlocked ? season.premiumPriceCma : 0;
-              const levelDiscount = (progress.level - 1) * 1.42;
-              const calcPrice = season.premiumMaxPriceCma - premiumDiscount - levelDiscount;
-              const dynamicPrice = Math.max(0, Math.floor(calcPrice));
-              
+            {!progress.maxUnlocked && (() => {
+              const dynamicPrice = seasonPremiumMaxPriceCma(
+                progress.level,
+                progress.premiumUnlocked,
+              );
               return (
                 <button
                   type="button"
@@ -285,7 +282,7 @@ export function SeasonPanel({
                 >
                   {progress.premiumUnlocked
                     ? `UPGRADE MAX · ${dynamicPrice} CMA`
-                    : `MAX (DESBLOQUEIO TOTAL) · ${dynamicPrice} CMA`}
+                    : `MAX · TRILHA COMPLETA · ${dynamicPrice} CMA`}
                 </button>
               );
             })()}
@@ -302,8 +299,13 @@ export function SeasonPanel({
                 {rewards.filter((reward) => reward.track === track).map((reward) => {
                   const key = `${reward.track}:${reward.level}`;
                   const claimed = progress.claimedRewardKeys?.includes(key) ?? false;
-                  const unlocked = (progress.level || 1) >= reward.level;
-                  const premiumBlocked = reward.track === "premium" && !progress.premiumUnlocked;
+                  const unlocked =
+                    (progress.level || 1) >= reward.level ||
+                    (reward.track === "premium" && progress.maxUnlocked);
+                  const premiumBlocked =
+                    reward.track === "premium" &&
+                    !progress.premiumUnlocked &&
+                    !progress.maxUnlocked;
                   return (
                     <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
                       <span>NÍVEL {reward.level}</span>
@@ -316,7 +318,15 @@ export function SeasonPanel({
                         disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
                         onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
                       >
-                        {claimed ? "RESGATADO" : premiumBlocked ? "PREMIUM" : unlocked ? "RESGATAR" : `NÍVEL ${reward.level}`}
+                        {claimed
+                          ? "RESGATADO"
+                          : premiumBlocked
+                            ? "PREMIUM"
+                            : unlocked
+                              ? progress.maxUnlocked && reward.track === "premium" && progress.level < reward.level
+                                ? "RESGATAR · MAX"
+                                : "RESGATAR"
+                              : `NÍVEL ${reward.level}`}
                       </button>
                     </article>
                   );
@@ -325,6 +335,40 @@ export function SeasonPanel({
             </section>
           ))}
         </div>
+      </section>
+
+      <section className="season-community-grid">
+        <article className="season-ranking-card">
+          <header>
+            <div><span>RANKING DE XP</span><h4>Operadores da temporada</h4></div>
+            <small>{data.currentPlayer ? `SUA POSIÇÃO · #${data.currentPlayer.rank}` : "ENTRE JOGANDO"}</small>
+          </header>
+          <ol>
+            {data.leaderboard.length === 0 ? (
+              <li className="empty">O ranking começa na primeira atividade validada.</li>
+            ) : data.leaderboard.slice(0, 5).map((entry) => (
+              <li key={entry.accountId}>
+                <b>{String(entry.rank).padStart(2, "0")}</b>
+                <span>{entry.displayName}</span>
+                <strong>{entry.score.toLocaleString("pt-BR")} XP</strong>
+              </li>
+            ))}
+          </ol>
+        </article>
+        <article className="season-giveaway-card">
+          <header>
+            <div><span>GIVEAWAYS SEMANAIS</span><h4>Sorteios da comunidade</h4></div>
+            <small>SEM ALTERAR BLOCOS</small>
+          </header>
+          <p>
+            Participações futuras serão vinculadas à atividade legítima da semana.
+            Nenhum sorteio aumenta a emissão de CMA, BTC, DOGE ou LTC.
+          </p>
+          <div>
+            <span>PRÓXIMA JANELA</span>
+            <strong>DOMINGO · 23:59 UTC</strong>
+          </div>
+        </article>
       </section>
 
 

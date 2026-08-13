@@ -6,6 +6,7 @@ import {
   compareSeasonSnapshots,
   normalizeSeasonDurationDays,
   seasonLevelForXp,
+  seasonPremiumMaxPriceCma,
   seasonProgressPercent,
   seasonXpRequiredForLevel,
   SPACE_RACE_DURATION_DAYS,
@@ -73,12 +74,33 @@ test("Corrida Espacial tem 120 dias, 50 níveis e folga de XP", () => {
   assert.equal(seasonXpRequiredForLevel(50), 12_250);
   assert.equal(seasonLevelForXp(12_249), 49);
   assert.equal(seasonLevelForXp(12_250), 50);
+  assert.equal(seasonPremiumMaxPriceCma(1, false), 100);
+  assert.equal(seasonPremiumMaxPriceCma(1, true), 71);
+  assert.equal(seasonPremiumMaxPriceCma(50, true), 2);
   assert.equal(spaceRaceRewards.some((item) => item.track === "free"), true);
   assert.equal(spaceRaceRewards.some((item) => item.track === "premium"), true);
   assert.equal(
     spaceRaceRewards.filter((item) => item.reward.type === "miner").length,
     8,
   );
+});
+
+test("Orbit Pass Max tem posse própria e libera a trilha sem fabricar XP", async () => {
+  const [server, route, panel, recovery] = await Promise.all([
+    readFile(new URL("../app/season-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/season/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/SeasonPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/recovery-server.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /CREATE TABLE IF NOT EXISTS season_pass_max/);
+  assert.match(server, /maxUnlocked: Boolean\(maxPass\)/);
+  assert.match(server, /progress\.maxUnlocked/);
+  assert.doesNotMatch(server, /xpToGrant/);
+  assert.match(server, /quest_id != 'buy-premium-max'/);
+  assert.match(route, /Orbit Pass Max ativado/);
+  assert.match(panel, /ORBIT PASS MAX ATIVO/);
+  assert.match(panel, /RESGATAR · MAX/);
+  assert.match(recovery, /"season_pass_max"/);
 });
 
 test("temporadas e snapshots são persistentes e administrados pelo proprietário", async () => {

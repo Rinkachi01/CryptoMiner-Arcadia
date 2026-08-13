@@ -711,6 +711,24 @@ export const seasonPasses = sqliteTable(
   ],
 );
 
+export const seasonPassMax = sqliteTable(
+  "season_pass_max",
+  {
+    seasonId: text("season_id").notNull(),
+    accountId: text("account_id").notNull(),
+    cmaPaidMicros: integer("cma_paid_micros").notNull(),
+    purchasedAt: integer("purchased_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("season_pass_max_season_account_unique").on(
+      table.seasonId,
+      table.accountId,
+    ),
+    index("season_pass_max_account_idx").on(table.accountId),
+  ],
+);
+
 export const seasonRewardClaims = sqliteTable(
   "season_reward_claims",
   {

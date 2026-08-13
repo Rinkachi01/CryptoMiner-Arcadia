@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crypto-miner-arcadia",
   "main": "dist/server/index.js",
-  "compatibility_date": "2026-08-11",
+  "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "assets": {
