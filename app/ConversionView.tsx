@@ -280,6 +280,7 @@ function formatCma(value: number) {
 }
 
 function formatCryptoAtomic(value: number, digits = 8) {
+  if (typeof value !== "number" || Number.isNaN(value)) value = 0;
   return (value / 100_000_000).toLocaleString("pt-BR", {
     maximumFractionDigits: digits,
     minimumFractionDigits: 0,

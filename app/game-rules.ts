@@ -414,7 +414,7 @@ export function calculateEstimatedReward(
   pool: MiningPool,
   playerPowerGh: number,
   liveNetworkPowerGh = pool.networkPowerGh,
-  blockRewardAtomic = pool.rewardAtomic,
+  blockRewardAtomic: bigint = BigInt(pool.rewardAtomic),
   blockCount = 1,
 ) {
   const activeNetworkPowerGh = Math.max(0, Math.floor(liveNetworkPowerGh));
@@ -428,11 +428,12 @@ export function calculateEstimatedReward(
   ) {
     return 0n;
   }
+  // Convert power to kH/s for precision in BigInt calculation
+  const playerPowerKh = BigInt(Math.floor(playerPowerGh * 1_000_000));
+  const networkPowerKh = BigInt(Math.floor(activeNetworkPowerGh * 1_000_000));
+  
   return (
-    (blockRewardAtomic *
-      BigInt(safeBlockCount) *
-      BigInt(Math.floor(playerPowerGh))) /
-    BigInt(activeNetworkPowerGh)
+    (blockRewardAtomic * BigInt(safeBlockCount) * playerPowerKh) / networkPowerKh
   );
 }
 

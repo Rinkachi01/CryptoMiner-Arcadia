@@ -715,19 +715,19 @@ export function ArcadiaGame({
   }> = [
     {
       symbol: "CMA",
-      value: formatCma(cmaBalance),
+      value: formatCma(cmaBalance ?? 0),
       asset: assetsManifest.cmaCoin.path,
       alt: assetsManifest.cmaCoin.alt,
     },
     {
       symbol: "BTC",
-      value: (btcBalanceAtomic / 100_000_000).toFixed(8),
+      value: ((btcBalanceAtomic ?? 0) / 100_000_000).toFixed(8),
       asset: assetsManifest.bitcoin.path,
       alt: assetsManifest.bitcoin.alt,
     },
     {
       symbol: "DOGE",
-      value: (dogeBalanceAtomic / 100_000_000).toLocaleString("pt-BR", {
+      value: ((dogeBalanceAtomic ?? 0) / 100_000_000).toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 8,
       }),
@@ -736,7 +736,7 @@ export function ArcadiaGame({
     },
     {
       symbol: "LTC",
-      value: (ltcBalanceAtomic / 100_000_000).toLocaleString("pt-BR", {
+      value: ((ltcBalanceAtomic ?? 0) / 100_000_000).toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 8,
       }),
@@ -1609,7 +1609,7 @@ function MiningRoom({
           </div>
           <div className="allocation-summary-list">
             {pools.map((pool) => {
-              const allocation = poolAllocations[pool.id];
+              const allocation = poolAllocations[pool.id] ?? 0;
               return (
                 <div key={pool.id}>
                   <img src={pool.asset} alt="" />
@@ -1617,7 +1617,7 @@ function MiningRoom({
                   <b>{allocation}%</b>
                   <small>
                     {formatPower(
-                      Math.floor((effectivePower * allocation) / 100),
+                      (effectivePower * allocation) / 100
                     )}
                   </small>
                 </div>
@@ -1649,9 +1649,7 @@ function MiningRoom({
           <div className="reward-split-list">
             {pools.map((pool) => {
               const allocation = poolAllocations[pool.id] ?? 0;
-              const allocatedPower = Math.floor(
-                (effectivePower * allocation) / 100,
-              );
+              const allocatedPower = (effectivePower * allocation) / 100;
               const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
               const activeNetworkPowerGh = network.playerPowerGh[pool.id] ?? 0;
               const safeBlockCount = 1;

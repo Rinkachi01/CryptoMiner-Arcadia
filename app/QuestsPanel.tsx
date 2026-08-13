@@ -76,7 +76,7 @@ export function QuestsPanel({
     );
   }
 
-  const activeQuests = (activeTab === "daily" ? quests.daily : quests.weekly) || [];
+  const activeQuests = (activeTab === "daily" ? quests?.daily : quests?.weekly) || [];
   
   // Calculate cycle key based on current time (rough client-side approximation for passing back, server will validate)
   const now = Date.now();
@@ -117,12 +117,13 @@ export function QuestsPanel({
       )}
 
       <div className="quests-list">
-        {activeQuests.map((q) => {
-          const { quest, progress, completed, claimed } = q;
-          const percent = Math.min(100, Math.round((progress / quest.requirement) * 100));
+        {activeQuests.map((q, idx) => {
+          const { quest, progress, completed, claimed } = q || {};
+          if (!quest) return null;
+          const percent = Math.min(100, Math.round(((progress || 0) / (quest.requirement || 1)) * 100));
           
           return (
-            <article key={quest.id} className={`quest-card ${claimed ? "claimed" : completed ? "completed" : ""}`}>
+            <article key={quest.id || idx} className={`quest-card ${claimed ? "claimed" : completed ? "completed" : ""}`}>
               <div className="quest-info">
                 <h3>{quest.title}</h3>
                 <div className="progress-bar-container">
@@ -130,7 +131,7 @@ export function QuestsPanel({
                     <div className="progress-fill" style={{ width: `${percent}%` }} />
                   </div>
                   <span className="progress-text">
-                    {progress} / {quest.requirement}
+                    {progress || 0} / {quest.requirement}
                   </span>
                 </div>
               </div>

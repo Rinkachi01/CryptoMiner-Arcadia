@@ -398,9 +398,7 @@ export function settleMiningBlocks(
       getInstalledPower(allInstalled) + Math.max(0, temporaryPowerGh);
 
     for (const pool of pools) {
-      const allocatedPower = Math.floor(
-        (installedPower * next.poolAllocations[pool.id]) / 100,
-      );
+      const allocatedPower = (installedPower * next.poolAllocations[pool.id]) / 100;
       const rewardAtomic =
         calculateEstimatedReward(
           pool,
