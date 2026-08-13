@@ -16,6 +16,7 @@ import { gameCoins, type GameCoinId } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { PlaysCounter } from "./PlaysCounter";
 import { DropNotification } from "./DropNotification";
+import type { GameDropValue } from "./drop-types";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type CoinLinkSession = {
@@ -139,7 +140,7 @@ export function CoinLinkView({
           limits?: Limits;
           message?: string;
           error?: string;
-          drop?: any;
+          drop?: GameDropValue;
         };
         if (!response.ok) throw new Error(data.error ?? "Combinação recusada.");
         setScore(data.score ?? scoreRef.current);

@@ -2,17 +2,23 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
+import type { GameDropValue } from "./drop-types";
 
-export function DropNotification({ dropAmount }: { dropAmount: { type: string, quantity: number } | number | null }) {
+export function DropNotification({ dropAmount }: { dropAmount: GameDropValue }) {
   const [isVisible, setIsVisible] = useState(false);
   const qty = typeof dropAmount === "number" ? dropAmount : dropAmount?.quantity;
 
   useEffect(() => {
     if (qty && qty > 0) {
-      setIsVisible(true);
-      const timer = setTimeout(() => setIsVisible(false), 5000);
-      return () => clearTimeout(timer);
+      const showTimer = setTimeout(() => setIsVisible(true), 0);
+      const hideTimer = setTimeout(() => setIsVisible(false), 5000);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
+    const hideTimer = setTimeout(() => setIsVisible(false), 0);
+    return () => clearTimeout(hideTimer);
   }, [qty]);
 
   return (

@@ -59,7 +59,7 @@ export async function GET() {
       generatedAt: now,
       leaderboard,
     });
-  } catch (error) {
+  } catch {
     return Response.json({ error: "Não foi possível carregar o ranking." }, { status: 500 });
   }
 }

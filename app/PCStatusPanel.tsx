@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
 import { type GameSummaryResult } from "./api/games/summary/route";
-import { assetsManifest } from "./assets.manifest";
 import { ARCADE_POWER_DAYS_BY_LEVEL } from "./arcade-progression-rules";
 
 export function PCStatusPanel({

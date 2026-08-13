@@ -14,6 +14,7 @@ export function QuestsPanel({
   const [data, setData] = useState<{
     playerProgress: SeasonPlayerProgress | null;
     season: PublicSeason | null;
+    serverTime: number;
   } | null>(null);
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
@@ -25,7 +26,12 @@ export function QuestsPanel({
       .then((res) => res.json())
       .then((result: unknown) => {
         if (!controller.signal.aborted) {
-          setData(result as SeasonResponse);
+          const payload = result as SeasonResponse;
+          setData({
+            playerProgress: payload.playerProgress,
+            season: payload.season,
+            serverTime: payload.serverTime,
+          });
         }
       })
       .catch(() => {});
@@ -45,7 +51,10 @@ export function QuestsPanel({
           cycleKey,
         }),
       });
-      const result: any = await response.json();
+      const result = (await response.json()) as SeasonResponse & {
+        error?: string;
+        message?: string;
+      };
       if (response.ok) {
         setMessage(result.message ?? "Quest concluída!");
         setData(result);
@@ -79,8 +88,8 @@ export function QuestsPanel({
 
   const activeQuests = (activeTab === "daily" ? quests?.daily : quests?.weekly) || [];
   
-  // Calculate cycle key based on current time (rough client-side approximation for passing back, server will validate)
-  const now = Date.now();
+  // Use the server clock returned with the season payload to avoid client drift.
+  const now = data.serverTime;
   const DAY_MS = 24 * 60 * 60 * 1000;
   const cycleKey = activeTab === "daily" 
     ? `daily_${Math.floor(now / DAY_MS)}` 

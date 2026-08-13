@@ -9,6 +9,7 @@ import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { PlaysCounter } from "./PlaysCounter";
 import { DropNotification } from "./DropNotification";
+import type { GameDropValue } from "./drop-types";
 
 type Limits = { hourRemaining: number; dayRemaining: number };
 type Reveal = {
@@ -200,7 +201,7 @@ export function HashMatchView({
         nextPlayAt?: number;
         message?: string;
         error?: string;
-        drop?: any;
+        drop?: GameDropValue;
       };
       if (!response.ok) throw new Error(data.error ?? "Carta recusada.");
       const reveals = data.reveals ?? [];

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   seasonPremiumMaxPriceCma,
   seasonXpRequiredForLevel,
+  isSeasonRewardUnlocked,
+  isSeasonTrackUnlocked,
   spaceRaceRewards,
   type SeasonReward,
 } from "./season-rules";
@@ -218,6 +220,14 @@ export function SeasonPanel({
         <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
       </div>
 
+      <aside className="season-energy-guide" aria-label="Energia e poder temporário da temporada">
+        <div>
+          <span>ENERGIA DA TEMPORADA</span>
+          <strong>Dois recursos, duas regras</strong>
+        </div>
+        <p><b>Baterias</b> entram no inventário e seguem o ciclo normal da sala. <b>Poder temporário</b> começa no resgate e expira em 1, 3 ou 7 dias; ele não cria baterias nem altera o XP.</p>
+      </aside>
+
       <section className="season-daily-login">
         <header>
           <div><span>LOGIN DIÁRIO</span><h4>Resgate seu XP</h4></div>
@@ -299,20 +309,23 @@ export function SeasonPanel({
                 {rewards.filter((reward) => reward.track === track).map((reward) => {
                   const key = `${reward.track}:${reward.level}`;
                   const claimed = progress.claimedRewardKeys?.includes(key) ?? false;
-                  const unlocked =
-                    (progress.level || 1) >= reward.level ||
-                    (reward.track === "premium" && progress.maxUnlocked);
-                  const premiumBlocked =
-                    reward.track === "premium" &&
-                    !progress.premiumUnlocked &&
-                    !progress.maxUnlocked;
+                  const unlocked = isSeasonRewardUnlocked(
+                    progress.level || 1,
+                    reward.level,
+                    progress.maxUnlocked,
+                  );
+                  const premiumBlocked = !isSeasonTrackUnlocked(
+                    reward.track,
+                    progress.premiumUnlocked,
+                    progress.maxUnlocked,
+                  );
                   return (
                     <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
                       <span>NÍVEL {reward.level}</span>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={reward.asset} alt="" />
                       <strong>{reward.title}</strong>
-                      <small>{reward.reward.type === "miner" ? "MINERADOR" : reward.reward.type === "battery" ? "BATERIA" : "ENERGIA TEMPORÁRIA"}</small>
+                      <small>{reward.reward.type === "miner" ? "MINERADOR" : reward.reward.type === "battery" ? "BATERIA" : "PODER TEMPORÁRIO"}</small>
                       <button
                         type="button"
                         disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
@@ -323,7 +336,7 @@ export function SeasonPanel({
                           : premiumBlocked
                             ? "PREMIUM"
                             : unlocked
-                              ? progress.maxUnlocked && reward.track === "premium" && progress.level < reward.level
+                              ? progress.maxUnlocked && progress.level < reward.level
                                 ? "RESGATAR · MAX"
                                 : "RESGATAR"
                               : `NÍVEL ${reward.level}`}

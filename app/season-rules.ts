@@ -49,6 +49,23 @@ export type SeasonReward = {
   track: SeasonTrack;
 };
 
+/** O XP é compartilhado; o passe Max só amplia o acesso às recompensas. */
+export function isSeasonRewardUnlocked(
+  playerLevel: number,
+  rewardLevel: number,
+  maxUnlocked = false,
+) {
+  return maxUnlocked || playerLevel >= rewardLevel;
+}
+
+export function isSeasonTrackUnlocked(
+  track: SeasonTrack,
+  premiumUnlocked: boolean,
+  maxUnlocked = false,
+) {
+  return track === "free" || premiumUnlocked || maxUnlocked;
+}
+
 export const spaceRaceRewards: SeasonReward[] = [
   { level: 2, track: "free", title: "2 baterias", asset: assetsManifest.battery.path, reward: { type: "battery", quantity: 2 } },
   { level: 5, track: "free", title: "250 GH/s por 1 dia", asset: assetsManifest.pixelEnergy.path, reward: { type: "power", powerGh: 250, days: 1 } },

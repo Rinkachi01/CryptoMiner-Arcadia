@@ -7,6 +7,8 @@ import {
   normalizeSeasonDurationDays,
   seasonLevelForXp,
   seasonPremiumMaxPriceCma,
+  isSeasonRewardUnlocked,
+  isSeasonTrackUnlocked,
   seasonProgressPercent,
   seasonXpRequiredForLevel,
   SPACE_RACE_DURATION_DAYS,
@@ -137,4 +139,12 @@ test("temporada não promete saque ou retorno financeiro", async () => {
   assert.match(panel, /durationDays/);
   assert.match(panel, /Giveaways semanais/i);
   assert.doesNotMatch(panel, /ROI|rendimento|retorno garantido/i);
+});
+
+test("Orbit Pass Max libera as duas trilhas no mesmo nível de XP", () => {
+  assert.equal(isSeasonRewardUnlocked(1, 50, false), false);
+  assert.equal(isSeasonRewardUnlocked(1, 50, true), true);
+  assert.equal(isSeasonTrackUnlocked("free", false, true), true);
+  assert.equal(isSeasonTrackUnlocked("premium", false, true), true);
+  assert.equal(isSeasonTrackUnlocked("premium", false, false), false);
 });

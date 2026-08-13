@@ -6,7 +6,6 @@ import type { PublicSeason, SeasonPlayerProgress } from "./season-server";
 import type { SeasonResponse } from "./SeasonPanel";
 
 export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
-  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<{
     season: PublicSeason | null;
     playerProgress: SeasonPlayerProgress | null;
@@ -16,14 +15,13 @@ export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setMounted(true);
     fetch("/api/season", { cache: "no-store" })
       .then((res) => res.json())
       .then((result: unknown) => setData(result as SeasonResponse))
       .catch(() => {});
   }, []);
 
-  if (!mounted) return null;
+  if (typeof document === "undefined") return null;
   if (closed || !data || !data.season || data.season.status !== "active") return null;
   if (data.playerProgress?.dailyLogin?.claimedToday) return null;
 
@@ -38,7 +36,10 @@ export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "daily-login" }),
       });
-      const result: any = await response.json();
+      const result = (await response.json()) as {
+        error?: string;
+        message?: string;
+      };
       if (response.ok) {
         setMessage(result.message ?? "XP resgatado!");
         setTimeout(() => {

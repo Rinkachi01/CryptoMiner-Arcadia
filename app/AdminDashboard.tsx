@@ -852,13 +852,6 @@ export function AdminDashboard({
 
   if (!overview) return null;
 
-  const reviewedCount = overview.suspiciousSessions.filter(
-    (session) => session.resolution,
-  ).length;
-  const spentCma = overview.ledger.reduce(
-    (total, entry) => total + Math.min(0, entry.cmaDelta),
-    0,
-  );
   const activeAlertCount = overview.alerts.filter(
     (alert) => alert.severity !== "stable",
   ).length;
@@ -946,29 +939,19 @@ export function AdminDashboard({
           <small>{overview.metrics.activePlayers24h} ativos em 24h</small>
         </article>
         <article>
-          <span>PARTIDAS 24H</span>
-          <strong>{formatNumber(overview.metrics.games24h)}</strong>
-          <small>{overview.metrics.wins24h} concluídas</small>
+          <span>PENDÊNCIAS</span>
+          <strong>{formatNumber(overview.metrics.openReviews + overview.support.statusCounts.open + overview.support.statusCounts.reviewing)}</strong>
+          <small>revisões e atendimentos em andamento</small>
         </article>
         <article>
-          <span>PODER EMITIDO</span>
-          <strong>{formatNumber(overview.metrics.powerGranted24h)} GH/s</strong>
-          <small>temporário nas últimas 24h</small>
-        </article>
-        <article className={overview.metrics.openReviews > 0 ? "warning" : ""}>
-          <span>REVISÕES ABERTAS</span>
-          <strong>{formatNumber(overview.metrics.openReviews)}</strong>
-          <small>{reviewedCount} já analisadas no histórico</small>
+          <span>CAIXA LÍQUIDO</span>
+          <strong>{formatCma(overview.treasury.depositsCma - overview.treasury.withdrawalsCma)}</strong>
+          <small>entradas menos saídas registradas</small>
         </article>
         <article>
-          <span>CAIXAS 24H</span>
-          <strong>{formatNumber(overview.metrics.crateOpens24h)}</strong>
-          <small>{formatCma(spentCma)} em sumidouros</small>
-        </article>
-        <article>
-          <span>BATERIAS DIÁRIAS</span>
-          <strong>{formatNumber(overview.metrics.batteryClaims24h)}</strong>
-          <small>{overview.inventory.playersWithEnergy} contas energizadas</small>
+          <span>TEMPORADA</span>
+          <strong>{overview.season.season?.status === "active" ? "ATIVA" : "AGUARDANDO"}</strong>
+          <small>{overview.season.leaderboard.length} operador(es) com atividade</small>
         </article>
       </section>
 

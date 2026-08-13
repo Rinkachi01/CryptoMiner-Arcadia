@@ -14,6 +14,7 @@ import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
 import { PlaysCounter } from "./PlaysCounter";
 import { DropNotification } from "./DropNotification";
+import type { GameDropValue } from "./drop-types";
 import {
   PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
@@ -92,7 +93,7 @@ export function PacketCatchView({
     outcome: "completed" | "bomb" | "lives";
     score: number;
     rewardPowerGh: number;
-    drop?: any;
+    drop?: GameDropValue;
   } | null>(null);
   const localStartedAt = useRef(0);
   const eventsRef = useRef<PacketCatchEvent[]>([]);
@@ -162,7 +163,7 @@ export function PacketCatchView({
           limits?: Limits;
           message?: string;
           error?: string;
-          drop?: any;
+          drop?: GameDropValue;
         };
         if (!response.ok) throw new Error(data.error ?? "Partida não validada.");
         setResult({

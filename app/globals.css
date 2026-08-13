@@ -22989,6 +22989,71 @@ body {
   padding: 32px 40px;
 }
 
+.season-energy-guide {
+  display: grid;
+  grid-template-columns: minmax(190px, .38fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin: 16px 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(54, 216, 242, .22);
+  border-radius: 16px;
+  background: linear-gradient(120deg, rgba(15, 38, 52, .88), rgba(12, 17, 31, .84));
+}
+
+.season-energy-guide span {
+  display: block;
+  color: var(--cyan);
+  font: 800 .68rem/1.2 var(--font-ui);
+  letter-spacing: .12em;
+}
+
+.season-energy-guide strong {
+  display: block;
+  margin-top: 6px;
+  color: #f4fbff;
+  font: 850 1.05rem/1.15 var(--font-ui);
+}
+
+.season-energy-guide p {
+  margin: 0;
+  color: #b8cad4;
+  font: 600 .86rem/1.55 var(--font-ui);
+}
+
+.season-energy-guide b {
+  color: #d7ff47;
+}
+
+.admin-crm-command-center {
+  border-color: rgba(136, 255, 68, .24);
+  background: linear-gradient(135deg, rgba(10, 26, 37, .96), rgba(10, 14, 26, .95));
+}
+
+.admin-crm-command-center .admin-panel-heading h2 {
+  letter-spacing: -.02em;
+}
+
+.admin-crm-command-grid > button {
+  min-height: 118px;
+  text-align: left;
+  transition: transform .2s ease, border-color .2s ease, background-color .2s ease;
+}
+
+.admin-crm-command-grid > button:focus-visible,
+.admin-sidebar-nav button:focus-visible,
+.admin-sidebar-footer a:focus-visible,
+.admin-sidebar-footer button:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .season-energy-guide {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-topbar, .admin-workspace-tabs {
   display: none !important;
 }

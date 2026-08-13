@@ -13,6 +13,8 @@ import {
   SPACE_RACE_SLUG,
   calculateSeasonScore,
   compareSeasonSnapshots,
+  isSeasonRewardUnlocked,
+  isSeasonTrackUnlocked,
   normalizeSeasonDurationDays,
   seasonLevelForXp,
   seasonPremiumMaxPriceCma,
@@ -1411,10 +1413,10 @@ export async function claimSeasonReward(
   if (!reward) throw new Error("Recompensa sazonal inválida.");
   const leaderboard = await readSeasonLeaderboard(db, season);
   const progress = await readPlayerProgress(db, season, accountId, leaderboard, now);
-  if (progress.level < reward.level && !(track === "premium" && progress.maxUnlocked)) {
+  if (!isSeasonRewardUnlocked(progress.level, reward.level, progress.maxUnlocked)) {
     throw new Error(`Alcance o nível ${reward.level} para resgatar.`);
   }
-  if (track === "premium" && !progress.premiumUnlocked) {
+  if (!isSeasonTrackUnlocked(track, progress.premiumUnlocked, progress.maxUnlocked)) {
     throw new Error("Libere a trilha premium antes de resgatar este prêmio.");
   }
   if (progress.claimedRewardKeys.includes(`${track}:${level}`)) {
