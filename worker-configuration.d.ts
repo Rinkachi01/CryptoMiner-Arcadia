@@ -27,7 +27,7 @@ interface __BaseEnv_Env {
 	TURNSTILE_REQUIRED: "true";
 	EMAIL_PROVIDER: "google_apps_script";
 	GOOGLE_MAIL_WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbxL3adoOmYzRwR0ylImzpPFI074_GQn2zIn58Rh_p3M3r6o2qtp-CYjKJarfgzPK_RlIA/exec";
-	SUPPORT_EMAIL_TO: "cryptominerarcadia.support@gmail.com";
+	SUPPORT_EMAIL_TO: "support@cryptominerarcadia.com";
 	TRANSACTIONAL_EMAIL_ENABLED: "true";
 }
 declare namespace Cloudflare {
