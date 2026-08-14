@@ -13,7 +13,6 @@ import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
-import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import { PCStatusPanel } from "./PCStatusPanel";
 import { TasksView } from "./TasksView";
 import { readClientBetaDeviceProfile } from "./beta-device-client";
@@ -318,6 +317,7 @@ export function ArcadiaGame({
   const [ltcBalanceAtomic, setLtcBalanceAtomic] = useState(0);
   const [batteryCount, setBatteryCount] = useState(0);
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
+  const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
   const [temporaryPowerExpiresAt, setTemporaryPowerExpiresAt] = useState(0);
@@ -416,6 +416,7 @@ export function ArcadiaGame({
     setLtcBalanceAtomic(state.ltcBalanceAtomic);
     setBatteryCount(state.batteryCount);
     setEnergyExpiresAt(state.energyExpiresAt);
+    setLastEnergyClaimAt(Math.max(0, state.lastEnergyClaimAt ?? 0));
     setLastSettledBlock(state.lastSettledBlock);
     setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
     setTemporaryPowerExpiresAt(
@@ -494,6 +495,25 @@ export function ArcadiaGame({
       setServerStatus("error");
     }
     return false;
+  }
+
+  async function claimFreeBatteryCycle() {
+    if (actionPending) return;
+    setActionPending(true);
+    try {
+      const response = await fetch("/api/battery-cycle", { method: "POST" });
+      const result = (await response.json()) as { message?: string; error?: string };
+      if (!response.ok) {
+        setToast(result.error ?? "A bateria ainda não está disponível.");
+        return;
+      }
+      setToast(result.message ?? "Bateria adicionada ao inventário.");
+      await refreshServerState();
+    } catch {
+      setToast("Não foi possível validar o ciclo de bateria.");
+    } finally {
+      setActionPending(false);
+    }
   }
 
   useEffect(() => {
@@ -1159,6 +1179,8 @@ export function ArcadiaGame({
                 secondsLeft={secondsLeft}
                 energySeconds={energySeconds}
                 batteryCount={batteryCount}
+                lastEnergyClaimAt={lastEnergyClaimAt}
+                clockNow={clockNow}
                 rackInventoryCount={rackInventoryCount}
                 ownedRooms={ownedRoomIds.length}
                 onSetEditMode={setEditMode}
@@ -1169,8 +1191,8 @@ export function ArcadiaGame({
                 onOpenStore={openStore}
                 onOpenGames={() => setActiveView("games")}
                 onUseBattery={activateBattery}
-                serverVersion={serverVersion}
-                onRefreshAccount={refreshServerState}
+                onClaimFreeBattery={claimFreeBatteryCycle}
+                cyclePending={actionPending}
               />
             </div>
             <style jsx>{`
@@ -1386,6 +1408,8 @@ function MiningRoom({
   secondsLeft,
   energySeconds,
   batteryCount,
+  lastEnergyClaimAt,
+  clockNow,
   rackInventoryCount,
   ownedRooms,
   onSetEditMode,
@@ -1396,8 +1420,8 @@ function MiningRoom({
   onOpenStore,
   onOpenGames,
   onUseBattery,
-  serverVersion,
-  onRefreshAccount,
+  onClaimFreeBattery,
+  cyclePending,
 }: {
   activeRoom: RoomDefinition;
   roomRacks: RackInstance[];
@@ -1411,6 +1435,8 @@ function MiningRoom({
   secondsLeft: number;
   energySeconds: number;
   batteryCount: number;
+  lastEnergyClaimAt: number;
+  clockNow: number;
   rackInventoryCount: number;
   ownedRooms: number;
   onSetEditMode: (value: boolean) => void;
@@ -1421,8 +1447,8 @@ function MiningRoom({
   onOpenStore: (category: ShopCategory) => void;
   onOpenGames: () => void;
   onUseBattery: () => void;
-  serverVersion: number;
-  onRefreshAccount: () => Promise<boolean>;
+  onClaimFreeBattery: () => void;
+  cyclePending: boolean;
 }) {
   const [operationsOpen, setOperationsOpen] = useState(false);
   const orderedRoomRacks = [...roomRacks].sort(
@@ -1671,18 +1697,14 @@ function MiningRoom({
         <EnergyCard
           energySeconds={energySeconds}
           batteryCount={batteryCount}
+          lastEnergyClaimAt={lastEnergyClaimAt}
+          clockNow={clockNow}
           onOpenGames={onOpenGames}
           onOpenStore={() => onOpenStore("energy")}
           onUseBattery={onUseBattery}
+          onClaimFreeBattery={onClaimFreeBattery}
+          cyclePending={cyclePending}
         />
-
-        <div className="operation-daily-mission">
-          <OperatorProgressPanel
-            refreshKey={serverVersion}
-            section="missions"
-            onRefreshAccount={onRefreshAccount}
-          />
-        </div>
 
         <div className="allocation-summary-card">
           <div className="allocation-summary-heading">
@@ -1796,17 +1818,30 @@ function MiningRoom({
 function EnergyCard({
   energySeconds,
   batteryCount,
+  lastEnergyClaimAt,
+  clockNow,
   onOpenGames,
   onOpenStore,
   onUseBattery,
+  onClaimFreeBattery,
+  cyclePending,
 }: {
   energySeconds: number;
   batteryCount: number;
+  lastEnergyClaimAt: number;
+  clockNow: number;
   onOpenGames: () => void;
   onOpenStore: () => void;
   onUseBattery: () => void;
+  onClaimFreeBattery: () => void;
+  cyclePending: boolean;
 }) {
   const chargedCells = Math.ceil(energySeconds / (BATTERY_HOURS * 3600));
+  const batteryCycleMs = 9 * 60 * 60 * 1000;
+  const cycleRemaining = Math.max(
+    0,
+    lastEnergyClaimAt + batteryCycleMs - clockNow,
+  );
 
   return (
     <div className="energy-card">
@@ -1830,13 +1865,22 @@ function EnergyCard({
           </i>
         ))}
       </div>
-      <div className="daily-energy">
+      {/* ENERGIA PELO ARCADE remains an internal source label; the visible reward is the 9h battery cycle. */}
+      <div className="battery-cycle-card">
         <span>
-          <small>ENERGIA PELO ARCADE</small>
-          <strong>Complete os 3 minigames</strong>
+          <small>BATERIA GRATUITA · CICLO DE 9H</small>
+          <strong>
+            {cycleRemaining === 0
+              ? "Bateria disponível"
+              : `Próxima em ${formatEnergy(Math.ceil(cycleRemaining / 1000))}`}
+          </strong>
         </span>
-        <button type="button" onClick={onOpenGames}>
-          JOGAR
+        <button
+          type="button"
+          disabled={cycleRemaining > 0 || cyclePending}
+          onClick={onClaimFreeBattery}
+        >
+          {cyclePending ? "VALIDANDO..." : cycleRemaining === 0 ? "RESGATAR" : "AGUARDAR"}
         </button>
       </div>
       <div className="energy-actions">
@@ -1853,11 +1897,12 @@ function EnergyCard({
         <button type="button" onClick={onOpenStore}>
           IR PARA LOJA
         </button>
+        <button type="button" onClick={onOpenGames}>
+          IR PARA ARCADE
+        </button>
       </div>
       <p>
-        Jogue uma partida em cada jogo do Tour — Packet Catch, Hash Match e
-        Circuit Rush. Uma vitória ou derrota validada conta; depois, resgate
-        1 bateria por ciclo de 24 horas.
+        O ciclo de bateria é separado do XP da temporada. As missões de XP ficam no passe e não alteram a distribuição das pools.
       </p>
     </div>
   );

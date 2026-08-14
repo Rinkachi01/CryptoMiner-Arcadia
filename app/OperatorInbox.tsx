@@ -10,10 +10,6 @@ type GamesSummary = {
   totals?: {
     totalPlays?: number;
   };
-  missions?: Array<{
-    id: string;
-    claimable?: boolean;
-  }>;
 };
 
 type OperatorInboxProps = {
@@ -64,8 +60,6 @@ export function OperatorInbox({
     poolAllocations.doge +
     poolAllocations.ltc;
   const totalPlays = Math.max(0, Number(summary?.totals?.totalPlays ?? 0));
-  const missionClaimable =
-    summary?.missions?.some((mission) => mission.claimable === true) ?? false;
 
   const steps = [
     ...(onboarding?.eligible
@@ -198,15 +192,6 @@ export function OperatorInbox({
         severity: "attention",
       });
     }
-    if (missionClaimable) {
-      items.push({
-        id: "mission",
-        label: "Bateria do Tour pronta",
-        detail: "Sua missão diária está concluída e aguardando resgate.",
-        target: "career",
-        severity: "good",
-      });
-    }
     if (secondsLeft <= 60) {
       items.push({
         id: "block",
@@ -221,7 +206,6 @@ export function OperatorInbox({
     batteryCount,
     energySeconds,
     installedMinerCount,
-    missionClaimable,
     onboarding?.eligible,
     secondsLeft,
   ]);

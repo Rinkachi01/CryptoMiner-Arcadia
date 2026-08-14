@@ -121,14 +121,12 @@ export function CareerView({
             <OperatorProgressPanel
               refreshKey={refreshKey}
               section={activeTab}
-              onRefreshAccount={refreshAccount}
             />
           </div>
         ) : (
           <OperatorProgressPanel
             refreshKey={refreshKey}
             section={activeTab}
-            onRefreshAccount={refreshAccount}
           />
         )}
       </div>

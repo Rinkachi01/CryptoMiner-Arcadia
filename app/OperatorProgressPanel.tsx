@@ -75,19 +75,16 @@ const gameNames: Record<string, string> = {
 
 // Tour diário do Arcade agora usa a meta de 10 partidas e entrega +12h.
 
+// MISSÕES DIÁRIAS continuam no domínio de progresso; RESGATAR 1 BATERIA agora é tratado pelo ciclo de 9h da sala.
 export function OperatorProgressPanel({
   refreshKey,
   section = "overview",
-  onRefreshAccount,
 }: {
   refreshKey: number;
   section?: "overview" | "missions";
-  onRefreshAccount: () => Promise<boolean>;
 }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [message, setMessage] = useState("Carregando progresso...");
-  const [claiming, setClaiming] = useState(false);
-  const [claimMessage, setClaimMessage] = useState("");
 
   const loadSummary = useCallback(() => {
     let active = true;
@@ -115,36 +112,6 @@ export function OperatorProgressPanel({
   }, []);
 
   useEffect(() => loadSummary(), [loadSummary, refreshKey]);
-
-  async function claimDailyBattery() {
-    if (claiming) return;
-    setClaiming(true);
-    setClaimMessage("Validando o tour diário...");
-    try {
-      const response = await fetch("/api/games/summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "claim-daily-battery" }),
-      });
-      const data = (await response.json()) as {
-        message?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Não foi possível resgatar a bateria.");
-      }
-      setClaimMessage(data.message ?? "Bateria adicionada ao inventário.");
-      await onRefreshAccount();
-    } catch (error) {
-      setClaimMessage(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível resgatar a bateria.",
-      );
-    } finally {
-      setClaiming(false);
-    }
-  }
 
   if (!summary) {
     return (
@@ -183,67 +150,6 @@ export function OperatorProgressPanel({
             <em>{game.winStreak} sequência atual</em>
           </article>
         ))}
-      </div>
-
-      <div className="daily-mission-panel">
-        <div>
-          <span>MISSÕES DIÁRIAS · CICLO UTC</span>
-          <small>Jogue 10 minijogos e resgate 1 bateria (+12h) por dia.</small>
-        </div>
-        {summary.missions.map((mission) => {
-          const complete = mission.current >= mission.target;
-          const hasReward = Boolean(mission.reward);
-          const actionLabel = mission.claimed
-            ? "RESGATADA"
-            : mission.claimable
-              ? "RESGATAR +12H"
-              : "JOGUE 10 MINIGAMES";
-          return (
-            <article
-              className={`${complete ? "complete" : ""} ${
-                mission.claimed ? "claimed" : ""
-              } ${hasReward ? "reward-mission" : ""}`}
-              key={mission.id}
-            >
-              <span>{mission.claimed ? "✓" : complete ? "◇" : "○"}</span>
-              <div className="mission-copy">
-                <strong>{mission.label}</strong>
-                <i>
-                  <em
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        (mission.current / mission.target) * 100,
-                      )}%`,
-                    }}
-                  />
-                </i>
-              </div>
-              <div className="mission-status">
-                <b>
-                  {mission.current}/{mission.target}
-                </b>
-                {hasReward && (
-                  <button
-                    type="button"
-                    aria-label="RESGATAR 1 BATERIA (+12H)"
-                    disabled={!mission.claimable || claiming}
-                    onClick={claimDailyBattery}
-                  >
-                    {claiming && mission.claimable
-                      ? "VALIDANDO..."
-                      : actionLabel}
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
-        {claimMessage && (
-          <p className="daily-mission-message" role="status" aria-live="polite">
-            {claimMessage}
-          </p>
-        )}
       </div>
 
       <div className={`economy-guard-panel ${summary.emission.status}`}>

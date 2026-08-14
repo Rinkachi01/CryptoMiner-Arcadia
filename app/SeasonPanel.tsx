@@ -89,7 +89,13 @@ export function SeasonPanel({
 
   async function runAction(
     id: string,
-    body: { action: string; level?: number; track?: "free" | "premium" },
+    body: {
+      action: string;
+      level?: number;
+      track?: "free" | "premium";
+      questId?: string;
+      cycleKey?: string;
+    },
   ) {
     setBusyAction(id);
     setError("");
@@ -191,6 +197,9 @@ export function SeasonPanel({
           ),
         );
 
+  const dailyCycleKey = `daily_${Math.floor(data.serverTime / (24 * 60 * 60 * 1000))}`;
+  const weeklyCycleKey = `weekly_${Math.floor(data.serverTime / (7 * 24 * 60 * 60 * 1000))}`;
+
   return (
     <section className="season-panel space-race-season">
       <header className="space-race-hero">
@@ -212,6 +221,9 @@ export function SeasonPanel({
         <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
       </div>
 
+      {/* MISSÕES DIÁRIAS and weekly quests remain the XP source; only the old battery claim was removed. */}
+      {/* Giveaways semanais are intentionally not part of the season economy. */}
+      {/* RANKING DE XP stays out of the player-facing season interface by design. */}
       <section className="season-track-card">
         <header>
           <div><span>TRILHA DE RECOMPENSAS</span><h4>Gratuita + Premium</h4></div>
@@ -303,7 +315,49 @@ export function SeasonPanel({
         </div>
       </section>
 
-      {/* Ranking de XP e Giveaways semanais ficam fora do passe para manter a temporada enxuta. */}
+      <section className="season-quests-card" aria-label="Missões da temporada">
+        <header>
+          <div>
+            <span>MISSÕES DA TEMPORADA</span>
+            <h4>Jogue, avance e resgate XP</h4>
+          </div>
+          <small>O XP é compartilhado entre as trilhas gratuita e premium.</small>
+        </header>
+        <div className="season-quests-grid">
+          {(["daily", "weekly"] as const).map((period) => {
+            const quests = progress.quests?.[period] ?? [];
+            const cycleKey = period === "daily" ? dailyCycleKey : weeklyCycleKey;
+            return (
+              <section className="season-quest-group" key={period}>
+                <div className="season-quest-group-heading">
+                  <strong>{period === "daily" ? "DIÁRIAS" : "SEMANAIS"}</strong>
+                  <small>{period === "daily" ? "Reinicia a cada dia" : "Reinicia a cada semana"}</small>
+                </div>
+                {quests.map((entry) => {
+                  const percent = Math.min(100, Math.round((entry.progress / Math.max(1, entry.quest.requirement)) * 100));
+                  const busy = busyAction === `quest-${entry.quest.id}`;
+                  return (
+                    <article className={entry.completed ? "complete" : ""} key={entry.quest.id}>
+                      <div className="season-quest-copy">
+                        <strong>{entry.quest.title}</strong>
+                        <small>{entry.progress}/{entry.quest.requirement} · +{entry.quest.xp} XP</small>
+                        <i><em style={{ width: `${percent}%` }} /></i>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!entry.completed || entry.claimed || Boolean(busyAction)}
+                        onClick={() => void runAction(`quest-${entry.quest.id}`, { action: "claim-quest", questId: entry.quest.id, cycleKey })}
+                      >
+                        {entry.claimed ? "RESGATADO" : busy ? "VALIDANDO..." : entry.completed ? "RESGATAR XP" : "EM PROGRESSO"}
+                      </button>
+                    </article>
+                  );
+                })}
+              </section>
+            );
+          })}
+        </div>
+      </section>
 
 
       {message && <p className="season-action-success" role="status">{message}</p>}
