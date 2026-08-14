@@ -9,6 +9,7 @@ const PTAX_CACHE_MS = 30 * 60 * 1000;
 const PTAX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PIX_QUOTE_TTL_MS = 10 * 60 * 1000;
 const PIX_CREDITING_STALE_MS = 90 * 1000;
+const PIX_HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 type PtaxRow = {
   observed_at: number;
@@ -67,6 +68,19 @@ export async function ensurePixSchema(db: D1Database) {
     db.prepare(`CREATE INDEX IF NOT EXISTS wallet_pix_deposit_status_expiry_idx
       ON wallet_pix_deposit_intents (status, expires_at)`),
   ]);
+}
+
+export async function prunePixHistory(db: D1Database, now = Date.now()) {
+  await ensurePixSchema(db);
+  return db
+    .prepare(`DELETE FROM wallet_pix_deposit_intents
+      WHERE created_at < ? AND (
+        credited_at IS NOT NULL OR status = 'provider_failed' OR
+        status LIKE 'canceled:%' OR status LIKE 'expired:%' OR
+        status LIKE 'rejected:%'
+      )`)
+    .bind(now - PIX_HISTORY_RETENTION_MS)
+    .run();
 }
 
 function cleanString(value: unknown, max = 512) {
@@ -517,6 +531,7 @@ export async function reconcilePendingPixDeposits(input: {
   now?: number;
 }) {
   await ensurePixSchema(input.db);
+  await prunePixHistory(input.db);
   const now = input.now ?? Date.now();
   // Libera uma reserva que ficou presa por uma interrupção do Worker antes do
   // batch final. O lançamento continua protegido pela chave idempotente.
@@ -579,6 +594,7 @@ export async function reconcilePendingPixDeposits(input: {
 
 export async function readAdminPixDeposits(db: D1Database) {
   await ensurePixSchema(db);
+  await prunePixHistory(db);
   const rows = await db
     .prepare(`SELECT pix.id, pix.account_id, pix.provider_reference,
       pix.cma_units, pix.brl_cents, pix.status, pix.credited_at,

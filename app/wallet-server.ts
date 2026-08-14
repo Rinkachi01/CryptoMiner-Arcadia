@@ -220,6 +220,8 @@ type BrlWithdrawalQuoteRow = {
 };
 
 const PLAYER_INVOICE_HISTORY_DAYS = 30;
+const OPERATIONAL_HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const WALLET_CREDITING_STALE_MS = 90 * 1000;
 
 const MANUAL_WITHDRAWAL_MAXIMUM_ATOMIC: Record<WalletSandboxAsset, number> = {
   BTC: 100_000_000,
@@ -390,6 +392,47 @@ export async function ensureWalletSchema(db: D1Database) {
         ADD COLUMN payout_brl_cents INTEGER DEFAULT 0 NOT NULL`)
       .run();
   }
+}
+
+/**
+ * Mantém apenas 30 dias de filas operacionais resolvidas. O livro-razão e os
+ * registros de auditoria permanecem intactos para reconciliação e suporte.
+ */
+export async function pruneWalletOperationalHistory(
+  db: D1Database,
+  now = Date.now(),
+) {
+  const cutoff = now - OPERATIONAL_HISTORY_RETENTION_MS;
+  await ensureWalletSchema(db);
+  return db.batch([
+    db.prepare(`UPDATE wallet_deposit_intents SET status = 'expired', updated_at = ?
+      WHERE provider = 'nowpayments' AND expires_at IS NOT NULL AND expires_at <= ?
+        AND status IN ('creating', 'waiting', 'confirming', 'confirmed', 'sending')`)
+      .bind(now, now),
+    db.prepare(`UPDATE wallet_deposit_intents SET status = 'expired', updated_at = ?
+      WHERE provider = 'nowpayments' AND created_at < ?
+        AND status IN ('creating', 'waiting', 'confirming', 'confirmed', 'sending')`)
+      .bind(now, cutoff),
+    db.prepare(`DELETE FROM wallet_deposit_intents
+      WHERE created_at < ? AND status IN
+        ('credited', 'expired', 'provider_failed', 'review_required', 'pending_account', 'finished')`)
+      .bind(cutoff),
+    db.prepare(`DELETE FROM wallet_withdrawal_intents
+      WHERE resolved_at IS NOT NULL AND resolved_at < ?
+        AND status IN ('paid', 'rejected')`)
+      .bind(cutoff),
+    db.prepare(`DELETE FROM wallet_brl_withdrawal_quotes
+      WHERE created_at < ? AND status <> 'preview'`)
+      .bind(cutoff),
+    db.prepare(`DELETE FROM wallet_provider_events
+      WHERE created_at < ? AND status = 'processed'`)
+      .bind(cutoff),
+    db.prepare(`UPDATE wallet_deposit_intents SET status = 'finished', updated_at = ?
+      WHERE status = 'crediting' AND updated_at <= ?
+        AND NOT EXISTS (SELECT 1 FROM ledger_entries
+          WHERE idempotency_key = 'deposit:' || wallet_deposit_intents.id)`)
+      .bind(now, now - WALLET_CREDITING_STALE_MS),
+  ]);
 }
 
 function validSandboxAsset(value: unknown): value is WalletSandboxAsset {
@@ -889,6 +932,7 @@ export async function processNowPaymentsIpn(input: {
     throw new Error("Evento sem referência de depósito.");
   }
   await ensureWalletSchema(input.db);
+  await pruneWalletOperationalHistory(input.db, input.now ?? Date.now());
   const intent = await input.db
     .prepare(`SELECT id, account_id, asset, provider, provider_reference,
       checkout_url, requested_usd_micros, received_atomic, status,
@@ -1699,6 +1743,7 @@ export async function readAdminWithdrawalOverview(input: {
   environment: unknown;
 }) : Promise<AdminWithdrawalOverview> {
   await ensureWalletSchema(input.db);
+  await pruneWalletOperationalHistory(input.db);
   const result = await input.db
     .prepare(`SELECT withdrawals.id, withdrawals.account_id, withdrawals.asset,
       withdrawals.provider, withdrawals.payout_brl_cents,
@@ -1960,6 +2005,7 @@ export async function readWalletOverview(input: {
 }): Promise<WalletOverview> {
   const now = input.now ?? Date.now();
   await ensureWalletSchema(input.db);
+  await pruneWalletOperationalHistory(input.db, now);
   await input.db
     .prepare(`UPDATE wallet_deposit_intents
       SET status = 'expired', updated_at = ?

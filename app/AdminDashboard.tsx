@@ -633,6 +633,11 @@ export function AdminDashboard({
   const [adminSection, setAdminSection] =
     useState<AdminSection>("overview");
   const [supportTab, setSupportTab] = useState<"open" | "resolved">("open");
+  const [supportQuery, setSupportQuery] = useState("");
+  const [pixTab, setPixTab] = useState<"pending" | "resolved">("pending");
+  const [pixQuery, setPixQuery] = useState("");
+  const [withdrawalTab, setWithdrawalTab] = useState<"pending" | "resolved">("pending");
+  const [withdrawalQuery, setWithdrawalQuery] = useState("");
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState<Record<string, string>>({});
   const [withdrawalReferences, setWithdrawalReferences] = useState<Record<string, string>>({});
@@ -868,6 +873,51 @@ export function AdminDashboard({
       deposit.status.includes("unknown"),
   ).length;
   const pixPendingCount = overview.pixDeposits.pendingCount;
+  const normalizeSearch = (value: string) => value.trim().toLocaleLowerCase("pt-BR");
+  const pixSearchTerm = normalizeSearch(pixQuery);
+  const filteredPixDeposits = overview.pixDeposits.deposits
+    .filter((deposit) => {
+      const pending = !["credited", "provider_failed"].includes(deposit.status) &&
+        !deposit.status.startsWith("canceled:") &&
+        !deposit.status.startsWith("expired:") &&
+        !deposit.status.startsWith("rejected:");
+      if ((pixTab === "pending") !== pending) return false;
+      if (!pixSearchTerm) return true;
+      return [deposit.id, deposit.providerReference ?? "", deposit.displayName, deposit.email]
+        .some((value) => value.toLocaleLowerCase("pt-BR").includes(pixSearchTerm));
+    })
+    .sort((a, b) => {
+      const aPending = !["credited", "provider_failed"].includes(a.status);
+      const bPending = !["credited", "provider_failed"].includes(b.status);
+      if (aPending !== bPending) return aPending ? -1 : 1;
+      return aPending ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+    });
+  const withdrawalSearchTerm = normalizeSearch(withdrawalQuery);
+  const filteredWithdrawals = (withdrawals?.requests ?? [])
+    .filter((request) => {
+      const pending = ["requested", "reviewing"].includes(request.status);
+      if ((withdrawalTab === "pending") !== pending) return false;
+      if (!withdrawalSearchTerm) return true;
+      return [request.id, request.displayName, request.email, request.asset, request.destinationAddress]
+        .some((value) => value.toLocaleLowerCase("pt-BR").includes(withdrawalSearchTerm));
+    })
+    .sort((a, b) => {
+      const aPending = ["requested", "reviewing"].includes(a.status);
+      const bPending = ["requested", "reviewing"].includes(b.status);
+      if (aPending !== bPending) return aPending ? -1 : 1;
+      return aPending ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+    });
+  const supportSearchTerm = normalizeSearch(supportQuery);
+  const filteredSupportTickets = overview.support.tickets
+    .filter((ticket) => (supportTab === "open"
+      ? ["open", "reviewing"].includes(ticket.status)
+      : ["resolved", "closed"].includes(ticket.status)))
+    .filter((ticket) => !supportSearchTerm || [
+      ticket.publicId, ticket.subject, ticket.email, ticket.message,
+    ].some((value) => value.toLocaleLowerCase("pt-BR").includes(supportSearchTerm)))
+    .sort((a, b) => supportTab === "open"
+      ? a.createdAt - b.createdAt
+      : b.updatedAt - a.updatedAt);
 
   return (
     <main className={`admin-shell text-scale-${textScale}`}>
@@ -2088,10 +2138,29 @@ export function AdminDashboard({
           Use somente depois de confirmar o recebimento no extrato do Mercado Pago.
           O valor creditado é sempre o CMA da cobrança original e nunca pode ser digitado livremente.
         </p>
+        <div className="admin-queue-toolbar">
+          <div className="admin-queue-tabs" role="tablist" aria-label="Status das cobranças Pix">
+            <button type="button" className={pixTab === "pending" ? "active" : ""} onClick={() => setPixTab("pending")}>
+              Pendentes ({overview.pixDeposits.pendingCount})
+            </button>
+            <button type="button" className={pixTab === "resolved" ? "active" : ""} onClick={() => setPixTab("resolved")}>
+              Resolvidos ({overview.pixDeposits.creditedCount})
+            </button>
+          </div>
+          <label className="admin-queue-search">
+            <span>BUSCAR PROTOCOLO OU JOGADOR</span>
+            <input
+              type="search"
+              value={pixQuery}
+              onChange={(event) => setPixQuery(event.target.value)}
+              placeholder="ID, referência, nome ou e-mail"
+            />
+          </label>
+        </div>
         <div className="admin-pix-exception-list">
-          {overview.pixDeposits.deposits.length === 0 ? (
-            <div className="admin-feedback-empty">Nenhuma cobrança Pix registrada.</div>
-          ) : overview.pixDeposits.deposits.slice(0, 20).map((deposit) => {
+          {filteredPixDeposits.length === 0 ? (
+            <div className="admin-feedback-empty">Nenhuma cobrança encontrada nesta fila.</div>
+          ) : filteredPixDeposits.map((deposit) => {
             const pending = deposit.status !== "credited" && deposit.status !== "provider_failed";
             const reason = pixCreditReasons[deposit.id] ?? "";
             const confirmation = pixCreditConfirmations[deposit.id] ?? "";
@@ -2190,11 +2259,30 @@ export function AdminDashboard({
               <strong>{withdrawals.counts.rejected}</strong>
             </article>
           </div>
-          {withdrawals.requests.length === 0 ? (
-            <div className="admin-feedback-empty">Nenhum saque manual foi solicitado.</div>
+          <div className="admin-queue-toolbar">
+            <div className="admin-queue-tabs" role="tablist" aria-label="Status dos saques">
+              <button type="button" className={withdrawalTab === "pending" ? "active" : ""} onClick={() => setWithdrawalTab("pending")}>
+                Pendentes ({withdrawals.counts.requested + withdrawals.counts.reviewing})
+              </button>
+              <button type="button" className={withdrawalTab === "resolved" ? "active" : ""} onClick={() => setWithdrawalTab("resolved")}>
+                Resolvidos ({withdrawals.counts.paid + withdrawals.counts.rejected})
+              </button>
+            </div>
+            <label className="admin-queue-search">
+              <span>BUSCAR PROTOCOLO OU JOGADOR</span>
+              <input
+                type="search"
+                value={withdrawalQuery}
+                onChange={(event) => setWithdrawalQuery(event.target.value)}
+                placeholder="ID, nome, e-mail, moeda ou endereço"
+              />
+            </label>
+          </div>
+          {filteredWithdrawals.length === 0 ? (
+            <div className="admin-feedback-empty">Nenhum saque encontrado nesta fila.</div>
           ) : (
             <div className="admin-withdrawal-queue">
-              {withdrawals.requests.slice(0, 30).map((request) => {
+              {filteredWithdrawals.map((request) => {
                 const open = request.status === "requested" || request.status === "reviewing";
                 return (
                   <article className={open ? "open" : request.status} key={request.id}>
@@ -2357,15 +2445,23 @@ export function AdminDashboard({
           </button>
         </div>
 
-        {overview.support.tickets.filter(t => supportTab === "open" ? ["open", "reviewing"].includes(t.status) : ["resolved", "closed"].includes(t.status)).length === 0 ? (
+        <label className="admin-queue-search admin-support-search">
+          <span>BUSCAR PROTOCOLO, ASSUNTO OU JOGADOR</span>
+          <input
+            type="search"
+            value={supportQuery}
+            onChange={(event) => setSupportQuery(event.target.value)}
+            placeholder="CMA-..., e-mail ou palavra-chave"
+          />
+        </label>
+
+        {filteredSupportTickets.length === 0 ? (
           <div className="admin-feedback-empty">
             Nenhum protocolo nesta lista.
           </div>
         ) : (
           <div className="admin-support-queue">
-            {overview.support.tickets
-              .filter(t => supportTab === "open" ? ["open", "reviewing"].includes(t.status) : ["resolved", "closed"].includes(t.status))
-              .map((ticket) => {
+            {filteredSupportTickets.map((ticket) => {
               const reply = supportReplies[ticket.publicId] ?? ticket.adminNote;
               return (
                 <article key={ticket.publicId}>

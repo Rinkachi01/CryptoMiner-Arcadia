@@ -15306,6 +15306,88 @@ body {
   gap: 10px;
 }
 
+.admin-queue-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.admin-queue-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(76, 112, 126, 0.35);
+  border-radius: 9px;
+  background: rgba(5, 13, 20, 0.72);
+}
+
+.admin-queue-tabs button {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #8fa5af;
+  cursor: pointer;
+  font: 800 0.68rem/1 var(--font-ui);
+  letter-spacing: 0.04em;
+}
+
+.admin-queue-tabs button.active {
+  border-color: rgba(169, 255, 63, 0.48);
+  background: rgba(169, 255, 63, 0.12);
+  color: #c9ff91;
+}
+
+.admin-queue-search {
+  display: grid;
+  min-width: min(100%, 320px);
+  gap: 6px;
+  color: #8299a4;
+  font: 800 0.62rem/1.2 var(--font-ui);
+  letter-spacing: 0.07em;
+}
+
+.admin-queue-search input {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(76, 112, 126, 0.48);
+  border-radius: 7px;
+  outline: 0;
+  background: #07111a;
+  color: #eef8f9;
+  font: 600 0.82rem/1 var(--font-ui);
+}
+
+.admin-queue-search input:focus {
+  border-color: var(--admin-lime, #a9ff3f);
+  box-shadow: 0 0 0 3px rgba(169, 255, 63, 0.08);
+}
+
+.admin-support-search {
+  margin: 0 16px 4px;
+}
+
+@media (max-width: 760px) {
+  .admin-queue-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-queue-tabs,
+  .admin-queue-search {
+    width: 100%;
+  }
+
+  .admin-queue-tabs button {
+    flex: 1;
+  }
+}
+
 .admin-pix-exception-list > article {
   display: grid;
   padding: 15px;
