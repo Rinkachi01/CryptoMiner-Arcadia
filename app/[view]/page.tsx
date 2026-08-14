@@ -48,7 +48,7 @@ export default async function ViewRoute({
     adminOwnerAccountIdFromEnv(env),
   );
   const unreadSupportReplies = env.DB
-    ? await readUnreadSupportReplyCount(env.DB, accountId)
+    ? await readUnreadSupportReplyCount(env.DB, accountId).catch(() => 0)
     : 0;
 
   return (

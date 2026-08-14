@@ -35,12 +35,24 @@ export type ArcadiaUser = {
 };
 
 async function getSupabaseUser(): Promise<ArcadiaUser | null> {
-  const supabase = await createSupabaseServerClient();
+  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> = null;
+  try {
+    supabase = await createSupabaseServerClient();
+  } catch {
+    return null;
+  }
   if (!supabase) return null;
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] = null;
+  let error: Awaited<ReturnType<typeof supabase.auth.getUser>>["error"] = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+    error = result.error;
+  } catch {
+    // A stale or partially written OAuth cookie must behave as an anonymous
+    // session, never as a server-rendering exception.
+    return null;
+  }
   if (error || !user?.email || !user.email_confirmed_at) return null;
 
   const fullName =
@@ -69,13 +81,17 @@ function toChatGPTArcadiaUser(user: ChatGPTUser): ArcadiaUser {
 }
 
 export async function getArcadiaUser(): Promise<ArcadiaUser | null> {
-  // On the public domain, only a verified Supabase session is authoritative.
-  // Never fall back to the legacy ChatGPT request headers there: those headers
-  // are not a credential and could otherwise be supplied by a caller.
-  if (publicLoginConfig()?.enabled) return getSupabaseUser();
-  const user = await getChatGPTUser();
-  if (user) return toChatGPTArcadiaUser(user);
-  return getSupabaseUser();
+  try {
+    // On the public domain, only a verified Supabase session is authoritative.
+    // Never fall back to the legacy ChatGPT request headers there: those headers
+    // are not a credential and could otherwise be supplied by a caller.
+    if (publicLoginConfig()?.enabled) return getSupabaseUser();
+    const user = await getChatGPTUser();
+    if (user) return toChatGPTArcadiaUser(user);
+    return getSupabaseUser();
+  } catch {
+    return null;
+  }
 }
 
 export async function requireArcadiaUser(

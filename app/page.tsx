@@ -89,7 +89,7 @@ export default async function Home() {
     adminOwnerAccountIdFromEnv(env),
   );
   const unreadSupportReplies = env.DB
-    ? await readUnreadSupportReplyCount(env.DB, accountId)
+    ? await readUnreadSupportReplyCount(env.DB, accountId).catch(() => 0)
     : 0;
 
   return (

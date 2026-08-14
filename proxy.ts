@@ -68,28 +68,38 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
-  const config = readSupabaseAuthConfig(env);
+  let config: ReturnType<typeof readSupabaseAuthConfig>;
+  try {
+    config = readSupabaseAuthConfig(env);
+  } catch {
+    return secureResponse(response, request);
+  }
   if (!config?.enabled) return secureResponse(response, request);
 
-  const supabase = createServerClient(config.url, config.publishableKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  let supabase: ReturnType<typeof createServerClient>;
+  try {
+    supabase = createServerClient(config.url, config.publishableKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+          Object.entries(headers).forEach(([key, value]) =>
+            response.headers.set(key, value),
+          );
+        },
       },
-      setAll(cookiesToSet, headers) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value),
-        );
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
-        Object.entries(headers).forEach(([key, value]) =>
-          response.headers.set(key, value),
-        );
-      },
-    },
-  });
+    });
+  } catch {
+    return secureResponse(response, request);
+  }
 
   // A rota OAuth/callback pode chegar sem cookie ou com um cookie antigo. A
   // validação é importante, mas nunca deve transformar uma sessão anônima ou
