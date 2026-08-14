@@ -20199,6 +20199,360 @@ body {
   color: #dffbff;
 }
 
+.public-auth-social {
+  display: grid;
+  gap: 14px;
+  padding: 22px 26px 0;
+}
+
+.public-auth-google {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid #516474;
+  background: #f4f7f8;
+  color: #16232c;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.public-auth-google:hover,
+.public-auth-google:focus-visible {
+  border-color: #8fe7f1;
+  background: #ffffff;
+}
+
+.public-auth-google:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.public-auth-google > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #4285f4;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.public-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #78909c;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.public-auth-divider::before,
+.public-auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: #293b47;
+  content: "";
+}
+
+.mfa-challenge-card,
+.mfa-settings {
+  border: 1px solid #344653;
+  background:
+    linear-gradient(135deg, rgba(169, 255, 63, 0.07), transparent 42%),
+    #0d151e;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.mfa-challenge-card {
+  width: min(500px, calc(100% - 32px));
+  margin: clamp(48px, 10vh, 120px) auto;
+  padding: clamp(24px, 5vw, 42px);
+}
+
+.mfa-kicker,
+.mfa-settings header span {
+  color: var(--lime);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.mfa-challenge-card h1 {
+  margin: 14px 0 12px;
+  color: #f1f8fa;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 5vw, 2.8rem);
+  text-transform: uppercase;
+}
+
+.mfa-challenge-card > p,
+.mfa-settings > p {
+  color: #a9bbc3;
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.mfa-challenge-card form,
+.mfa-setup-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.mfa-challenge-card label,
+.mfa-setup-form label {
+  display: grid;
+  gap: 8px;
+  color: #d3e1e5;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.mfa-challenge-card input,
+.mfa-setup-form input {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid #3a4d5b;
+  outline: 0;
+  background: #080e14;
+  color: #eef8fa;
+  font: 800 1.18rem/1 var(--font-mono);
+  letter-spacing: 0.22em;
+  text-align: center;
+}
+
+.mfa-challenge-card input:focus,
+.mfa-setup-form input:focus {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 3px rgba(169, 255, 63, 0.1);
+}
+
+.mfa-loading,
+.mfa-challenge-loading {
+  margin-top: 24px;
+  color: #9fb2bc;
+  font-size: 0.84rem;
+}
+
+.mfa-back-link {
+  display: inline-flex;
+  margin-top: 22px;
+  color: #8fe7f1;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.mfa-settings {
+  grid-column: 1 / -1;
+  padding: 22px;
+}
+
+.mfa-settings > header {
+  display: grid;
+  gap: 5px;
+}
+
+.mfa-settings header strong {
+  color: #f1f8fa;
+  font-size: 1.08rem;
+}
+
+.mfa-settings > p {
+  max-width: 680px;
+  margin: 12px 0 16px;
+}
+
+.mfa-active-state {
+  display: flex;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid rgba(169, 255, 63, 0.3);
+  background: rgba(169, 255, 63, 0.05);
+  align-items: center;
+  gap: 12px;
+}
+
+.mfa-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 16px rgba(169, 255, 63, 0.8);
+}
+
+.mfa-active-state > div {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+}
+
+.mfa-active-state strong {
+  color: #eff9f3;
+  font-size: 0.88rem;
+}
+
+.mfa-active-state small {
+  color: #95a9b2;
+  font-size: 0.75rem;
+}
+
+.mfa-danger-button,
+.mfa-enable-button,
+.mfa-setup-actions > button:last-child {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #455765;
+  background: transparent;
+  color: #dce8eb;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.mfa-danger-button {
+  border-color: rgba(255, 118, 118, 0.45);
+  color: #ffb0b0;
+}
+
+.mfa-enable-button {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
+.mfa-danger-button:disabled,
+.mfa-enable-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.mfa-qr-wrap {
+  display: flex;
+  padding: 14px;
+  border: 1px solid #2c4653;
+  background: #071018;
+  align-items: center;
+  gap: 14px;
+}
+
+.mfa-qr-wrap img {
+  width: 132px;
+  height: 132px;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.mfa-qr-wrap small {
+  color: #9fb2bc;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.mfa-setup-form code {
+  display: block;
+  padding: 10px;
+  overflow-wrap: anywhere;
+  border: 1px solid #2b3e4b;
+  background: #080e14;
+  color: #cdeff5;
+  font: 0.74rem/1.45 var(--font-mono);
+}
+
+.mfa-setup-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+@media (max-width: 700px) {
+  .public-auth-layout {
+    width: min(100% - 20px, 540px);
+    min-height: auto;
+    padding: 28px 0 42px;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .public-auth-intro {
+    padding: 0 4px;
+  }
+
+  .public-auth-intro h1 {
+    max-width: 16ch;
+    font-size: clamp(2rem, 12vw, 3rem);
+  }
+
+  .public-auth-intro p {
+    font-size: 0.9rem;
+  }
+
+  .public-auth-intro ul {
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .public-auth-card > header,
+  .public-auth-card form,
+  .public-auth-card > footer {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .public-auth-tabs {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .public-auth-social {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .public-auth-card > footer {
+    flex-wrap: wrap;
+  }
+
+  .mfa-active-state {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .mfa-active-state > div {
+    min-width: 0;
+  }
+
+  .mfa-danger-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .mfa-challenge-card {
+    width: min(100% - 20px, 500px);
+    padding: 22px 16px;
+  }
+
+  .mfa-settings {
+    padding: 16px;
+  }
+
+  .mfa-qr-wrap {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mfa-setup-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .update-password-card > span {
   color: var(--lime);
   font-size: 0.72rem;

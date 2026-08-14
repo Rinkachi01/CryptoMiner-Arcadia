@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { accountIdForUser, arcadiaSignInPath, arcadiaSignOutPath, getArcadiaUser } from "../identity-server";
 import { PublicSiteFooter } from "../PublicSiteFooter";
 import { LanguageSwitcher } from "../i18n";
+import { publicLoginConfig } from "../supabase-server";
+import { MfaSettings } from "./MfaSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,7 @@ export default async function ProfilePage() {
   if (!user) redirect(arcadiaSignInPath("/perfil"));
   const accountId = await accountIdForUser(user);
   const shortId = `${accountId.slice(0, 8)}…${accountId.slice(-6)}`;
+  const authConfig = publicLoginConfig();
 
   return (
     <main className="profile-page">
@@ -68,6 +71,12 @@ export default async function ProfilePage() {
                 <a href="/legal#privacy">Privacidade</a>
               </div>
             </article>
+            {authConfig?.enabled && (
+              <MfaSettings
+                publishableKey={authConfig.publishableKey}
+                supabaseUrl={authConfig.url}
+              />
+            )}
           </div>
         </div>
 

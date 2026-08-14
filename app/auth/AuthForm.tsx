@@ -97,6 +97,42 @@ export function AuthForm({
     setCaptchaReset((current) => current + 1);
   }
 
+  async function redirectAfterAuthentication() {
+    const { data, error } = await supabase.auth.getAuthenticatorAssuranceLevel();
+    if (
+      !error &&
+      data?.nextLevel === "aal2" &&
+      data.currentLevel !== "aal2"
+    ) {
+      window.location.assign(
+        `/auth/mfa?next=${encodeURIComponent(returnTo)}`,
+      );
+      return;
+    }
+    window.location.assign(returnTo);
+  }
+
+  async function signInWithGoogle() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}${referralCode ? `&ref=${encodeURIComponent(referralCode)}` : ""}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        options: {
+          queryParams: { prompt: "select_account" },
+          redirectTo,
+        },
+        provider: "google",
+      });
+      if (error) throw error;
+    } catch (error) {
+      setMessage(
+        friendlyError(error instanceof Error ? error.message : String(error)),
+      );
+      setBusy(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -153,7 +189,7 @@ export function AuthForm({
               method: "POST",
             }).catch(() => null);
           }
-          window.location.assign(returnTo);
+          await redirectAfterAuthentication();
           return;
         }
         setMessage(
@@ -171,7 +207,7 @@ export function AuthForm({
         password,
       });
       if (error) throw error;
-      window.location.assign(returnTo);
+      await redirectAfterAuthentication();
     } catch (error) {
       setMessage(
         friendlyError(error instanceof Error ? error.message : String(error)),
@@ -334,6 +370,21 @@ export function AuthForm({
             </div>
           </section>
         ) : (
+        <>
+        {mode !== "reset" && (
+          <div className="public-auth-social">
+            <button
+              className="public-auth-google"
+              disabled={busy}
+              onClick={() => void signInWithGoogle()}
+              type="button"
+            >
+              <span aria-hidden="true">G</span>
+              CONTINUAR COM GOOGLE
+            </button>
+            <div className="public-auth-divider"><span>ou use seu e-mail</span></div>
+          </div>
+        )}
         <form onSubmit={submit}>
           {mode === "signup" && (
             <label>
@@ -425,6 +476,7 @@ export function AuthForm({
                   : "ENVIAR RECUPERAÇÃO"}
           </button>
         </form>
+        </>
         )}
 
         <footer>

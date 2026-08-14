@@ -43,9 +43,20 @@ export async function GET(request: Request) {
     }
   }
 
-  const destination = error
+  let destination = error
     ? `/auth?error=${encodeURIComponent("O link expirou ou já foi utilizado.")}`
     : next;
+  if (!error && supabase) {
+    const assurance = await supabase.auth
+      .getAuthenticatorAssuranceLevel()
+      .catch(() => ({ data: null }));
+    if (
+      assurance.data?.nextLevel === "aal2" &&
+      assurance.data.currentLevel !== "aal2"
+    ) {
+      destination = `/auth/mfa?next=${encodeURIComponent(next)}`;
+    }
+  }
   return NextResponse.redirect(new URL(destination, requestUrl.origin), {
     headers: { "Cache-Control": "private, no-store" },
   });

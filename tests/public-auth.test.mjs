@@ -55,6 +55,8 @@ test("fluxo publico inclui sessao SSR, confirmacao, recuperacao e documentos", a
     readFile(new URL("../proxy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/auth/AuthForm.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/auth/callback/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth/mfa/MfaChallenge.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/perfil/MfaSettings.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/auth/update-password/UpdatePasswordForm.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/support/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/legal/page.tsx", import.meta.url), "utf8"),
@@ -66,6 +68,12 @@ test("fluxo publico inclui sessao SSR, confirmacao, recuperacao e documentos", a
   assert.match(source, /getClaims/);
   assert.match(source, /signUp/);
   assert.match(source, /signInWithPassword/);
+  assert.match(source, /signInWithOAuth/);
+  assert.match(source, /provider:\s*"google"/);
+  assert.match(source, /getAuthenticatorAssuranceLevel/);
+  assert.match(source, /mfa\.enroll/);
+  assert.match(source, /mfa\.verify/);
+  assert.match(source, /mfa\.unenroll/);
   assert.match(source, /resetPasswordForEmail/);
   assert.match(source, /supabase\.auth\.resend/);
   assert.match(source, /REENVIAR E-MAIL/);
