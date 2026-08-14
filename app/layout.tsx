@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     index: publicIndexingEnabled,
     noarchive: !publicIndexingEnabled,
   },
+  other: {
+    "bitmedia-site-verification": "ba3dc562b6b7ef271be834d1a5e0b04d",
+  },
   icons: {
     icon: "/assets/brand/cma-coin.png",
     shortcut: "/assets/brand/cma-coin.png",
