@@ -69,6 +69,10 @@ function toChatGPTArcadiaUser(user: ChatGPTUser): ArcadiaUser {
 }
 
 export async function getArcadiaUser(): Promise<ArcadiaUser | null> {
+  // On the public domain, only a verified Supabase session is authoritative.
+  // Never fall back to the legacy ChatGPT request headers there: those headers
+  // are not a credential and could otherwise be supplied by a caller.
+  if (publicLoginConfig()?.enabled) return getSupabaseUser();
   const user = await getChatGPTUser();
   if (user) return toChatGPTArcadiaUser(user);
   return getSupabaseUser();

@@ -2,6 +2,20 @@ export const CURRENT_IDENTITY_PROVIDER = "chatgpt" as const;
 export const PUBLIC_IDENTITY_PROVIDER = "supabase" as const;
 export const PUBLIC_ACCOUNT_STATUS = "implemented_guarded" as const;
 
+/** ChatGPT identity headers are trusted only on the managed ChatGPT host. */
+export function isTrustedChatGPTHost(hostHeader: string | null) {
+  const host = (hostHeader ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "");
+  return (
+    host === "chatgpt.site" ||
+    host.endsWith(".chatgpt.site") ||
+    host === "localhost" ||
+    host === "127.0.0.1"
+  );
+}
+
 export function safeArcadiaReturnPath(value: string | null | undefined) {
   if (!value?.startsWith("/") || value.startsWith("//")) return "/";
   try {

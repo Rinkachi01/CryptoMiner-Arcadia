@@ -5,7 +5,7 @@ import {
   isRejectedCrossSiteApiMutation,
 } from "../app/http-security.ts";
 
-test("mutações da API recusam origem cruzada sem bloquear navegação segura", () => {
+test("mutacoes da API recusam origem cruzada sem bloquear navegacao segura", () => {
   const base = {
     fetchSite: "same-origin",
     origin: "https://arcadia.example",
@@ -35,6 +35,14 @@ test("mutações da API recusam origem cruzada sem bloquear navegação segura",
   assert.equal(
     isRejectedCrossSiteApiMutation({
       ...base,
+      method: "POST",
+      origin: "not a url",
+    }),
+    true,
+  );
+  assert.equal(
+    isRejectedCrossSiteApiMutation({
+      ...base,
       fetchSite: "cross-site",
       method: "GET",
     }),
@@ -42,11 +50,13 @@ test("mutações da API recusam origem cruzada sem bloquear navegação segura",
   );
 });
 
-test("respostas recebem cabeçalhos defensivos sem reivindicar subdomínios alheios", () => {
+test("respostas recebem cabecalhos defensivos", () => {
   const headers = new Headers();
   applyArcadiaSecurityHeaders(headers, true);
   assert.equal(headers.get("x-content-type-options"), "nosniff");
   assert.equal(headers.get("x-frame-options"), "DENY");
+  assert.match(headers.get("content-security-policy") ?? "", /default-src 'self'/);
+  assert.equal(headers.get("cross-origin-resource-policy"), "same-origin");
   assert.equal(headers.get("strict-transport-security"), "max-age=31536000");
   assert.doesNotMatch(
     headers.get("strict-transport-security") ?? "",

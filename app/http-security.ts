@@ -1,5 +1,21 @@
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com",
+  "frame-src 'self' https://challenges.cloudflare.com",
+  "media-src 'self' blob:",
+  "worker-src 'self' blob:",
+].join("; ");
+
 export function isRejectedCrossSiteApiMutation(input: {
   fetchSite: string | null;
   method: string;
@@ -19,6 +35,9 @@ export function isRejectedCrossSiteApiMutation(input: {
 }
 
 export function applyArcadiaSecurityHeaders(headers: Headers, isHttps: boolean) {
+  headers.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  headers.set("Cross-Origin-Resource-Policy", "same-origin");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Content-Type-Options", "nosniff");

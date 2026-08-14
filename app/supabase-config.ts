@@ -31,7 +31,18 @@ function validSupabaseUrl(value: string | undefined) {
 function validPublishableKey(value: string | undefined) {
   if (!value) return false;
   const key = value.trim();
-  return key.startsWith("sb_publishable_") || key.length >= 80;
+  // This value is passed to the browser by the auth page. Do not accept an
+  // elevated secret/service_role key here, even if it happens to be long.
+  if (
+    key.startsWith("sb_secret_") ||
+    key.startsWith("service_role") ||
+    key.startsWith("sb_service_role_")
+  ) {
+    return false;
+  }
+  if (key.startsWith("sb_publishable_")) return true;
+  // Legacy Supabase anon keys are JWTs (public, but protected by RLS).
+  return key.startsWith("eyJ") && key.split(".").length === 3;
 }
 
 export function readSupabaseAuthConfig(

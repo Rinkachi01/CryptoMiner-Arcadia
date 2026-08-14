@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isTrustedChatGPTHost } from "./identity-rules.ts";
 
 export type ChatGPTUser = {
   userId: string;
@@ -20,6 +21,7 @@ const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
+  if (!isTrustedChatGPTHost(requestHeaders.get("host"))) return null;
   const email = requestHeaders.get(USER_EMAIL_HEADER);
   if (!email) return null;
   const userId = requestHeaders.get(USER_ID_HEADER) ?? email;
