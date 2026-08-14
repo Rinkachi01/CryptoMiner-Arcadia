@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import type { OnboardingStatus } from "./onboarding-rules";
 
 type TourTarget = "mine" | "games" | "pools" | "career";
@@ -55,22 +55,16 @@ export function OperatorTour({
   onNavigate,
   onOpenStarterRack,
 }: OperatorTourProps) {
-  const storageKey = useMemo(
-    () => `arcadia-operator-tour:${accountKey.toLowerCase()}`,
-    [accountKey],
+  const storageKey = `arcadia-operator-tour:${accountKey.toLowerCase()}`;
+  const [dismissed, setDismissed] = useState(() =>
+    typeof window === "undefined"
+      ? true
+      : window.localStorage.getItem(storageKey) === "dismissed",
   );
-  const [stepIndex, setStepIndex] = useState(0);
-  const [dismissed, setDismissed] = useState(true);
-
-  useEffect(() => {
-    if (!status?.eligible || status.completed) return;
-    const seen = window.localStorage.getItem(storageKey);
-    setDismissed(seen === "dismissed");
-    setStepIndex(Math.min(steps.length - 1, status.completedCount));
-  }, [status, storageKey]);
 
   if (!status?.eligible || status.completed || dismissed) return null;
 
+  const stepIndex = Math.min(steps.length - 1, status.completedCount);
   const step = steps[stepIndex] ?? steps[0];
 
   function closeTour() {
