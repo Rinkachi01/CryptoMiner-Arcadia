@@ -23981,3 +23981,99 @@ body {
     display: none;
   }
 }
+
+/* Experiência pública: suporte enxuto e temporada em faixas horizontais. */
+.support-contact-status {
+  max-width: 360px;
+}
+
+.support-contact-status strong {
+  color: var(--lime);
+}
+
+.support-guide-disclosure {
+  margin-top: 18px;
+}
+
+.support-guide-disclosure > summary {
+  min-height: 68px;
+}
+
+@media (min-width: 980px) {
+  .space-race-season {
+    grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+    gap: 14px;
+  }
+
+  .space-race-season > .season-track-card,
+  .space-race-season > .season-quests-card,
+  .space-race-season > .season-action-success {
+    grid-column: 1 / -1;
+  }
+
+  .space-race-hero,
+  .space-race-progress {
+    min-height: 198px;
+  }
+
+  .space-race-progress {
+    display: grid;
+    align-content: center;
+  }
+
+  .season-pass-lanes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+.season-track-card {
+  padding: 14px;
+}
+
+.season-pass-lane {
+  padding: 12px;
+}
+
+.season-pass-lane .season-reward-grid {
+  margin-top: 10px;
+}
+
+.season-reward-grid {
+  grid-auto-columns: minmax(138px, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.season-reward-grid article {
+  min-height: 214px;
+  padding: 10px;
+  gap: 6px;
+}
+
+.season-reward-grid img {
+  height: 70px;
+}
+
+.season-quests-card {
+  padding: 14px;
+}
+
+.season-quests-grid {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.season-quest-group {
+  gap: 6px;
+  padding: 9px;
+}
+
+.season-quest-group article {
+  gap: 8px;
+  padding: 8px;
+}
+
+.season-quest-copy {
+  gap: 4px;
+}

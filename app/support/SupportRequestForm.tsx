@@ -39,12 +39,10 @@ const statusLabels: Record<string, string> = {
 
 export function SupportRequestForm({
   accountEmail,
-  emailDeliveryEnabled,
   loginPath,
   signedIn,
 }: {
   accountEmail: string | null;
-  emailDeliveryEnabled: boolean;
   loginPath: string;
   signedIn: boolean;
 }) {
@@ -116,20 +114,16 @@ export function SupportRequestForm({
     <section className="support-request-center">
       <header>
         <div>
-          <span>ATENDIMENTO IDENTIFICADO</span>
-          <h2>Abra e acompanhe seu chamado</h2>
+          <span>ATENDIMENTO SEGURO</span>
+          <h2>Fale com nossa equipe</h2>
           <p>
-            O protocolo fica ligado à sua conta verificada. Nunca inclua senha,
-            código de acesso, chave privada ou seed phrase.
+            Sua solicitação fica ligada à conta verificada. Nunca envie senha,
+            código de acesso ou chave privada.
           </p>
         </div>
-        <div className={emailDeliveryEnabled ? "ready" : "stored"}>
-          <strong>{emailDeliveryEnabled ? "E-MAIL ATIVO" : "REGISTRO INTERNO"}</strong>
-          <small>
-            {emailDeliveryEnabled
-              ? "O suporte recebe uma cópia por e-mail."
-              : "O protocolo já é salvo; e-mail corporativo entra após o domínio."}
-          </small>
+        <div className="ready">
+          <strong>ATENDIMENTO ATIVO</strong>
+          <small>Acompanhe o andamento e as respostas nesta página.</small>
         </div>
       </header>
 
