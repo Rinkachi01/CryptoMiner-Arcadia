@@ -91,8 +91,15 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Valida o token e renova a sessão antes de qualquer resposta autenticada.
-  await supabase.auth.getClaims();
+  // A rota OAuth/callback pode chegar sem cookie ou com um cookie antigo. A
+  // validação é importante, mas nunca deve transformar uma sessão anônima ou
+  // um token inválido em um erro 500 do Worker.
+  try {
+    await supabase.auth.getClaims();
+  } catch {
+    // Continue as an anonymous request; protected pages perform their own
+    // authorization check and redirect to /auth when needed.
+  }
   response.headers.set("Cache-Control", "private, no-store");
   return secureResponse(response, request);
 }
