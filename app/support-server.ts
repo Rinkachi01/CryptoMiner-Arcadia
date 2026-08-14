@@ -174,7 +174,7 @@ export async function readAdminSupportOverview(db: D1Database) {
            WHEN 'resolved' THEN 2
            ELSE 3
          END, updated_at DESC
-         LIMIT 40`,
+         LIMIT 100`,
       )
       .all<SupportTicketRow>(),
     db

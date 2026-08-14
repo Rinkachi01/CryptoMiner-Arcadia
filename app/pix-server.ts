@@ -601,7 +601,7 @@ export async function readAdminPixDeposits(db: D1Database) {
       pix.created_at, pix.updated_at, states.display_name, states.email
       FROM wallet_pix_deposit_intents pix
       LEFT JOIN game_states states ON states.account_id = pix.account_id
-      ORDER BY pix.created_at DESC LIMIT 40`)
+      ORDER BY pix.created_at DESC LIMIT 100`)
     .all<{
       account_id: string;
       brl_cents: number;
