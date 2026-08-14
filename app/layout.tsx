@@ -22,6 +22,7 @@ export const metadata: Metadata = {
   },
   other: {
     "bitmedia-site-verification": "ba3dc562b6b7ef271be834d1a5e0b04d",
+    coinzilla: "ca715cdb144abc5b2c1d3dd5bd682363",
   },
   icons: {
     icon: "/assets/brand/cma-coin.png",
@@ -68,6 +69,10 @@ export default function RootLayout({
         <meta
           name="bitmedia-site-verification"
           content="ba3dc562b6b7ef271be834d1a5e0b04d"
+        />
+        <meta
+          name="coinzilla"
+          content="ca715cdb144abc5b2c1d3dd5bd682363"
         />
       </head>
       <body>{children}</body>
