@@ -432,6 +432,36 @@ export function ConversionView({
     };
   }, []);
 
+  const hasPendingPix = Boolean(
+    pix?.recent?.some(
+      (entry) => entry.status !== "credited" && entry.status !== "provider_failed",
+    ),
+  );
+
+  useEffect(() => {
+    if (!hasPendingPix) return;
+    let active = true;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch("/api/wallet/pix", { cache: "no-store" });
+        const payload = (await response.json()) as PixResponse;
+        if (!response.ok || !payload.overview) return;
+        if (!active) return;
+        setPix(payload.overview);
+        if ((payload.reconciliation?.credited ?? 0) > 0) {
+          await onRefreshAccount();
+          setPixMessage("Pagamento Pix confirmado e CMA creditado.");
+        }
+      } catch {
+        // A próxima janela tenta novamente; a cobrança continua pendente no servidor.
+      }
+    }, 20_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [hasPendingPix, onRefreshAccount]);
+
   useEffect(() => {
     if (!wallet?.deposits?.enabled) return;
     let active = true;

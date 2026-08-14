@@ -8,6 +8,7 @@ import {
 const PTAX_CACHE_MS = 30 * 60 * 1000;
 const PTAX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PIX_QUOTE_TTL_MS = 10 * 60 * 1000;
+const PIX_CREDITING_STALE_MS = 90 * 1000;
 
 type PtaxRow = {
   observed_at: number;
@@ -507,10 +508,19 @@ export async function reconcilePendingPixDeposits(input: {
   now?: number;
 }) {
   await ensurePixSchema(input.db);
+  const now = input.now ?? Date.now();
+  // Libera uma reserva que ficou presa por uma interrupção do Worker antes do
+  // batch final. O lançamento continua protegido pela chave idempotente.
+  await input.db
+    .prepare(`UPDATE wallet_pix_deposit_intents SET status = 'waiting_transfer', updated_at = ?
+      WHERE account_id = ? AND status = 'crediting' AND updated_at <= ?`)
+    .bind(now, input.accountId, now - PIX_CREDITING_STALE_MS)
+    .run();
   const pending = await input.db
     .prepare(`SELECT provider_reference FROM wallet_pix_deposit_intents
       WHERE account_id = ? AND provider_reference IS NOT NULL
       AND status NOT IN ('credited', 'provider_failed')
+      AND status NOT LIKE 'canceled:%'
       ORDER BY created_at DESC LIMIT 8`)
     .bind(input.accountId)
     .all<{ provider_reference: string }>();
@@ -524,7 +534,7 @@ export async function reconcilePendingPixDeposits(input: {
         dataId: row.provider_reference,
         db: input.db,
         environment: input.environment,
-        now: input.now,
+        now,
       });
       checked += 1;
       if (result.status === "credited") credited += 1;

@@ -675,6 +675,11 @@ export function AdminDashboard({
   }, [loadOverview]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => void loadOverview(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadOverview]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       const saved = window.localStorage.getItem("arcadia-text-scale");
       if (saved === "large" || saved === "extra") {
@@ -855,6 +860,14 @@ export function AdminDashboard({
   const activeAlertCount = overview.alerts.filter(
     (alert) => alert.severity !== "stable",
   ).length;
+  const pixAttentionCount = overview.pixDeposits.deposits.filter(
+    (deposit) =>
+      deposit.status === "crediting" ||
+      deposit.status.includes("processing") ||
+      deposit.status.includes("failed") ||
+      deposit.status.includes("unknown"),
+  ).length;
+  const pixPendingCount = overview.pixDeposits.pendingCount;
 
   return (
     <main className={`admin-shell text-scale-${textScale}`}>
@@ -930,6 +943,28 @@ export function AdminDashboard({
           <span>{error ? "!" : "✓"}</span>
           {error || message}
         </div>
+      )}
+
+      {(pixPendingCount > 0 || pixAttentionCount > 0) && (
+        <button
+          className="admin-live-alert"
+          type="button"
+          aria-live="polite"
+          onClick={() => setAdminSection("treasury")}
+        >
+          <span className="admin-live-alert-icon">!</span>
+          <span>
+            <strong>
+              {pixAttentionCount > 0
+                ? "Pix exige atenção"
+                : "Pagamento Pix pendente"}
+            </strong>
+            <small>
+              {pixPendingCount} cobrança(s) aguardando confirmação no servidor.
+            </small>
+          </span>
+          <b>ABRIR TESOURARIA</b>
+        </button>
       )}
 
       <section className="admin-metric-grid" hidden={adminSection !== "overview"}>

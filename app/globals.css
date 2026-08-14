@@ -23428,6 +23428,66 @@ body {
   display: none;
 }
 
+.admin-live-alert {
+  position: fixed;
+  z-index: 100;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: min(430px, calc(100vw - 36px));
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 182, 77, 0.75);
+  border-radius: 10px;
+  background: rgba(30, 19, 17, 0.97);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
+  color: #fff4e7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-live-alert:hover,
+.admin-live-alert:focus-visible {
+  border-color: #a9ff3f;
+  outline: none;
+}
+
+.admin-live-alert-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #ffb64d;
+  border-radius: 50%;
+  color: #ffcf7c;
+  font-weight: 900;
+}
+
+.admin-live-alert > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-live-alert strong {
+  color: #ffd07a;
+  font-size: 0.82rem;
+}
+
+.admin-live-alert small {
+  color: #c7b7aa;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.admin-live-alert b {
+  color: #a9ff3f;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
 .public-footer-main {
   display: grid !important;
   max-width: 1240px;
@@ -23674,5 +23734,16 @@ body {
   .public-footer-bottom {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .admin-live-alert {
+    top: 10px;
+    right: 10px;
+    width: calc(100vw - 20px);
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .admin-live-alert b {
+    display: none;
   }
 }

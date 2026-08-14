@@ -21,13 +21,28 @@ export async function GET() {
   if (!user) return json({ error: "Faça login para abrir o Pix." }, 401);
   if (!env.DB) return json({ error: "Banco autoritativo indisponível." }, 503);
   try {
-    return json(
-      await readPixOverview({
-        accountId: await accountIdForUser(user),
+    const accountId = await accountIdForUser(user);
+    let reconciliation = { checked: 0, credited: 0, unavailable: 0 };
+    try {
+      // Reconcile pelo servidor também no carregamento da carteira. Isso cobre
+      // atrasos ou falhas de entrega do webhook sem confiar no navegador.
+      reconciliation = await reconcilePendingPixDeposits({
+        accountId,
         db: env.DB,
         environment: env,
-      }),
-    );
+      });
+    } catch (reconciliationError) {
+      console.error(
+        "pix_auto_reconciliation_failed",
+        reconciliationError instanceof Error
+          ? reconciliationError.message
+          : "unknown_error",
+      );
+    }
+    return json({
+      ...(await readPixOverview({ accountId, db: env.DB, environment: env })),
+      reconciliation,
+    });
   } catch (error) {
     console.error(
       "pix_overview_failed",
