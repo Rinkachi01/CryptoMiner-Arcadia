@@ -73,6 +73,15 @@ function cleanString(value: unknown, max = 512) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function isPendingPixStatus(status: string) {
+  return (
+    !["credited", "provider_failed"].includes(status) &&
+    !status.startsWith("canceled:") &&
+    !status.startsWith("expired:") &&
+    !status.startsWith("rejected:")
+  );
+}
+
 function validTicketUrl(value: unknown) {
   const candidate = cleanString(value, 2_048);
   try {
@@ -587,9 +596,7 @@ export async function readAdminPixDeposits(db: D1Database) {
   return {
     creditedCount: deposits.filter((deposit) => deposit.status === "credited").length,
     deposits,
-    pendingCount: deposits.filter((deposit) =>
-      !["credited", "provider_failed"].includes(deposit.status)
-    ).length,
+    pendingCount: deposits.filter((deposit) => isPendingPixStatus(deposit.status)).length,
   };
 }
 

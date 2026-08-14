@@ -310,6 +310,15 @@ function pixStatus(status: string) {
   return { label: "AGUARDANDO PAGAMENTO", tone: "waiting" };
 }
 
+function isPendingPixStatus(status: string) {
+  return (
+    !["credited", "provider_failed"].includes(status) &&
+    !status.startsWith("canceled:") &&
+    !status.startsWith("expired:") &&
+    !status.startsWith("rejected:")
+  );
+}
+
 export function ConversionView({
   btcBalanceAtomic,
   cmaBalance,
@@ -440,7 +449,7 @@ export function ConversionView({
 
   const hasPendingPix = Boolean(
     pix?.recent?.some(
-      (entry) => entry.status !== "credited" && entry.status !== "provider_failed",
+      (entry) => isPendingPixStatus(entry.status),
     ),
   );
 
