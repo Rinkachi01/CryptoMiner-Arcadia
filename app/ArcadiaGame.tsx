@@ -109,6 +109,11 @@ type GameApiResponse = {
   serverTime: number;
   nextBlockAt: number;
   temporaryPowerGh: number;
+  temporaryPowerSummary?: {
+    totalGh: number;
+    activeGrantCount: number;
+    nextExpiryAt: number;
+  };
   network?: NetworkPowerSnapshot;
   message: string;
   error?: string;
@@ -315,6 +320,7 @@ export function ArcadiaGame({
   const [energyExpiresAt, setEnergyExpiresAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
+  const [temporaryPowerExpiresAt, setTemporaryPowerExpiresAt] = useState(0);
   const [network, setNetwork] = useState<NetworkPowerSnapshot>(
     defaultNetworkSnapshot,
   );
@@ -412,6 +418,9 @@ export function ArcadiaGame({
     setEnergyExpiresAt(state.energyExpiresAt);
     setLastSettledBlock(state.lastSettledBlock);
     setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
+    setTemporaryPowerExpiresAt(
+      Math.max(0, snapshot.temporaryPowerSummary?.nextExpiryAt ?? 0),
+    );
     if (snapshot.network) setNetwork(snapshot.network);
     setActiveRoomId(state.activeRoomId);
     setOwnedRoomIds(state.ownedRoomIds);
@@ -1219,6 +1228,9 @@ export function ArcadiaGame({
           <PoolsView
             allocations={poolAllocations}
             installedPower={minerPower}
+            temporaryPowerGh={temporaryPowerGh}
+            temporaryPowerExpiresAt={temporaryPowerExpiresAt}
+            clockNow={clockNow}
             network={network}
             onApplyAllocations={applyPoolAllocations}
           />
@@ -1704,6 +1716,7 @@ function MiningRoom({
 
         <MiningStatusPanel
           installedPower={minerPower}
+          temporaryPowerGh={temporaryPowerGh}
           allocations={poolAllocations}
           networkPowerGh={network.playerPowerGh}
           secondsLeft={secondsLeft}
@@ -1852,12 +1865,14 @@ function EnergyCard({
 
 function MiningStatusPanel({
   installedPower,
+  temporaryPowerGh,
   allocations,
   networkPowerGh,
   secondsLeft,
   onOpenPools,
 }: {
   installedPower: number;
+  temporaryPowerGh: number;
   allocations: PoolAllocations;
   networkPowerGh: Record<PoolId, number>;
   secondsLeft: number;
@@ -1878,7 +1893,11 @@ function MiningStatusPanel({
           const allocation = allocations[pool.id] ?? 0;
           // Fix #4: guard installedPower against NaN/Infinity
           const safePower = typeof installedPower === "number" && Number.isFinite(installedPower) ? installedPower : 0;
-          const allocatedPower = Math.floor((safePower * allocation) / 100);
+          const safeTemporaryPower = Number.isFinite(temporaryPowerGh)
+            ? Math.max(0, temporaryPowerGh)
+            : 0;
+          const allocatedMinerPower = Math.floor((safePower * allocation) / 100);
+          const allocatedGamePower = Math.floor((safeTemporaryPower * allocation) / 100);
           // Fix #2: guard networkPowerGh key against undefined
           const poolNetworkPower = networkPowerGh[pool.id] ?? 0;
           return (
@@ -1892,7 +1911,12 @@ function MiningStatusPanel({
                 <strong>{formatPower(poolNetworkPower)}</strong>
                 <em>Poder total da rede {pool.symbol}</em>
               </span>
-              <b>{formatPower(allocatedPower)}</b>
+              <b>
+                <span>{formatPower(allocatedMinerPower)} mineradores</span>
+                <span className="temporary-power-inline">
+                  + {formatPower(allocatedGamePower)} minigames
+                </span>
+              </b>
             </article>
           );
         })}
@@ -2046,11 +2070,17 @@ export function GamesView() {
 function PoolsView({
   allocations,
   installedPower,
+  temporaryPowerGh,
+  temporaryPowerExpiresAt,
+  clockNow,
   network,
   onApplyAllocations,
 }: {
   allocations: PoolAllocations;
   installedPower: number;
+  temporaryPowerGh: number;
+  temporaryPowerExpiresAt: number;
+  clockNow: number;
   network: NetworkPowerSnapshot;
   onApplyAllocations: (allocations: PoolAllocations) => void;
 }) {
@@ -2074,7 +2104,7 @@ function PoolsView({
           <span className="eyebrow">MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS</span>
           <h2>Distribua seu poder</h2>
           <p>
-            Divida 100% do seu poder entre CMA, Bitcoin, Dogecoin e Litecoin.
+            Uma única distribuição vale para os mineradores e para o poder temporário validado nos minigames.
           </p>
         </div>
         <div
@@ -2091,6 +2121,26 @@ function PoolsView({
                 ? `FALTAM ${100 - totalAllocation}%`
                 : `EXCEDEU ${totalAllocation - 100}%`}
           </span>
+        </div>
+      </div>
+
+      <div className="temporary-power-banner">
+        <div>
+          <span className="temporary-power-badge">G</span>
+          <div>
+            <strong>Poder temporário dos minigames</strong>
+            <small>
+              Inclui a recompensa validada e qualquer bônus emitido pelo servidor. Ambos expiram automaticamente e seguem esta mesma distribuição.
+            </small>
+          </div>
+        </div>
+        <div className="temporary-power-total">
+          <strong>{formatPower(temporaryPowerGh)}</strong>
+          <small>
+            {temporaryPowerExpiresAt > clockNow
+              ? `ativo até ${new Date(temporaryPowerExpiresAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+              : "jogue para gerar"}
+          </small>
         </div>
       </div>
 
@@ -2121,9 +2171,13 @@ function PoolsView({
       <div className="pool-grid">
         {pools.map((pool) => {
           const allocation = draft[pool.id] ?? 0;
-          const allocatedPower = Math.floor(
+          const allocatedMinerPower = Math.floor(
             (installedPower * allocation) / 100,
           );
+          const allocatedGamePower = Math.floor(
+            (Math.max(0, temporaryPowerGh) * allocation) / 100,
+          );
+          const allocatedPower = allocatedMinerPower + allocatedGamePower;
           const blockRewardAtomic = network.blockRewardAtomic[pool.id] ?? 0;
           const estimate = calculateEstimatedReward(
             pool,
@@ -2156,7 +2210,17 @@ function PoolsView({
               <h3>{pool.name}</h3>
               <dl>
                 <div>
-                  <dt>Poder alocado</dt>
+                  <dt>Mineradores</dt>
+                  <dd>{formatPower(allocatedMinerPower)}</dd>
+                </div>
+                <div>
+                  <dt>Minigames · temporário</dt>
+                  <dd className={allocatedGamePower > 0 ? "temporary-power-value" : undefined}>
+                    {formatPower(allocatedGamePower)}
+                  </dd>
+                </div>
+                <div className="pool-total-power-row">
+                  <dt>Poder efetivo alocado</dt>
                   <dd>{formatPower(allocatedPower)}</dd>
                 </div>
                 <div>
@@ -2234,9 +2298,11 @@ function PoolsView({
 
       <div className="allocation-apply-bar">
         <div>
-          <span>PODER TOTAL</span>
-          <strong>{formatPower(installedPower)}</strong>
-          <small>Distribuído entre as quatro pools</small>
+          <span>PODER EFETIVO TOTAL</span>
+          <strong>{formatPower(installedPower + Math.max(0, temporaryPowerGh))}</strong>
+          <small>
+            {formatPower(installedPower)} mineradores + {formatPower(Math.max(0, temporaryPowerGh))} minigames
+          </small>
         </div>
         <button
           type="button"

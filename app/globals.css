@@ -15990,6 +15990,111 @@ body {
   cursor: not-allowed;
 }
 
+.temporary-power-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: -14px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(54, 216, 242, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(115deg, rgba(54, 216, 242, 0.08), rgba(169, 255, 63, 0.04));
+}
+
+.temporary-power-banner > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.temporary-power-badge {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid rgba(54, 216, 242, 0.55);
+  border-radius: 9px;
+  color: #54e7f7;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.temporary-power-banner strong,
+.temporary-power-banner small,
+.temporary-power-total {
+  display: block;
+}
+
+.temporary-power-banner strong {
+  color: #e9f8f8;
+  font-size: 11px;
+}
+
+.temporary-power-banner small {
+  max-width: 670px;
+  margin-top: 4px;
+  color: #8fa5b0;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.temporary-power-total {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.temporary-power-total strong {
+  color: var(--lime);
+  font-size: 14px;
+}
+
+.temporary-power-total small {
+  color: #9eafba;
+  font-size: 8px;
+}
+
+.pool-total-power-row {
+  margin-top: 5px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(101, 134, 149, 0.24);
+}
+
+.temporary-power-value {
+  color: #54e7f7 !important;
+}
+
+.mining-pool-status-list article > b {
+  display: grid;
+  gap: 3px;
+  text-align: right;
+}
+
+.mining-pool-status-list article > b span {
+  display: block;
+  color: #dce9ed;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.mining-pool-status-list article > b .temporary-power-inline {
+  color: #54e7f7;
+}
+
+@media (max-width: 620px) {
+  .temporary-power-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .temporary-power-total {
+    width: 100%;
+    text-align: left;
+  }
+}
+
 .mining-status-dock {
   position: fixed;
   z-index: 38;

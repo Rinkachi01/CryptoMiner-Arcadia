@@ -207,6 +207,33 @@ async function activeTemporaryPower(
   return Number(row?.total ?? 0);
 }
 
+async function activeTemporaryPowerSummary(
+  db: D1Database,
+  accountId: string,
+  now: number,
+) {
+  const row = await db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(power_gh), 0) AS total,
+         COUNT(*) AS active_grants,
+         COALESCE(MIN(expires_at), 0) AS next_expiry
+       FROM temporary_power_grants
+       WHERE account_id = ? AND starts_at <= ? AND expires_at > ?`,
+    )
+    .bind(accountId, now, now)
+    .first<{
+      total: number;
+      active_grants: number;
+      next_expiry: number;
+    }>();
+  return {
+    totalGh: Math.max(0, Number(row?.total ?? 0)),
+    activeGrantCount: Math.max(0, Number(row?.active_grants ?? 0)),
+    nextExpiryAt: Math.max(0, Number(row?.next_expiry ?? 0)),
+  };
+}
+
 async function settlementTemporaryPower(
   db: D1Database,
   accountId: string,
@@ -318,6 +345,11 @@ function responsePayload(
   now: number,
   message: string,
   temporaryPowerGh = 0,
+  temporaryPowerSummary = {
+    totalGh: Math.max(0, temporaryPowerGh),
+    activeGrantCount: 0,
+    nextExpiryAt: 0,
+  },
   network?: NetworkPowerSnapshot,
 ) {
   return {
@@ -326,6 +358,7 @@ function responsePayload(
     serverTime: now,
     nextBlockAt: nextBlockAt(now),
     temporaryPowerGh,
+    temporaryPowerSummary,
     network,
     message,
     account: {
@@ -351,6 +384,11 @@ export async function GET() {
   }
 
   const temporaryPowerGh = await activeTemporaryPower(
+    context.db,
+    context.accountId,
+    now,
+  );
+  const temporaryPowerSummary = await activeTemporaryPowerSummary(
     context.db,
     context.accountId,
     now,
@@ -443,8 +481,9 @@ export async function GET() {
       now,
       settledBlockCount > 0
         ? `${settledBlockCount} bloco(s) processado(s).`
-        : "Conta sincronizada.",
+      : "Conta sincronizada.",
       temporaryPowerGh,
+      temporaryPowerSummary,
       network,
     ),
   );
@@ -483,6 +522,11 @@ export async function POST(request: Request) {
     context.accountId,
     now,
   );
+  const temporaryPowerSummary = await activeTemporaryPowerSummary(
+    context.db,
+    context.accountId,
+    now,
+  );
   const eligibleTemporaryPowerGh = await settlementTemporaryPower(
     context.db,
     context.accountId,
@@ -505,6 +549,7 @@ export async function POST(request: Request) {
         now,
         "Conta autoritativa pronta.",
         temporaryPowerGh,
+        temporaryPowerSummary,
         network,
       ),
     );
@@ -534,6 +579,7 @@ export async function POST(request: Request) {
         now,
         "Ação já processada anteriormente.",
         temporaryPowerGh,
+        temporaryPowerSummary,
         network,
       ),
     );
@@ -551,6 +597,7 @@ export async function POST(request: Request) {
           now,
           "Seu estado foi atualizado em outra sessão.",
           temporaryPowerGh,
+          temporaryPowerSummary,
           network,
         ),
         error: "Versão desatualizada. O estado mais recente foi restaurado.",
@@ -607,6 +654,7 @@ export async function POST(request: Request) {
           now,
           "Ação recusada.",
           temporaryPowerGh,
+          temporaryPowerSummary,
           network,
         ),
       },
@@ -641,6 +689,7 @@ export async function POST(request: Request) {
           now,
           "Outra sessão concluiu uma ação primeiro.",
           temporaryPowerGh,
+          temporaryPowerSummary,
           network,
         ),
         error: "Estado atualizado em outra sessão. Tente novamente.",
@@ -689,6 +738,7 @@ export async function POST(request: Request) {
       now,
       result.message,
       temporaryPowerGh,
+      temporaryPowerSummary,
       network,
     ),
     actionResult: result.metadata,
