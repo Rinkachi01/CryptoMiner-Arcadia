@@ -305,8 +305,6 @@ export function ArcadiaGame({
   const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
     defaultPoolAllocations,
   );
-  const [gamePoolAllocations, setGamePoolAllocations] =
-    useState<PoolAllocations>(defaultPoolAllocations);
   const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
     useState<WalletSymbol>("CMA");
   const [cmaBalance, setCmaBalance] = useState(0);
@@ -405,7 +403,6 @@ export function ArcadiaGame({
     const state = snapshot.state;
     setSelectedPoolId(state.selectedPoolId);
     setPoolAllocations(state.poolAllocations);
-    setGamePoolAllocations(state.gamePoolAllocations ?? state.poolAllocations);
     setDisplayedBalanceSymbol(state.displayedBalanceSymbol);
     setCmaBalance(state.cmaBalance);
     setBtcBalanceAtomic(state.btcBalanceAtomic);
@@ -642,12 +639,6 @@ export function ArcadiaGame({
 
   async function applyPoolAllocations(next: PoolAllocations) {
     await performGameAction("apply_allocations", {
-      allocations: next,
-    });
-  }
-
-  async function applyGamePoolAllocations(next: PoolAllocations) {
-    await performGameAction("apply_game_allocations", {
       allocations: next,
     });
   }
@@ -1152,7 +1143,6 @@ export function ArcadiaGame({
                 rackMiners={rackMiners}
                 editMode={editMode}
                 poolAllocations={poolAllocations}
-                gamePoolAllocations={gamePoolAllocations}
                 network={network}
                 minerPower={minerPower}
                 temporaryPowerGh={temporaryPowerGh}
@@ -1290,13 +1280,6 @@ export function ArcadiaGame({
                 onRefreshAccount={refreshServerState}
               />
             </div>
-            <div className="games-side-panels">
-              <GamePowerAllocationPanel
-                allocations={gamePoolAllocations}
-                temporaryPowerGh={temporaryPowerGh}
-                onApply={applyGamePoolAllocations}
-              />
-            </div>
           </div>
         )}
 
@@ -1384,7 +1367,6 @@ function MiningRoom({
   rackMiners,
   editMode,
   poolAllocations,
-  gamePoolAllocations,
   network,
   minerPower,
   temporaryPowerGh,
@@ -1410,7 +1392,6 @@ function MiningRoom({
   rackMiners: Record<string, InstalledMiner[]>;
   editMode: boolean;
   poolAllocations: PoolAllocations;
-  gamePoolAllocations: PoolAllocations;
   network: NetworkPowerSnapshot;
   minerPower: number;
   temporaryPowerGh: number;
@@ -1693,7 +1674,7 @@ function MiningRoom({
 
         <div className="allocation-summary-card">
           <div className="allocation-summary-heading">
-            <span>DISTRIBUIÇÃO DE PODER</span>
+            <span>DISTRIBUIÇÃO DE PODER · POOLS</span>
             <strong>{energySeconds > 0 ? "ATIVA" : "PAUSADA"}</strong>
           </div>
           <div className="allocation-summary-list">
@@ -1713,32 +1694,11 @@ function MiningRoom({
               );
             })}
           </div>
+          <p className="pool-allocation-note">
+            Mineradores e poder temporário dos minigames seguem automaticamente esta mesma distribuição.
+          </p>
           <button type="button" onClick={onOpenPools}>
             AJUSTAR DISTRIBUIÇÃO
-          </button>
-        </div>
-
-        <div className="allocation-summary-card game-allocation-summary-card">
-          <div className="allocation-summary-heading">
-            <span>PODER DOS MINIGAMES</span>
-            <strong>{temporaryPowerGh > 0 ? "ATIVO" : "AGUARDANDO"}</strong>
-          </div>
-          <div className="allocation-summary-list">
-            {pools.map((pool) => (
-              <div key={pool.id}>
-                <img src={pool.asset} alt="" />
-                <span>{pool.symbol}</span>
-                <b>{gamePoolAllocations[pool.id] ?? 0}%</b>
-                <small>
-                  {formatPower(
-                    (temporaryPowerGh * (gamePoolAllocations[pool.id] ?? 0)) / 100,
-                  )}
-                </small>
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={() => setActiveView("games")}>
-            CONFIGURAR PODER DOS JOGOS
           </button>
         </div>
 
@@ -1764,7 +1724,7 @@ function MiningRoom({
               const allocation = poolAllocations[pool.id] ?? 0;
               const allocatedPower =
                 (minerPower * allocation) / 100 +
-                (temporaryPowerGh * (gamePoolAllocations[pool.id] ?? 0)) / 100;
+                (temporaryPowerGh * allocation) / 100;
               // Safe bigint conversion — prevents BigInt(NaN/undefined/Infinity) crash
               const blockRewardAtomicNum = (network.blockRewardAtomic[pool.id] ?? 0) as number;
               const blockRewardAtomicBigInt = (() => {
@@ -2078,64 +2038,6 @@ export function GamesView() {
           <strong>Economia controlada</strong>
           <small>Ativar poder, bateria e CMA com teto diário.</small>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function GamePowerAllocationPanel({
-  allocations,
-  temporaryPowerGh,
-  onApply,
-}: {
-  allocations: PoolAllocations;
-  temporaryPowerGh: number;
-  onApply: (allocations: PoolAllocations) => void;
-}) {
-  const [draft, setDraft] = useState<PoolAllocations>(allocations);
-  const selectedPool = pools.find((pool) => draft[pool.id] === 100);
-
-  function choosePool(poolId: PoolId) {
-    setDraft({
-      cma: poolId === "cma" ? 100 : 0,
-      btc: poolId === "btc" ? 100 : 0,
-      doge: poolId === "doge" ? 100 : 0,
-      ltc: poolId === "ltc" ? 100 : 0,
-    });
-  }
-
-  return (
-    <section className="game-power-allocation-panel" aria-label="Destino do poder dos minigames">
-      <div className="panel-title">
-        <span>PODER DOS MINIGAMES</span>
-        <strong>{formatPower(temporaryPowerGh)}</strong>
-      </div>
-      <p>
-        Este poder não consome baterias. Escolha a pool que receberá os próximos bônus dos jogos.
-      </p>
-      <div className="game-pool-choices">
-        {pools.map((pool) => (
-          <button
-            type="button"
-            key={pool.id}
-            className={draft[pool.id] === 100 ? "selected" : ""}
-            onClick={() => choosePool(pool.id)}
-          >
-            <img src={pool.asset} alt="" />
-            <span>{pool.symbol}</span>
-            <small>{draft[pool.id] ?? 0}%</small>
-          </button>
-        ))}
-      </div>
-      <div className="game-power-allocation-footer">
-        <span>
-          {selectedPool
-            ? `100% para ${selectedPool.symbol}`
-            : "Escolha uma pool"}
-        </span>
-        <button type="button" onClick={() => onApply(draft)}>
-          SALVAR DESTINO
-        </button>
       </div>
     </section>
   );

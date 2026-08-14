@@ -176,7 +176,13 @@ async function readState(db: D1Database, accountId: string) {
 }
 
 function parseState(row: StoredRow): PublicGameState {
-  return JSON.parse(row.state_json) as PublicGameState;
+  const parsed = JSON.parse(row.state_json) as Record<string, unknown>;
+  // Estados antigos podiam guardar uma distribuição separada para os jogos.
+  // Ela é descartada na leitura: a única distribuição autoritativa é a das Pools.
+  if (parsed && typeof parsed === "object" && "gamePoolAllocations" in parsed) {
+    delete parsed.gamePoolAllocations;
+  }
+  return parsed as PublicGameState;
 }
 
 function secureRandomUnit() {

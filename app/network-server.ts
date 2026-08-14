@@ -55,7 +55,6 @@ export type AccountNetworkContribution = {
   accountId: string;
   installedPowerGh: number;
   allocations: PoolAllocations;
-  gameAllocations: PoolAllocations;
   energyExpiresAt: number;
 };
 
@@ -104,7 +103,7 @@ export function aggregatePlayerNetworkPower(
     accountId: string;
     state: Pick<
       PublicGameState,
-      "energyExpiresAt" | "poolAllocations" | "gamePoolAllocations" | "rackMiners"
+      "energyExpiresAt" | "poolAllocations" | "rackMiners"
     >;
   }>,
   temporaryPowerByAccount: ReadonlyMap<string, number>,
@@ -118,12 +117,9 @@ export function aggregatePlayerNetworkPower(
       safePower(entry.state.energyExpiresAt) > now ? getInstalledPower(installed) : 0;
     const gamePower = safePower(temporaryPowerByAccount.get(entry.accountId));
     const allocations = validAllocations(entry.state.poolAllocations);
-    const gameAllocations = validAllocations(
-      entry.state.gamePoolAllocations ?? entry.state.poolAllocations,
-    );
     for (const pool of pools) {
       totals[pool.id] += Math.floor((minerPower * allocations[pool.id]) / 100);
-      totals[pool.id] += Math.floor((gamePower * gameAllocations[pool.id]) / 100);
+      totals[pool.id] += Math.floor((gamePower * allocations[pool.id]) / 100);
     }
   }
 
@@ -134,7 +130,7 @@ export function buildAccountNetworkContribution(
   accountId: string,
   state: Pick<
     PublicGameState,
-    "energyExpiresAt" | "poolAllocations" | "gamePoolAllocations" | "rackMiners"
+    "energyExpiresAt" | "poolAllocations" | "rackMiners"
   >,
 ): AccountNetworkContribution {
   return {
@@ -143,9 +139,6 @@ export function buildAccountNetworkContribution(
       Object.values(state.rackMiners ?? {}).flat(),
     ),
     allocations: validAllocations(state.poolAllocations),
-    gameAllocations: validAllocations(
-      state.gamePoolAllocations ?? state.poolAllocations,
-    ),
     energyExpiresAt: safePower(state.energyExpiresAt),
   };
 }
@@ -159,20 +152,14 @@ function contributionUpsert(
     .prepare(
       `INSERT INTO account_network_power (
         account_id, installed_power_gh, allocation_cma, allocation_btc,
-        allocation_doge, allocation_ltc, game_allocation_cma,
-        game_allocation_btc, game_allocation_doge, game_allocation_ltc,
-        energy_expires_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        allocation_doge, allocation_ltc, energy_expires_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(account_id) DO UPDATE SET
         installed_power_gh = excluded.installed_power_gh,
         allocation_cma = excluded.allocation_cma,
         allocation_btc = excluded.allocation_btc,
         allocation_doge = excluded.allocation_doge,
         allocation_ltc = excluded.allocation_ltc,
-        game_allocation_cma = excluded.game_allocation_cma,
-        game_allocation_btc = excluded.game_allocation_btc,
-        game_allocation_doge = excluded.game_allocation_doge,
-        game_allocation_ltc = excluded.game_allocation_ltc,
         energy_expires_at = excluded.energy_expires_at,
         updated_at = excluded.updated_at`,
     )
@@ -183,10 +170,6 @@ function contributionUpsert(
       contribution.allocations.btc,
       contribution.allocations.doge,
       contribution.allocations.ltc,
-      contribution.gameAllocations.cma,
-      contribution.gameAllocations.btc,
-      contribution.gameAllocations.doge,
-      contribution.gameAllocations.ltc,
       contribution.energyExpiresAt,
       safePower(updatedAt),
     );
@@ -247,33 +230,6 @@ export async function ensureNetworkSchema(db: D1Database) {
     ),
   ]);
 
-  // Migração compatível com instalações que já possuem a tabela criada.
-  for (const column of [
-    "game_allocation_cma",
-    "game_allocation_btc",
-    "game_allocation_doge",
-    "game_allocation_ltc",
-  ]) {
-    await db
-      .prepare(
-        `ALTER TABLE account_network_power ADD COLUMN ${column} INTEGER DEFAULT 0 NOT NULL`,
-      )
-      .run()
-      .catch(() => undefined);
-  }
-  await db
-    .prepare(
-      `UPDATE account_network_power
-       SET game_allocation_cma = allocation_cma,
-           game_allocation_btc = allocation_btc,
-           game_allocation_doge = allocation_doge,
-           game_allocation_ltc = allocation_ltc
-       WHERE COALESCE(game_allocation_cma, 0) +
-             COALESCE(game_allocation_btc, 0) +
-             COALESCE(game_allocation_doge, 0) +
-             COALESCE(game_allocation_ltc, 0) = 0`,
-    )
-    .run();
 }
 
 export async function syncAccountNetworkPower(
@@ -281,7 +237,7 @@ export async function syncAccountNetworkPower(
   accountId: string,
   state: Pick<
     PublicGameState,
-    "energyExpiresAt" | "poolAllocations" | "gamePoolAllocations" | "rackMiners"
+    "energyExpiresAt" | "poolAllocations" | "rackMiners"
   >,
   updatedAt: number,
 ) {
@@ -328,7 +284,6 @@ async function backfillAccountNetworkPower(db: D1Database, now: number) {
               accountId: row.account_id,
               installedPowerGh: 0,
               allocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
-              gameAllocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
               energyExpiresAt: 0,
             },
             now,
@@ -362,10 +317,10 @@ async function readIndexedPlayerPower(
     db
       .prepare(
         `SELECT
-           COALESCE(SUM(CAST(grants.power_gh * accounts.game_allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
-           COALESCE(SUM(CAST(grants.power_gh * accounts.game_allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
-           COALESCE(SUM(CAST(grants.power_gh * accounts.game_allocation_doge / 100 AS INTEGER)), 0) AS doge_gh,
-           COALESCE(SUM(CAST(grants.power_gh * accounts.game_allocation_ltc / 100 AS INTEGER)), 0) AS ltc_gh
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_cma / 100 AS INTEGER)), 0) AS cma_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_btc / 100 AS INTEGER)), 0) AS btc_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_doge / 100 AS INTEGER)), 0) AS doge_gh,
+           COALESCE(SUM(CAST(grants.power_gh * accounts.allocation_ltc / 100 AS INTEGER)), 0) AS ltc_gh
          FROM temporary_power_grants AS grants
          INNER JOIN account_network_power AS accounts
            ON accounts.account_id = grants.account_id

@@ -47,8 +47,6 @@ export type RackInstance = {
 export type PublicGameState = {
   selectedPoolId: PoolId;
   poolAllocations: PoolAllocations;
-  /** Poder temporário dos minigames, separado da energia dos mineradores. */
-  gamePoolAllocations?: PoolAllocations;
   displayedBalanceSymbol: WalletSymbol;
   cmaBalance: number;
   btcBalanceAtomic: number;
@@ -83,7 +81,6 @@ export type GameActionName =
   | "remove_miner"
   | "remove_all_miners"
   | "apply_allocations"
-  | "apply_game_allocations"
   | "use_battery"
   | "claim_energy";
 
@@ -387,8 +384,8 @@ export function settleMiningBlocks(
   const targetBlock = currentBlock(now);
   const energyBlock = Math.floor(next.energyExpiresAt / BLOCK_INTERVAL_MS);
   const minerEligibleBlock = Math.min(targetBlock, energyBlock);
-  // O poder obtido nos minigames não depende da bateria dos mineradores.
-  const gameAllocations = next.gamePoolAllocations ?? next.poolAllocations;
+  // O poder dos minigames não depende da bateria, mas usa a mesma distribuição das pools.
+  const gameAllocations = next.poolAllocations;
   const gameEligibleBlock = temporaryPowerGh > 0 ? targetBlock : next.lastSettledBlock;
   const eligibleBlock = Math.max(minerEligibleBlock, gameEligibleBlock);
   const settledBlocks = Math.max(0, eligibleBlock - next.lastSettledBlock);
@@ -861,16 +858,6 @@ export function applyGameAction(
     ).id;
     return success(state, "Distribuição de poder atualizada pelo servidor.", 0, {
       allocations: state.poolAllocations,
-    });
-  }
-
-  if (action === "apply_game_allocations") {
-    if (!isAllocation(payload.allocations)) {
-      throw new Error("A distribuição dos minigames precisa somar exatamente 100%.");
-    }
-    state.gamePoolAllocations = payload.allocations;
-    return success(state, "Destino do poder dos minigames atualizado pelo servidor.", 0, {
-      gamePoolAllocations: state.gamePoolAllocations,
     });
   }
 
