@@ -61,10 +61,12 @@ const worker = {
 function withSecurityHeaders(response: Response, pathname: string) {
   const secured = new Response(response.body, response);
   secured.headers.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  secured.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(self)");
+  secured.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  secured.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   secured.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   secured.headers.set("X-Content-Type-Options", "nosniff");
   secured.headers.set("X-Frame-Options", "DENY");
+  secured.headers.set("X-Permitted-Cross-Domain-Policies", "none");
   if (pathname.startsWith("/api/") || pathname.startsWith("/admin")) {
     secured.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
