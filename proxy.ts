@@ -5,6 +5,10 @@ import {
   applyArcadiaSecurityHeaders,
   isRejectedCrossSiteApiMutation,
 } from "./app/http-security.ts";
+import {
+  arcadiaHostDisposition,
+  canonicalArcadiaUrl,
+} from "./app/host-policy.ts";
 import { readSupabaseAuthConfig } from "./app/supabase-config.ts";
 
 function secureResponse(response: NextResponse, request: NextRequest) {
@@ -16,6 +20,28 @@ function secureResponse(response: NextResponse, request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+  const disposition = arcadiaHostDisposition(request.nextUrl.hostname, {
+    allowDevHosts: process.env.NODE_ENV !== "production",
+  });
+  if (disposition === "redirect") {
+    return secureResponse(
+      NextResponse.redirect(canonicalArcadiaUrl(request.url), 308),
+      request,
+    );
+  }
+  if (disposition === "block") {
+    return secureResponse(
+      new NextResponse("Not Found", {
+        status: 404,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+      }),
+      request,
+    );
+  }
+
   if (
     isRejectedCrossSiteApiMutation({
       fetchSite: request.headers.get("sec-fetch-site"),
@@ -65,7 +91,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2?)$).*)",
-  ],
+  matcher: ["/:path*"],
 };

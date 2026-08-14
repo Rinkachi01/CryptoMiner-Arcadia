@@ -9,6 +9,10 @@ import {
   applyArcadiaSecurityHeaders,
   isRejectedCrossSiteApiMutation,
 } from "../app/http-security";
+import {
+  arcadiaHostDisposition,
+  canonicalArcadiaUrl,
+} from "../app/host-policy";
 
 interface Env {
   ASSETS: Fetcher;
@@ -37,6 +41,24 @@ const worker = {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+
+    const hostDisposition = arcadiaHostDisposition(url.hostname);
+    if (hostDisposition === "redirect") {
+      const redirect = Response.redirect(canonicalArcadiaUrl(request.url), 308);
+      applyArcadiaSecurityHeaders(redirect.headers, true);
+      return redirect;
+    }
+    if (hostDisposition === "block") {
+      const blocked = new Response("Not Found", {
+        status: 404,
+        headers: {
+          "Cache-Control": "no-store",
+          "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+      });
+      applyArcadiaSecurityHeaders(blocked.headers, true);
+      return blocked;
+    }
 
     // Keep the same-origin check at the Worker boundary as well as in the
     // framework proxy, so direct Worker requests receive the same protection.
