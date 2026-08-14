@@ -11,6 +11,7 @@ import { CareerView } from "./CareerView";
 import { SeasonPanel } from "./SeasonPanel";
 import { ConversionView } from "./ConversionView";
 import { FirstDayPanel } from "./FirstDayPanel";
+import { OperatorTour } from "./OperatorTour";
 import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { PCStatusPanel } from "./PCStatusPanel";
@@ -158,6 +159,11 @@ const viewPaths: Record<ViewId, string> = {
   leaderboard: "/ranking",
   tasks: "/tarefas",
   career: "/operador",
+};
+
+type BlockNotice = {
+  block: number;
+  count: number;
 };
 
 export function viewFromPath(pathname: string): ViewId | null {
@@ -354,8 +360,10 @@ export function ArcadiaGame({
   >("connecting");
   const [actionPending, setActionPending] = useState(false);
   const [toast, setToast] = useState("");
+  const [blockNotice, setBlockNotice] = useState<BlockNotice | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const lastBetaProfileKey = useRef("");
+  const lastSettledBlockRef = useRef(0);
 
   useEffect(() => {
     const targetPath = viewPaths[activeView];
@@ -408,6 +416,18 @@ export function ArcadiaGame({
 
   function applyServerSnapshot(snapshot: GameApiResponse) {
     const state = snapshot.state;
+    const previousSettledBlock = lastSettledBlockRef.current;
+    const isFirstSnapshot = !hydrated;
+    lastSettledBlockRef.current = state.lastSettledBlock;
+    if (
+      !isFirstSnapshot &&
+      state.lastSettledBlock > previousSettledBlock
+    ) {
+      setBlockNotice({
+        block: state.lastSettledBlock,
+        count: state.lastSettledBlock - previousSettledBlock,
+      });
+    }
     setSelectedPoolId(state.selectedPoolId);
     setPoolAllocations(state.poolAllocations);
     setDisplayedBalanceSymbol(state.displayedBalanceSymbol);
@@ -632,6 +652,12 @@ export function ArcadiaGame({
     const timer = window.setTimeout(() => setToast(""), 3600);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!blockNotice) return;
+    const timer = window.setTimeout(() => setBlockNotice(null), 7000);
+    return () => window.clearTimeout(timer);
+  }, [blockNotice]);
 
   useEffect(() => {
     document.body.style.overflow = roomsOpen ? "hidden" : "";
@@ -984,6 +1010,21 @@ export function ArcadiaGame({
       </div>
 
       <DailyWelcomeModal onClose={() => {}} />
+
+      <OperatorTour
+        accountKey={user.email}
+        status={onboarding}
+        onNavigate={(target) => {
+          setRackOpen(false);
+          setWalletOpen(false);
+          if (target === "career") setCareerStartTab("overview");
+          setActiveView(target);
+        }}
+        onOpenStarterRack={() => {
+          setActiveView("mine");
+          openRack("rack-01");
+        }}
+      />
 
       <aside className="sidebar" aria-label="Navegação principal">
         <div className="player-card">
@@ -1389,6 +1430,31 @@ export function ArcadiaGame({
         <div className="toast" role="status" aria-live="polite">
           <span>✓</span>
           {toast}
+        </div>
+      )}
+
+      {blockNotice && (
+        <div className="block-notice" role="status" aria-live="polite">
+          <div className="block-notice-icon" aria-hidden="true">
+            <span>⛏</span>
+            <img src={assetsManifest.cmaCoin.path} alt="" />
+          </div>
+          <div>
+            <strong>{blockNotice.count === 1 ? "Bloco minerado" : "Blocos minerados"}</strong>
+            <span>
+              {blockNotice.count === 1
+                ? `O bloco #${blockNotice.block.toLocaleString("pt-BR")} foi processado.`
+                : `${blockNotice.count} blocos foram processados até o #${blockNotice.block.toLocaleString("pt-BR")}.`}
+            </span>
+            <small>Recompensa e extrato sincronizados pelo servidor.</small>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBlockNotice(null)}
+            aria-label="Fechar aviso de bloco"
+          >
+            ×
+          </button>
         </div>
       )}
     </main>
