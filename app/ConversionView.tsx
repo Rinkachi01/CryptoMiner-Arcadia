@@ -179,6 +179,7 @@ type PixOverview = {
   provider: "mercadopago";
   providerReady: boolean;
   requested: boolean;
+  reconciliation?: { checked: number; credited: number; unavailable: number };
   recent: Array<{
     brlAmount: number;
     cmaUnits: number;
@@ -420,7 +421,12 @@ export function ConversionView({
         return payload;
       })
       .then((payload) => {
-        if (active) setPix(payload);
+        if (!active) return;
+        setPix(payload);
+        if ((payload.reconciliation?.credited ?? 0) > 0) {
+          void onRefreshAccount();
+          setPixMessage("Pagamento Pix confirmado e CMA creditado.");
+        }
       })
       .catch((reason) => {
         if (active) {
@@ -430,7 +436,7 @@ export function ConversionView({
     return () => {
       active = false;
     };
-  }, []);
+  }, [onRefreshAccount]);
 
   const hasPendingPix = Boolean(
     pix?.recent?.some(
