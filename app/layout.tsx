@@ -64,6 +64,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <meta
+          name="bitmedia-site-verification"
+          content="ba3dc562b6b7ef271be834d1a5e0b04d"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
