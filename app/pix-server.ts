@@ -451,9 +451,9 @@ async function reconcileMercadoPagoOrder(input: {
     .first<{ state_json: string; version: number }>();
   if (!stateRow) throw new Error("Conta do pagamento não encontrada.");
   const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
-  const nextCma = state.cmaBalance + intent.cma_units;
-  if (!Number.isSafeInteger(nextCma * 1_000_000)) throw new Error("Saldo CMA excede o limite seguro.");
-  state.cmaBalance = nextCma;
+  const nextCmaMicros = Math.round(state.cmaBalance * 1_000_000) + intent.cma_units * 1_000_000;
+  if (!Number.isSafeInteger(nextCmaMicros)) throw new Error("Saldo CMA excede o limite seguro.");
+  state.cmaBalance = nextCmaMicros / 1_000_000;
   state.displayedBalanceSymbol = "CMA";
   const nextVersion = stateRow.version + 1;
   const nextStateJson = JSON.stringify(state);
@@ -526,13 +526,13 @@ export async function reconcilePendingPixDeposits(input: {
     .bind(now, input.accountId, now - PIX_CREDITING_STALE_MS)
     .run();
   const pending = await input.db
-    .prepare(`SELECT provider_reference FROM wallet_pix_deposit_intents
+    .prepare(`SELECT id, provider_reference FROM wallet_pix_deposit_intents
       WHERE account_id = ? AND provider_reference IS NOT NULL
       AND status NOT IN ('credited', 'provider_failed')
       AND status NOT LIKE 'canceled:%'
       ORDER BY created_at DESC LIMIT 8`)
     .bind(input.accountId)
-    .all<{ provider_reference: string }>();
+    .all<{ id: string; provider_reference: string }>();
   let checked = 0;
   let credited = 0;
   let unavailable = 0;
@@ -548,6 +548,25 @@ export async function reconcilePendingPixDeposits(input: {
       checked += 1;
       if (result.status === "credited") credited += 1;
     } catch (error) {
+      // Se o Worker falhar depois de reservar a cobrança, não deixe o Pix
+      // travado em "crediting". A chave idempotente protege o próximo retry.
+      await input.db
+        .prepare(`UPDATE wallet_pix_deposit_intents SET status = 'waiting_transfer', updated_at = ?
+          WHERE account_id = ? AND provider_reference = ? AND status = 'crediting'
+          AND NOT EXISTS (SELECT 1 FROM ledger_entries WHERE account_id = ?
+            AND idempotency_key = ?)`)
+        .bind(
+          Date.now(),
+          input.accountId,
+          row.provider_reference,
+          input.accountId,
+          `pix-credit:${row.id}`,
+        )
+        .run()
+        .catch((resetError) => console.error(
+          "pix_reconciliation_reset_failed",
+          resetError instanceof Error ? resetError.message : "unknown_error",
+        ));
       unavailable += 1;
       console.error(
         "pix_reconciliation_failed",
@@ -661,8 +680,8 @@ export async function manuallyCreditPixDeposit(input: {
     throw new Error("Conta vinculada à cobrança não encontrada.");
   }
   const state = normalizeBootstrapState(JSON.parse(stateRow.state_json), now);
-  const nextCma = state.cmaBalance + intent.cma_units;
-  if (!Number.isSafeInteger(nextCma * 1_000_000)) {
+  const nextCmaMicros = Math.round(state.cmaBalance * 1_000_000) + intent.cma_units * 1_000_000;
+  if (!Number.isSafeInteger(nextCmaMicros)) {
     await input.db
       .prepare(`UPDATE wallet_pix_deposit_intents SET status = ?, updated_at = ?
         WHERE id = ? AND status = 'crediting'`)
@@ -670,7 +689,7 @@ export async function manuallyCreditPixDeposit(input: {
       .run();
     throw new Error("Saldo CMA excede o limite seguro.");
   }
-  state.cmaBalance = nextCma;
+  state.cmaBalance = nextCmaMicros / 1_000_000;
   state.displayedBalanceSymbol = "CMA";
   const nextVersion = stateRow.version + 1;
   const nextStateJson = JSON.stringify(state);
