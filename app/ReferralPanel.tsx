@@ -7,11 +7,9 @@ type ReferralOverview = {
   invited: number;
   link: string;
   proposal: {
-    earningWindowDays: number;
-    eligibleSpendPercent: number;
-    status: "tracking";
+    miningRewardPercent: number;
+    status: "active";
     validationDays: number;
-    weeklyCapCma: number;
   };
 };
 
@@ -52,9 +50,9 @@ export function ReferralPanel() {
     <section className="referral-panel">
       <header>
         <div>
-          <span>PROGRAMA DE INDICAÇÃO · FASE DE RASTREAMENTO</span>
+          <span>PROGRAMA DE INDICAÇÃO · MINERAÇÃO COMPARTILHADA</span>
           <h3>Convide novos operadores</h3>
-          <p>O código já identifica cadastros reais. O bônus só será liberado depois da validação econômica e antifraude.</p>
+          <p>Receba uma parte das recompensas de mineração validadas dos operadores que entrarem pelo seu link.</p>
         </div>
         <aside><strong>{data.invited}</strong><span>CADASTROS VINCULADOS</span></aside>
       </header>
@@ -63,12 +61,12 @@ export function ReferralPanel() {
         <button type="button" onClick={() => void copyLink()}>COPIAR LINK</button>
       </div>
       <div className="referral-policy-grid">
-        <article><strong>{data.proposal.eligibleSpendPercent}%</strong><span>das compras elegíveis em CMA</span></article>
-        <article><strong>{data.proposal.weeklyCapCma} CMA</strong><span>teto semanal por indicador</span></article>
+        <article><strong>{data.proposal.miningRewardPercent}%</strong><span>da mineração validada</span></article>
+        <article><strong>0%</strong><span>de emissão adicional</span></article>
         <article><strong>{data.proposal.validationDays} dias</strong><span>prazo antifraude</span></article>
-        <article><strong>{data.proposal.earningWindowDays} dias</strong><span>janela por indicado</span></article>
+        <article><strong>Contínua</strong><span>enquanto a indicação estiver ativa</span></article>
       </div>
-      <p className="referral-note">O modelo não desconta BTC, DOGE ou LTC minerados e não aumenta o valor fixo dos blocos.</p>
+      <p className="referral-note">A participação é descontada da recompensa do indicado, sem aumentar o valor fixo dos blocos. O modelo não desconta BTC, DOGE ou LTC minerados e não aumenta o valor fixo dos blocos.</p>
       {message && <p className="conversion-success" role="status">{message}</p>}
     </section>
   );

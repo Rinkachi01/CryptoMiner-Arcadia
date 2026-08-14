@@ -392,6 +392,22 @@ export async function ensureSeasonSchema(db: D1Database) {
        ON season_quest_claims (season_id, account_id, quest_id, cycle_key)`,
     ),
     db.prepare(
+      `CREATE TABLE IF NOT EXISTS ledger_entries (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        state_version INTEGER NOT NULL,
+        delta_cma_micros INTEGER DEFAULT 0 NOT NULL,
+        metadata_json TEXT DEFAULT '{}' NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+    ),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS ledger_entries_idempotency_unique
+       ON ledger_entries (account_id, idempotency_key)`,
+    ),
+    db.prepare(
       `INSERT OR IGNORE INTO season_pass_max (
         season_id, account_id, cma_paid_micros, purchased_at, updated_at
       )
@@ -1815,6 +1831,27 @@ export async function claimSeasonQuest(
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(crypto.randomUUID(), overview.season.id, accountId, questId, cycleKey, match.quest.xp, now)
+    .run();
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      ) VALUES (?, ?, 'season_quest_claim', ?, 0, 0, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      accountId,
+      `season-quest:${overview.season.id}:${questId}:${cycleKey}`,
+      JSON.stringify({
+        seasonId: overview.season.id,
+        questId,
+        cycleKey,
+        xp: match.quest.xp,
+        title: match.quest.title,
+      }),
+      now,
+    )
     .run();
     
   return { xp: match.quest.xp, title: match.quest.title };

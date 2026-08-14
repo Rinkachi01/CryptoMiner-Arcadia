@@ -1,3 +1,5 @@
+import { getMiner } from "./game-rules.ts";
+
 export type ActivityCategory =
   | "account"
   | "mining"
@@ -141,6 +143,14 @@ export function presentLedgerActivity(
           : "A nova sala foi adicionada permanentemente à conta.",
     };
   }
+  if (action === "buy_miners" && typeof metadata.minerId === "string") {
+    const minerName = getMiner(metadata.minerId)?.name ?? "Minerador";
+    return {
+      category: "equipment",
+      title: quantity === 1 ? `${minerName} comprado` : `${quantity}x ${minerName} comprados`,
+      description: "O equipamento foi enviado ao inventario pelo servidor.",
+    };
+  }
   if (action === "buy_miners") {
     return {
       category: "economy",
@@ -162,6 +172,49 @@ export function presentLedgerActivity(
       title:
         quantity === 1 ? "Bateria comprada" : `${quantity} baterias compradas`,
       description: "As baterias foram enviadas ao inventário de energia.",
+    };
+  }
+  if (action === "season_reward_claim") {
+    const reward = objectValue(metadata.reward);
+    const track = metadata.track === "premium" ? "Premium" : "gratuita";
+    const level = Math.max(1, Math.floor(numberValue(metadata.level, 1)));
+    if (reward.type === "miner") {
+      const minerName = getMiner(String(reward.minerId ?? ""))?.name ?? "Minerador sazonal";
+      return {
+        category: "equipment",
+        title: `${minerName} recebido pelo passe`,
+        description: `Recompensa da trilha ${track}, nivel ${level}, adicionada ao inventario.`,
+      };
+    }
+    if (reward.type === "power") {
+      const days = Math.max(1, Math.floor(numberValue(reward.days, 1)));
+      const powerGh = Math.max(0, Math.floor(numberValue(reward.powerGh, 0)));
+      return {
+        category: "arcade",
+        title: "Poder do passe ativado",
+        description: `${powerGh.toLocaleString("pt-BR")} GH/s temporarios por ${days} dia(s), trilha ${track}, nivel ${level}.`,
+      };
+    }
+    return {
+      category: "energy",
+      title: "Bateria recebida pelo passe",
+      description: `${Math.max(0, Math.floor(numberValue(reward.quantity, 0)))} bateria(s) da trilha ${track}, nivel ${level}.`,
+    };
+  }
+  if (action === "referral_mining_share_out") {
+    const percent = numberValue(metadata.sharePercent, 5);
+    return {
+      category: "mining",
+      title: "Parte da mineracao compartilhada",
+      description: `${percent}% da recompensa validada foi enviada ao indicador, sem alterar o bloco fixo.`,
+    };
+  }
+  if (action === "referral_mining_share_in") {
+    const percent = numberValue(metadata.sharePercent, 5);
+    return {
+      category: "mining",
+      title: "Bonus de indicacao recebido",
+      description: `${percent}% da mineracao validada de um indicado entrou no seu saldo.`,
     };
   }
   if (action === "open_supply_crate") {
@@ -228,6 +281,21 @@ export function presentLedgerActivity(
       category: "energy",
       title: "Recarga gratuita resgatada",
       description: "O ciclo de energia de 12 horas foi confirmado pelo servidor.",
+    };
+  }
+  if (action === "battery_cycle_claim") {
+    return {
+      category: "energy",
+      title: "Bateria do ciclo de 9 horas resgatada",
+      description: "A bateria gratuita foi adicionada ao inventario pelo servidor.",
+    };
+  }
+  if (action === "season_quest_claim") {
+    const xp = Math.max(0, Math.floor(numberValue(metadata.xp, 0)));
+    return {
+      category: "arcade",
+      title: "Missao da temporada concluida",
+      description: `+${xp} XP registrado no passe pelo servidor.`,
     };
   }
   if (action === "daily_mission_battery") {

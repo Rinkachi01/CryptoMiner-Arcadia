@@ -320,7 +320,6 @@ export function ArcadiaGame({
   const [lastEnergyClaimAt, setLastEnergyClaimAt] = useState(0);
   const [lastSettledBlock, setLastSettledBlock] = useState(0);
   const [temporaryPowerGh, setTemporaryPowerGh] = useState(0);
-  const [temporaryPowerExpiresAt, setTemporaryPowerExpiresAt] = useState(0);
   const [network, setNetwork] = useState<NetworkPowerSnapshot>(
     defaultNetworkSnapshot,
   );
@@ -419,9 +418,6 @@ export function ArcadiaGame({
     setLastEnergyClaimAt(Math.max(0, state.lastEnergyClaimAt ?? 0));
     setLastSettledBlock(state.lastSettledBlock);
     setTemporaryPowerGh(Math.max(0, snapshot.temporaryPowerGh ?? 0));
-    setTemporaryPowerExpiresAt(
-      Math.max(0, snapshot.temporaryPowerSummary?.nextExpiryAt ?? 0),
-    );
     if (snapshot.network) setNetwork(snapshot.network);
     setActiveRoomId(state.activeRoomId);
     setOwnedRoomIds(state.ownedRoomIds);
@@ -1251,8 +1247,6 @@ export function ArcadiaGame({
             allocations={poolAllocations}
             installedPower={minerPower}
             temporaryPowerGh={temporaryPowerGh}
-            temporaryPowerExpiresAt={temporaryPowerExpiresAt}
-            clockNow={clockNow}
             network={network}
             onApplyAllocations={applyPoolAllocations}
           />
@@ -2116,16 +2110,12 @@ function PoolsView({
   allocations,
   installedPower,
   temporaryPowerGh,
-  temporaryPowerExpiresAt,
-  clockNow,
   network,
   onApplyAllocations,
 }: {
   allocations: PoolAllocations;
   installedPower: number;
   temporaryPowerGh: number;
-  temporaryPowerExpiresAt: number;
-  clockNow: number;
   network: NetworkPowerSnapshot;
   onApplyAllocations: (allocations: PoolAllocations) => void;
 }) {
@@ -2175,17 +2165,13 @@ function PoolsView({
           <div>
             <strong>Poder temporário dos minigames</strong>
             <small>
-              Inclui a recompensa validada e qualquer bônus emitido pelo servidor. Ambos expiram automaticamente e seguem esta mesma distribuição.
+               Inclui a recompensa validada e qualquer poder adicional emitido pelo servidor. O total segue esta mesma distribuição.
             </small>
           </div>
         </div>
         <div className="temporary-power-total">
           <strong>{formatPower(temporaryPowerGh)}</strong>
-          <small>
-            {temporaryPowerExpiresAt > clockNow
-              ? `ativo até ${new Date(temporaryPowerExpiresAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
-              : "jogue para gerar"}
-          </small>
+          <small>poder temporário validado</small>
         </div>
       </div>
 

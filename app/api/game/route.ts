@@ -23,6 +23,9 @@ import {
   ensureWalletSchema,
   walletProviderReadiness,
 } from "../../wallet-server";
+import {
+  settleReferralMiningShare,
+} from "../../referral-server";
 
 export const dynamic = "force-dynamic";
 
@@ -417,6 +420,45 @@ export async function GET() {
   let responseState = settled.state;
   let settledBlockCount = settled.settledBlocks;
   if (settled.settledBlocks > 0) {
+    const settlementKey = "blocks:" + String(settled.state.lastSettledBlock);
+    const settlementMetadata = {
+      settledBlocks: settled.settledBlocks,
+      rewards: settled.rewards,
+      blockRewardAtomic: network.blockRewardAtomic,
+      bonusBps: network.bonusBps,
+      networkPowerGh: network.playerPowerGh,
+    };
+    const referralResult = await settleReferralMiningShare(
+      context.db,
+      context.accountId,
+      row,
+      settled.state,
+      settled.rewards,
+      settlementKey,
+      {
+        action: "block_settlement",
+        idempotencyKey: settlementKey,
+        deltaCmaMicros: settled.rewards.cma,
+        metadata: settlementMetadata,
+      },
+      now,
+    );
+    if (referralResult.applied) {
+      responseState = referralResult.nextReferredState;
+      row = {
+        ...row,
+        state_json: JSON.stringify(referralResult.nextReferredState),
+        version: referralResult.nextReferredVersion,
+        updated_at: now,
+      };
+    } else if (referralResult.conflict) {
+      const latest = await readState(context.db, context.accountId);
+      if (latest) {
+        row = latest;
+        responseState = parseState(latest);
+        settledBlockCount = 0;
+      }
+    } else {
     const nextVersion = row.version + 1;
     const updateResult = await context.db
       .prepare(
@@ -445,16 +487,10 @@ export async function GET() {
         .bind(
           crypto.randomUUID(),
           context.accountId,
-          `blocks:${settled.state.lastSettledBlock}`,
+          settlementKey,
           nextVersion,
           settled.rewards.cma,
-          JSON.stringify({
-            settledBlocks: settled.settledBlocks,
-            rewards: settled.rewards,
-            blockRewardAtomic: network.blockRewardAtomic,
-            bonusBps: network.bonusBps,
-            networkPowerGh: network.playerPowerGh,
-          }),
+          JSON.stringify(settlementMetadata),
           now,
         )
         .run();
@@ -471,6 +507,7 @@ export async function GET() {
         responseState = parseState(latest);
         settledBlockCount = 0;
       }
+    }
     }
   }
 
@@ -540,6 +577,13 @@ export async function POST(request: Request) {
     now,
   );
   let network = await readNetworkPowerSnapshot(context.db, now);
+  const settlementPreview = settleMiningBlocks(
+    parseState(row),
+    now,
+    eligibleTemporaryPowerGh,
+    network.playerPowerGh,
+    network.blockRewardAtomic,
+  );
 
   if (body.action === "bootstrap") {
     return json(
@@ -662,6 +706,88 @@ export async function POST(request: Request) {
     );
   }
 
+  const primaryMetadata: Record<string, unknown> = { ...result.metadata };
+  if (
+    settlementPreview.settledBlocks > 0 &&
+    !Object.prototype.hasOwnProperty.call(primaryMetadata, "rewards")
+  ) {
+    Object.assign(primaryMetadata, {
+      settledBlocks: settlementPreview.settledBlocks,
+      rewards: settlementPreview.rewards,
+      blockRewardAtomic: network.blockRewardAtomic,
+      bonusBps: network.bonusBps,
+      networkPowerGh: network.playerPowerGh,
+    });
+  }
+  const primaryDeltaCmaMicros =
+    body.action === "sync"
+      ? result.deltaCmaMicros
+      : result.deltaCmaMicros + settlementPreview.rewards.cma;
+  const referralResult =
+    settlementPreview.settledBlocks > 0
+      ? await settleReferralMiningShare(
+          context.db,
+          context.accountId,
+          row,
+          result.state,
+          settlementPreview.rewards,
+          body.idempotencyKey,
+          {
+            action: body.action,
+            idempotencyKey: body.idempotencyKey,
+            deltaCmaMicros: primaryDeltaCmaMicros,
+            metadata: primaryMetadata,
+          },
+          now,
+        )
+      : { applied: false, conflict: false };
+  if (referralResult.conflict) {
+    const latest = (await readState(context.db, context.accountId)) ?? row;
+    return json(
+      {
+        ...responsePayload(
+          latest,
+          parseState(latest),
+          now,
+          "Outra sessao concluiu uma acao primeiro.",
+          temporaryPowerGh,
+          temporaryPowerSummary,
+          network,
+        ),
+        error: "Estado atualizado em outra sessao. Tente novamente.",
+      },
+      409,
+    );
+  }
+  if (referralResult.applied) {
+    const updatedRow: StoredRow = {
+      ...row,
+      display_name: context.user.displayName,
+      state_json: JSON.stringify(referralResult.nextReferredState),
+      version: referralResult.nextReferredVersion,
+      updated_at: now,
+    };
+    await syncAccountNetworkPower(
+      context.db,
+      context.accountId,
+      referralResult.nextReferredState,
+      now,
+    );
+    network = await readNetworkPowerSnapshot(context.db, now);
+    return json({
+      ...responsePayload(
+        updatedRow,
+        referralResult.nextReferredState,
+        now,
+        result.message,
+        temporaryPowerGh,
+        temporaryPowerSummary,
+        network,
+      ),
+      actionResult: primaryMetadata,
+    });
+  }
+
   const nextVersion = row.version + 1;
   const updateResult = await context.db
     .prepare(
@@ -711,8 +837,8 @@ export async function POST(request: Request) {
       body.action,
       body.idempotencyKey,
       nextVersion,
-      result.deltaCmaMicros,
-      JSON.stringify(result.metadata),
+      primaryDeltaCmaMicros,
+      JSON.stringify(primaryMetadata),
       now,
     )
     .run();
@@ -741,6 +867,6 @@ export async function POST(request: Request) {
       temporaryPowerSummary,
       network,
     ),
-    actionResult: result.metadata,
+    actionResult: primaryMetadata,
   });
 }
