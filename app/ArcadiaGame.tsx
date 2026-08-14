@@ -15,7 +15,6 @@ import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
 import { PCStatusPanel } from "./PCStatusPanel";
-import { QuestsPanel } from "./QuestsPanel";
 import { TasksView } from "./TasksView";
 import { readClientBetaDeviceProfile } from "./beta-device-client";
 import {
@@ -1282,25 +1281,20 @@ export function ArcadiaGame({
         {!rackOpen && activeView === "games" && (
           <div className="games-view-container">
             <div className="games-main-content">
+              <PCStatusPanel
+                refreshKey={serverVersion}
+                temporaryPowerGh={temporaryPowerGh}
+              />
               <PacketCatchView
                 temporaryPowerGh={temporaryPowerGh}
                 onRefreshAccount={refreshServerState}
               />
             </div>
             <div className="games-side-panels">
-              <PCStatusPanel
-                refreshKey={serverVersion}
-                temporaryPowerGh={temporaryPowerGh}
-              />
               <GamePowerAllocationPanel
                 allocations={gamePoolAllocations}
                 temporaryPowerGh={temporaryPowerGh}
                 onApply={applyGamePoolAllocations}
-              />
-              <OperatorProgressPanel
-                refreshKey={serverVersion}
-                section="missions"
-                onRefreshAccount={refreshServerState}
               />
             </div>
           </div>
@@ -1689,9 +1683,10 @@ function MiningRoom({
           onUseBattery={onUseBattery}
         />
 
-        <div style={{ padding: "16px" }}>
-          <QuestsPanel
+        <div className="operation-daily-mission">
+          <OperatorProgressPanel
             refreshKey={serverVersion}
+            section="missions"
             onRefreshAccount={onRefreshAccount}
           />
         </div>

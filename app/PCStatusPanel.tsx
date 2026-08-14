@@ -70,6 +70,20 @@ export function PCStatusPanel({
           <div className="progress-text">PC nível máximo alcançado!</div>
         )}
       </div>
+
+      <div className="pc-power-ladder" aria-label="Duração do poder por nível">
+        <span>PROGRESSÃO DO PC</span>
+        <strong>Quanto maior o nível, mais tempo dura o poder</strong>
+        <ol>
+          {ARCADE_POWER_DAYS_BY_LEVEL.slice(1).map((days, index) => (
+            <li key={days} className={pcLevel === index + 1 ? "current" : ""}>
+              <b>N{index + 1}</b>
+              <small>{days} {days === 1 ? "dia" : "dias"}</small>
+            </li>
+          ))}
+        </ol>
+        <small className="pc-ladder-note">Um nível é perdido após um dia completo sem jogar.</small>
+      </div>
     </section>
   );
 }

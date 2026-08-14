@@ -23219,3 +23219,24 @@ body {
   .arcadia-shell .game-pool-choices { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .arcadia-shell .game-power-allocation-footer { align-items: stretch; flex-direction: column; }
 }
+
+/* Arquitetura compacta: o PC aparece uma única vez e a liga antiga sai da interface. */
+.arcadia-shell .arcade-level-ladder { display: none !important; }
+.arcadia-shell .operator-league-card { display: none !important; }
+.arcadia-shell .operator-career-panel { grid-template-columns: 1fr; }
+.arcadia-shell .pc-status-panel { margin-bottom: 18px; }
+.arcadia-shell .pc-power-ladder { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(90, 149, 177, .25); }
+.arcadia-shell .pc-power-ladder > span { color: var(--cyan); font-size: .68rem; font-weight: 800; letter-spacing: .14em; }
+.arcadia-shell .pc-power-ladder > strong { color: #eef7e8; font-size: .9rem; }
+.arcadia-shell .pc-power-ladder ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.arcadia-shell .pc-power-ladder li { display: grid; gap: 3px; padding: 8px 6px; border: 1px solid rgba(90,149,177,.24); border-radius: 8px; color: #9aabb6; background: rgba(7,17,27,.48); }
+.arcadia-shell .pc-power-ladder li.current { border-color: var(--lime); color: var(--lime); background: rgba(157,255,66,.1); }
+.arcadia-shell .pc-power-ladder li b { font-size: .72rem; }
+.arcadia-shell .pc-power-ladder li small { font-size: .68rem; }
+.arcadia-shell .pc-ladder-note { color: #7d919e; font-size: .72rem; }
+.arcadia-shell .operation-daily-mission { padding: 0 16px 16px; }
+.arcadia-shell .operation-daily-mission .operator-progress-panel { grid-template-columns: 1fr; }
+.arcadia-shell .operation-daily-mission .operator-career-panel { display: none; }
+@media (max-width: 720px) {
+  .arcadia-shell .pc-power-ladder ol { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}

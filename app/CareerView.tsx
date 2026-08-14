@@ -26,7 +26,7 @@ const tabs: Array<{
   {
     id: "missions",
     label: "Missões e carreira",
-    description: "Bateria, liga e conquistas",
+    description: "Bateria e conquistas",
   },
   {
     id: "referrals",

@@ -2,6 +2,7 @@ import { emissionWindow } from "./game-emission-budget.ts";
 
 export const DAILY_ARCADE_MISSION_ID = "arcade-tour";
 export const DAILY_ARCADE_BATTERY_REWARD = 1;
+export const DAILY_ARCADE_PLAY_TARGET = 10;
 export const DAILY_ARCADE_GAMES = [
   "packet-catch",
   "hash-match",

@@ -73,6 +73,8 @@ const gameNames: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
 };
 
+// Tour diário do Arcade agora usa a meta de 10 partidas e entrega +12h.
+
 export function OperatorProgressPanel({
   refreshKey,
   section = "overview",
@@ -186,7 +188,7 @@ export function OperatorProgressPanel({
       <div className="daily-mission-panel">
         <div>
           <span>MISSÕES DIÁRIAS · CICLO UTC</span>
-          <small>O tour completo libera 1 bateria por dia.</small>
+          <small>Jogue 10 minijogos e resgate 1 bateria (+12h) por dia.</small>
         </div>
         {summary.missions.map((mission) => {
           const complete = mission.current >= mission.target;
@@ -194,8 +196,8 @@ export function OperatorProgressPanel({
           const actionLabel = mission.claimed
             ? "RESGATADA"
             : mission.claimable
-              ? "RESGATAR 1 BATERIA"
-              : "CONCLUA O TOUR";
+              ? "RESGATAR +12H"
+              : "JOGUE 10 MINIGAMES";
           return (
             <article
               className={`${complete ? "complete" : ""} ${
@@ -224,6 +226,7 @@ export function OperatorProgressPanel({
                 {hasReward && (
                   <button
                     type="button"
+                    aria-label="RESGATAR 1 BATERIA (+12H)"
                     disabled={!mission.claimable || claiming}
                     onClick={claimDailyBattery}
                   >

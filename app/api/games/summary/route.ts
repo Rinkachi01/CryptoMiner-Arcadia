@@ -8,6 +8,7 @@ import {
   DAILY_ARCADE_BATTERY_REWARD,
   DAILY_ARCADE_GAMES,
   DAILY_ARCADE_MISSION_ID,
+  DAILY_ARCADE_PLAY_TARGET,
   completedDailyArcadeGames,
   dailyMissionIdempotencyKey,
   dailyMissionWindow,
@@ -296,6 +297,25 @@ async function completedGamesInWindow(
   );
 }
 
+async function completedGamesCountInWindow(
+  db: D1Database,
+  accountId: string,
+  startsAt: number,
+  resetAt: number,
+) {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS total
+       FROM game_sessions
+       WHERE account_id = ?
+         AND completed_at >= ? AND completed_at < ?
+         AND status IN ('completed', 'failed')`,
+    )
+    .bind(accountId, startsAt, resetAt)
+    .first<{ total: number }>();
+  return Number(row?.total ?? 0);
+}
+
 async function readClaim(
   db: D1Database,
   accountId: string,
@@ -457,9 +477,6 @@ export async function GET() {
     (sum, row) => sum + Number(row.wins_today),
     0,
   );
-  const gamesPlayedToday = gameIds.filter(
-    (gameId) => Number(todayRows.get(gameId)?.plays_today ?? 0) > 0,
-  ).length;
   const gamesWon = gameIds.filter((gameId) => {
     const progress = progressRows.find((row) => row.game_id === gameId);
     return Number(progress?.total_wins ?? 0) > 0;
@@ -471,7 +488,7 @@ export async function GET() {
   const missionClaimed =
     gameState.dailyMissionClaims[DAILY_ARCADE_MISSION_ID] === windowKey ||
     claimRow?.status === "completed";
-  const missionEligible = gamesPlayedToday === gameIds.length;
+  const missionEligible = playsToday >= DAILY_ARCADE_PLAY_TARGET;
   return json({
     serverTime: now,
     operator: calculateOperatorProgress(totalPlays, totalWins),
@@ -525,9 +542,9 @@ export async function GET() {
       },
       {
         id: DAILY_ARCADE_MISSION_ID,
-        label: "Tour diário do Arcade",
-        current: gamesPlayedToday,
-        target: gameIds.length,
+        label: "Jogue 10 minijogos",
+        current: Math.min(DAILY_ARCADE_PLAY_TARGET, playsToday),
+        target: DAILY_ARCADE_PLAY_TARGET,
         eligible: missionEligible,
         claimed: missionClaimed,
         claimable: missionEligible && !missionClaimed,
@@ -600,12 +617,19 @@ export async function POST(request: Request) {
     startsAt,
     resetAt,
   );
-  if (playedGames.length !== gameIds.length) {
+  const completedPlayCount = await completedGamesCountInWindow(
+    db,
+    accountId,
+    startsAt,
+    resetAt,
+  );
+  if (completedPlayCount < DAILY_ARCADE_PLAY_TARGET) {
     return json(
       {
-        error: "Jogue os três minigames antes de resgatar a bateria.",
-        current: playedGames.length,
-        target: gameIds.length,
+        error: "Jogue 10 minijogos antes de resgatar a bateria (+12h).",
+        current: completedPlayCount,
+        target: DAILY_ARCADE_PLAY_TARGET,
+        games: playedGames,
       },
       409,
     );
