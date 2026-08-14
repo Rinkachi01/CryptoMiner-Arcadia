@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { LanguageProvider } from "./i18n";
 
 const publicBaseUrl =
   process.env.PUBLIC_BASE_URL ??
@@ -75,7 +76,7 @@ export default function RootLayout({
           content="ca715cdb144abc5b2c1d3dd5bd682363"
         />
       </head>
-      <body>{children}</body>
+      <body><LanguageProvider>{children}</LanguageProvider></body>
     </html>
   );
 }

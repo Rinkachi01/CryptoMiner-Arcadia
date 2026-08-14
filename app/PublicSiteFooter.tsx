@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from "./i18n";
+
 export function PublicSiteFooter() {
   return (
     <footer className="public-site-footer">
@@ -15,6 +17,7 @@ export function PublicSiteFooter() {
             <a href="/faq">FAQ</a>
             <a href="/support">Suporte</a>
             <a href="/legal">Documentos</a>
+            <a href="/perfil">Meu perfil</a>
           </nav>
         </section>
 
@@ -39,6 +42,7 @@ export function PublicSiteFooter() {
       <div className="public-footer-bottom">
         <small>© 2026 Crypto Miner Arcadia. Todos os direitos reservados.</small>
         <span>Projeto de entretenimento digital · CMA é crédito interno</span>
+        <LanguageSwitcher />
       </div>
     </footer>
   );

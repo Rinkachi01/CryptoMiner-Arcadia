@@ -15,6 +15,7 @@ import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { PCStatusPanel } from "./PCStatusPanel";
 import { TasksView } from "./TasksView";
+import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
 import { readClientBetaDeviceProfile } from "./beta-device-client";
 import {
   BATTERY_HOURS,
@@ -297,6 +298,7 @@ export function ArcadiaGame({
   unreadSupportReplies,
   initialView = "mine",
 }: ArcadiaGameProps) {
+  const { t } = useArcadiaLanguage();
   const [activeView, setActiveView] = useState<ViewId>(initialView);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
@@ -955,15 +957,19 @@ export function ArcadiaGame({
           )}
         </div>
 
+        <LanguageSwitcher />
+
         <div className="account-control">
-          <span>
+          <a className="account-summary" href="/perfil" title={t("profile.open")}>
             <small>
-              {serverStatus === "online" ? "CONTA PROTEGIDA" : "CONECTANDO"}
+              {serverStatus === "online" ? t("profile.account") : "CONECTANDO"}
             </small>
             <strong>{user.displayName}</strong>
-          </span>
+          </a>
           <a href={signOutPath}>SAIR</a>
-          <b>{playerInitial}</b>
+          <a className="account-avatar" href="/perfil" title={t("profile.open")}>
+            {playerInitial}
+          </a>
         </div>
       </header>
 
@@ -1005,20 +1011,20 @@ export function ArcadiaGame({
               }}
             >
               <span className="nav-glyph">{item.glyph}</span>
-              <span>{item.label}</span>
+              <span>{t(`nav.${item.id}`, item.label)}</span>
             </button>
           ))}
-          <a className="support-nav-link" href="/support" title="Central de suporte">
+          <a className="support-nav-link" href="/support" title={t("nav.support")}>
             <span className="nav-glyph">?</span>
-            <span>Central de suporte</span>
+            <span>{t("nav.support")}</span>
             {unreadSupportReplies > 0 ? (
               <small>{Math.min(99, unreadSupportReplies)}</small>
             ) : null}
           </a>
           {isOwner ? (
-            <a className="admin-nav-link" href="/admin" title="Central do proprietário">
+            <a className="admin-nav-link" href="/admin" title={t("nav.owner")}>
               <span className="nav-glyph">C</span>
-              <span>Central do proprietário</span>
+              <span>{t("nav.owner")}</span>
               <small>OWNER</small>
             </a>
           ) : null}
@@ -1355,12 +1361,12 @@ export function ArcadiaGame({
             }}
           >
             <span>{item.glyph}</span>
-            {item.shortLabel}
+            {t(`nav.short.${item.id}`, item.shortLabel)}
           </button>
         ))}
         <a className="mobile-support-link" href="/support">
           <span>?</span>
-          Suporte
+          {t("nav.support")}
           {unreadSupportReplies > 0 ? (
             <b>{Math.min(99, unreadSupportReplies)}</b>
           ) : null}
