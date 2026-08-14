@@ -21062,6 +21062,50 @@ body {
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.72));
 }
 
+/* Energia separada: mineradores usam baterias; minigames usam poder temporário. */
+.game-power-allocation-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(69, 224, 255, .24);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(16, 34, 54, .94), rgba(12, 18, 32, .96));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .18);
+}
+.game-power-allocation-panel .panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.game-power-allocation-panel .panel-title strong { color: #9dff42; }
+.game-power-allocation-panel > p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+.game-pool-choices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.game-pool-choices button {
+  display: grid; justify-items: center; gap: 5px; min-height: 78px; padding: 9px 6px;
+  color: var(--text); border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.035);
+  cursor: pointer; transition: border-color .2s, transform .2s, background .2s;
+}
+.game-pool-choices button:hover { transform: translateY(-2px); border-color: rgba(69, 224, 255, .7); }
+.game-pool-choices button.selected { border-color: #9dff42; background: rgba(157,255,66,.12); box-shadow: 0 0 0 1px rgba(157,255,66,.2); }
+.game-pool-choices img { width: 25px; height: 25px; object-fit: contain; }
+.game-pool-choices span { font-size: .76rem; font-weight: 800; }
+.game-pool-choices small { color: var(--muted); font-size: .7rem; }
+.game-power-allocation-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; }
+.game-power-allocation-footer button { border: 0; border-radius: 9px; padding: 9px 12px; color: #081018; background: #9dff42; font-size: .72rem; font-weight: 900; cursor: pointer; }
+.game-power-allocation-footer button:hover { filter: brightness(1.08); }
+.game-allocation-summary-card { border-color: rgba(157,255,66,.25); }
+.metric-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.game-power-metric .metric-icon { color: #9dff42; border-color: rgba(157,255,66,.35); }
+@media (max-width: 1080px) {
+  .metric-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-pool-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-power-allocation-footer { align-items: stretch; flex-direction: column; }
+}
+
 /* As artes da Corrida Espacial têm silhuetas largas e alturas diferentes.
    O berço abaixo transforma cada uma em um módulo de rack consistente sem
    distorcer o GIF nem alterar os mineradores clássicos. */
@@ -23151,4 +23195,27 @@ body {
   .admin-crm-command-center { margin-inline: 16px; }
   .admin-crm-command-grid { grid-template-columns: 1fr; }
   .admin-crm-command-grid > button { min-height: 104px; }
+}
+
+/* Final overrides for the independent minigame power control. */
+.arcadia-shell .metric-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.arcadia-shell .game-power-allocation-panel { display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(69,224,255,.24); border-radius: 16px; background: linear-gradient(145deg, rgba(16,34,54,.94), rgba(12,18,32,.96)); }
+.arcadia-shell .game-power-allocation-panel .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.arcadia-shell .game-power-allocation-panel .panel-title strong { color: #9dff42; }
+.arcadia-shell .game-power-allocation-panel > p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+.arcadia-shell .game-pool-choices { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+.arcadia-shell .game-pool-choices button { display: grid; justify-items: center; gap: 5px; min-height: 78px; padding: 9px 6px; color: var(--text); border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.035); cursor: pointer; transition: border-color .2s, transform .2s, background .2s; }
+.arcadia-shell .game-pool-choices button:hover { transform: translateY(-2px); border-color: rgba(69,224,255,.7); }
+.arcadia-shell .game-pool-choices button.selected { border-color: #9dff42; background: rgba(157,255,66,.12); box-shadow: 0 0 0 1px rgba(157,255,66,.2); }
+.arcadia-shell .game-pool-choices img { width: 25px; height: 25px; object-fit: contain; }
+.arcadia-shell .game-pool-choices span { font-size: .76rem; font-weight: 800; }
+.arcadia-shell .game-pool-choices small { color: var(--muted); font-size: .7rem; }
+.arcadia-shell .game-power-allocation-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; }
+.arcadia-shell .game-power-allocation-footer button { border: 0; border-radius: 9px; padding: 9px 12px; color: #081018; background: #9dff42; font-size: .72rem; font-weight: 900; cursor: pointer; }
+.arcadia-shell .game-allocation-summary-card { border-color: rgba(157,255,66,.25); }
+@media (max-width: 1080px) { .arcadia-shell .metric-strip { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 720px) {
+  .arcadia-shell .metric-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .arcadia-shell .game-pool-choices { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .arcadia-shell .game-power-allocation-footer { align-items: stretch; flex-direction: column; }
 }

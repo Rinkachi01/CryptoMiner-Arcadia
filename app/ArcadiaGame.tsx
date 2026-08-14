@@ -306,6 +306,8 @@ export function ArcadiaGame({
   const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
     defaultPoolAllocations,
   );
+  const [gamePoolAllocations, setGamePoolAllocations] =
+    useState<PoolAllocations>(defaultPoolAllocations);
   const [displayedBalanceSymbol, setDisplayedBalanceSymbol] =
     useState<WalletSymbol>("CMA");
   const [cmaBalance, setCmaBalance] = useState(0);
@@ -389,8 +391,9 @@ export function ArcadiaGame({
   const energySeconds = hydrated
     ? Math.max(0, Math.ceil((energyExpiresAt - clockNow) / 1000))
     : 0;
-  const effectivePower =
-    energySeconds > 0 ? installedPower + temporaryPowerGh : 0;
+  const minerPower = energySeconds > 0 ? installedPower : 0;
+  // Poder temporário de minigame é independente das baterias dos mineradores.
+  const effectivePower = minerPower + temporaryPowerGh;
   const currentRoomRacks = useMemo(
     () => racks.filter((rack) => rack.roomId === activeRoomId),
     [activeRoomId, racks],
@@ -403,6 +406,7 @@ export function ArcadiaGame({
     const state = snapshot.state;
     setSelectedPoolId(state.selectedPoolId);
     setPoolAllocations(state.poolAllocations);
+    setGamePoolAllocations(state.gamePoolAllocations ?? state.poolAllocations);
     setDisplayedBalanceSymbol(state.displayedBalanceSymbol);
     setCmaBalance(state.cmaBalance);
     setBtcBalanceAtomic(state.btcBalanceAtomic);
@@ -639,6 +643,12 @@ export function ArcadiaGame({
 
   async function applyPoolAllocations(next: PoolAllocations) {
     await performGameAction("apply_allocations", {
+      allocations: next,
+    });
+  }
+
+  async function applyGamePoolAllocations(next: PoolAllocations) {
+    await performGameAction("apply_game_allocations", {
       allocations: next,
     });
   }
@@ -1064,16 +1074,22 @@ export function ArcadiaGame({
           <article className="power-metric">
             <span className="metric-icon power">H</span>
             <div>
-              <small>PODER INSTALADO</small>
-              <strong>{formatPower(effectivePower)}</strong>
+              <small>PODER DOS MINERADORES</small>
+              <strong>{formatPower(minerPower)}</strong>
             </div>
             <em>
               {energySeconds <= 0
-                ? "SEM ENERGIA"
-                : temporaryPowerGh > 0
-                  ? `+${formatPower(temporaryPowerGh)} DOS JOGOS`
-                  : "ATIVO"}
+                ? "USE UMA BATERIA"
+                : "ALIMENTADO POR BATERIA"}
             </em>
+          </article>
+          <article className="game-power-metric">
+            <span className="metric-icon game-power">G</span>
+            <div>
+              <small>PODER DOS MINIGAMES</small>
+              <strong>{formatPower(temporaryPowerGh)}</strong>
+            </div>
+            <em>{temporaryPowerGh > 0 ? "SEM BATERIA" : "JOGUE PARA GERAR"}</em>
           </article>
           <article className="rack-metric">
             <span className="metric-icon slots">R</span>
@@ -1137,7 +1153,10 @@ export function ArcadiaGame({
                 rackMiners={rackMiners}
                 editMode={editMode}
                 poolAllocations={poolAllocations}
+                gamePoolAllocations={gamePoolAllocations}
                 network={network}
+                minerPower={minerPower}
+                temporaryPowerGh={temporaryPowerGh}
                 effectivePower={effectivePower}
                 secondsLeft={secondsLeft}
                 energySeconds={energySeconds}
@@ -1210,7 +1229,7 @@ export function ArcadiaGame({
         {!rackOpen && activeView === "pools" && (
           <PoolsView
             allocations={poolAllocations}
-            installedPower={effectivePower}
+            installedPower={minerPower}
             network={network}
             onApplyAllocations={applyPoolAllocations}
           />
@@ -1272,6 +1291,11 @@ export function ArcadiaGame({
               <PCStatusPanel
                 refreshKey={serverVersion}
                 temporaryPowerGh={temporaryPowerGh}
+              />
+              <GamePowerAllocationPanel
+                allocations={gamePoolAllocations}
+                temporaryPowerGh={temporaryPowerGh}
+                onApply={applyGamePoolAllocations}
               />
               <OperatorProgressPanel
                 refreshKey={serverVersion}
@@ -1366,7 +1390,10 @@ function MiningRoom({
   rackMiners,
   editMode,
   poolAllocations,
+  gamePoolAllocations,
   network,
+  minerPower,
+  temporaryPowerGh,
   effectivePower,
   secondsLeft,
   energySeconds,
@@ -1389,7 +1416,10 @@ function MiningRoom({
   rackMiners: Record<string, InstalledMiner[]>;
   editMode: boolean;
   poolAllocations: PoolAllocations;
+  gamePoolAllocations: PoolAllocations;
   network: NetworkPowerSnapshot;
+  minerPower: number;
+  temporaryPowerGh: number;
   effectivePower: number;
   secondsLeft: number;
   energySeconds: number;
@@ -1681,7 +1711,7 @@ function MiningRoom({
                   <b>{allocation}%</b>
                   <small>
                     {formatPower(
-                      (effectivePower * allocation) / 100
+                      (minerPower * allocation) / 100
                     )}
                   </small>
                 </div>
@@ -1693,8 +1723,32 @@ function MiningRoom({
           </button>
         </div>
 
+        <div className="allocation-summary-card game-allocation-summary-card">
+          <div className="allocation-summary-heading">
+            <span>PODER DOS MINIGAMES</span>
+            <strong>{temporaryPowerGh > 0 ? "ATIVO" : "AGUARDANDO"}</strong>
+          </div>
+          <div className="allocation-summary-list">
+            {pools.map((pool) => (
+              <div key={pool.id}>
+                <img src={pool.asset} alt="" />
+                <span>{pool.symbol}</span>
+                <b>{gamePoolAllocations[pool.id] ?? 0}%</b>
+                <small>
+                  {formatPower(
+                    (temporaryPowerGh * (gamePoolAllocations[pool.id] ?? 0)) / 100,
+                  )}
+                </small>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={() => setActiveView("games")}>
+            CONFIGURAR PODER DOS JOGOS
+          </button>
+        </div>
+
         <MiningStatusPanel
-          installedPower={effectivePower}
+          installedPower={minerPower}
           allocations={poolAllocations}
           networkPowerGh={network.playerPowerGh}
           secondsLeft={secondsLeft}
@@ -1713,7 +1767,9 @@ function MiningRoom({
           <div className="reward-split-list">
             {pools.map((pool) => {
               const allocation = poolAllocations[pool.id] ?? 0;
-              const allocatedPower = (effectivePower * allocation) / 100;
+              const allocatedPower =
+                (minerPower * allocation) / 100 +
+                (temporaryPowerGh * (gamePoolAllocations[pool.id] ?? 0)) / 100;
               // Safe bigint conversion — prevents BigInt(NaN/undefined/Infinity) crash
               const blockRewardAtomicNum = (network.blockRewardAtomic[pool.id] ?? 0) as number;
               const blockRewardAtomicBigInt = (() => {
@@ -2027,6 +2083,64 @@ export function GamesView() {
           <strong>Economia controlada</strong>
           <small>Ativar poder, bateria e CMA com teto diário.</small>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function GamePowerAllocationPanel({
+  allocations,
+  temporaryPowerGh,
+  onApply,
+}: {
+  allocations: PoolAllocations;
+  temporaryPowerGh: number;
+  onApply: (allocations: PoolAllocations) => void;
+}) {
+  const [draft, setDraft] = useState<PoolAllocations>(allocations);
+  const selectedPool = pools.find((pool) => draft[pool.id] === 100);
+
+  function choosePool(poolId: PoolId) {
+    setDraft({
+      cma: poolId === "cma" ? 100 : 0,
+      btc: poolId === "btc" ? 100 : 0,
+      doge: poolId === "doge" ? 100 : 0,
+      ltc: poolId === "ltc" ? 100 : 0,
+    });
+  }
+
+  return (
+    <section className="game-power-allocation-panel" aria-label="Destino do poder dos minigames">
+      <div className="panel-title">
+        <span>PODER DOS MINIGAMES</span>
+        <strong>{formatPower(temporaryPowerGh)}</strong>
+      </div>
+      <p>
+        Este poder não consome baterias. Escolha a pool que receberá os próximos bônus dos jogos.
+      </p>
+      <div className="game-pool-choices">
+        {pools.map((pool) => (
+          <button
+            type="button"
+            key={pool.id}
+            className={draft[pool.id] === 100 ? "selected" : ""}
+            onClick={() => choosePool(pool.id)}
+          >
+            <img src={pool.asset} alt="" />
+            <span>{pool.symbol}</span>
+            <small>{draft[pool.id] ?? 0}%</small>
+          </button>
+        ))}
+      </div>
+      <div className="game-power-allocation-footer">
+        <span>
+          {selectedPool
+            ? `100% para ${selectedPool.symbol}`
+            : "Escolha uma pool"}
+        </span>
+        <button type="button" onClick={() => onApply(draft)}>
+          SALVAR DESTINO
+        </button>
       </div>
     </section>
   );
