@@ -1,0 +1,54 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crypto-miner-arcadia-staging",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "staging.cryptominerarcadia.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crypto-miner-arcadia-staging",
+      "database_id": "e19d497a-c299-4b59-94e2-466ad73f86a7",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECOVERY_ARCHIVE",
+      "bucket_name": "crypto-miner-arcadia-staging-recovery"
+    }
+  ],
+  "vars": {
+    "ARCADIA_ENVIRONMENT": "staging",
+    "ARCADIA_ALLOWED_HOSTS": "crypto-miner-arcadia-staging.criptomineracardia.workers.dev,staging.cryptominerarcadia.com",
+    "PUBLIC_BASE_URL": "https://staging.cryptominerarcadia.com",
+    "PUBLIC_INDEXING_ENABLED": "false",
+    "PUBLIC_LOGIN_ENABLED": "false",
+    "TURNSTILE_REQUIRED": "false",
+    "AUTH_CAPTCHA_REQUIRED": "false",
+    "CRYPTO_DEPOSITS_ENABLED": "false",
+    "CRYPTO_LIVE_DEPOSITS_ENABLED": "false",
+    "CRYPTO_SANDBOX_ENABLED": "true",
+    "NOWPAYMENTS_API_BASE_URL": "https://api-sandbox.nowpayments.io/v1",
+    "NOWPAYMENTS_SETTLEMENT_ASSET": "usdttrc20",
+    "PIX_DEPOSITS_ENABLED": "false",
+    "MERCADO_PAGO_ENVIRONMENT": "test",
+    "MERCADO_PAGO_API_BASE_URL": "https://api.mercadopago.com",
+    "MANUAL_WITHDRAWALS_ENABLED": "false",
+    "TRANSACTIONAL_EMAIL_ENABLED": "false"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

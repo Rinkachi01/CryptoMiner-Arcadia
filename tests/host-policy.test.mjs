@@ -23,3 +23,12 @@ test("hosts locais só são permitidos explicitamente no desenvolvimento", () =>
   assert.equal(arcadiaHostDisposition("localhost", { allowDevHosts: true }), "allow");
   assert.equal(arcadiaHostDisposition("localhost"), "block");
 });
+
+test("staging host requires an explicit allowlist", () => {
+  const stagingHost = "crypto-miner-arcadia-staging.criptomineracardia.workers.dev";
+  assert.equal(arcadiaHostDisposition(stagingHost), "block");
+  assert.equal(
+    arcadiaHostDisposition(stagingHost, { allowedHosts: [stagingHost] }),
+    "allow",
+  );
+});

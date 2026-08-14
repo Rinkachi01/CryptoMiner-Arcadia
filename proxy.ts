@@ -20,8 +20,15 @@ function secureResponse(response: NextResponse, request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+  const allowedHosts =
+    typeof env.ARCADIA_ALLOWED_HOSTS === "string"
+      ? env.ARCADIA_ALLOWED_HOSTS.split(",")
+          .map((host) => host.trim())
+          .filter(Boolean)
+      : [];
   const disposition = arcadiaHostDisposition(request.nextUrl.hostname, {
     allowDevHosts: process.env.NODE_ENV !== "production",
+    allowedHosts,
   });
   if (disposition === "redirect") {
     return secureResponse(

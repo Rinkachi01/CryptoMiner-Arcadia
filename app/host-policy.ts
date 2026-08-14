@@ -17,11 +17,22 @@ function normalizeHost(host: string | null | undefined) {
  */
 export function arcadiaHostDisposition(
   host: string | null | undefined,
-  options: { allowDevHosts?: boolean } = {},
+  options: {
+    allowDevHosts?: boolean;
+    allowedHosts?: readonly string[];
+  } = {},
 ): ArcadiaHostDisposition {
   const normalized = normalizeHost(host);
   if (normalized === ARCADIA_CANONICAL_HOST) return "allow";
   if (normalized === ARCADIA_WWW_HOST) return "redirect";
+
+  if (
+    options.allowedHosts?.some(
+      (allowedHost) => normalizeHost(allowedHost) === normalized,
+    )
+  ) {
+    return "allow";
+  }
 
   if (
     options.allowDevHosts &&

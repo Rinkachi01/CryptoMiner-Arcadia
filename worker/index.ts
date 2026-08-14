@@ -16,6 +16,7 @@ import {
 
 interface Env {
   ASSETS: Fetcher;
+  ARCADIA_ALLOWED_HOSTS?: string;
   DB: D1Database;
   RECOVERY_ARCHIVE: R2Bucket;
   IMAGES: {
@@ -42,7 +43,13 @@ const worker = {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    const hostDisposition = arcadiaHostDisposition(url.hostname);
+    const allowedHosts = (env.ARCADIA_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((host) => host.trim())
+      .filter(Boolean);
+    const hostDisposition = arcadiaHostDisposition(url.hostname, {
+      allowedHosts,
+    });
     if (hostDisposition === "redirect") {
       const redirect = Response.redirect(canonicalArcadiaUrl(request.url), 308);
       applyArcadiaSecurityHeaders(redirect.headers, true);

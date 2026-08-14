@@ -1,23 +1,29 @@
 # Ambiente de homologação
 
-O Arcadia agora possui dois ambientes independentes de publicação:
+O Arcadia agora possui ambientes independentes de publicação:
 
 - **Oficial:** https://cryptominerarcadia.com
-- **Homologação (privado):** https://crypto-miner-arcadia-staging.mateusmoraes12345678.chatgpt.site
+- **Homologação Cloudflare:** https://staging.cryptominerarcadia.com
+- **Homologação Cloudflare alternativa:** https://crypto-miner-arcadia-staging.criptomineracardia.workers.dev
+- **Prévia visual privada:** https://crypto-miner-arcadia-staging.mateusmoraes12345678.chatgpt.site
 
 ## Como usar
 
 1. Toda alteração nova deve ser validada primeiro na homologação.
-2. Faça login na aplicação de homologação com a mesma conta do workspace que tem acesso ao projeto.
+2. Abra a homologação Cloudflare pelo subdomínio `staging.cryptominerarcadia.com`.
 3. Teste navegação, responsividade, salas, racks, temporada, jogos e telas administrativas.
 4. Registre qualquer ajuste necessário e só publique no domínio oficial depois da revisão.
 
 ## Proteções atuais
 
-- A homologação é privada e não aparece em mecanismos de busca.
+- A homologação usa um Worker Cloudflare separado do Worker oficial.
+- O banco D1 e o armazenamento R2 da homologação são recursos separados dos recursos de produção.
+- `PUBLIC_INDEXING_ENABLED=false` impede indexação da homologação.
 - Pix, depósitos cripto, saques manuais e pagamentos reais ficam desativados nesse ambiente.
 - O Mercado Pago está em modo de teste e o provedor cripto está em modo sandbox.
 - A publicação oficial continua apontando exclusivamente para `cryptominerarcadia.com`.
+
+O endereço `workers.dev` é uma URL pública por padrão. Antes de compartilhar a homologação com terceiros, proteja `staging.cryptominerarcadia.com` no Cloudflare Access, permitindo somente o seu e-mail. A URL `workers.dev` pode ser desativada no painel depois que o subdomínio estiver validado.
 
 ## Regra de dados e pagamentos
 
