@@ -20,9 +20,12 @@ export async function GET() {
     );
   }
   const now = Date.now();
+  const accountId = await accountIdForUser(user);
+  // O bônus diário é aplicado automaticamente ao entrar, sem ocupar a tela da temporada.
+  await registerSeasonDailyLogin(env.DB, accountId, now).catch(() => undefined);
   const overview = await readSeasonOverview(
     env.DB,
-    await accountIdForUser(user),
+    accountId,
     now,
     true,
   );

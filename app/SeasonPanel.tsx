@@ -146,19 +146,11 @@ export function SeasonPanel({
         <div className="season-summary-card">
           <span>{season.status === "active" ? "TEMPORADA ATIVA" : "TEMPORADA ENCERRADA"}</span>
           <h3>{season.name}</h3>
-          <p>Dispute posições completando partidas validadas pelo servidor.</p>
+          <p>Avance completando partidas validadas pelo servidor.</p>
           <div className="season-progress">
             <i><em style={{ width: `${season.progressPercent}%` }} /></i>
             <span>{season.progressPercent}% do ciclo</span>
             <strong>{season.status === "active" ? remainingLabel(season.endsAt, data.serverTime) : "Ciclo finalizado"}</strong>
-          </div>
-          <div className="season-player-rank">
-            <span>SUA POSIÇÃO</span>
-            <strong>{data.currentPlayer ? `#${data.currentPlayer.rank}` : "—"}</strong>
-            <div>
-              <b>{data.currentPlayer?.score.toLocaleString("pt-BR") ?? 0} pontos</b>
-              <small>{data.currentPlayer ? `${data.currentPlayer.wins} vitórias em ${data.currentPlayer.plays} partidas` : "Complete uma partida para entrar no ranking"}</small>
-            </div>
           </div>
           <small className="season-no-reward">{data.rewardNotice}</small>
         </div>
@@ -205,7 +197,7 @@ export function SeasonPanel({
         <div>
           <span>TEMPORADA 01 · CORRIDA ESPACIAL</span>
           <h3>{season.durationDays} dias para alcançar o Espaço Profundo</h3>
-          <p>Login, partidas validadas, missões e gastos limitados em CMA geram XP.</p>
+          <p>Partidas validadas, missões e gastos limitados em CMA geram XP.</p>
         </div>
         <aside>
           <strong>NÍVEL {progress.level}</strong>
@@ -219,45 +211,6 @@ export function SeasonPanel({
         <i><em style={{ width: `${levelProgress}%` }} /></i>
         <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
       </div>
-
-      <aside className="season-energy-guide" aria-label="Energia e poder temporário da temporada">
-        <div>
-          <span>ENERGIA DA TEMPORADA</span>
-          <strong>Dois recursos, duas regras</strong>
-        </div>
-        <p><b>Baterias</b> entram no inventário e seguem o ciclo normal da sala. <b>Poder temporário</b> começa no resgate e expira em 1, 3 ou 7 dias; ele não cria baterias nem altera o XP.</p>
-      </aside>
-
-      <section className="season-daily-login">
-        <header>
-          <div><span>LOGIN DIÁRIO</span><h4>Resgate seu XP</h4></div>
-          <strong>DIA {progress.dailyLogin.cycleDay} / 7</strong>
-        </header>
-        <ol className="season-daily-schedule">
-          {progress.dailyLogin.schedule.map((xp, index) => {
-            const dayNum = index + 1;
-            const alreadyClaimed = dayNum < progress.dailyLogin.cycleDay || (dayNum === progress.dailyLogin.cycleDay && progress.dailyLogin.claimedToday);
-            const isToday = dayNum === progress.dailyLogin.cycleDay && !progress.dailyLogin.claimedToday;
-            return (
-              <li key={dayNum} className={`${alreadyClaimed ? "claimed" : ""} ${isToday ? "current" : ""}`}>
-                <small>DIA {dayNum}</small>
-                <strong>+{xp}</strong>
-                <span>XP</span>
-              </li>
-            );
-          })}
-        </ol>
-        <div className="season-daily-actions">
-          <span>Sequência: {progress.dailyLogin.streakDays} {progress.dailyLogin.streakDays === 1 ? "dia" : "dias"} seguidos</span>
-          <button
-            type="button"
-            disabled={progress.dailyLogin.claimedToday || Boolean(busyAction)}
-            onClick={() => void runAction("daily-login", { action: "daily-login" })}
-          >
-            {progress.dailyLogin.claimedToday ? "XP DO DIA RESGATADO ✓" : `RESGATAR +${progress.dailyLogin.nextXp} XP`}
-          </button>
-        </div>
-      </section>
 
       <section className="season-track-card">
         <header>
@@ -350,39 +303,7 @@ export function SeasonPanel({
         </div>
       </section>
 
-      <section className="season-community-grid">
-        <article className="season-ranking-card">
-          <header>
-            <div><span>RANKING DE XP</span><h4>Operadores da temporada</h4></div>
-            <small>{data.currentPlayer ? `SUA POSIÇÃO · #${data.currentPlayer.rank}` : "ENTRE JOGANDO"}</small>
-          </header>
-          <ol>
-            {data.leaderboard.length === 0 ? (
-              <li className="empty">O ranking começa na primeira atividade validada.</li>
-            ) : data.leaderboard.slice(0, 5).map((entry) => (
-              <li key={entry.accountId}>
-                <b>{String(entry.rank).padStart(2, "0")}</b>
-                <span>{entry.displayName}</span>
-                <strong>{entry.score.toLocaleString("pt-BR")} XP</strong>
-              </li>
-            ))}
-          </ol>
-        </article>
-        <article className="season-giveaway-card">
-          <header>
-            <div><span>GIVEAWAYS SEMANAIS</span><h4>Sorteios da comunidade</h4></div>
-            <small>SEM ALTERAR BLOCOS</small>
-          </header>
-          <p>
-            Participações futuras serão vinculadas à atividade legítima da semana.
-            Nenhum sorteio aumenta a emissão de CMA, BTC, DOGE ou LTC.
-          </p>
-          <div>
-            <span>PRÓXIMA JANELA</span>
-            <strong>DOMINGO · 23:59 UTC</strong>
-          </div>
-        </article>
-      </section>
+      {/* Ranking de XP e Giveaways semanais ficam fora do passe para manter a temporada enxuta. */}
 
 
       {message && <p className="season-action-success" role="status">{message}</p>}

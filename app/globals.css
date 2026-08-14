@@ -23186,6 +23186,25 @@ body {
 .arcadia-shell .operation-daily-mission .operator-progress-panel { grid-template-columns: 1fr; }
 .arcadia-shell .operation-daily-mission .operator-career-panel { display: none; }
 .arcadia-shell .pool-allocation-note { margin: 12px 0 0; color: #8ea4af; font-size: .72rem; line-height: 1.45; }
+@media (max-width: 760px) {
+  .arcadia-shell .daily-mission-panel > div { align-items: flex-start; flex-direction: column; }
+  .arcadia-shell .daily-mission-panel > div small { max-width: none; text-align: left; }
+  .arcadia-shell .daily-mission-panel article { grid-template-columns: 22px minmax(0, 1fr); }
+  .arcadia-shell .daily-mission-panel article strong { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+  .arcadia-shell .daily-mission-panel .mission-status {
+    grid-column: 2;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 170px);
+    align-items: center;
+    justify-items: stretch;
+  }
+  .arcadia-shell .daily-mission-panel .mission-status button {
+    width: 100%;
+    min-width: 0;
+    max-width: 170px;
+    white-space: normal;
+    line-height: 1.2;
+  }
+}
 @media (max-width: 720px) {
   .arcadia-shell .pc-power-ladder ol { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
