@@ -23423,6 +23423,11 @@ body {
   flex: 0 0 auto;
 }
 
+/* The owner console uses the shared footer below its workspace. */
+.app-route-shell .admin-footer {
+  display: none;
+}
+
 .public-footer-main {
   display: grid !important;
   max-width: 1240px;
