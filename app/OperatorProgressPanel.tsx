@@ -75,7 +75,7 @@ const gameNames: Record<string, string> = {
 
 // Tour diário do Arcade agora usa a meta de 10 partidas e entrega +12h.
 
-// MISSÕES DIÁRIAS continuam no domínio de progresso; RESGATAR 1 BATERIA agora é tratado pelo ciclo de 9h da sala.
+// MISSÕES DIÁRIAS continuam no domínio de progresso; RESGATAR 1 BATERIA agora é tratado pelo ciclo de 12h da sala.
 export function OperatorProgressPanel({
   refreshKey,
   section = "overview",

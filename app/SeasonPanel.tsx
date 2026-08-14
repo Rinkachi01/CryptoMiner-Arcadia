@@ -264,7 +264,7 @@ export function SeasonPanel({
           </div>
         </header>
         <div className="season-pass-lanes">
-          {(["premium", "free"] as const).map((track) => (
+          {(["free", "premium"] as const).map((track) => (
             <section className={`season-pass-lane ${track}`} key={track}>
               <header>
                 <span>{track === "premium" ? "ORBIT PASS · PREMIUM" : "FREE PASS · GRATUITO"}</span>

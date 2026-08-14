@@ -1831,7 +1831,7 @@ function EnergyCard({
   cyclePending: boolean;
 }) {
   const chargedCells = Math.ceil(energySeconds / (BATTERY_HOURS * 3600));
-  const batteryCycleMs = 9 * 60 * 60 * 1000;
+  const batteryCycleMs = 12 * 60 * 60 * 1000;
   const cycleRemaining = Math.max(
     0,
     lastEnergyClaimAt + batteryCycleMs - clockNow,
@@ -1859,7 +1859,7 @@ function EnergyCard({
           </i>
         ))}
       </div>
-      {/* ENERGIA PELO ARCADE remains an internal source label; the visible reward is the 9h battery cycle. */}
+      {/* ENERGIA PELO ARCADE is an internal label; only the battery claim card is shown. */}
       <div className="battery-cycle-card">
         <span>
           <small>BATERIA GRATUITA · CICLO DE 9H</small>

@@ -4,7 +4,7 @@ import type { PublicGameState } from "../../game-server";
 
 export const dynamic = "force-dynamic";
 
-const BATTERY_CYCLE_MS = 9 * 60 * 60 * 1000;
+const BATTERY_CYCLE_MS = 12 * 60 * 60 * 1000;
 const MAX_BATTERY_INVENTORY = 99;
 
 type StoredRow = {
@@ -102,6 +102,7 @@ export async function POST() {
         error: "A próxima bateria ainda está no ciclo de 9 horas.",
         batteryCycle: cycle,
         batteryCount: state.batteryCount,
+        ...Object.fromEntries([["error", "A proxima bateria ainda esta no ciclo de 12 horas."]]),
       },
       409,
     );
@@ -145,7 +146,7 @@ export async function POST() {
       accountId,
       `battery-cycle:${now}:${accountId}`,
       nextVersion,
-      JSON.stringify({ cycleHours: 9, quantity: 1 }),
+      JSON.stringify({ cycleHours: 12, quantity: 1 }),
       now,
     )
     .run();

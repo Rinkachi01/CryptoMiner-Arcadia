@@ -2657,10 +2657,7 @@ img {
 }
 
 .energy-card > p {
-  margin: 9px 0 0;
-  color: #596675;
-  font-size: 6px;
-  line-height: 1.45;
+  display: none;
 }
 
 .activity-feed.compact li {
@@ -5030,6 +5027,12 @@ img {
 }
 .battery-cycle-card > span { display: grid; min-width: 0; gap: 4px; }
 .battery-cycle-card small { color: #72e4ff; font: 800 0.58rem/1.15 var(--font-ui); letter-spacing: 0.08em; }
+.battery-cycle-card > span > small { font-size: 0; }
+.battery-cycle-card > span > small::after {
+  content: "BATERIA GRATUITA · CICLO DE 12H";
+  font: 800 0.58rem/1.15 var(--font-ui);
+  letter-spacing: 0.08em;
+}
 .battery-cycle-card strong { color: #e6f7f9; font: 750 0.7rem/1.2 var(--font-ui); }
 .battery-cycle-card button {
   min-width: 88px;
@@ -5044,14 +5047,19 @@ img {
 }
 .battery-cycle-card button:disabled { cursor: not-allowed; opacity: 0.5; }
 
-/* A temporada flui em uma coluna; as recompensas se adaptam à largura disponível. */
+/* A temporada flui em uma coluna; cada trilha mantém uma faixa horizontal compacta. */
 .space-race-season { grid-template-columns: minmax(0, 1fr); }
 .space-race-season > * { min-width: 0; }
 .season-reward-grid {
-  grid-auto-flow: row;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-  overflow: visible;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 1fr);
+  grid-template-columns: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline proximity;
 }
+.season-reward-grid article { scroll-snap-align: start; }
 .season-quests-card {
   padding: clamp(15px, 2.4vw, 24px);
   border: 1px solid rgba(82, 144, 166, 0.38);
@@ -5083,7 +5091,11 @@ img {
   .season-quests-card > header { flex-direction: column; }
   .season-quests-card > header small { max-width: none; text-align: left; }
   .season-quests-grid { grid-template-columns: 1fr; }
-  .season-reward-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+  .season-reward-grid {
+    grid-template-columns: none;
+    grid-auto-columns: minmax(142px, 48vw);
+    gap: 8px;
+  }
 }
 
 /* Pix ocupa um bloco compacto e separado das faturas cripto. */

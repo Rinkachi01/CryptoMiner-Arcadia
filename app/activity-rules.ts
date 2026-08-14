@@ -286,7 +286,7 @@ export function presentLedgerActivity(
   if (action === "battery_cycle_claim") {
     return {
       category: "energy",
-      title: "Bateria do ciclo de 9 horas resgatada",
+      title: "Bateria do ciclo de 12 horas resgatada",
       description: "A bateria gratuita foi adicionada ao inventario pelo servidor.",
     };
   }
