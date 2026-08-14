@@ -12,6 +12,7 @@ export function PublicInfoHeader({ label }: { label: string }) {
       </Link>
       <nav aria-label="Navegação pública">
         <Link href="/">JOGO</Link>
+        <a href="/faq">FAQ</a>
         <a href="/support">SUPORTE</a>
         <a href="/legal">DOCUMENTOS</a>
       </nav>
