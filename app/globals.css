@@ -23407,6 +23407,22 @@ body {
     #080d14;
 }
 
+/* The authenticated game and owner console share the same full-width footer. */
+.app-route-shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.app-route-shell > .arcadia-shell,
+.app-route-shell > .admin-shell {
+  flex: 1 0 auto;
+}
+
+.app-route-shell > .public-site-footer {
+  flex: 0 0 auto;
+}
+
 .public-footer-main {
   display: grid !important;
   max-width: 1240px;

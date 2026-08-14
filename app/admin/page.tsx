@@ -5,6 +5,7 @@ import {
   isConfiguredAdminOwner,
 } from "../admin-settings";
 import { AdminDashboard } from "../AdminDashboard";
+import { PublicSiteFooter } from "../PublicSiteFooter";
 import {
   accountIdForUser,
   arcadiaSignOutPath,
@@ -20,12 +21,15 @@ export default async function AdminPage() {
     redirect("/");
   }
   return (
-    <AdminDashboard
-      user={{
-        displayName: user.displayName,
-        email: user.email,
-      }}
-      signOutPath={arcadiaSignOutPath("/", user.provider)}
-    />
+    <div className="app-route-shell">
+      <AdminDashboard
+        user={{
+          displayName: user.displayName,
+          email: user.email,
+        }}
+        signOutPath={arcadiaSignOutPath("/", user.provider)}
+      />
+      <PublicSiteFooter />
+    </div>
   );
 }

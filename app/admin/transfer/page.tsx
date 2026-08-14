@@ -6,6 +6,7 @@ import {
 } from "../../admin-settings";
 import { FounderTransferPanel } from "../../FounderTransferPanel";
 import { accountIdForUser, requireArcadiaUser } from "../../identity-server";
+import { PublicSiteFooter } from "../../PublicSiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,11 @@ async function requireFounderTransferOwner() {
 export default async function FounderTransferPage() {
   await requireFounderTransferOwner();
   return (
-    <main className="founder-transfer-shell">
-      <FounderTransferPanel />
-    </main>
+    <div className="app-route-shell">
+      <main className="founder-transfer-shell">
+        <FounderTransferPanel />
+      </main>
+      <PublicSiteFooter />
+    </div>
   );
 }

@@ -94,15 +94,18 @@ export default async function Home() {
 
   return (
     <GameErrorBoundary>
-      <ArcadiaGame
-        user={{
-          displayName: user.displayName,
-          email: user.email,
-        }}
-        isOwner={isOwner}
-        signOutPath={arcadiaSignOutPath("/", user.provider)}
-        unreadSupportReplies={unreadSupportReplies}
-      />
+      <div className="app-route-shell">
+        <ArcadiaGame
+          user={{
+            displayName: user.displayName,
+            email: user.email,
+          }}
+          isOwner={isOwner}
+          signOutPath={arcadiaSignOutPath("/", user.provider)}
+          unreadSupportReplies={unreadSupportReplies}
+        />
+        <PublicSiteFooter />
+      </div>
     </GameErrorBoundary>
   );
 }

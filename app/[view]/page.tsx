@@ -13,6 +13,7 @@ import {
 } from "../admin-settings";
 import { readUnreadSupportReplyCount } from "../support-server";
 import { GameErrorBoundary } from "../GameErrorBoundary";
+import { PublicSiteFooter } from "../PublicSiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -52,13 +53,16 @@ export default async function ViewRoute({
 
   return (
     <GameErrorBoundary>
-      <ArcadiaGame
-        initialView={initialView}
-        user={{ displayName: user.displayName, email: user.email }}
-        isOwner={isOwner}
-        signOutPath={arcadiaSignOutPath("/", user.provider)}
-        unreadSupportReplies={unreadSupportReplies}
-      />
+      <div className="app-route-shell">
+        <ArcadiaGame
+          initialView={initialView}
+          user={{ displayName: user.displayName, email: user.email }}
+          isOwner={isOwner}
+          signOutPath={arcadiaSignOutPath("/", user.provider)}
+          unreadSupportReplies={unreadSupportReplies}
+        />
+        <PublicSiteFooter />
+      </div>
     </GameErrorBoundary>
   );
 }
