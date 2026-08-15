@@ -112,8 +112,34 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       setRecoveryRequired(false);
       setPendingFactorId(null);
       setSetup(null);
-      setMessage("Configuração pendente removida. Clique novamente para gerar um novo QR code.");
-      await loadFactor();
+      // Depois da limpeza, já inicia uma nova inscrição nesta mesma ação.
+      // Isso evita deixar o jogador preso entre dois cliques ou em um estado
+      // visual que ainda aponta para o fator antigo.
+      let fresh = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: `Arcadia Authenticator ${Date.now()}`,
+      });
+      if (fresh.error && (fresh.error.message.toLowerCase().includes("already exists") || fresh.error.message.toLowerCase().includes("duplicate"))) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        await clearPendingFactors();
+        fresh = await supabase.auth.mfa.enroll({
+          factorType: "totp",
+          friendlyName: `Arcadia Authenticator ${Date.now()}`,
+        });
+      }
+      if (fresh.error || !fresh.data?.id || !fresh.data.totp) {
+        setRecoveryRequired(true);
+        setMessage(friendlyMfaError(fresh.error));
+        setBusy(false);
+        return;
+      }
+      setSetup({
+        factorId: fresh.data.id,
+        qrCode: fresh.data.totp.qr_code,
+        secret: fresh.data.totp.secret,
+      });
+      setMessage("Novo QR Code gerado. Escaneie-o no aplicativo autenticador e confirme o código.");
+      setBusy(false);
       return;
     }
     // Keep the existing QR enrollment when the user already scanned it. The
