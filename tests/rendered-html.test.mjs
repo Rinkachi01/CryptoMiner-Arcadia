@@ -48,7 +48,8 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   const source = await readProductSources();
 
   assert.match(source, /title: "Crypto Miner Arcadia"/i);
-  assert.match(source, /Sua sala de mineração/i);
+  // Room titles are now resolved through the locale dictionary.
+  assert.match(source, /workspace\.mine|Sua sala de mineração|Mining room/i);
   assert.match(source, /Sala de mineração/i);
   assert.match(source, /Pools/i);
   assert.match(source, /Inventário/i);
@@ -62,12 +63,12 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /DIFICULDADE/i);
   assert.match(source, /RECARGA/i);
   assert.match(source, /CONTA NO SERVIDOR/i);
-  assert.match(source, /PROGRESSO PROTEGIDO/i);
-  assert.match(source, /RACKS NESTA SALA/i);
+  assert.match(source, /status\.progress|PROTECTED PROGRESS|PROGRESSO PROTEGIDO/i);
+  assert.match(source, /metric\.racks|RACKS IN THIS ROOM|RACKS NESTA SALA/i);
   assert.match(source, /ENERGIA/i);
   assert.match(source, /ENERGIA PELO ARCADE/i);
-  assert.match(source, /REDE PRINCIPAL/i);
-  assert.match(source, /Poder total da rede/i);
+  assert.match(source, /metric\.mainNetwork|MAIN NETWORK|REDE PRINCIPAL/i);
+  assert.match(source, /Total network power|Poder total da rede/i);
   assert.match(source, /CRIAR CONTA/i);
   assert.match(source, /progresso no servidor/i);
   assert.match(source, /rack-visual/i);

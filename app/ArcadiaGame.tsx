@@ -308,7 +308,7 @@ export function ArcadiaGame({
   unreadSupportReplies,
   initialView = "mine",
 }: ArcadiaGameProps) {
-  const { t } = useArcadiaLanguage();
+  const { t, locale } = useArcadiaLanguage();
   const [activeView, setActiveView] = useState<ViewId>(initialView);
   const [accountDisplayName, setAccountDisplayName] = useState(user.displayName);
   const [textScale, setTextScale] =
@@ -1023,10 +1023,10 @@ export function ArcadiaGame({
       <div className={`server-status-strip ${serverStatus}`}>
         <span className="online-dot" />
         {serverStatus === "online"
-          ? `PROGRESSO PROTEGIDO · VERSÃO ${serverVersion}`
+          ? formatTranslation(t("status.progress"), { version: serverVersion })
           : serverStatus === "connecting"
             ? t("status.loading")
-            : "SERVIDOR INDISPONÍVEL · AÇÕES BLOQUEADAS"}
+            : t("status.error")}
         <small>{formatTranslation(t("status.block"), { block: lastSettledBlock })}</small>
       </div>
 
@@ -1073,7 +1073,7 @@ export function ArcadiaGame({
         }}
       />
 
-      <aside className="sidebar" aria-label="Navegação principal">
+      <aside className="sidebar" aria-label={t("sidebar.navigation")}>
         <div className="player-card">
           <div className="avatar-frame">{playerInitial}</div>
           <div>
@@ -1120,8 +1120,8 @@ export function ArcadiaGame({
         </nav>
 
         <div className="simulation-note">
-          <span>SIMULAÇÃO VIRTUAL</span>
-          <p>Operação virtual com progresso e economia controlados pelo servidor.</p>
+          <span>{t("sidebar.virtualSimulation").toUpperCase()}</span>
+          <p>{t("sidebar.simulationDescription")}</p>
           <div className="sidebar-public-links">
             <a href="/legal">{t("sidebar.terms").toUpperCase()}</a>
           </div>
@@ -1134,25 +1134,29 @@ export function ArcadiaGame({
             <span className="eyebrow">
               {rackOpen && activeRack ? (
                 <>
-                  CONTROLE DE RACK <i /> {activeRoom.name.toUpperCase()}
+                  {locale === "en" ? "RACK CONTROL" : "CONTROLE DE RACK"} <i /> {activeRoom.name.toUpperCase()}
                 </>
               ) : activeView === "shop" ? (
-                <>MERCADO ARCADIA <i /> EQUIPAMENTOS E ENERGIA</>
+                <>{t("workspace.shopEyebrow").toUpperCase()}</>
               ) : activeView === "conversion" ? (
-                <>CARTEIRA DO OPERADOR <i /> SALDOS E CONVERSÃO</>
+                <>{t("workspace.walletEyebrow").toUpperCase()}</>
               ) : activeView === "games" ? (
-                <>ARCADE ARCADIA <i /> 3 MINIGAMES ONLINE</>
+                <>{t("workspace.gamesEyebrow").toUpperCase()}</>
               ) : activeView === "season" ? (
-                <>TEMPORADA 01 <i /> CORRIDA ESPACIAL</>
+                <>{t("workspace.seasonEyebrow").toUpperCase()}</>
               ) : activeView === "leaderboard" ? (
-                <>RANKING GLOBAL <i /> MAIORES MINERADORES</>
+                <>{t("workspace.leaderboardEyebrow").toUpperCase()}</>
               ) : activeView === "tasks" ? (
-                <>CENTRAL DE TAREFAS <i /> MISSÕES E FEEDBACK</>
+                <>{t("workspace.tasksEyebrow").toUpperCase()}</>
               ) : activeView === "career" ? (
-                <>CENTRAL DO OPERADOR <i /> PROGRESSO E MISSÕES</>
+                <>{t("workspace.careerEyebrow").toUpperCase()}</>
+              ) : activeView === "pools" ? (
+                <>{t("workspace.pools").toUpperCase()}</>
+              ) : activeView === "inventory" ? (
+                <>{t("workspace.inventory").toUpperCase()}</>
               ) : (
                 <>
-                  {activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
+                  {locale === "en" ? t("workspace.mineEyebrow").toUpperCase() : activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
                 </>
               )}
             </span>
@@ -1160,13 +1164,13 @@ export function ArcadiaGame({
               {rackOpen && activeRack
                  ? t("workspace.manage")
                 : activeView === "mine"
-                  ? "Sua sala de mineração"
+                  ? t("workspace.mine")
                   : activeView === "pools"
-                    ? "Pools de mineração"
+                    ? t("workspace.pools")
                     : activeView === "conversion"
-                      ? "Carteira e conversão"
+                      ? t("workspace.wallet")
                     : activeView === "inventory"
-                      ? "Inventário de equipamentos"
+                      ? t("workspace.inventory")
                       : activeView === "shop"
                          ? t("workspace.shop")
                         : activeView === "games"
@@ -1215,15 +1219,15 @@ export function ArcadiaGame({
           <article className="energy-metric">
             <img src={assetsManifest.battery.path} alt="" />
             <div>
-              <small>ENERGIA</small>
+              <small>{t("metric.energy").toUpperCase()}</small>
               <strong>{formatEnergy(energySeconds)}</strong>
             </div>
-            <em>{batteryCount} BATERIAS</em>
+            <em>{batteryCount} {t("metric.batteries").toUpperCase()}</em>
           </article>
           <article className="pool-metric">
             <span className="metric-icon pool">P</span>
             <div>
-              <small>REDE PRINCIPAL</small>
+              <small>{t("metric.mainNetwork").toUpperCase()}</small>
               <strong>{selectedPool.symbol}</strong>
             </div>
             <em>{formatPower(network.playerPowerGh[selectedPool.id])} NA REDE</em>
@@ -1951,6 +1955,8 @@ function EnergyCard({
   onClaimFreeBattery: () => void;
   cyclePending: boolean;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const chargedCells = Math.ceil(energySeconds / (BATTERY_HOURS * 3600));
   const batteryCycleMs = 12 * 60 * 60 * 1000;
   const cycleRemaining = Math.max(
@@ -1965,14 +1971,14 @@ function EnergyCard({
           <img src={assetsManifest.battery.path} alt={assetsManifest.battery.alt} />
         </div>
         <div>
-          <small>ENERGIA DOS MINERADORES</small>
+          <small>{english ? "MINER ENERGY" : "ENERGIA DOS MINERADORES"}</small>
           <strong>{formatEnergy(energySeconds)}</strong>
-          <span>{batteryCount} baterias no inventário</span>
+          <span>{batteryCount} {english ? "batteries in inventory" : "baterias no inventário"}</span>
         </div>
       </div>
       <div
         className="energy-cells"
-        aria-label={`${chargedCells} de 8 células carregadas`}
+        aria-label={english ? `${chargedCells} of 8 cells charged` : `${chargedCells} de 8 células carregadas`}
       >
         {Array.from({ length: 8 }, (_, index) => (
           <i className={index < chargedCells ? "charged" : ""} key={index}>
@@ -1983,11 +1989,11 @@ function EnergyCard({
       {/* ENERGIA PELO ARCADE is an internal label; only the battery claim card is shown. */}
       <div className="battery-cycle-card">
         <span>
-          <small>BATERIA GRATUITA · CICLO DE 12H</small>
+          <small>{english ? "FREE BATTERY · 12H CYCLE" : "BATERIA GRATUITA · CICLO DE 12H"}</small>
           <strong>
             {cycleRemaining === 0
-              ? "Bateria disponível"
-              : `Próxima em ${formatEnergy(Math.ceil(cycleRemaining / 1000))}`}
+              ? english ? "Battery available" : "Bateria disponível"
+              : english ? `Next in ${formatEnergy(Math.ceil(cycleRemaining / 1000))}` : `Próxima em ${formatEnergy(Math.ceil(cycleRemaining / 1000))}`}
           </strong>
         </span>
         <button
@@ -1995,7 +2001,7 @@ function EnergyCard({
           disabled={cycleRemaining > 0 || cyclePending}
           onClick={onClaimFreeBattery}
         >
-          {cyclePending ? "VALIDANDO..." : cycleRemaining === 0 ? "RESGATAR" : "AGUARDAR"}
+          {cyclePending ? english ? "VALIDATING..." : "VALIDANDO..." : cycleRemaining === 0 ? english ? "CLAIM" : "RESGATAR" : english ? "WAIT" : "AGUARDAR"}
         </button>
       </div>
       <div className="energy-actions">
@@ -2007,17 +2013,19 @@ function EnergyCard({
             energySeconds >= MAX_ENERGY_HOURS * 3600
           }
         >
-          USAR BATERIA · +{BATTERY_HOURS}H
+          {english ? "USE BATTERY" : "USAR BATERIA"} · +{BATTERY_HOURS}H
         </button>
         <button type="button" onClick={onOpenStore}>
-          IR PARA LOJA
+          {english ? "OPEN SHOP" : "IR PARA LOJA"}
         </button>
         <button type="button" onClick={onOpenGames}>
-          IR PARA ARCADE
+          {english ? "OPEN ARCADE" : "IR PARA ARCADE"}
         </button>
       </div>
       <p>
-        O ciclo de bateria é separado do XP da temporada. As missões de XP ficam no passe e não alteram a distribuição das pools.
+        {english
+          ? "The battery cycle is separate from season XP. XP missions stay in the pass and do not change pool allocations."
+          : "O ciclo de bateria é separado do XP da temporada. As missões de XP ficam no passe e não alteram a distribuição das pools."}
       </p>
     </div>
   );
@@ -2038,12 +2046,14 @@ function MiningStatusPanel({
   secondsLeft: number;
   onOpenPools: () => void;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const activePools = pools.filter((pool) => allocations[pool.id] > 0);
 
   return (
-    <section className="mining-status-panel" aria-label="Status da mineração">
+    <section className="mining-status-panel" aria-label={english ? "Mining status" : "Status da mineração"}>
       <div className="mining-status-heading">
-        <span>REDE GLOBAL DO SERVIDOR</span>
+        <span>{english ? "GLOBAL SERVER NETWORK" : "REDE GLOBAL DO SERVIDOR"}</span>
         <i className="online-dot" />
       </div>
 
@@ -2067,12 +2077,12 @@ function MiningStatusPanel({
             >
               <img src={pool.asset} alt="" />
               <span>
-                <small>{pool.symbol} · {allocation}% DO SEU PODER</small>
+                <small>{pool.symbol} · {allocation}% {english ? "OF YOUR POWER" : "DO SEU PODER"}</small>
                 <strong>{formatPower(poolNetworkPower)}</strong>
-                <em>Poder total da rede {pool.symbol}</em>
+                <em>{english ? "Total network power" : "Poder total da rede"} {pool.symbol}</em>
               </span>
               <b>
-                <span>{formatPower(allocatedMinerPower)} mineradores</span>
+                <span>{formatPower(allocatedMinerPower)} {english ? "miners" : "mineradores"}</span>
                 <span className="temporary-power-inline">
                   + {formatPower(allocatedGamePower)} minigames
                 </span>
@@ -2084,7 +2094,7 @@ function MiningStatusPanel({
 
       <div className="mining-block-status">
         <span>
-          <small>PRÓXIMO BLOCO</small>
+          <small>{english ? "NEXT BLOCK" : "PRÓXIMO BLOCO"}</small>
           <strong>{formatTimer(secondsLeft)}</strong>
         </span>
         <div>
@@ -2101,7 +2111,7 @@ function MiningStatusPanel({
           />
         </div>
         <button type="button" onClick={onOpenPools}>
-          GERENCIAR POOLS
+          {english ? "MANAGE POOLS" : "GERENCIAR POOLS"}
         </button>
       </div>
     </section>
@@ -2109,38 +2119,43 @@ function MiningStatusPanel({
 }
 
 export function GamesView() {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const games = [
     {
       id: "packet-catch",
       name: "Packet Catch",
       glyph: "↓",
-      description:
-        "Capture pacotes válidos e evite dados corrompidos em partidas rápidas.",
-      reward: "100–220 GH/s temporários",
-      secondary: "chance baixa de bateria",
-      duration: "60–90 segundos",
+      description: english
+        ? "Capture valid packets and avoid corrupted data in fast-paced rounds."
+        : "Capture pacotes válidos e evite dados corrompidos em partidas rápidas.",
+      reward: english ? "100–220 temporary GH/s" : "100–220 GH/s temporários",
+      secondary: english ? "low battery chance" : "chance baixa de bateria",
+      duration: english ? "60–90 seconds" : "60–90 segundos",
       color: "#36d8f2",
     },
     {
       id: "hash-match",
       name: "Hash Match",
       glyph: "◇",
-      description:
-        "Encontre pares de chips com memória, velocidade e poucos erros.",
-      reward: "140–280 GH/s temporários",
-      secondary: "fragmentos CMA limitados",
-      duration: "2–3 minutos",
+      description: english
+        ? "Find matching chip pairs with memory, speed and few mistakes."
+        : "Encontre pares de chips com memória, velocidade e poucos erros.",
+      reward: english ? "140–280 temporary GH/s" : "140–280 GH/s temporários",
+      secondary: english ? "limited CMA fragments" : "fragmentos CMA limitados",
+      duration: english ? "2–3 minutes" : "2–3 minutos",
       color: "#a9ff3f",
     },
     {
       id: "circuit-rush",
       name: "Circuit Rush",
       glyph: "»",
-      description:
-        "Guie um drone por circuitos e desvie de obstáculos eletrônicos.",
-      reward: "180–350 GH/s temporários",
-      secondary: "chance baixa de bateria",
-      duration: "90–120 segundos",
+      description: english
+        ? "Guide a drone through circuits and avoid electronic obstacles."
+        : "Guie um drone por circuitos e desvie de obstáculos eletrônicos.",
+      reward: english ? "180–350 temporary GH/s" : "180–350 GH/s temporários",
+      secondary: english ? "low battery chance" : "chance baixa de bateria",
+      duration: english ? "90–120 seconds" : "90–120 segundos",
       color: "#ffb33b",
     },
   ];
@@ -2149,18 +2164,18 @@ export function GamesView() {
     <section className="games-view">
       <div className="games-hero">
         <div>
-          <span className="eyebrow">FASE DE PROJETO · RECOMPENSAS DESATIVADAS</span>
-          <h2>Arcade de mineração</h2>
+          <span className="eyebrow">{english ? "DESIGN PHASE · REWARDS DISABLED" : "FASE DE PROJETO · RECOMPENSAS DESATIVADAS"}</span>
+          <h2>{english ? "Mining arcade" : "Arcade de mineração"}</h2>
           <p>
-            Três minigames originais foram definidos para conceder poder
-            temporário. CMA e baterias terão limites diários e validação no
-            servidor antes de serem ativados.
+            {english
+              ? "Three original minigames are designed to grant temporary power. CMA and batteries have daily limits and server validation before activation."
+              : "Três minigames originais foram definidos para conceder poder temporário. CMA e baterias terão limites diários e validação no servidor antes de serem ativados."}
           </p>
         </div>
         <div className="games-balance-seal">
           <strong>0</strong>
-          <span>RECOMPENSAS EMITIDAS</span>
-          <small>protótipo seguro</small>
+          <span>{english ? "REWARDS ISSUED" : "RECOMPENSAS EMITIDAS"}</span>
+          <small>{english ? "safe prototype" : "protótipo seguro"}</small>
         </div>
       </div>
 
@@ -2178,7 +2193,7 @@ export function GamesView() {
                   <i key={cell} className={(cell + index) % 4 === 0 ? "lit" : ""} />
                 ))}
               </div>
-              <b>EM PROJETO</b>
+              <b>{english ? "IN DESIGN" : "EM PROJETO"}</b>
             </div>
             <div className="game-prototype-info">
               <span>MINIGAME {String(index + 1).padStart(2, "0")}</span>
@@ -2186,20 +2201,20 @@ export function GamesView() {
               <p>{game.description}</p>
               <dl>
                 <div>
-                  <dt>Duração</dt>
+                  <dt>{english ? "Duration" : "Duração"}</dt>
                   <dd>{game.duration}</dd>
                 </div>
                 <div>
-                  <dt>Poder previsto</dt>
+                  <dt>{english ? "Expected power" : "Poder previsto"}</dt>
                   <dd>{game.reward}</dd>
                 </div>
                 <div>
-                  <dt>Extra previsto</dt>
+                  <dt>{english ? "Expected extra" : "Extra previsto"}</dt>
                   <dd>{game.secondary}</dd>
                 </div>
               </dl>
               <button type="button" disabled>
-                PROTÓTIPO BLOQUEADO
+                {english ? "PROTOTYPE LOCKED" : "PROTÓTIPO BLOQUEADO"}
               </button>
             </div>
           </article>
@@ -2209,18 +2224,18 @@ export function GamesView() {
       <div className="games-safety-roadmap">
         <div>
           <span>01</span>
-          <strong>Jogabilidade</strong>
-          <small>Construir e testar diversão sem recompensas.</small>
+          <strong>{english ? "Gameplay" : "Jogabilidade"}</strong>
+          <small>{english ? "Build and test fun without rewards." : "Construir e testar diversão sem recompensas."}</small>
         </div>
         <div>
           <span>02</span>
-          <strong>Servidor e antifraude</strong>
-          <small>Sessões assinadas, limites e pontuação validada.</small>
+          <strong>{english ? "Server and anti-fraud" : "Servidor e antifraude"}</strong>
+          <small>{english ? "Signed sessions, limits and validated scores." : "Sessões assinadas, limites e pontuação validada."}</small>
         </div>
         <div>
           <span>03</span>
-          <strong>Economia controlada</strong>
-          <small>Ativar poder, bateria e CMA com teto diário.</small>
+          <strong>{english ? "Controlled economy" : "Economia controlada"}</strong>
+          <small>{english ? "Enable power, batteries and CMA with a daily cap." : "Ativar poder, bateria e CMA com teto diário."}</small>
         </div>
       </div>
     </section>
@@ -2240,6 +2255,8 @@ function PoolsView({
   network: NetworkPowerSnapshot;
   onApplyAllocations: (allocations: PoolAllocations) => void;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [draft, setDraft] = useState<PoolAllocations>(allocations);
   const totalAllocation = pools.reduce(
     (total, pool) => total + draft[pool.id],
@@ -2257,10 +2274,12 @@ function PoolsView({
     <section className="pools-view">
       <div className="section-intro">
         <div>
-          <span className="eyebrow">MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS</span>
-          <h2>Distribua seu poder</h2>
+          <span className="eyebrow">{english ? "MULTI-MINING · 10-MINUTE BLOCKS" : "MULTI-MINERAÇÃO · BLOCOS DE 10 MINUTOS"}</span>
+          <h2>{english ? "Distribute your power" : "Distribua seu poder"}</h2>
           <p>
-            Uma única distribuição vale para os mineradores e para o poder temporário validado nos minigames.
+            {english
+              ? "One allocation applies to miners and to temporary power validated in the minigames."
+              : "Uma única distribuição vale para os mineradores e para o poder temporário validado nos minigames."}
           </p>
         </div>
         <div
@@ -2268,14 +2287,14 @@ function PoolsView({
             totalAllocation === 100 ? "valid" : "invalid"
           }`}
         >
-          <small>TOTAL DISTRIBUÍDO</small>
+          <small>{english ? "TOTAL ALLOCATED" : "TOTAL DISTRIBUÍDO"}</small>
           <strong>{totalAllocation}%</strong>
           <span>
             {totalAllocation === 100
-              ? "PRONTO PARA APLICAR"
+              ? english ? "READY TO APPLY" : "PRONTO PARA APLICAR"
               : totalAllocation < 100
-                ? `FALTAM ${100 - totalAllocation}%`
-                : `EXCEDEU ${totalAllocation - 100}%`}
+                ? english ? `${100 - totalAllocation}% REMAINING` : `FALTAM ${100 - totalAllocation}%`
+                : english ? `${totalAllocation - 100}% OVER` : `EXCEDEU ${totalAllocation - 100}%`}
           </span>
         </div>
       </div>
@@ -2284,20 +2303,22 @@ function PoolsView({
         <div>
           <span className="temporary-power-badge">G</span>
           <div>
-            <strong>Poder temporário dos minigames</strong>
+            <strong>{english ? "Temporary minigame power" : "Poder temporário dos minigames"}</strong>
             <small>
-               Inclui a recompensa validada e qualquer poder adicional emitido pelo servidor. O total segue esta mesma distribuição.
+               {english
+                 ? "Includes validated rewards and any additional power issued by the server. The total follows this same allocation."
+                 : "Inclui a recompensa validada e qualquer poder adicional emitido pelo servidor. O total segue esta mesma distribuição."}
             </small>
           </div>
         </div>
         <div className="temporary-power-total">
           <strong>{formatPower(temporaryPowerGh)}</strong>
-          <small>poder temporário validado</small>
+          <small>{english ? "validated temporary power" : "poder temporário validado"}</small>
         </div>
       </div>
 
       <div className="allocation-presets">
-        <span>DISTRIBUIÇÕES RÁPIDAS</span>
+        <span>{english ? "QUICK ALLOCATIONS" : "DISTRIBUIÇÕES RÁPIDAS"}</span>
         <button
           type="button"
           onClick={() => setDraft({ cma: 100, btc: 0, doge: 0, ltc: 0 })}
@@ -2316,7 +2337,7 @@ function PoolsView({
           type="button"
           onClick={() => setDraft({ cma: 25, btc: 25, doge: 25, ltc: 25 })}
         >
-          DIVISÃO IGUAL
+          {english ? "EQUAL SPLIT" : "DIVISÃO IGUAL"}
         </button>
       </div>
 
@@ -2355,45 +2376,47 @@ function PoolsView({
                   <img src={pool.asset} alt="" />
                 </div>
                 <span className="pool-state">
-                  {allocation > 0 ? `${allocation}% ALOCADO` : "SEM PODER"}
+                  {allocation > 0
+                    ? `${allocation}% ${english ? "ALLOCATED" : "ALOCADO"}`
+                    : english ? "NO POWER" : "SEM PODER"}
                 </span>
               </div>
               <span className="pool-code">{pool.symbol} / POOL</span>
               <h3>{pool.name}</h3>
               <dl>
                 <div>
-                  <dt>Mineradores</dt>
+                  <dt>{english ? "Miners" : "Mineradores"}</dt>
                   <dd>{formatPower(allocatedMinerPower)}</dd>
                 </div>
                 <div>
-                  <dt>Minigames · temporário</dt>
+                  <dt>{english ? "Minigames · temporary" : "Minigames · temporário"}</dt>
                   <dd className={allocatedGamePower > 0 ? "temporary-power-value" : undefined}>
                     {formatPower(allocatedGamePower)}
                   </dd>
                 </div>
                 <div className="pool-total-power-row">
-                  <dt>Poder efetivo alocado</dt>
+                  <dt>{english ? "Effective allocated power" : "Poder efetivo alocado"}</dt>
                   <dd>{formatPower(allocatedPower)}</dd>
                 </div>
                 <div>
-                  <dt>Poder global dos jogadores</dt>
+                  <dt>{english ? "Global player power" : "Poder global dos jogadores"}</dt>
                   <dd>{formatPower(network.playerPowerGh[pool.id])}</dd>
                 </div>
                 <div>
-                  <dt>Sua parte por bloco</dt>
+                  <dt>{english ? "Your share per block" : "Sua parte por bloco"}</dt>
                   <dd>
                     {formatAtomic(estimate, pool.decimals)} {pool.symbol}
                   </dd>
                 </div>
               </dl>
               <div className="pool-compact-estimate">
-                <span>Bloco de 10 min</span>
+                <span>{english ? "10-minute block" : "Bloco de 10 min"}</span>
                 <strong>{formatAtomic(BigInt(network.blockRewardAtomic[pool.id]), pool.decimals)} {pool.symbol}</strong>
-                <small>Estimativa em 24h: {formatAtomic(dailyEstimate, pool.decimals)} {pool.symbol}</small>
+                <small>{english ? "24h estimate" : "Estimativa em 24h"}: {formatAtomic(dailyEstimate, pool.decimals)} {pool.symbol}</small>
               </div>
               <div className="pool-allocation-control">
                 <label htmlFor={`allocation-${pool.id}`}>
-                  <span>ALOCAÇÃO</span>
+                  <span>{english ? "ALLOCATION" : "ALOCAÇÃO"}</span>
                   <strong>{allocation}%</strong>
                 </label>
                 <input
@@ -2418,7 +2441,7 @@ function PoolsView({
                     type="button"
                     onClick={() => setAllocation(pool.id, allocation - 1)}
                     disabled={allocation === 0}
-                    aria-label={`Diminuir alocação de ${pool.symbol}`}
+                    aria-label={`${english ? "Decrease allocation for" : "Diminuir alocação de"} ${pool.symbol}`}
                   >
                     −
                   </button>
@@ -2430,14 +2453,14 @@ function PoolsView({
                     onChange={(event) =>
                       setAllocation(pool.id, Number(event.target.value))
                     }
-                    aria-label={`Percentual alocado em ${pool.symbol}`}
+                    aria-label={`${english ? "Percentage allocated to" : "Percentual alocado em"} ${pool.symbol}`}
                   />
                   <span>%</span>
                   <button
                     type="button"
                     onClick={() => setAllocation(pool.id, allocation + 1)}
                     disabled={allocation === 100}
-                    aria-label={`Aumentar alocação de ${pool.symbol}`}
+                    aria-label={`${english ? "Increase allocation for" : "Aumentar alocação de"} ${pool.symbol}`}
                   >
                     +
                   </button>
@@ -2450,10 +2473,10 @@ function PoolsView({
 
       <div className="allocation-apply-bar">
         <div>
-          <span>PODER EFETIVO TOTAL</span>
+          <span>{english ? "TOTAL EFFECTIVE POWER" : "PODER EFETIVO TOTAL"}</span>
           <strong>{formatPower(installedPower + Math.max(0, temporaryPowerGh))}</strong>
           <small>
-            {formatPower(installedPower)} mineradores + {formatPower(Math.max(0, temporaryPowerGh))} minigames
+            {formatPower(installedPower)} {english ? "miners" : "mineradores"} + {formatPower(Math.max(0, temporaryPowerGh))} minigames
           </small>
         </div>
         <button
@@ -2461,13 +2484,15 @@ function PoolsView({
           disabled={totalAllocation !== 100}
           onClick={() => onApplyAllocations(draft)}
         >
-          APLICAR DISTRIBUIÇÃO
+          {english ? "APPLY ALLOCATION" : "APLICAR DISTRIBUIÇÃO"}
         </button>
       </div>
 
       <details className="pool-rule-note">
-        <summary>Como a recompensa é calculada?</summary>
-        <p>O servidor fecha um bloco fixo por rede a cada 10 minutos e divide esse bloco proporcionalmente ao poder energizado. A estimativa pode variar conforme outros jogadores mudam a alocação.</p>
+        <summary>{english ? "How is the reward calculated?" : "Como a recompensa é calculada?"}</summary>
+        <p>{english
+          ? "The server closes a fixed block for each network every 10 minutes and divides it proportionally to energized power. The estimate may change as other players update their allocations."
+          : "O servidor fecha um bloco fixo por rede a cada 10 minutos e divide esse bloco proporcionalmente ao poder energizado. A estimativa pode variar conforme outros jogadores mudam a alocação."}</p>
       </details>
     </section>
   );

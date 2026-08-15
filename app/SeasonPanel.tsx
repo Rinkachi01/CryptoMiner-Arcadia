@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useArcadiaLanguage } from "./i18n";
 import {
   seasonPremiumMaxPriceCma,
-  seasonPremiumPriceCma,
   seasonXpRequiredForLevel,
   isSeasonRewardUnlocked,
   isSeasonTrackUnlocked,
@@ -33,11 +33,13 @@ export type SeasonResponse = {
   serverTime: number;
 };
 
-function remainingLabel(endsAt: number, now: number) {
+function remainingLabel(endsAt: number, now: number, english = false) {
   const remaining = Math.max(0, endsAt - now);
   const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
   const hours = Math.floor((remaining / (60 * 60 * 1000)) % 24);
-  return days > 0 ? `${days}d ${hours}h restantes` : `${hours}h restantes`;
+  return days > 0
+    ? `${days}d ${hours}h ${english ? "left" : "restantes"}`
+    : `${hours}h ${english ? "left" : "restantes"}`;
 }
 
 export function SeasonPanel({
@@ -47,8 +49,10 @@ export function SeasonPanel({
   onRefreshAccount: () => Promise<boolean>;
   refreshKey: number;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [data, setData] = useState<SeasonResponse | null>(null);
-  const [message, setMessage] = useState("Carregando temporada...");
+  const [message, setMessage] = useState(english ? "Loading season..." : "Carregando temporada...");
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState("");
 
@@ -61,7 +65,7 @@ export function SeasonPanel({
       .then(async (response) => {
         const result = (await response.json()) as SeasonResponse;
         if (!response.ok) {
-          throw new Error(result.error ?? "Temporada indisponível.");
+          throw new Error(result.error ?? (english ? "Season unavailable." : "Temporada indisponível."));
         }
         if (
           result.season?.campaignSlug !== "space-race-01" ||
@@ -83,11 +87,11 @@ export function SeasonPanel({
         setMessage(
           loadError instanceof Error
             ? loadError.message
-            : "Não foi possível carregar a temporada.",
+            : english ? "Unable to load the season." : "Não foi possível carregar a temporada.",
         );
       });
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [refreshKey, english]);
 
   async function runAction(
     id: string,
@@ -109,7 +113,7 @@ export function SeasonPanel({
         method: "POST",
       });
       const result = (await response.json()) as SeasonResponse;
-      if (!response.ok) throw new Error(result.error ?? "Ação recusada.");
+      if (!response.ok) throw new Error(result.error ?? (english ? "Action rejected." : "Ação recusada."));
       setData((current) =>
         current
           ? {
@@ -120,13 +124,13 @@ export function SeasonPanel({
             }
           : result,
       );
-      setMessage(result.message ?? "Temporada atualizada.");
+      setMessage(result.message ?? (english ? "Season updated." : "Temporada atualizada."));
       if (body.action !== "daily-login") await onRefreshAccount();
     } catch (actionError) {
       setError(
         actionError instanceof Error
           ? actionError.message
-          : "Não foi possível concluir.",
+          : english ? "Unable to complete the action." : "Não foi possível concluir.",
       );
     } finally {
       setBusyAction("");
@@ -141,7 +145,7 @@ export function SeasonPanel({
   if (!data || !presentedSeason) {
     return (
       <section className="season-panel loading" aria-live="polite">
-        {message || "Aguardando a próxima temporada."}
+        {message || (english ? "Waiting for the next season." : "Aguardando a próxima temporada.")}
       </section>
     );
   }
@@ -152,13 +156,13 @@ export function SeasonPanel({
     return (
       <section className={`season-panel ${season.status}`}>
         <div className="season-summary-card">
-          <span>{season.status === "active" ? "TEMPORADA ATIVA" : "TEMPORADA ENCERRADA"}</span>
+          <span>{season.status === "active" ? english ? "ACTIVE SEASON" : "TEMPORADA ATIVA" : english ? "SEASON ENDED" : "TEMPORADA ENCERRADA"}</span>
           <h3>{season.name}</h3>
-          <p>Avance completando partidas validadas pelo servidor.</p>
+          <p>{english ? "Progress by completing server-validated rounds." : "Avance completando partidas validadas pelo servidor."}</p>
           <div className="season-progress">
             <i><em style={{ width: `${season.progressPercent}%` }} /></i>
-            <span>{season.progressPercent}% do ciclo</span>
-            <strong>{season.status === "active" ? remainingLabel(season.endsAt, data.serverTime) : "Ciclo finalizado"}</strong>
+            <span>{season.progressPercent}% {english ? "of cycle" : "do ciclo"}</span>
+            <strong>{season.status === "active" ? remainingLabel(season.endsAt, data.serverTime, english) : english ? "Cycle complete" : "Ciclo finalizado"}</strong>
           </div>
           <small className="season-no-reward">{data.rewardNotice}</small>
         </div>
@@ -203,27 +207,26 @@ export function SeasonPanel({
   const seasonStartDay = dailyWindowIndex(season.startsAt);
   const currentDay = dailyWindowIndex(data.serverTime);
   const weeklyCycleKey = `weekly_${Math.floor((currentDay - seasonStartDay) / 7)}`;
-  const standardPassPrice = seasonPremiumPriceCma(progress.level);
 
   return (
     <section className="season-panel space-race-season">
       <header className="space-race-hero">
         <div>
-          <span>TEMPORADA 01 · CORRIDA ESPACIAL</span>
-          <h3>{season.durationDays} dias para alcançar o Espaço Profundo</h3>
-          <p>Partidas validadas, missões e gastos limitados em CMA geram XP.</p>
+          <span>{english ? "SEASON 01 · SPACE RACE" : "TEMPORADA 01 · CORRIDA ESPACIAL"}</span>
+          <h3>{season.durationDays} {english ? "days to reach Deep Space" : "dias para alcançar o Espaço Profundo"}</h3>
+          <p>{english ? "Validated rounds, missions and limited CMA spending generate XP." : "Partidas validadas, missões e gastos limitados em CMA geram XP."}</p>
         </div>
         <aside>
-          <strong>NÍVEL {progress.level}</strong>
+          <strong>{english ? "LEVEL" : "NÍVEL"} {progress.level}</strong>
           <span>{progress.xp.toLocaleString("pt-BR")} XP</span>
-          <small>{remainingLabel(season.endsAt, data.serverTime)}</small>
+          <small>{remainingLabel(season.endsAt, data.serverTime, english)}</small>
         </aside>
       </header>
 
       <div className="space-race-progress">
-        <div><span>PROGRESSO DO NÍVEL</span><strong>{levelProgress}%</strong></div>
+        <div><span>{english ? "LEVEL PROGRESS" : "PROGRESSO DO NÍVEL"}</span><strong>{levelProgress}%</strong></div>
         <i><em style={{ width: `${levelProgress}%` }} /></i>
-        <small>{progress.level >= 50 ? "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString("pt-BR")} XP até o próximo nível`}</small>
+        <small>{progress.level >= 50 ? english ? "Track complete" : "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString(english ? "en-US" : "pt-BR")} XP ${english ? "to the next level" : "até o próximo nível"}`}</small>
       </div>
 
       {/* MISSÕES DIÁRIAS and weekly quests remain the XP source; only the old battery claim was removed. */}
@@ -231,13 +234,13 @@ export function SeasonPanel({
       {/* RANKING DE XP stays out of the player-facing season interface by design. */}
       <section className="season-track-card">
         <header>
-          <div><span>TRILHA DE RECOMPENSAS</span><h4>Gratuita + Premium</h4></div>
+          <div><span>{english ? "REWARD TRACKS" : "TRILHA DE RECOMPENSAS"}</span><h4>{english ? "Free + Premium" : "Gratuita + Premium"}</h4></div>
           <div className="season-pass-purchase-actions">
             {error && <span style={{ color: "#ef4444", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right", lineHeight: 1.2 }}>{error}</span>}
             {progress.maxUnlocked ? (
-              <strong className="season-max-owned">ORBIT PASS MAX ATIVO</strong>
+              <strong className="season-max-owned">{english ? "ORBIT PASS MAX ACTIVE" : "ORBIT PASS MAX ATIVO"}</strong>
             ) : progress.premiumUnlocked ? (
-              <strong className="season-premium-owned">PREMIUM LIBERADO</strong>
+              <strong className="season-premium-owned">{english ? "PREMIUM UNLOCKED" : "PREMIUM LIBERADO"}</strong>
             ) : (
               <button
                 type="button"
@@ -245,7 +248,7 @@ export function SeasonPanel({
                 onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
                 style={{ background: "#2a3845", color: "#e2e8f0" }}
               >
-                {`BÁSICO · ${standardPassPrice} CMA`}
+                {`${english ? "BASIC" : "BÁSICO"} · ${season.premiumPriceCma} CMA`}
               </button>
             )}
             {!progress.maxUnlocked && (() => {
@@ -261,8 +264,8 @@ export function SeasonPanel({
                   className="btn-max-upgrade"
                 >
                   {progress.premiumUnlocked
-                    ? `UPGRADE MAX · ${dynamicPrice} CMA`
-                    : `MAX · TRILHA COMPLETA · ${dynamicPrice} CMA`}
+                    ? `${english ? "UPGRADE MAX" : "UPGRADE MAX"} · ${dynamicPrice} CMA`
+                    : `${english ? "MAX · FULL TRACK" : "MAX · TRILHA COMPLETA"} · ${dynamicPrice} CMA`}
                 </button>
               );
             })()}
@@ -272,8 +275,8 @@ export function SeasonPanel({
           {(["free", "premium"] as const).map((track) => (
             <section className={`season-pass-lane ${track}`} key={track}>
               <header>
-                <span>{track === "premium" ? "ORBIT PASS · PREMIUM" : "FREE PASS · GRATUITO"}</span>
-                <small>{track === "premium" ? "Mineradores raros e maior poder temporário" : "Recompensas essenciais para todos"}</small>
+                <span>{track === "premium" ? "ORBIT PASS · PREMIUM" : english ? "FREE PASS" : "FREE PASS · GRATUITO"}</span>
+                <small>{track === "premium" ? english ? "Rare miners and more temporary power" : "Mineradores raros e maior poder temporário" : english ? "Essential rewards for everyone" : "Recompensas essenciais para todos"}</small>
               </header>
               <div className="season-reward-grid">
                 {rewards.filter((reward) => reward.track === track).map((reward) => {
@@ -291,25 +294,25 @@ export function SeasonPanel({
                   );
                   return (
                     <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
-                      <span>NÍVEL {reward.level}</span>
+                      <span>{english ? "LEVEL" : "NÍVEL"} {reward.level}</span>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={reward.asset} alt="" />
                       <strong>{reward.title}</strong>
-                      <small>{reward.reward.type === "miner" ? "MINERADOR" : reward.reward.type === "battery" ? "BATERIA" : "PODER TEMPORÁRIO"}</small>
+                      <small>{reward.reward.type === "miner" ? english ? "MINER" : "MINERADOR" : reward.reward.type === "battery" ? english ? "BATTERY" : "BATERIA" : english ? "TEMPORARY POWER" : "PODER TEMPORÁRIO"}</small>
                       <button
                         type="button"
                         disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}
                         onClick={() => void runAction(`claim-${key}`, { action: "claim-reward", level: reward.level, track: reward.track })}
                       >
                         {claimed
-                          ? "RESGATADO"
+                          ? english ? "CLAIMED" : "RESGATADO"
                           : premiumBlocked
                             ? "PREMIUM"
                             : unlocked
                               ? progress.maxUnlocked && progress.level < reward.level
-                                ? "RESGATAR · MAX"
-                                : "RESGATAR"
-                              : `NÍVEL ${reward.level}`}
+                                ? english ? "CLAIM · MAX" : "RESGATAR · MAX"
+                                : english ? "CLAIM" : "RESGATAR"
+                              : `${english ? "LEVEL" : "NÍVEL"} ${reward.level}`}
                       </button>
                     </article>
                   );
@@ -320,13 +323,13 @@ export function SeasonPanel({
         </div>
       </section>
 
-      <section className="season-quests-card" aria-label="Missões da temporada">
+      <section className="season-quests-card" aria-label={english ? "Season missions" : "Missões da temporada"}>
         <header>
           <div>
-            <span>MISSÕES DA TEMPORADA</span>
-            <h4>Jogue, avance e resgate XP</h4>
+            <span>{english ? "SEASON MISSIONS" : "MISSÕES DA TEMPORADA"}</span>
+            <h4>{english ? "Play, progress and claim XP" : "Jogue, avance e resgate XP"}</h4>
           </div>
-          <small>O XP é compartilhado entre as trilhas gratuita e premium.</small>
+          <small>{english ? "XP is shared between the free and premium tracks." : "O XP é compartilhado entre as trilhas gratuita e premium."}</small>
         </header>
         <div className="season-quests-grid">
           {(["daily", "weekly"] as const).map((period) => {
@@ -335,8 +338,8 @@ export function SeasonPanel({
             return (
               <section className="season-quest-group" key={period}>
                 <div className="season-quest-group-heading">
-                  <strong>{period === "daily" ? "DIÁRIAS" : "SEMANAIS"}</strong>
-                  <small>{period === "daily" ? "Reinicia a cada dia" : "Reinicia a cada semana"}</small>
+                  <strong>{period === "daily" ? english ? "DAILY" : "DIÁRIAS" : english ? "WEEKLY" : "SEMANAIS"}</strong>
+                  <small>{period === "daily" ? english ? "Resets every day" : "Reinicia a cada dia" : english ? "Resets every week" : "Reinicia a cada semana"}</small>
                 </div>
                 {quests.map((entry) => {
                   const percent = Math.min(100, Math.round((entry.progress / Math.max(1, entry.quest.requirement)) * 100));
@@ -353,7 +356,7 @@ export function SeasonPanel({
                         disabled={!entry.completed || entry.claimed || Boolean(busyAction)}
                         onClick={() => void runAction(`quest-${entry.quest.id}`, { action: "claim-quest", questId: entry.quest.id, cycleKey })}
                       >
-                        {entry.claimed ? "RESGATADO" : busy ? "VALIDANDO..." : entry.completed ? "RESGATAR XP" : "EM PROGRESSO"}
+                        {entry.claimed ? english ? "CLAIMED" : "RESGATADO" : busy ? english ? "VALIDATING..." : "VALIDANDO..." : entry.completed ? english ? "CLAIM XP" : "RESGATAR XP" : english ? "IN PROGRESS" : "EM PROGRESSO"}
                       </button>
                     </article>
                   );

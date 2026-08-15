@@ -2,10 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export type ArcadiaLocale = "pt-BR" | "en" | "es" | "fr";
+export type ArcadiaLocale = "pt-BR" | "en";
 type Localized = [string, string, string, string];
 
-const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en", "es", "fr"];
+const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en"];
 const localeStorageKey = "arcadia-locale";
 const localeCookieKey = "arcadia_locale";
 
@@ -36,8 +36,6 @@ const entries: Record<string, Localized> = {
   "language.label": ["Idioma", "Language", "Idioma", "Langue"],
   "language.pt": ["Português", "Portuguese", "Português", "Portugais"],
   "language.en": ["Inglês", "English", "Inglés", "Anglais"],
-  "language.es": ["Espanhol", "Spanish", "Español", "Espagnol"],
-  "language.fr": ["Francês", "French", "Francés", "Français"],
   "profile.open": ["Abrir meu perfil", "Open my profile", "Abrir mi perfil", "Ouvrir mon profil"],
   "profile.account": ["Conta protegida", "Protected account", "Cuenta protegida", "Compte protégé"],
   "account.signout": ["Sair", "Sign out", "Salir", "Se déconnecter"],
@@ -55,6 +53,7 @@ const entries: Record<string, Localized> = {
   "sidebar.serverAccount": ["Conta no servidor", "Server account", "Cuenta en el servidor", "Compte serveur"],
   "sidebar.virtualSimulation": ["Simulação virtual", "Virtual simulation", "Simulación virtual", "Simulation virtuelle"],
   "sidebar.simulationDescription": ["Operação virtual com progresso e economia controlados pelo servidor.", "Virtual operation with progress and economy controlled by the server.", "Operación virtual con progreso y economía controlados por el servidor.", "Opération virtuelle avec progression et économie contrôlées par le serveur."],
+  "sidebar.navigation": ["Navegação principal", "Main navigation", "Navegación principal", "Navigation principale"],
   "sidebar.terms": ["Termos e privacidade", "Terms and privacy", "Términos y privacidad", "Conditions et confidentialité"],
   "workspace.rack": ["Controle de rack", "Rack control", "Control de rack", "Contrôle du rack"],
   "workspace.shopEyebrow": ["Mercado Arcadia · equipamentos e energia", "Arcadia market · equipment and energy", "Mercado Arcadia · equipos y energía", "Marché Arcadia · équipements et énergie"],
@@ -78,6 +77,9 @@ const entries: Record<string, Localized> = {
   "metric.minerPower": ["Poder dos mineradores", "Miner power", "Poder de los mineros", "Puissance des mineurs"],
   "metric.gamePower": ["Poder dos minigames", "Minigame power", "Poder de los minijuegos", "Puissance des mini-jeux"],
   "metric.racks": ["Racks nesta sala", "Racks in this room", "Racks en esta sala", "Racks dans cette salle"],
+  "metric.energy": ["Energia", "Energy", "Energía", "Énergie"],
+  "metric.batteries": ["baterias", "batteries", "baterías", "batteries"],
+  "metric.mainNetwork": ["Rede principal", "Main network", "Red principal", "Réseau principal"],
   "metric.useBattery": ["Use uma bateria", "Use a battery", "Usa una batería", "Utiliser une batterie"],
   "metric.batteryPowered": ["Alimentado por bateria", "Battery powered", "Alimentado por batería", "Alimenté par batterie"],
   "metric.noBattery": ["Sem bateria", "No battery", "Sin batería", "Sans batterie"],
@@ -105,7 +107,7 @@ const entries: Record<string, Localized> = {
   "footer.rights": ["Todos os direitos reservados.", "All rights reserved.", "Todos los derechos reservados.", "Tous droits réservés."],
 };
 
-const localeIndex: Record<ArcadiaLocale, number> = { "pt-BR": 0, en: 1, es: 2, fr: 3 };
+const localeIndex: Record<ArcadiaLocale, number> = { "pt-BR": 0, en: 1 };
 const copy = Object.fromEntries(
   supportedLocales.map((locale) => [locale, Object.fromEntries(Object.entries(entries).map(([key, values]) => [key, values[localeIndex[locale]]]))]),
 ) as Record<ArcadiaLocale, Record<string, string>>;
@@ -118,8 +120,6 @@ function browserLocale(): ArcadiaLocale {
   if (typeof navigator === "undefined") return "pt-BR";
   const language = navigator.language.toLowerCase();
   if (language.startsWith("en")) return "en";
-  if (language.startsWith("es")) return "es";
-  if (language.startsWith("fr")) return "fr";
   return "pt-BR";
 }
 
@@ -177,8 +177,6 @@ export function LanguageSwitcher() {
       <select value={locale} aria-label={t("language.label")} onChange={(event) => setLocale(event.target.value as ArcadiaLocale)}>
         <option value="pt-BR">{t("language.pt")}</option>
         <option value="en">{t("language.en")}</option>
-        <option value="es">{t("language.es")}</option>
-        <option value="fr">{t("language.fr")}</option>
       </select>
     </label>
   );

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { assetsManifest } from "./assets.manifest";
 import type { ConversionAssetId } from "./conversion-rules";
+import { useArcadiaLanguage } from "./i18n";
 
 type ConvertibleAsset = "BTC" | "DOGE" | "LTC";
 type WithdrawableAsset = "BTC" | "DOGE" | "LTC";
@@ -327,6 +328,8 @@ export function ConversionView({
   onRefreshAccount,
   serverVersion,
 }: ConversionViewProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [tab, setTab] = useState<WalletTab>("deposit");
   const [asset, setAsset] = useState<ConvertibleAsset>("BTC");
   const [targetCma, setTargetCma] = useState("1");
@@ -908,21 +911,21 @@ export function ConversionView({
     <section className="conversion-center wallet-center">
       <header className="conversion-hero">
         <div>
-          <span>CARTEIRA ARCADIA</span>
-          <h2>Saldos, depósitos e conversão</h2>
-          <p>Gerencie suas moedas e compre CMA em um só lugar.</p>
+          <span>{english ? "ARCADIA WALLET" : "CARTEIRA ARCADIA"}</span>
+          <h2>{english ? "Balances, deposits and conversion" : "Saldos, depósitos e conversão"}</h2>
+          <p>{english ? "Manage your coins and buy CMA in one place." : "Gerencie suas moedas e compre CMA em um só lugar."}</p>
         </div>
         <aside className="wallet-status-card">
-          <b>CONVERSÃO INTERNA</b>
-          <strong>ATIVA E REGISTRADA</strong>
-          <small>Saldo protegido pelo servidor</small>
+          <b>{english ? "INTERNAL CONVERSION" : "CONVERSÃO INTERNA"}</b>
+            <strong>{english ? "ACTIVE AND REGISTERED" : "ATIVA E REGISTRADA"}</strong>
+            <small>{english ? "Balance protected by the server" : "Saldo protegido pelo servidor"}</small>
         </aside>
       </header>
 
-      <div className="wallet-balance-overview" aria-label="Saldos da carteira">
+      <div className="wallet-balance-overview" aria-label={english ? "Wallet balances" : "Saldos da carteira"}>
         <article>
           <img src={assetsManifest.cmaCoin.path} alt="" />
-          <span><small>SALDO INTERNO</small><strong>{formatCma(cmaBalance)} CMA</strong></span>
+          <span><small>{english ? "INTERNAL BALANCE" : "SALDO INTERNO"}</small><strong>{formatCma(cmaBalance)} CMA</strong></span>
         </article>
         <article>
           <img src={assetsManifest.bitcoin.path} alt="" />
@@ -938,7 +941,7 @@ export function ConversionView({
         </article>
       </div>
 
-      <div className="wallet-tabs" role="tablist" aria-label="Ações da carteira">
+      <div className="wallet-tabs" role="tablist" aria-label={english ? "Wallet actions" : "Ações da carteira"}>
         <button
           className={tab === "deposit" ? "active" : ""}
           role="tab"
@@ -946,7 +949,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("deposit")}
         >
-          1 · DEPOSITAR
+          1 · {english ? "DEPOSIT" : "DEPOSITAR"}
         </button>
         <button
           className={tab === "convert" ? "active" : ""}
@@ -955,7 +958,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("convert")}
         >
-          2 · CONVERTER PARA CMA
+          2 · {english ? "CONVERT TO CMA" : "CONVERTER PARA CMA"}
         </button>
         <button
           className={tab === "withdraw" ? "active" : ""}
@@ -964,7 +967,7 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("withdraw")}
         >
-          3 · SOLICITAR SAQUE
+          3 · {english ? "REQUEST WITHDRAWAL" : "SOLICITAR SAQUE"}
         </button>
       </div>
 
@@ -992,10 +995,10 @@ export function ConversionView({
                 >
                   <img src={assetVisuals[id].asset} alt="" />
                   <span>
-                    <small>{assetVisuals[id].name} · saldo {formatCryptoAtomic(balance)}</small>
-                    <strong>{loading || !rate ? "CONSULTANDO…" : formatUsd(rate.usdPrice)}</strong>
+                    <small>{assetVisuals[id].name} · {english ? "balance" : "saldo"} {formatCryptoAtomic(balance)}</small>
+                    <strong>{loading || !rate ? english ? "LOADING…" : "CONSULTANDO…" : formatUsd(rate.usdPrice)}</strong>
                   </span>
-                  {rate?.stale && <em>ÚLTIMA COTAÇÃO</em>}
+                  {rate?.stale && <em>{english ? "LAST QUOTE" : "ÚLTIMA COTAÇÃO"}</em>}
                 </button>
               );
             })}
@@ -1003,11 +1006,11 @@ export function ConversionView({
 
           <div className="conversion-layout">
             <section className="conversion-form-card">
-              <span>01 · ESCOLHA QUANTOS CMA COMPRAR</span>
+              <span>01 · {english ? "CHOOSE HOW MANY CMA TO BUY" : "ESCOLHA QUANTOS CMA COMPRAR"}</span>
               <div className="conversion-input-row conversion-cma-target">
                 <img src={assetsManifest.cmaCoin.path} alt="" />
                 <div>
-                  <small>QUANTIDADE INTEIRA DE CMA</small>
+                  <small>{english ? "WHOLE CMA UNITS" : "QUANTIDADE INTEIRA DE CMA"}</small>
                   <span className="conversion-unit-stepper">
                     <button type="button" aria-label="Diminuir um CMA" onClick={() => changeTargetCma(-1)}>−</button>
                     <input
@@ -1029,29 +1032,29 @@ export function ConversionView({
               <div className="conversion-cost-preview" aria-live="polite">
                 <img src={assetVisuals[asset].asset} alt="" />
                 <span>
-                  <small>VOCÊ PAGARÁ APROXIMADAMENTE</small>
+                  <small>{english ? "YOU WILL PAY APPROXIMATELY" : "VOCÊ PAGARÁ APROXIMADAMENTE"}</small>
                   <strong>
                     {estimatedAssetAtomic > 0
                       ? `${formatCryptoAtomic(estimatedAssetAtomic)} ${asset}`
-                      : `Aguardando quantidade e cotação de ${asset}`}
+                      : english ? `Waiting for amount and ${asset} quote` : `Aguardando quantidade e cotação de ${asset}`}
                   </strong>
                 </span>
               </div>
               <button className="conversion-use-balance" type="button" onClick={useMaximumCma}>
-                COMPRAR O MÁXIMO INTEIRO · {maximumCmaUnits.toLocaleString("pt-BR")} CMA
+                {english ? "BUY MAXIMUM WHOLE AMOUNT" : "COMPRAR O MÁXIMO INTEIRO"} · {maximumCmaUnits.toLocaleString(english ? "en-US" : "pt-BR")} CMA
               </button>
 
               <div className="conversion-rule-summary">
                 <div>
-                  <span>REFERÊNCIA CMA</span>
+                  <span>{english ? "CMA REFERENCE" : "REFERÊNCIA CMA"}</span>
                   <strong>US$ {policy?.cmaUsdReference.toFixed(2) ?? "1.00"}</strong>
                 </div>
                 <div>
-                  <span>RESERVA ECONÔMICA</span>
+                  <span>{english ? "ECONOMIC RESERVE" : "RESERVA ECONÔMICA"}</span>
                   <strong>{((policy?.feeBps ?? 300) / 100).toFixed(2)}%</strong>
                 </div>
                 <div>
-                  <span>MÍNIMO</span>
+                  <span>{english ? "MINIMUM" : "MÍNIMO"}</span>
                   <strong>{formatUsd(policy?.minimumUsd ?? 1)}</strong>
                 </div>
               </div>
@@ -1070,26 +1073,26 @@ export function ConversionView({
                 }
                 onClick={() => void requestQuote()}
               >
-                {quoting ? "VALIDANDO NO SERVIDOR…" : "GERAR COTAÇÃO DE 2 MINUTOS"}
+                {quoting ? english ? "VALIDATING ON SERVER…" : "VALIDANDO NO SERVIDOR…" : english ? "GET 2-MINUTE QUOTE" : "GERAR COTAÇÃO DE 2 MINUTOS"}
               </button>
               {error && <p className="conversion-error" role="alert">{error}</p>}
               {success && <p className="conversion-success" role="status">{success}</p>}
             </section>
 
             <section className={`conversion-receipt ${quote ? "ready" : ""}`}>
-              <span>02 · CONFIRMAÇÃO</span>
+              <span>02 · {english ? "CONFIRMATION" : "CONFIRMAÇÃO"}</span>
               {!quote ? (
                 <div className="conversion-empty">
                   <b>CMA</b>
-                  <strong>Aguardando cotação</strong>
-                  <p>Nenhum saldo muda antes da sua confirmação.</p>
+                  <strong>{english ? "Waiting for quote" : "Aguardando cotação"}</strong>
+                  <p>{english ? "No balance changes before you confirm." : "Nenhum saldo muda antes da sua confirmação."}</p>
                 </div>
               ) : (
                 <>
                   <div className="conversion-receipt-main">
-                    <small>VOCÊ RECEBERÁ</small>
-                    <strong>{quote.targetCma.toLocaleString("pt-BR")} CMA</strong>
-                    <span>válida até {new Date(quote.expiresAt).toLocaleTimeString("pt-BR")}</span>
+                    <small>{english ? "YOU WILL RECEIVE" : "VOCÊ RECEBERÁ"}</small>
+                    <strong>{quote.targetCma.toLocaleString(english ? "en-US" : "pt-BR")} CMA</strong>
+                    <span>{english ? "valid until" : "válida até"} {new Date(quote.expiresAt).toLocaleTimeString(english ? "en-US" : "pt-BR")}</span>
                   </div>
                   <dl>
                     <div><dt>Você paga</dt><dd>{formatCryptoAtomic(quote.assetAmountAtomic)} {quote.asset}</dd></div>
@@ -1119,9 +1122,9 @@ export function ConversionView({
             <p className="conversion-error" role="alert">{error}</p>
           )}
           <header>
-            <span>FORMAS DE DEPÓSITO</span>
-            <h3>Escolha reais ou criptomoeda</h3>
-            <p>O valor, a rede e o mínimo aparecem antes da confirmação.</p>
+            <span>{english ? "DEPOSIT METHODS" : "FORMAS DE DEPÓSITO"}</span>
+            <h3>{english ? "Choose fiat or crypto" : "Escolha reais ou criptomoeda"}</h3>
+            <p>{english ? "The amount, network and minimum are shown before confirmation." : "O valor, a rede e o mínimo aparecem antes da confirmação."}</p>
           </header>
           <div className="wallet-payment-methods">
             <button
@@ -1131,7 +1134,7 @@ export function ConversionView({
               onClick={() => setDepositMethod("PIX")}
             >
               <b className="wallet-brl-symbol">R$</b>
-              <span><strong>Pix</strong><small>Pagamento em reais</small></span>
+              <span><strong>Pix</strong><small>{english ? "Payment in Brazilian reais" : "Pagamento em reais"}</small></span>
             </button>
             {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
               <button
@@ -1155,7 +1158,7 @@ export function ConversionView({
                 <span>PIX · MERCADO PAGO</span>
                 <h4>Compre CMA inteiro em reais</h4>
                 <p>
-                  Escolha uma quantidade inteira de CMA e confira o valor final.
+                  {english ? "Choose a whole CMA amount and review the final value." : "Escolha uma quantidade inteira de CMA e confira o valor final."}
                 </p>
               </div>
               <strong>
@@ -1453,8 +1456,8 @@ export function ConversionView({
       ) : (
         <section className="wallet-deposit-panel wallet-withdraw-panel">
           <header>
-            <span>SAQUE · PROCESSAMENTO MANUAL</span>
-            <h3>Escolha como deseja receber</h3>
+            <span>{english ? "WITHDRAWAL · MANUAL PROCESSING" : "SAQUE · PROCESSAMENTO MANUAL"}</span>
+            <h3>{english ? "Choose how you want to receive" : "Escolha como deseja receber"}</h3>
             <p>
               Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um
               pagamento Pix cotado em real. O valor fica reservado até a análise.
@@ -1476,7 +1479,7 @@ export function ConversionView({
               }}
               type="button"
             >
-              <span>◈</span><strong>RECEBER EM CRIPTO</strong><small>Mínimo variável ≈ R$ 50</small>
+              <span>◈</span><strong>{english ? "RECEIVE IN CRYPTO" : "RECEBER EM CRIPTO"}</strong><small>{english ? "Variable minimum ≈ R$ 50" : "Mínimo variável ≈ R$ 50"}</small>
             </button>
             <button
               className={withdrawMethod === "pix" ? "active" : ""}
@@ -1487,7 +1490,7 @@ export function ConversionView({
               }}
               type="button"
             >
-              <span>R$</span><strong>CONVERTER E RECEBER VIA PIX</strong><small>Mínimo R$ 20</small>
+              <span>R$</span><strong>{english ? "CONVERT AND RECEIVE VIA PIX" : "CONVERTER E RECEBER VIA PIX"}</strong><small>{english ? "Minimum R$ 20" : "Mínimo R$ 20"}</small>
             </button>
           </nav>
 
