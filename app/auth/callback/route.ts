@@ -12,6 +12,28 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  try {
+    return await handleCallback(request, requestUrl);
+  } catch (caughtError) {
+    // Keep the OAuth endpoint fail-closed even if a framework or provider
+    // error happens outside the exchange block. Only diagnostic metadata is
+    // written to Worker logs; OAuth codes and cookies are never logged.
+    const diagnostic =
+      caughtError instanceof Error
+        ? { name: caughtError.name, message: caughtError.message, stack: caughtError.stack }
+        : { message: String(caughtError) };
+    console.error("[auth/callback] unhandled failure", diagnostic);
+    return NextResponse.redirect(
+      new URL(
+        `/auth?error=${encodeURIComponent("Não foi possível concluir o login. Tente novamente.")}`,
+        requestUrl.origin,
+      ),
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+}
+
+async function handleCallback(request: Request, requestUrl: URL) {
   const next = safeArcadiaReturnPath(requestUrl.searchParams.get("next"));
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
@@ -44,7 +66,12 @@ export async function GET(request: Request) {
         ).catch(() => null);
       }
     }
-  } catch {
+  } catch (caughtError) {
+    const diagnostic =
+      caughtError instanceof Error
+        ? { name: caughtError.name, message: caughtError.message, stack: caughtError.stack }
+        : { message: String(caughtError) };
+    console.error("[auth/callback] exchange failure", diagnostic);
     error = true;
   }
 
@@ -54,7 +81,14 @@ export async function GET(request: Request) {
   if (!error && supabase) {
     const assurance = await supabase.auth
       .getAuthenticatorAssuranceLevel()
-      .catch(() => ({ data: null }));
+      .catch((caughtError) => {
+        const diagnostic =
+          caughtError instanceof Error
+            ? { name: caughtError.name, message: caughtError.message }
+            : { message: String(caughtError) };
+        console.error("[auth/callback] assurance lookup failure", diagnostic);
+        return { data: null };
+      });
     if (
       assurance.data?.nextLevel === "aal2" &&
       assurance.data.currentLevel !== "aal2"
