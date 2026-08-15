@@ -27,6 +27,16 @@ test("beta e login publico preservam a conta pelo e-mail verificado", async () =
   assert.match(identity, /accountIdForVerifiedEmail/);
 });
 
+test("login OAuth preserva o nome já salvo no perfil da conta", async () => {
+  const source = await readFile(
+    new URL("../app/identity-server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /persistedDisplayName/);
+  assert.match(source, /FROM game_states WHERE account_id = \?/);
+  assert.match(source, /displayName,\s*email/);
+});
+
 test("retorno da autenticacao so aceita caminho da propria aplicacao", () => {
   assert.equal(safeArcadiaReturnPath("/admin?tab=beta"), "/admin?tab=beta");
   assert.equal(safeArcadiaReturnPath("https://evil.example"), "/");

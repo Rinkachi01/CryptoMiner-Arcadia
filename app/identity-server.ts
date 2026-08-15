@@ -4,6 +4,7 @@ import {
   getChatGPTUser,
   type ChatGPTUser,
 } from "./chatgpt-auth.ts";
+import { env } from "cloudflare:workers";
 import { redirect } from "next/navigation";
 import {
   accountIdForVerifiedEmail,
@@ -34,6 +35,23 @@ export type ArcadiaUser = {
   verifiedEmail: string;
 };
 
+async function persistedDisplayName(email: string, fallback: string) {
+  if (!env.DB) return fallback;
+  try {
+    const accountId = await accountIdForVerifiedEmail(email);
+    const row = await env.DB
+      .prepare("SELECT display_name FROM game_states WHERE account_id = ?")
+      .bind(accountId)
+      .first<{ display_name?: unknown }>();
+    const displayName =
+      typeof row?.display_name === "string" ? row.display_name.trim() : "";
+    return displayName || fallback;
+  } catch {
+    // A first visit can happen before the account schema is initialized.
+    return fallback;
+  }
+}
+
 async function getSupabaseUser(): Promise<ArcadiaUser | null> {
   let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> = null;
   try {
@@ -60,8 +78,12 @@ async function getSupabaseUser(): Promise<ArcadiaUser | null> {
       ? user.user_metadata.full_name.trim() || null
       : null;
   const verifiedEmail = user.email.trim().toLowerCase();
+  const displayName = await persistedDisplayName(
+    verifiedEmail,
+    fullName ?? verifiedEmail,
+  );
   return {
-    displayName: fullName ?? verifiedEmail,
+    displayName,
     email: verifiedEmail,
     fullName,
     provider: PUBLIC_IDENTITY_PROVIDER,

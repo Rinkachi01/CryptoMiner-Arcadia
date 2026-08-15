@@ -98,16 +98,24 @@ export function AuthForm({
   }
 
   async function redirectAfterAuthentication() {
-    const { data, error } = await supabase.auth.getAuthenticatorAssuranceLevel();
-    if (
-      !error &&
-      data?.nextLevel === "aal2" &&
-      data.currentLevel !== "aal2"
-    ) {
-      window.location.assign(
-        `/auth/mfa?next=${encodeURIComponent(returnTo)}`,
-      );
-      return;
+    const authWithAal = supabase.auth as typeof supabase.auth & {
+      getAuthenticatorAssuranceLevel?: () => Promise<{
+        data: { nextLevel?: string | null; currentLevel?: string | null } | null;
+        error?: unknown;
+      }>;
+    };
+    if (typeof authWithAal.getAuthenticatorAssuranceLevel === "function") {
+      const { data, error } = await authWithAal.getAuthenticatorAssuranceLevel();
+      if (
+        !error &&
+        data?.nextLevel === "aal2" &&
+        data.currentLevel !== "aal2"
+      ) {
+        window.location.assign(
+          `/auth/mfa?next=${encodeURIComponent(returnTo)}`,
+        );
+        return;
+      }
     }
     window.location.assign(returnTo);
   }
