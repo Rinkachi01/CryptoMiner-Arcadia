@@ -104,3 +104,24 @@ test("metadados publicos acompanham o endereco externo configurado", async () =>
   assert.match(layout, /https:\/\/cryptominerarcadia\.com/);
   assert.doesNotMatch(layout, /mateusmoraes12345678\.chatgpt\.site/);
 });
+
+test("contas sem MFA recebem uma confirmação de e-mail por ciclo", async () => {
+  const [proxy, cycle, route, page, client] = await Promise.all([
+    readFile(new URL("../proxy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/email-cycle-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/auth/email-cycle/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth/email-check/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth/email-check/EmailCycleCheck.tsx", import.meta.url), "utf8"),
+  ]);
+  const source = [proxy, cycle, route, page, client].join("\n");
+
+  assert.match(source, /dailyWindowKey/);
+  assert.match(source, /EMAIL_CYCLE_VERIFICATION_REQUIRED/);
+  assert.match(source, /emailVerificationRequired/);
+  assert.match(source, /code_expires_at/);
+  assert.match(source, /EMAIL_CYCLE_MAX_ATTEMPTS/);
+  assert.match(source, /autoComplete="one-time-code"/);
+  assert.match(source, /CONFIRMAR E CONTINUAR/);
+  assert.match(source, /mfaConfigured/);
+  assert.match(source, /auth\/email-check/);
+});

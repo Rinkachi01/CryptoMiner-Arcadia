@@ -9,6 +9,12 @@ import {
   arcadiaHostDisposition,
   canonicalArcadiaUrl,
 } from "./app/host-policy.ts";
+import { accountIdForVerifiedEmail } from "./app/identity-rules.ts";
+import {
+  emailCycleIsEnabled,
+  ensureEmailCycleSchema,
+  readEmailCycleStatus,
+} from "./app/email-cycle-server.ts";
 import { readSupabaseAuthConfig } from "./app/supabase-config.ts";
 
 function secureResponse(response: NextResponse, request: NextRequest) {
@@ -105,9 +111,13 @@ export async function proxy(request: NextRequest) {
   // validação é importante, mas nunca deve transformar uma sessão anônima ou
   // um token inválido em um erro 500 do Worker.
   let claimsAuthenticated = false;
+  let claimsEmail = "";
   try {
     const claims = await supabase.auth.getClaims();
     claimsAuthenticated = Boolean(claims.data?.claims?.sub);
+    const emailClaim = claims.data?.claims?.email;
+    claimsEmail =
+      typeof emailClaim === "string" ? emailClaim.trim().toLowerCase() : "";
   } catch {
     // Continue as an anonymous request; protected pages perform their own
     // authorization check and redirect to /auth when needed.
@@ -119,12 +129,17 @@ export async function proxy(request: NextRequest) {
   // directly to the game or called an API without entering the code.
   const pathname = request.nextUrl.pathname;
   const isAuthFlow = pathname === "/auth" || pathname.startsWith("/auth/");
-  if (claimsAuthenticated && !isAuthFlow) {
+  const isEmailCycleFlow = pathname === "/api/auth/email-cycle";
+  if (claimsAuthenticated && !isAuthFlow && !isEmailCycleFlow) {
+    let assuranceKnown = false;
+    let mfaConfigured = false;
     try {
       const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      assuranceKnown = !assurance.error;
+      mfaConfigured = assurance.data?.nextLevel === "aal2";
       if (
         !assurance.error &&
-        assurance.data?.nextLevel === "aal2" &&
+        mfaConfigured &&
         assurance.data.currentLevel !== "aal2"
       ) {
         if (pathname.startsWith("/api/")) {
@@ -174,6 +189,61 @@ export async function proxy(request: NextRequest) {
     } catch {
       // Do not turn a transient assurance lookup failure into a Worker 500.
       // The page/API authorization layer remains the final fallback.
+    }
+
+    // Contas sem MFA confirmam o e-mail uma vez por ciclo do servidor. Essa
+    // camada é separada da confirmação permanente do cadastro no Supabase.
+    // Se a leitura de AAL ou o provedor de e-mail estiver indisponível, não
+    // bloqueamos a sessão por engano; a proteção volta no próximo request.
+    if (
+      assuranceKnown &&
+      !mfaConfigured &&
+      env.DB &&
+      emailCycleIsEnabled(env)
+    ) {
+      try {
+        if (!claimsEmail) {
+          const userResult = await supabase.auth.getUser();
+          claimsEmail = userResult.data.user?.email?.trim().toLowerCase() ?? "";
+        }
+        if (claimsEmail) {
+          await ensureEmailCycleSchema(env.DB);
+          const accountId = await accountIdForVerifiedEmail(claimsEmail);
+          const status = await readEmailCycleStatus(env.DB, accountId);
+          if (!status.verified) {
+            if (pathname.startsWith("/api/")) {
+              return secureResponse(
+                NextResponse.json(
+                  {
+                    error: "Verificação de e-mail necessária.",
+                    emailVerificationRequired: true,
+                    cycleKey: status.cycleKey,
+                  },
+                  {
+                    status: 401,
+                    headers: { "Cache-Control": "private, no-store" },
+                  },
+                ),
+                request,
+              );
+            }
+            const next = `${pathname}${request.nextUrl.search}`;
+            return secureResponse(
+              NextResponse.redirect(
+                new URL(
+                  `/auth/email-check?next=${encodeURIComponent(next)}`,
+                  request.url,
+                ),
+                { headers: { "Cache-Control": "private, no-store" } },
+              ),
+              request,
+            );
+          }
+        }
+      } catch {
+        // Fail open on infrastructure errors; the next request retries the
+        // check and the application-level authorization remains authoritative.
+      }
     }
   }
   response.headers.set("Cache-Control", "private, no-store");

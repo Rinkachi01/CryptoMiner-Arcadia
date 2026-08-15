@@ -50,7 +50,8 @@
     "MERCADO_PAGO_ENVIRONMENT": "test",
     "MERCADO_PAGO_API_BASE_URL": "https://api.mercadopago.com",
     "MANUAL_WITHDRAWALS_ENABLED": "false",
-    "TRANSACTIONAL_EMAIL_ENABLED": "false"
+    "TRANSACTIONAL_EMAIL_ENABLED": "false",
+    "EMAIL_CYCLE_VERIFICATION_REQUIRED": "false"
   },
   "observability": {
     "enabled": true

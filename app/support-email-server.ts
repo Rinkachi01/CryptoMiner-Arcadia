@@ -19,7 +19,7 @@ type SupportEmailMessage = {
   replyTo: string;
   subject: string;
   to: string;
-  type: "reply" | "ticket";
+  type: "reply" | "ticket" | "verification";
 };
 
 type SupportEmailTicket = {
@@ -254,6 +254,57 @@ export async function deliverSupportReply(
           <div style="white-space:pre-wrap;border-left:4px solid #89c52f;background:#f5f8f2;padding:18px">${escapeHtml(reply)}</div>
           <p style="color:#5f6f7b">Você pode responder a este e-mail ou acompanhar o protocolo na Central de Suporte.</p>
           <p style="color:#7f8d94;font-size:12px">O Arcadia nunca solicita senha, chave privada, seed phrase ou código de autenticação.</p>
+        </div>`,
+    });
+  } catch {
+    return { status: "failed" as const, reason: "provider_unavailable" };
+  }
+}
+
+export async function deliverEmailCycleCode(
+  environment: unknown,
+  details: {
+    accountId: string;
+    code: string;
+    email: string;
+    expiresAt: number;
+    cycleKey: string;
+  },
+) {
+  const config = readSupportEmailConfig(environment);
+  if (!config.enabled) return { status: "configuration_pending" as const };
+
+  const codeHash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(
+      `${details.accountId}:${details.cycleKey}:${details.code}`,
+    ),
+  );
+  // The existing Google Apps Script bridge intentionally accepts only the
+  // support-ticket/reply envelope. A cycle code is a reply-style message to
+  // the verified account, so keep the bridge contract compatible without
+  // weakening its validation rules.
+  const idempotencyKey = `support-reply-emailcycle-${details.accountId}-${details.cycleKey}-${bytesToHex(codeHash).slice(0, 16)}`;
+  const expiresInMinutes = Math.max(
+    1,
+    Math.ceil((details.expiresAt - Date.now()) / 60_000),
+  );
+
+  try {
+    return await deliverSupportEmail(config, {
+      type: "reply",
+      to: details.email,
+      replyTo: config.to,
+      idempotencyKey,
+      subject: "Seu código de verificação do Arcadia",
+      html: `
+        <div style="font-family:Arial,sans-serif;color:#17212b;line-height:1.6;max-width:560px">
+          <p style="color:#55707c;font-size:12px;letter-spacing:1px">CRYPTO MINER ARCADIA</p>
+          <h2>Confirme seu acesso</h2>
+          <p>Para continuar no Arcadia neste novo ciclo do servidor, informe o código abaixo:</p>
+          <div style="font-size:32px;letter-spacing:8px;font-weight:700;text-align:center;border:1px solid #d7e0e7;background:#f5f8f2;padding:18px;margin:24px 0">${escapeHtml(details.code)}</div>
+          <p>Este código expira em aproximadamente <strong>${expiresInMinutes} minutos</strong> e pode ser usado uma única vez.</p>
+          <p style="color:#7f8d94;font-size:12px">Se você não iniciou este acesso, ignore esta mensagem. O Arcadia nunca solicita senha, chave privada, seed phrase ou código de autenticação pelo suporte.</p>
         </div>`,
     });
   } catch {
