@@ -16,7 +16,7 @@ import { LeaderboardPanel } from "./LeaderboardPanel";
 import { OperatorInbox } from "./OperatorInbox";
 import { PCStatusPanel } from "./PCStatusPanel";
 import { TasksView } from "./TasksView";
-import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
+import { LanguageSwitcher, formatTranslation, useArcadiaLanguage } from "./i18n";
 import { readClientBetaDeviceProfile } from "./beta-device-client";
 import {
   BATTERY_HOURS,
@@ -933,10 +933,11 @@ export function ArcadiaGame({
         </button>
 
         <div className="balances wallet-control">
+          {/* Abrir carteira virtual e escolher a moeda exibida */}
           <button
             className="wallet-trigger"
             type="button"
-            title="Abrir carteira virtual e escolher a moeda exibida"
+            title={t("wallet.title")}
             aria-label={`Abrir carteira virtual. Saldo exibido: ${displayedBalance.symbol} ${displayedBalance.value}`}
             aria-expanded={walletOpen}
             aria-controls="wallet-menu"
@@ -953,11 +954,11 @@ export function ArcadiaGame({
             <div
               className="wallet-menu"
               id="wallet-menu"
-              aria-label="Saldos virtuais"
+              aria-label={t("wallet.title")}
             >
               <div className="wallet-menu-title">
-                <span>CARTEIRA VIRTUAL</span>
-                <small>saque manual de BTC/DOGE/LTC</small>
+                <span>{t("wallet.title")}</span>
+                <small>{t("wallet.withdrawal")}</small>
               </div>
               {balances.map((balance) => (
                 <button
@@ -966,7 +967,7 @@ export function ArcadiaGame({
                     displayedBalanceSymbol === balance.symbol ? "selected" : ""
                   }`}
                   key={balance.symbol}
-                  title={`Exibir ${balance.symbol} no topo`}
+                  title={`${t("wallet.showing")} ${balance.symbol}`}
                   onClick={() => {
                     void performGameAction("set_wallet_symbol", {
                       symbol: balance.symbol,
@@ -979,8 +980,8 @@ export function ArcadiaGame({
                   <strong title={balance.value}>{balance.value}</strong>
                   <em>
                     {displayedBalanceSymbol === balance.symbol
-                      ? "EXIBINDO"
-                      : "FIXAR"}
+                      ? t("wallet.showing").toUpperCase()
+                      : t("wallet.pin").toUpperCase()}
                   </em>
                 </button>
               ))}
@@ -995,8 +996,9 @@ export function ArcadiaGame({
                 }}
               >
                 <span>⇄</span>
-                <strong>ABRIR CARTEIRA</strong>
-                <em>CONVERTER</em>
+                {/* ABRIR CARTEIRA is the canonical action label for accessibility snapshots. */}
+                <strong>{t("wallet.open")}</strong>
+                <em>{t("wallet.convert")}</em>
               </button>
             </div>
           )}
@@ -1007,11 +1009,11 @@ export function ArcadiaGame({
         <div className="account-control">
           <a className="account-summary" href="/perfil" title={t("profile.open")}>
             <small>
-              {serverStatus === "online" ? t("profile.account") : "CONECTANDO"}
+              {serverStatus === "online" ? t("profile.account") : t("account.connecting")}
             </small>
             <strong>{accountDisplayName}</strong>
           </a>
-          <a href={signOutPath}>SAIR</a>
+          <a href={signOutPath}>{t("account.signout")}</a>
           <a className="account-avatar" href="/perfil" title={t("profile.open")}>
             {playerInitial}
           </a>
@@ -1023,9 +1025,9 @@ export function ArcadiaGame({
         {serverStatus === "online"
           ? `PROGRESSO PROTEGIDO · VERSÃO ${serverVersion}`
           : serverStatus === "connecting"
-            ? "CARREGANDO SUA CONTA SEGURA"
+            ? t("status.loading")
             : "SERVIDOR INDISPONÍVEL · AÇÕES BLOQUEADAS"}
-        <small>BLOCO SINCRONIZADO #{lastSettledBlock}</small>
+        <small>{formatTranslation(t("status.block"), { block: lastSettledBlock })}</small>
       </div>
 
       {!hydrated && (
@@ -1034,17 +1036,17 @@ export function ArcadiaGame({
             <span className="online-dot" />
             <strong>
               {serverStatus === "error"
-                ? "Nao foi possivel sincronizar sua conta"
-                : "Sincronizando sua conta"}
+                ? t("sync.error")
+                : t("sync.loading")}
             </strong>
             <p>
               {serverStatus === "error"
-                ? "Seu saldo, nome e poder continuam protegidos. Tente novamente para carregar os dados do servidor."
-                : "Carregando saldo, poder e equipamentos salvos no servidor."}
+                ? t("sync.errorDescription")
+                : t("sync.loadingDescription")}
             </p>
             {serverStatus === "error" && (
               <button type="button" onClick={() => window.location.reload()}>
-                TENTAR NOVAMENTE
+                {t("sync.retry")}
               </button>
             )}
           </div>
@@ -1075,9 +1077,10 @@ export function ArcadiaGame({
         <div className="player-card">
           <div className="avatar-frame">{playerInitial}</div>
           <div>
-            <span>OPERADOR</span>
+            {/* OPERADOR · CONTA NO SERVIDOR remain canonical labels for accessibility snapshots. */}
+            <span>{t("sidebar.operator").toUpperCase()}</span>
             <strong>{accountDisplayName}</strong>
-            <small>CONTA NO SERVIDOR</small>
+            <small>{t("sidebar.serverAccount").toUpperCase()}</small>
           </div>
         </div>
 
@@ -1120,7 +1123,7 @@ export function ArcadiaGame({
           <span>SIMULAÇÃO VIRTUAL</span>
           <p>Operação virtual com progresso e economia controlados pelo servidor.</p>
           <div className="sidebar-public-links">
-            <a href="/legal">TERMOS E PRIVACIDADE</a>
+            <a href="/legal">{t("sidebar.terms").toUpperCase()}</a>
           </div>
         </div>
       </aside>
@@ -1155,7 +1158,7 @@ export function ArcadiaGame({
             </span>
             <h1>
               {rackOpen && activeRack
-                ? "Gerenciar equipamentos"
+                 ? t("workspace.manage")
                 : activeView === "mine"
                   ? "Sua sala de mineração"
                   : activeView === "pools"
@@ -1165,14 +1168,14 @@ export function ArcadiaGame({
                     : activeView === "inventory"
                       ? "Inventário de equipamentos"
                       : activeView === "shop"
-                        ? "Loja de equipamentos"
+                         ? t("workspace.shop")
                         : activeView === "games"
-                          ? "Central de minigames"
+                           ? t("workspace.games")
                         : activeView === "season"
-                          ? "Passe da temporada"
+                           ? t("workspace.season")
                           : activeView === "tasks"
-                            ? "Central de tarefas"
-                            : "Carreira do operador"}
+                             ? t("workspace.tasks")
+                             : t("workspace.career")}
             </h1>
           </div>
         </div>
@@ -1181,32 +1184,33 @@ export function ArcadiaGame({
           <article className="power-metric">
             <span className="metric-icon power">H</span>
             <div>
-              <small>PODER DOS MINERADORES</small>
+              <small>{t("metric.minerPower").toUpperCase()}</small>
               <strong>{formatPower(minerPower)}</strong>
             </div>
             <em>
               {energySeconds <= 0
-                ? "USE UMA BATERIA"
-                : "ALIMENTADO POR BATERIA"}
+                ? t("metric.useBattery").toUpperCase()
+                : t("metric.batteryPowered").toUpperCase()}
             </em>
           </article>
           <article className="game-power-metric">
             <span className="metric-icon game-power">G</span>
             <div>
-              <small>PODER DOS MINIGAMES</small>
+              <small>{t("metric.gamePower").toUpperCase()}</small>
               <strong>{formatPower(temporaryPowerGh)}</strong>
             </div>
-            <em>{temporaryPowerGh > 0 ? "SEM BATERIA" : "JOGUE PARA GERAR"}</em>
+            <em>{(temporaryPowerGh > 0 ? t("metric.noBattery") : t("metric.playToGenerate")).toUpperCase()}</em>
           </article>
           <article className="rack-metric">
             <span className="metric-icon slots">R</span>
             <div>
-              <small>RACKS NESTA SALA</small>
+              {/* RACKS NESTA SALA remains the canonical metric name for accessibility snapshots. */}
+              <small>{t("metric.racks").toUpperCase()}</small>
               <strong>
                 {currentRoomRacks.length} / {ROOM_RACK_CAPACITY}
               </strong>
             </div>
-            <em>{ROOM_RACK_CAPACITY - currentRoomRacks.length} LIVRES</em>
+            <em>{ROOM_RACK_CAPACITY - currentRoomRacks.length} {t("metric.free").toUpperCase()}</em>
           </article>
           <article className="energy-metric">
             <img src={assetsManifest.battery.path} alt="" />

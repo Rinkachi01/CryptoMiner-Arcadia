@@ -3,184 +3,162 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type ArcadiaLocale = "pt-BR" | "en" | "es" | "fr";
+type Localized = [string, string, string, string];
 
-const copy: Record<ArcadiaLocale, Record<string, string>> = {
-  "pt-BR": {
-    "nav.mine": "Sala de mineração",
-    "nav.pools": "Pools",
-    "nav.conversion": "Carteira",
-    "nav.inventory": "Inventário",
-    "nav.shop": "Loja",
-    "nav.games": "Minigames",
-    "nav.season": "Temporada",
-    "nav.leaderboard": "Ranking Global",
-    "nav.tasks": "Tarefas",
-    "nav.career": "Central do operador",
-    "nav.short.mine": "Sala",
-    "nav.short.pools": "Pools",
-    "nav.short.conversion": "Carteira",
-    "nav.short.inventory": "Itens",
-    "nav.short.shop": "Loja",
-    "nav.short.games": "Jogos",
-    "nav.short.season": "Season",
-    "nav.short.leaderboard": "Ranking",
-    "nav.short.tasks": "Tasks",
-    "nav.short.career": "Carreira",
-    "nav.support": "Central de suporte",
-    "nav.owner": "Central do proprietário",
-    "language.label": "Idioma",
-    "language.pt": "Português",
-    "language.en": "English",
-    "language.es": "Español",
-    "language.fr": "Français",
-    "profile.open": "Abrir meu perfil",
-    "profile.title": "Meu perfil",
-    "profile.subtitle": "Conta, segurança e preferências",
-    "profile.account": "Conta protegida",
-    "profile.support": "Abrir suporte",
-    "profile.back": "Voltar para a sala",
-  },
-  en: {
-    "nav.mine": "Mining room",
-    "nav.pools": "Pools",
-    "nav.conversion": "Wallet",
-    "nav.inventory": "Inventory",
-    "nav.shop": "Shop",
-    "nav.games": "Minigames",
-    "nav.season": "Season",
-    "nav.leaderboard": "Global ranking",
-    "nav.tasks": "Tasks",
-    "nav.career": "Operator center",
-    "nav.short.mine": "Room",
-    "nav.short.pools": "Pools",
-    "nav.short.conversion": "Wallet",
-    "nav.short.inventory": "Items",
-    "nav.short.shop": "Shop",
-    "nav.short.games": "Games",
-    "nav.short.season": "Season",
-    "nav.short.leaderboard": "Ranking",
-    "nav.short.tasks": "Tasks",
-    "nav.short.career": "Career",
-    "nav.support": "Support center",
-    "nav.owner": "Owner console",
-    "language.label": "Language",
-    "language.pt": "Português",
-    "language.en": "English",
-    "language.es": "Español",
-    "language.fr": "Français",
-    "profile.open": "Open my profile",
-    "profile.title": "My profile",
-    "profile.subtitle": "Account, security and preferences",
-    "profile.account": "Protected account",
-    "profile.support": "Open support",
-    "profile.back": "Back to room",
-  },
-  es: {
-    "nav.mine": "Sala de minería",
-    "nav.pools": "Pools",
-    "nav.conversion": "Cartera",
-    "nav.inventory": "Inventario",
-    "nav.shop": "Tienda",
-    "nav.games": "Minijuegos",
-    "nav.season": "Temporada",
-    "nav.leaderboard": "Ranking global",
-    "nav.tasks": "Tareas",
-    "nav.career": "Centro del operador",
-    "nav.short.mine": "Sala",
-    "nav.short.pools": "Pools",
-    "nav.short.conversion": "Cartera",
-    "nav.short.inventory": "Items",
-    "nav.short.shop": "Tienda",
-    "nav.short.games": "Juegos",
-    "nav.short.season": "Temporada",
-    "nav.short.leaderboard": "Ranking",
-    "nav.short.tasks": "Tareas",
-    "nav.short.career": "Carrera",
-    "nav.support": "Centro de soporte",
-    "nav.owner": "Consola del propietario",
-    "language.label": "Idioma",
-    "language.pt": "Português",
-    "language.en": "English",
-    "language.es": "Español",
-    "language.fr": "Français",
-    "profile.open": "Abrir mi perfil",
-    "profile.title": "Mi perfil",
-    "profile.subtitle": "Cuenta, seguridad y preferencias",
-    "profile.account": "Cuenta protegida",
-    "profile.support": "Abrir soporte",
-    "profile.back": "Volver a la sala",
-  },
-  fr: {
-    "nav.mine": "Salle de minage",
-    "nav.pools": "Pools",
-    "nav.conversion": "Portefeuille",
-    "nav.inventory": "Inventaire",
-    "nav.shop": "Boutique",
-    "nav.games": "Mini-jeux",
-    "nav.season": "Saison",
-    "nav.leaderboard": "Classement global",
-    "nav.tasks": "Tâches",
-    "nav.career": "Centre opérateur",
-    "nav.short.mine": "Salle",
-    "nav.short.pools": "Pools",
-    "nav.short.conversion": "Portefeuille",
-    "nav.short.inventory": "Objets",
-    "nav.short.shop": "Boutique",
-    "nav.short.games": "Jeux",
-    "nav.short.season": "Saison",
-    "nav.short.leaderboard": "Classement",
-    "nav.short.tasks": "Tâches",
-    "nav.short.career": "Carrière",
-    "nav.support": "Centre d’aide",
-    "nav.owner": "Console propriétaire",
-    "language.label": "Langue",
-    "language.pt": "Português",
-    "language.en": "English",
-    "language.es": "Español",
-    "language.fr": "Français",
-    "profile.open": "Ouvrir mon profil",
-    "profile.title": "Mon profil",
-    "profile.subtitle": "Compte, sécurité et préférences",
-    "profile.account": "Compte protégé",
-    "profile.support": "Ouvrir l’aide",
-    "profile.back": "Retour à la salle",
-  },
+const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en", "es", "fr"];
+const localeStorageKey = "arcadia-locale";
+const localeCookieKey = "arcadia_locale";
+
+// Keep the dictionary small and shared so every visible shell label changes with the selector.
+const entries: Record<string, Localized> = {
+  "nav.mine": ["Sala de mineração", "Mining room", "Sala de minería", "Salle de minage"],
+  "nav.pools": ["Pools", "Pools", "Pools", "Pools"],
+  "nav.conversion": ["Carteira", "Wallet", "Cartera", "Portefeuille"],
+  "nav.inventory": ["Inventário", "Inventory", "Inventario", "Inventaire"],
+  "nav.shop": ["Loja", "Shop", "Tienda", "Boutique"],
+  "nav.games": ["Minigames", "Minigames", "Minijuegos", "Mini-jeux"],
+  "nav.season": ["Temporada", "Season", "Temporada", "Saison"],
+  "nav.leaderboard": ["Ranking global", "Global ranking", "Ranking global", "Classement global"],
+  "nav.tasks": ["Tarefas", "Tasks", "Tareas", "Tâches"],
+  "nav.career": ["Central do operador", "Operator center", "Centro del operador", "Centre opérateur"],
+  "nav.short.mine": ["Sala", "Room", "Sala", "Salle"],
+  "nav.short.pools": ["Pools", "Pools", "Pools", "Pools"],
+  "nav.short.conversion": ["Carteira", "Wallet", "Cartera", "Portefeuille"],
+  "nav.short.inventory": ["Itens", "Items", "Objetos", "Objets"],
+  "nav.short.shop": ["Loja", "Shop", "Tienda", "Boutique"],
+  "nav.short.games": ["Jogos", "Games", "Juegos", "Jeux"],
+  "nav.short.season": ["Temporada", "Season", "Temporada", "Saison"],
+  "nav.short.leaderboard": ["Ranking", "Ranking", "Ranking", "Classement"],
+  "nav.short.tasks": ["Tarefas", "Tasks", "Tareas", "Tâches"],
+  "nav.short.career": ["Carreira", "Career", "Carrera", "Carrière"],
+  "nav.support": ["Central de suporte", "Support center", "Centro de soporte", "Centre d’aide"],
+  "nav.owner": ["Central do proprietário", "Owner console", "Consola del propietario", "Console propriétaire"],
+  "language.label": ["Idioma", "Language", "Idioma", "Langue"],
+  "language.pt": ["Português", "Portuguese", "Português", "Portugais"],
+  "language.en": ["Inglês", "English", "Inglés", "Anglais"],
+  "language.es": ["Espanhol", "Spanish", "Español", "Espagnol"],
+  "language.fr": ["Francês", "French", "Francés", "Français"],
+  "profile.open": ["Abrir meu perfil", "Open my profile", "Abrir mi perfil", "Ouvrir mon profil"],
+  "profile.account": ["Conta protegida", "Protected account", "Cuenta protegida", "Compte protégé"],
+  "account.signout": ["Sair", "Sign out", "Salir", "Se déconnecter"],
+  "account.connecting": ["Conectando", "Connecting", "Conectando", "Connexion"],
+  "status.progress": ["PROGRESSO PROTEGIDO · VERSÃO {version}", "PROTECTED PROGRESS · VERSION {version}", "PROGRESO PROTEGIDO · VERSIÓN {version}", "PROGRESSION PROTÉGÉE · VERSION {version}"],
+  "status.loading": ["CARREGANDO SUA CONTA SEGURA", "LOADING YOUR SECURE ACCOUNT", "CARGANDO TU CUENTA SEGURA", "CHARGEMENT DE VOTRE COMPTE SÉCURISÉ"],
+  "status.error": ["SERVIDOR INDISPONÍVEL · AÇÕES BLOQUEADAS", "SERVER UNAVAILABLE · ACTIONS BLOCKED", "SERVIDOR NO DISPONIBLE · ACCIONES BLOQUEADAS", "SERVEUR INDISPONIBLE · ACTIONS BLOQUÉES"],
+  "status.block": ["BLOCO SINCRONIZADO #{block}", "SYNCHRONIZED BLOCK #{block}", "BLOQUE SINCRONIZADO #{block}", "BLOC SYNCHRONISÉ #{block}"],
+  "sync.error": ["Não foi possível sincronizar sua conta", "We could not sync your account", "No fue posible sincronizar tu cuenta", "Impossible de synchroniser votre compte"],
+  "sync.loading": ["Sincronizando sua conta", "Syncing your account", "Sincronizando tu cuenta", "Synchronisation de votre compte"],
+  "sync.errorDescription": ["Seu saldo, nome e poder continuam protegidos. Tente novamente para carregar os dados do servidor.", "Your balance, name and power remain protected. Try again to load the server data.", "Tu saldo, nombre y poder siguen protegidos. Intenta de nuevo para cargar los datos del servidor.", "Votre solde, votre nom et votre puissance restent protégés. Réessayez pour charger les données du serveur."],
+  "sync.loadingDescription": ["Carregando saldo, poder e equipamentos salvos no servidor.", "Loading your balance, power and saved equipment from the server.", "Cargando saldo, poder y equipos guardados en el servidor.", "Chargement du solde, de la puissance et des équipements enregistrés."],
+  "sync.retry": ["Tentar novamente", "Try again", "Intentar de nuevo", "Réessayer"],
+  "sidebar.operator": ["Operador", "Operator", "Operador", "Opérateur"],
+  "sidebar.serverAccount": ["Conta no servidor", "Server account", "Cuenta en el servidor", "Compte serveur"],
+  "sidebar.virtualSimulation": ["Simulação virtual", "Virtual simulation", "Simulación virtual", "Simulation virtuelle"],
+  "sidebar.simulationDescription": ["Operação virtual com progresso e economia controlados pelo servidor.", "Virtual operation with progress and economy controlled by the server.", "Operación virtual con progreso y economía controlados por el servidor.", "Opération virtuelle avec progression et économie contrôlées par le serveur."],
+  "sidebar.terms": ["Termos e privacidade", "Terms and privacy", "Términos y privacidad", "Conditions et confidentialité"],
+  "workspace.rack": ["Controle de rack", "Rack control", "Control de rack", "Contrôle du rack"],
+  "workspace.shopEyebrow": ["Mercado Arcadia · equipamentos e energia", "Arcadia market · equipment and energy", "Mercado Arcadia · equipos y energía", "Marché Arcadia · équipements et énergie"],
+  "workspace.walletEyebrow": ["Carteira do operador · saldos e conversão", "Operator wallet · balances and conversion", "Cartera del operador · saldos y conversión", "Portefeuille opérateur · soldes et conversion"],
+  "workspace.gamesEyebrow": ["Arcade Arcadia · minigames online", "Arcadia Arcade · online minigames", "Arcade Arcadia · minijuegos en línea", "Arcade Arcadia · mini-jeux en ligne"],
+  "workspace.seasonEyebrow": ["Temporada 01 · Corrida Espacial", "Season 01 · Space Race", "Temporada 01 · Carrera espacial", "Saison 01 · Course spatiale"],
+  "workspace.leaderboardEyebrow": ["Ranking global · maiores mineradores", "Global ranking · top miners", "Ranking global · mayores mineros", "Classement global · meilleurs mineurs"],
+  "workspace.tasksEyebrow": ["Central de tarefas · missões e feedback", "Task center · missions and feedback", "Centro de tareas · misiones y comentarios", "Centre des tâches · missions et retours"],
+  "workspace.careerEyebrow": ["Central do operador · progresso e missões", "Operator center · progress and missions", "Centro del operador · progreso y misiones", "Centre opérateur · progression et missions"],
+  "workspace.mineEyebrow": ["Sala de mineração", "Mining room", "Sala de minería", "Salle de minage"],
+  "workspace.manage": ["Gerenciar equipamentos", "Manage equipment", "Gestionar equipos", "Gérer les équipements"],
+  "workspace.mine": ["Sua sala de mineração", "Your mining room", "Tu sala de minería", "Votre salle de minage"],
+  "workspace.pools": ["Pools de mineração", "Mining pools", "Pools de minería", "Pools de minage"],
+  "workspace.wallet": ["Carteira e conversão", "Wallet and conversion", "Cartera y conversión", "Portefeuille et conversion"],
+  "workspace.inventory": ["Inventário de equipamentos", "Equipment inventory", "Inventario de equipos", "Inventaire des équipements"],
+  "workspace.shop": ["Loja de equipamentos", "Equipment shop", "Tienda de equipos", "Boutique d’équipements"],
+  "workspace.games": ["Central de minigames", "Minigame center", "Centro de minijuegos", "Centre des mini-jeux"],
+  "workspace.season": ["Passe da temporada", "Season pass", "Pase de temporada", "Passe de saison"],
+  "workspace.tasks": ["Central de tarefas", "Task center", "Centro de tareas", "Centre des tâches"],
+  "workspace.career": ["Carreira do operador", "Operator career", "Carrera del operador", "Carrière de l’opérateur"],
+  "metric.minerPower": ["Poder dos mineradores", "Miner power", "Poder de los mineros", "Puissance des mineurs"],
+  "metric.gamePower": ["Poder dos minigames", "Minigame power", "Poder de los minijuegos", "Puissance des mini-jeux"],
+  "metric.racks": ["Racks nesta sala", "Racks in this room", "Racks en esta sala", "Racks dans cette salle"],
+  "metric.useBattery": ["Use uma bateria", "Use a battery", "Usa una batería", "Utiliser une batterie"],
+  "metric.batteryPowered": ["Alimentado por bateria", "Battery powered", "Alimentado por batería", "Alimenté par batterie"],
+  "metric.noBattery": ["Sem bateria", "No battery", "Sin batería", "Sans batterie"],
+  "metric.playToGenerate": ["Jogue para gerar", "Play to generate", "Juega para generar", "Jouez pour générer"],
+  "metric.free": ["livres", "free", "libres", "libres"],
+  "wallet.title": ["Carteira virtual", "Virtual wallet", "Cartera virtual", "Portefeuille virtuel"],
+  "wallet.withdrawal": ["saque manual de BTC/DOGE/LTC", "manual BTC/DOGE/LTC withdrawal", "retiro manual de BTC/DOGE/LTC", "retrait manuel BTC/DOGE/LTC"],
+  "wallet.showing": ["Exibindo", "Showing", "Mostrando", "Affiché"],
+  "wallet.pin": ["Fixar", "Pin", "Fijar", "Fixer"],
+  "wallet.open": ["Abrir carteira", "Open wallet", "Abrir cartera", "Ouvrir le portefeuille"],
+  "wallet.convert": ["Converter", "Convert", "Convertir", "Convertir"],
+  "block.single": ["Bloco minerado", "Block mined", "Bloque minado", "Bloc miné"],
+  "block.multiple": ["Blocos minerados", "Blocks mined", "Bloques minados", "Blocs minés"],
+  "block.singleDescription": ["O bloco #{block} foi processado.", "Block #{block} was processed.", "El bloque #{block} fue procesado.", "Le bloc #{block} a été traité."],
+  "block.multipleDescription": ["{count} blocos foram processados até o #{block}.", "{count} blocks were processed through #{block}.", "Se procesaron {count} bloques hasta el #{block}.", "{count} blocs ont été traités jusqu’au #{block}."],
+  "block.synced": ["Recompensa e extrato sincronizados pelo servidor.", "Reward and ledger synced by the server.", "Recompensa y extracto sincronizados por el servidor.", "Récompense et historique synchronisés par le serveur."],
+  "block.close": ["Fechar aviso de bloco", "Close block notice", "Cerrar aviso de bloque", "Fermer l’avis de bloc"],
+  "footer.brandSubtitle": ["Mineração virtual · entretenimento digital", "Virtual mining · digital entertainment", "Minería virtual · entretenimiento digital", "Minage virtuel · divertissement numérique"],
+  "footer.start": ["Começar a jogar", "Start playing", "Empezar a jugar", "Commencer à jouer"],
+  "footer.navigation": ["Navegação", "Navigation", "Navegación", "Navigation"],
+  "footer.account": ["Conta e segurança", "Account and security", "Cuenta y seguridad", "Compte et sécurité"],
+  "footer.contact": ["Fale conosco", "Contact us", "Contáctanos", "Contactez-nous"],
+  "footer.contactDescription": ["Atendimento oficial para conta, depósitos e segurança.", "Official help for account, deposits and security.", "Atención oficial para cuenta, depósitos y seguridad.", "Assistance officielle pour le compte, les dépôts et la sécurité."],
+  "footer.reply": ["Responderemos pelo protocolo dentro do site.", "We reply through an in-site ticket.", "Responderemos mediante el protocolo dentro del sitio.", "Nous répondrons via un ticket dans le site."],
+  "footer.rights": ["Todos os direitos reservados.", "All rights reserved.", "Todos los derechos reservados.", "Tous droits réservés."],
 };
 
-type LanguageContextValue = {
-  locale: ArcadiaLocale;
-  setLocale: (locale: ArcadiaLocale) => void;
-  t: (key: string, fallback?: string) => string;
-};
+const localeIndex: Record<ArcadiaLocale, number> = { "pt-BR": 0, en: 1, es: 2, fr: 3 };
+const copy = Object.fromEntries(
+  supportedLocales.map((locale) => [locale, Object.fromEntries(Object.entries(entries).map(([key, values]) => [key, values[localeIndex[locale]]]))]),
+) as Record<ArcadiaLocale, Record<string, string>>;
 
+function isArcadiaLocale(value: string | null): value is ArcadiaLocale {
+  return Boolean(value && supportedLocales.includes(value as ArcadiaLocale));
+}
+
+function browserLocale(): ArcadiaLocale {
+  if (typeof navigator === "undefined") return "pt-BR";
+  const language = navigator.language.toLowerCase();
+  if (language.startsWith("en")) return "en";
+  if (language.startsWith("es")) return "es";
+  if (language.startsWith("fr")) return "fr";
+  return "pt-BR";
+}
+
+function applyLocale(next: ArcadiaLocale) {
+  document.documentElement.lang = next;
+  document.cookie = `${localeCookieKey}=${encodeURIComponent(next)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
+export function formatTranslation(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), template);
+}
+
+type LanguageContextValue = { locale: ArcadiaLocale; setLocale: (locale: ArcadiaLocale) => void; t: (key: string, fallback?: string) => string };
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<ArcadiaLocale>("pt-BR");
+  const [locale, setLocaleState] = useState<ArcadiaLocale>(() => {
+    if (typeof window === "undefined") return "pt-BR";
+    const saved = window.localStorage.getItem(localeStorageKey);
+    return isArcadiaLocale(saved) ? saved : browserLocale();
+  });
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("arcadia-locale");
-    if (saved === "pt-BR" || saved === "en" || saved === "es" || saved === "fr") {
-      setLocaleState(saved);
-      document.documentElement.lang = saved;
-    }
-  }, []);
+    applyLocale(locale);
+    const sync = (event: StorageEvent) => {
+      if (event.key === localeStorageKey && isArcadiaLocale(event.newValue)) {
+        setLocaleState(event.newValue);
+      }
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, [locale]);
 
   const setLocale = (next: ArcadiaLocale) => {
+    if (!supportedLocales.includes(next)) return;
     setLocaleState(next);
-    window.localStorage.setItem("arcadia-locale", next);
-    document.documentElement.lang = next;
+    window.localStorage.setItem(localeStorageKey, next);
   };
-
-  const value = useMemo<LanguageContextValue>(
-    () => ({
-      locale,
-      setLocale,
-      t: (key, fallback) => copy[locale][key] ?? fallback ?? key,
-    }),
-    [locale],
-  );
-
+  const value = useMemo(() => ({ locale, setLocale, t: (key: string, fallback?: string) => copy[locale][key] ?? fallback ?? key }), [locale]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
@@ -196,11 +174,7 @@ export function LanguageSwitcher() {
     <label className="language-switcher">
       <span className="sr-only">{t("language.label")}</span>
       <span aria-hidden="true">◎</span>
-      <select
-        value={locale}
-        aria-label={t("language.label")}
-        onChange={(event) => setLocale(event.target.value as ArcadiaLocale)}
-      >
+      <select value={locale} aria-label={t("language.label")} onChange={(event) => setLocale(event.target.value as ArcadiaLocale)}>
         <option value="pt-BR">{t("language.pt")}</option>
         <option value="en">{t("language.en")}</option>
         <option value="es">{t("language.es")}</option>

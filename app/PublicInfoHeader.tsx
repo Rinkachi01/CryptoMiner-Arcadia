@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
-import { LanguageSwitcher } from "./i18n";
+import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
 
 export function PublicInfoHeader({ label }: { label: string }) {
+  const { t } = useArcadiaLanguage();
   return (
     <header className="public-info-header">
       <Link className="public-info-brand" href="/">
@@ -12,11 +15,11 @@ export function PublicInfoHeader({ label }: { label: string }) {
         </div>
       </Link>
       <div className="public-info-actions">
-        <nav aria-label="Navegação pública">
-          <Link href="/">JOGO</Link>
+        <nav aria-label={t("footer.navigation")}>
+          <Link href="/">{t("nav.mine")}</Link>
           <a href="/faq">FAQ</a>
-          <a href="/support">SUPORTE</a>
-          <a href="/legal">DOCUMENTOS</a>
+          <a href="/support">{t("nav.support")}</a>
+          <a href="/legal">{t("sidebar.terms")}</a>
         </nav>
         <LanguageSwitcher />
       </div>
