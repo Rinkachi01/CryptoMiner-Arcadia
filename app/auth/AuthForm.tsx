@@ -98,24 +98,17 @@ export function AuthForm({
   }
 
   async function redirectAfterAuthentication() {
-    const authWithAal = supabase.auth as typeof supabase.auth & {
-      getAuthenticatorAssuranceLevel?: () => Promise<{
-        data: { nextLevel?: string | null; currentLevel?: string | null } | null;
-        error?: unknown;
-      }>;
-    };
-    if (typeof authWithAal.getAuthenticatorAssuranceLevel === "function") {
-      const { data, error } = await authWithAal.getAuthenticatorAssuranceLevel();
-      if (
-        !error &&
-        data?.nextLevel === "aal2" &&
-        data.currentLevel !== "aal2"
-      ) {
-        window.location.assign(
-          `/auth/mfa?next=${encodeURIComponent(returnTo)}`,
-        );
-        return;
-      }
+    // Supabase exposes the assurance API under `auth.mfa`. Calling it on
+    // `auth` silently skipped the MFA challenge for every account.
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) {
+      throw new Error("Não foi possível validar a proteção em duas etapas. Tente entrar novamente.");
+    }
+    if (data?.nextLevel === "aal2" && data.currentLevel !== "aal2") {
+      window.location.assign(
+        `/auth/mfa?next=${encodeURIComponent(returnTo)}`,
+      );
+      return;
     }
     window.location.assign(returnTo);
   }
@@ -294,7 +287,9 @@ export function AuthForm({
 
       <section className="public-auth-card">
         <header>
-          <div className="login-brand-mark">CMA</div>
+          <div className="login-brand-mark">
+            <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
+          </div>
           <div>
             <span>CRYPTO MINER ARCADIA</span>
             <strong>

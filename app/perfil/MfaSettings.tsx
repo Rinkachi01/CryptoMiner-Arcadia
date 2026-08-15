@@ -10,6 +10,20 @@ type MfaSettingsProps = {
 
 type TotpFactor = { id: string; status: string; friendly_name?: string | null };
 
+function friendlyMfaError(error: { message?: string } | null | undefined) {
+  const message = error?.message?.toLowerCase() ?? "";
+  if (message.includes("mfa") && message.includes("disabled")) {
+    return "A autenticação em duas etapas ainda está desativada no projeto Supabase.";
+  }
+  if (message.includes("already exists") || message.includes("duplicate")) {
+    return "Já existe uma configuração pendente. Reinicie a configuração e tente novamente.";
+  }
+  if (message.includes("not authenticated") || message.includes("jwt")) {
+    return "Sua sessão expirou. Entre novamente para configurar a proteção.";
+  }
+  return "Não foi possível concluir a configuração agora. Tente novamente.";
+}
+
 export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, publishableKey),
@@ -25,7 +39,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setBusy(true);
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (error) {
-      setMessage("Não foi possível consultar a proteção da conta agora.");
+      setMessage(friendlyMfaError(error));
     } else {
       setFactor(data?.totp?.find((item) => item.status === "verified") ?? null);
     }
@@ -42,12 +56,26 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
   async function beginSetup() {
     setBusy(true);
     setMessage("");
+    // A failed attempt can leave an unverified factor behind. Supabase will
+    // reject a second enrollment with a duplicate-factor error, so clean up
+    // only those incomplete factors before starting a fresh QR setup.
+    const existing = await supabase.auth.mfa.listFactors();
+    if (existing.error) {
+      setMessage(friendlyMfaError(existing.error));
+      setBusy(false);
+      return;
+    }
+    for (const pending of (existing.data?.totp ?? []).filter(
+      (item) => item.status === "unverified",
+    )) {
+      await supabase.auth.mfa.unenroll({ factorId: pending.id });
+    }
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
       friendlyName: "Arcadia Authenticator",
     });
     if (error || !data?.id || !data.totp) {
-      setMessage("Não foi possível iniciar a configuração do autenticador.");
+      setMessage(friendlyMfaError(error));
       setBusy(false);
       return;
     }
@@ -66,7 +94,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setMessage("");
     const challenge = await supabase.auth.mfa.challenge({ factorId: setup.factorId });
     if (challenge.error || !challenge.data?.id) {
-      setMessage("Não foi possível validar este código. Tente gerar um novo código.");
+      setMessage(friendlyMfaError(challenge.error));
       setBusy(false);
       return;
     }
@@ -76,7 +104,11 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       factorId: setup.factorId,
     });
     if (result.error) {
-      setMessage("Código inválido. Confira o aplicativo autenticador e tente novamente.");
+      setMessage(
+        result.error.message?.toLowerCase().includes("expired")
+          ? "Código expirado. Aguarde o próximo código no aplicativo autenticador."
+          : "Código inválido. Confira o aplicativo autenticador e tente novamente.",
+      );
       setCode("");
       setBusy(false);
       return;
@@ -93,7 +125,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setMessage("");
     const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
     if (error) {
-      setMessage("Não foi possível desativar a proteção agora.");
+      setMessage(friendlyMfaError(error));
     } else {
       setFactor(null);
       setMessage("Autenticação em duas etapas desativada.");

@@ -70,10 +70,12 @@ test("fluxo publico inclui sessao SSR, confirmacao, recuperacao e documentos", a
   assert.match(source, /signInWithPassword/);
   assert.match(source, /signInWithOAuth/);
   assert.match(source, /provider:\s*"google"/);
-  assert.match(source, /getAuthenticatorAssuranceLevel/);
+  assert.match(source, /supabase\.auth\.mfa\.getAuthenticatorAssuranceLevel/);
+  assert.match(source, /mfaRequired/);
   assert.match(source, /mfa\.enroll/);
   assert.match(source, /mfa\.verify/);
   assert.match(source, /mfa\.unenroll/);
+  assert.match(source, /cma-coin\.png/);
   assert.match(source, /resetPasswordForEmail/);
   assert.match(source, /supabase\.auth\.resend/);
   assert.match(source, /REENVIAR E-MAIL/);

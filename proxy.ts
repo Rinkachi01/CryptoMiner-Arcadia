@@ -104,11 +104,77 @@ export async function proxy(request: NextRequest) {
   // A rota OAuth/callback pode chegar sem cookie ou com um cookie antigo. A
   // validação é importante, mas nunca deve transformar uma sessão anônima ou
   // um token inválido em um erro 500 do Worker.
+  let claimsAuthenticated = false;
   try {
-    await supabase.auth.getClaims();
+    const claims = await supabase.auth.getClaims();
+    claimsAuthenticated = Boolean(claims.data?.claims?.sub);
   } catch {
     // Continue as an anonymous request; protected pages perform their own
     // authorization check and redirect to /auth when needed.
+  }
+
+  // Once a user has a verified factor, every protected request must carry an
+  // AAL2 session. The login form and OAuth callback also perform this check,
+  // but the proxy closes the bypass where an old AAL1 session navigated
+  // directly to the game or called an API without entering the code.
+  const pathname = request.nextUrl.pathname;
+  const isAuthFlow = pathname === "/auth" || pathname.startsWith("/auth/");
+  if (claimsAuthenticated && !isAuthFlow) {
+    try {
+      const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (
+        !assurance.error &&
+        assurance.data?.nextLevel === "aal2" &&
+        assurance.data.currentLevel !== "aal2"
+      ) {
+        if (pathname.startsWith("/api/")) {
+          return secureResponse(
+            NextResponse.json(
+              {
+                error: "Autenticação em duas etapas necessária.",
+                mfaRequired: true,
+              },
+              { status: 401, headers: { "Cache-Control": "private, no-store" } },
+            ),
+            request,
+          );
+        }
+        if (
+          pathname === "/" ||
+          pathname === "/perfil" ||
+          pathname === "/support" ||
+          pathname === "/admin" ||
+          pathname.startsWith("/admin/") ||
+          [
+            "/sala",
+            "/pools",
+            "/carteira",
+            "/inventario",
+            "/loja",
+            "/minigames",
+            "/temporada",
+            "/ranking",
+            "/tarefas",
+            "/operador",
+          ].includes(pathname)
+        ) {
+          const next = `${pathname}${request.nextUrl.search}`;
+          return secureResponse(
+            NextResponse.redirect(
+              new URL(
+                `/auth/mfa?next=${encodeURIComponent(next)}`,
+                request.url,
+              ),
+              { headers: { "Cache-Control": "private, no-store" } },
+            ),
+            request,
+          );
+        }
+      }
+    } catch {
+      // Do not turn a transient assurance lookup failure into a Worker 500.
+      // The page/API authorization layer remains the final fallback.
+    }
   }
   response.headers.set("Cache-Control", "private, no-store");
   return secureResponse(response, request);

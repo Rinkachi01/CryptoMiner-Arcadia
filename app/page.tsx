@@ -56,7 +56,9 @@ export default async function Home() {
             </section>
 
             <section className="login-card">
-              <div className="login-brand-mark">CMA</div>
+              <div className="login-brand-mark">
+                <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
+              </div>
               <span>CRYPTO MINER ARCADIA</span>
               <h2>Sua operação começa com uma conta protegida.</h2>
               <p>

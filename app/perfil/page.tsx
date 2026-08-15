@@ -46,7 +46,10 @@ export default async function ProfilePage() {
 
         <div className="profile-grid">
           <article className="profile-identity-card">
-            <div className="profile-avatar">{user.displayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M"}</div>
+            <div className="profile-avatar">
+              <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
+              <span>{user.displayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M"}</span>
+            </div>
             <span className="profile-kicker">CONTA PROTEGIDA</span>
             <h2>{user.displayName}</h2>
             <p>{maskEmail(user.email)}</p>

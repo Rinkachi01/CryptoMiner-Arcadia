@@ -31,14 +31,16 @@ export function MfaChallenge({
       const factor = data?.totp?.find((item) => item.status === "verified");
       if (!active) return;
       if (error || !factor) {
-        setMessage("Não encontramos um autenticador ativo para esta conta. Volte ao perfil e configure a proteção novamente.");
+        setMessage(error?.message?.toLowerCase().includes("not authenticated")
+          ? "Sua sessão expirou. Entre novamente para continuar."
+          : "Não encontramos um autenticador ativo para esta conta. Volte ao perfil e configure a proteção novamente.");
         setBusy(false);
         return;
       }
       const challenge = await supabase.auth.mfa.challenge({ factorId: factor.id });
       if (!active) return;
       if (challenge.error || !challenge.data?.id) {
-        setMessage("Não foi possível iniciar a verificação. Tente entrar novamente.");
+        setMessage(challenge.error?.message ?? "Não foi possível iniciar a verificação. Tente entrar novamente.");
         setBusy(false);
         return;
       }
@@ -72,6 +74,7 @@ export function MfaChallenge({
 
   return (
     <section className="mfa-challenge-card" aria-labelledby="mfa-title">
+      <img className="mfa-brand-logo" src="/assets/brand/cma-coin.png" alt="Logo CMA" />
       <span className="mfa-kicker">CONTA PROTEGIDA</span>
       <h1 id="mfa-title">Confirme sua identidade</h1>
       <p>Digite o código de seis dígitos exibido no seu aplicativo autenticador para continuar.</p>
