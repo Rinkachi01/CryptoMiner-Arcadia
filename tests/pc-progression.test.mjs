@@ -10,20 +10,20 @@ import {
 
 test("PC sobe por partidas jogadas, não por vitória isolada", () => {
   assert.equal(pcLevelForPlays(0), 0);
-  assert.equal(pcLevelForPlays(9), 0);
-  assert.equal(pcLevelForPlays(10), 1);
-  assert.equal(pcLevelForPlays(29), 1);
-  assert.equal(pcLevelForPlays(30), 2);
-  assert.equal(pcLevelForPlays(60), 3);
-  assert.equal(pcLevelForPlays(150), 5);
+  assert.equal(pcLevelForPlays(7), 0);
+  assert.equal(pcLevelForPlays(8), 1);
+  assert.equal(pcLevelForPlays(23), 1);
+  assert.equal(pcLevelForPlays(24), 2);
+  assert.equal(pcLevelForPlays(48), 3);
+  assert.equal(pcLevelForPlays(120), 5);
 });
 
 test("barra do PC mostra o próximo marco de partidas", () => {
-  assert.equal(pcNextPlayTarget(1), 10);
-  assert.equal(pcNextPlayTarget(4), 100);
-  assert.equal(pcProgressPercent(5, 0), 50);
-  assert.equal(pcProgressPercent(29, 1), 95);
-  assert.equal(pcProgressPercent(150, 5), 100);
+  assert.equal(pcNextPlayTarget(1), 8);
+  assert.equal(pcNextPlayTarget(4), 80);
+  assert.equal(pcProgressPercent(4, 0), 50);
+  assert.equal(pcProgressPercent(23, 1), 94);
+  assert.equal(pcProgressPercent(120, 5), 100);
 });
 
 test("o poder dos quatro jogos usa o nível global do PC", async () => {

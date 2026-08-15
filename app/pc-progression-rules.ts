@@ -1,6 +1,9 @@
 import { dailyBoundariesBetween } from "./daily-reset-rules.ts";
 
-const PC_PLAY_THRESHOLDS = [0, 10, 30, 60, 100, 150] as const;
+// Smooth progression calibrated against the four-game daily allowance. The
+// final level is reachable in roughly two active cycles without changing the
+// amount of power emitted by a validated game.
+const PC_PLAY_THRESHOLDS = [0, 8, 24, 48, 80, 120] as const;
 
 export function pcLevelForPlays(totalPlays: number): number {
   const plays = Math.max(0, Math.floor(Number.isFinite(totalPlays) ? totalPlays : 0));

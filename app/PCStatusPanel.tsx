@@ -41,7 +41,7 @@ export function PCStatusPanel({
           {powerDays > 0 ? (
             <>Bônus de energia válido por: <strong>{powerDays} dia{powerDays > 1 ? "s" : ""}</strong></>
           ) : (
-            <>Jogue 10 partidas para liberar o primeiro bônus.</>
+            <>Jogue {nextPlayTarget} partidas para liberar o primeiro bônus.</>
           )}
         </p>
         {temporaryPowerGh > 0 && (

@@ -207,6 +207,12 @@ frequência de picos sem remover a progressão principal dos minijogos.
 
 ## Progressão do operador e telemetria
 
+O PC usa marcos globais de 8, 24, 48, 80 e 120 partidas iniciadas. Eles foram
+calibrados para caber nos limites diários combinados dos quatro minijogos: o
+nível máximo fica alcançável em aproximadamente dois ciclos ativos, sem elevar
+o orçamento de poder nem a recompensa de cada partida. A inatividade ainda
+reduz um nível por virada diária sem nova partida validada.
+
 - cada partida concede 18 XP de atividade;
 - cada vitória adiciona 120 XP;
 - a experiência necessária cresce a cada nível;
