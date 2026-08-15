@@ -29,7 +29,9 @@ export function hashMatchPairCount(difficulty: number) {
 
 export function hashMatchDurationMs(difficulty: number) {
   const level = Math.min(MAX_GAME_DIFFICULTY, Math.max(1, difficulty));
-  return Math.max(38_000, 68_000 - (level - 1) * 3_200);
+  // The reveal is server-authoritative and can take a network round trip.
+  // Keep enough room for the full board while still shortening higher levels.
+  return Math.max(75_000, 105_000 - (level - 1) * 3_500);
 }
 
 export function createHashMatchProof(

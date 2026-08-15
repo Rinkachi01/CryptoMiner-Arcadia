@@ -32,6 +32,8 @@ test("carta só é revelada a partir do estado guardado no servidor", () => {
 test("dificuldade adiciona pares e reduz o tempo", () => {
   assert.equal(hashMatchPairCount(1) < hashMatchPairCount(10), true);
   assert.equal(hashMatchDurationMs(1) > hashMatchDurationMs(10), true);
+  assert.equal(hashMatchDurationMs(1) >= 100_000, true);
+  assert.equal(hashMatchDurationMs(10) >= 75_000, true);
 });
 
 test("recompensa da memória penaliza excesso de jogadas e possui teto", () => {

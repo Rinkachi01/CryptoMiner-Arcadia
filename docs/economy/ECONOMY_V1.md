@@ -158,7 +158,7 @@ Calibração do Packet Catch:
 Calibração do Hash Match:
 
 - quatro pares no nível inicial e até oito nos níveis avançados;
-- duração de 68 segundos no nível inicial e 39,2 segundos no nível máximo;
+- duração de 105 segundos no nível inicial e 75 segundos no nível máximo, acomodando a validação segura de cada carta;
 - máximo de 300 GH/s por vitória;
 - jogadas extras reduzem o poder concedido;
 - limite de 6 partidas por hora e 18 por janela de 24 horas;
