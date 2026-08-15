@@ -48,6 +48,25 @@ test("mutacoes da API recusam origem cruzada sem bloquear navegacao segura", () 
     }),
     false,
   );
+  assert.equal(
+    isRejectedCrossSiteApiMutation({
+      ...base,
+      fetchSite: null,
+      origin: null,
+      method: "POST",
+    }),
+    true,
+  );
+  assert.equal(
+    isRejectedCrossSiteApiMutation({
+      ...base,
+      fetchSite: null,
+      origin: null,
+      pathname: "/api/wallet/nowpayments",
+      method: "POST",
+    }),
+    false,
+  );
 });
 
 test("respostas recebem cabecalhos defensivos", () => {
@@ -55,11 +74,12 @@ test("respostas recebem cabecalhos defensivos", () => {
   applyArcadiaSecurityHeaders(headers, true);
   assert.equal(headers.get("x-content-type-options"), "nosniff");
   assert.equal(headers.get("x-frame-options"), "DENY");
+  assert.equal(headers.get("x-dns-prefetch-control"), "off");
+  assert.equal(headers.get("origin-agent-cluster"), "?1");
   assert.match(headers.get("content-security-policy") ?? "", /default-src 'self'/);
   assert.equal(headers.get("cross-origin-resource-policy"), "same-origin");
-  assert.equal(headers.get("strict-transport-security"), "max-age=31536000");
-  assert.doesNotMatch(
-    headers.get("strict-transport-security") ?? "",
-    /includeSubDomains/i,
+  assert.equal(
+    headers.get("strict-transport-security"),
+    "max-age=31536000; includeSubDomains",
   );
 });
