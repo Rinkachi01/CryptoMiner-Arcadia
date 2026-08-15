@@ -5186,6 +5186,29 @@ img {
   scroll-snap-type: inline proximity;
 }
 .season-reward-grid article { scroll-snap-align: start; }
+.season-weekly-challenge-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  align-items: center;
+  gap: 18px;
+  padding: clamp(15px, 2.4vw, 22px);
+  border: 1px solid rgba(169, 255, 63, 0.34);
+  border-radius: 15px;
+  background: linear-gradient(110deg, rgba(22, 43, 35, 0.9), rgba(8, 17, 27, 0.96));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+.season-weekly-challenge-copy { display: grid; gap: 6px; }
+.season-weekly-challenge-copy > span { color: var(--lime); font: 850 0.68rem/1.2 var(--font-ui); letter-spacing: 0.12em; }
+.season-weekly-challenge-copy h4 { margin: 0; color: #f4fbff; font: 850 clamp(1rem, 2vw, 1.3rem)/1.1 var(--font-ui); }
+.season-weekly-challenge-copy p { max-width: 52ch; margin: 0; color: #a9bbc3; font: 600 0.72rem/1.45 var(--font-ui); }
+.season-weekly-challenge-progress { display: grid; gap: 7px; min-width: 0; padding: 12px; border: 1px solid rgba(114, 228, 255, 0.24); border-radius: 10px; background: rgba(5, 14, 21, 0.72); }
+.season-weekly-challenge-progress strong { overflow-wrap: anywhere; color: #effcff; font: 800 0.78rem/1.25 var(--font-ui); }
+.season-weekly-challenge-progress small { color: #8ca4af; font: 650 0.66rem/1.2 var(--font-ui); }
+.season-weekly-challenge-progress i { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: #20333e; }
+.season-weekly-challenge-progress i em { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #72e4ff, #a9ff3f); transition: width .35s ease; }
+.season-weekly-challenge-progress button { justify-self: start; min-height: 31px; padding: 6px 10px; border: 1px solid rgba(169, 255, 63, 0.62); border-radius: 6px; background: rgba(169, 255, 63, 0.12); color: var(--lime); cursor: pointer; font: 800 0.6rem/1.1 var(--font-ui); }
+.season-weekly-challenge-progress button:disabled { border-color: rgba(93, 117, 127, 0.35); background: rgba(47, 62, 70, 0.18); color: #71838b; cursor: not-allowed; }
+.season-weekly-challenge-empty { color: #8ca4af; font: 750 0.76rem/1.2 var(--font-ui); }
 .season-quests-card {
   padding: clamp(15px, 2.4vw, 24px);
   border: 1px solid rgba(82, 144, 166, 0.38);
@@ -5217,6 +5240,8 @@ img {
   .season-quests-card > header { flex-direction: column; }
   .season-quests-card > header small { max-width: none; text-align: left; }
   .season-quests-grid { grid-template-columns: 1fr; }
+  .season-weekly-challenge-card { grid-template-columns: 1fr; }
+  .season-weekly-challenge-progress button { width: 100%; }
   .season-reward-grid {
     grid-template-columns: none;
     grid-auto-columns: minmax(142px, 48vw);

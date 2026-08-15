@@ -207,6 +207,19 @@ export function SeasonPanel({
   const seasonStartDay = dailyWindowIndex(season.startsAt);
   const currentDay = dailyWindowIndex(data.serverTime);
   const weeklyCycleKey = `weekly_${Math.floor((currentDay - seasonStartDay) / 7)}`;
+  const weeklyQuests = progress.quests?.weekly ?? [];
+  const featuredWeeklyQuest =
+    weeklyQuests.find((entry) => !entry.claimed) ?? weeklyQuests[0] ?? null;
+  const featuredWeeklyPercent = featuredWeeklyQuest
+    ? Math.min(
+        100,
+        Math.round(
+          (featuredWeeklyQuest.progress /
+            Math.max(1, featuredWeeklyQuest.quest.requirement)) *
+            100,
+        ),
+      )
+    : 0;
 
   return (
     <section className="season-panel space-race-season">
@@ -323,7 +336,47 @@ export function SeasonPanel({
         </div>
       </section>
 
-      <section className="season-quests-card" aria-label={english ? "Season missions" : "Missões da temporada"}>
+      <section className="season-weekly-challenge-card" aria-label={english ? "Weekly challenge" : "Desafio semanal"}>
+        <div className="season-weekly-challenge-copy">
+          <span>{english ? "WEEKLY SIGNAL" : "DESAFIO SEMANAL"}</span>
+          <h4>{english ? "One focused objective" : "Um objetivo em destaque"}</h4>
+          <p>
+            {english
+              ? "Complete the highlighted mission before the weekly reset. XP is server-validated and shared by both tracks."
+              : "Conclua a missao em destaque antes da virada semanal. O XP e validado pelo servidor e vale para as duas trilhas."}
+          </p>
+        </div>
+        {featuredWeeklyQuest ? (
+          <div className="season-weekly-challenge-progress">
+            <strong>{featuredWeeklyQuest.quest.title}</strong>
+            <small>
+              {featuredWeeklyQuest.progress}/{featuredWeeklyQuest.quest.requirement} · +{featuredWeeklyQuest.quest.xp} XP
+            </small>
+            <i aria-hidden="true"><em style={{ width: `${featuredWeeklyPercent}%` }} /></i>
+            <button
+              type="button"
+              disabled={!featuredWeeklyQuest.completed || featuredWeeklyQuest.claimed || Boolean(busyAction)}
+              onClick={() => void runAction(`featured-${featuredWeeklyQuest.quest.id}`, {
+                action: "claim-quest",
+                questId: featuredWeeklyQuest.quest.id,
+                cycleKey: weeklyCycleKey,
+              })}
+            >
+              {featuredWeeklyQuest.claimed
+                ? english ? "CLAIMED" : "RESGATADO"
+                : featuredWeeklyQuest.completed
+                  ? english ? "CLAIM XP" : "RESGATAR XP"
+                  : english ? "IN PROGRESS" : "EM PROGRESSO"}
+            </button>
+          </div>
+        ) : (
+          <strong className="season-weekly-challenge-empty">
+            {english ? "New signal soon" : "Novo desafio em breve"}
+          </strong>
+        )}
+      </section>
+
+      <section id="season-missions" className="season-quests-card" aria-label={english ? "Season missions" : "Missões da temporada"}>
         <header>
           <div>
             <span>{english ? "SEASON MISSIONS" : "MISSÕES DA TEMPORADA"}</span>
