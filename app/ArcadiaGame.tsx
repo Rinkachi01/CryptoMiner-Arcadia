@@ -1051,7 +1051,10 @@ export function ArcadiaGame({
         </div>
       )}
 
-      <DailyWelcomeModal onClose={() => {}} />
+      <DailyWelcomeModal
+        enabled={hydrated && serverStatus === "online"}
+        onClose={() => {}}
+      />
 
       <OperatorTour
         accountKey={user.email}

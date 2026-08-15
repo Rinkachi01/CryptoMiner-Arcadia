@@ -5,7 +5,20 @@ import { createPortal } from "react-dom";
 import type { PublicSeason, SeasonPlayerProgress } from "./season-server";
 import type { SeasonResponse } from "./SeasonPanel";
 
-export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
+type DailyWelcomeModalProps = {
+  onClose: () => void;
+  /**
+   * The game bootstraps the authoritative session asynchronously.  Waiting
+   * for that signal avoids a one-shot 401 request that used to make the
+   * welcome dialog disappear for the rest of the session.
+   */
+  enabled?: boolean;
+};
+
+export function DailyWelcomeModal({
+  onClose,
+  enabled = true,
+}: DailyWelcomeModalProps) {
   const [data, setData] = useState<{
     season: PublicSeason | null;
     playerProgress: SeasonPlayerProgress | null;
@@ -15,11 +28,46 @@ export function DailyWelcomeModal({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("/api/season", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((result: unknown) => setData(result as SeasonResponse))
-      .catch(() => {});
-  }, []);
+    if (!enabled) return;
+
+    let cancelled = false;
+    let retryTimer: number | undefined;
+
+    const load = async (attempt = 0): Promise<void> => {
+      try {
+        const response = await fetch("/api/season", { cache: "no-store" });
+        const result = (await response.json().catch(() => null)) as
+          | (SeasonResponse & { error?: string })
+          | null;
+        if (!response.ok) {
+          throw new Error(result?.error ?? "Temporada indisponível.");
+        }
+        if (!cancelled && result) setData(result);
+      } catch {
+        // Session cookies can arrive a moment after the game shell. Retry a
+        // few times so a transient auth/network race cannot hide the dialog.
+        if (!cancelled && attempt < 3) {
+          retryTimer = window.setTimeout(
+            () => void load(attempt + 1),
+            450 * (attempt + 1),
+          );
+        }
+      }
+    };
+
+    void load();
+
+    const refreshOnFocus = () => void load();
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+    };
+  }, [enabled]);
 
   if (typeof document === "undefined") return null;
   if (closed || !data || !data.season || data.season.status !== "active") return null;
