@@ -28,7 +28,7 @@ export function pcProgressPercent(totalPlays: number, level: number): number {
 
 /**
  * The PC keeps the player's earned progress, but its active level decays by
- * one step at each 09:00 daily boundary without a validated game.
+ * one step at each 21:00 daily boundary without a validated game.
  */
 export function pcLevelAfterInactivity(
   totalPlays: number,

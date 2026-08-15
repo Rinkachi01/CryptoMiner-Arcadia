@@ -148,3 +148,17 @@ test("Orbit Pass Max libera as duas trilhas no mesmo nível de XP", () => {
   assert.equal(isSeasonTrackUnlocked("premium", false, true), true);
   assert.equal(isSeasonTrackUnlocked("premium", false, false), false);
 });
+
+test("as chaves de resgate usam a mesma virada diária no navegador e no servidor", async () => {
+  const [server, panel, seasonRoute, gameRoute] = await Promise.all([
+    readFile(new URL("../app/season-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/SeasonPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/season/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /daily_\$\{dailyResetWindow\(now\)\.windowKey\}/);
+  assert.match(server, /dailyWindowIndex\(now\)[\s\S]*dailyWindowIndex\(overview\.season\.startsAt\)/);
+  assert.match(panel, /daily_\$\{dailyWindowKey\(data\.serverTime\)\}/);
+  assert.doesNotMatch(seasonRoute, /registerSeasonDailyLogin\(env\.DB, accountId, now\).*catch/);
+  assert.doesNotMatch(gameRoute, /registerSeasonDailyLogin\(context\.db/);
+});

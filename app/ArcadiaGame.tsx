@@ -1976,7 +1976,7 @@ function EnergyCard({
       {/* ENERGIA PELO ARCADE is an internal label; only the battery claim card is shown. */}
       <div className="battery-cycle-card">
         <span>
-          <small>BATERIA GRATUITA · CICLO DE 9H</small>
+          <small>BATERIA GRATUITA · CICLO DE 12H</small>
           <strong>
             {cycleRemaining === 0
               ? "Bateria disponível"

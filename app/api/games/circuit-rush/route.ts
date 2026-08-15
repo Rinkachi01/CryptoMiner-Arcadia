@@ -3,7 +3,10 @@ import {
   accountIdForUser,
   getArcadiaUser,
 } from "../../../identity-server";
-import { reserveDailyGamePower } from "../../../game-emission-budget";
+import {
+  readDailyGamePowerBudget,
+  reserveDailyGamePower,
+} from "../../../game-emission-budget";
 import {
   CIRCUIT_RUSH_DAILY_LIMIT,
   CIRCUIT_RUSH_HOURLY_LIMIT,
@@ -20,6 +23,7 @@ import {
   arcadePowerExpiresAt,
   nextArcadeDifficulty,
 } from "../../../arcade-progression-rules";
+import { readActivePcLevel } from "../../../pc-progression-server";
 import {
   detectAutomationPattern,
   guardArcadeAction,
@@ -447,7 +451,7 @@ export async function POST(request: Request) {
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Conclusão já processada." }, 409);
   }
-  const emissionBudget = await reserveDailyGamePower(
+  let emissionBudget = await reserveDailyGamePower(
     current.db,
     current.accountId,
     requestedRewardPowerGh,
@@ -456,8 +460,21 @@ export async function POST(request: Request) {
   let rewardPowerGh = emissionBudget.awardedPowerGh;
   let drop = null;
   if (Math.random() < 0.3) {
-    rewardPowerGh += 300;
-    drop = { type: "power", quantity: 300 };
+    const dropBudget = await reserveDailyGamePower(
+      current.db,
+      current.accountId,
+      300,
+      now,
+    );
+    rewardPowerGh += dropBudget.awardedPowerGh;
+    if (dropBudget.awardedPowerGh > 0) {
+      drop = { type: "power", quantity: dropBudget.awardedPowerGh };
+    }
+    emissionBudget = await readDailyGamePowerBudget(
+      current.db,
+      current.accountId,
+      now,
+    );
   }
 
   await current.db
@@ -483,8 +500,9 @@ export async function POST(request: Request) {
   );
   const nextPlayAt = now + cooldownSeconds * 1000;
   const nextDifficulty = nextArcadeDifficulty(session.difficulty);
-  const powerExpiresAt = arcadePowerExpiresAt(now, session.difficulty);
-  const powerDurationDays = arcadePowerDurationDays(session.difficulty);
+  const pcLevel = await readActivePcLevel(current.db, current.accountId, now);
+  const powerExpiresAt = arcadePowerExpiresAt(now, pcLevel);
+  const powerDurationDays = arcadePowerDurationDays(pcLevel);
   await current.db
     .prepare(
       `UPDATE game_progress

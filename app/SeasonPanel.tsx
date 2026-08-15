@@ -9,6 +9,7 @@ import {
   spaceRaceRewards,
   type SeasonReward,
 } from "./season-rules";
+import { dailyWindowIndex, dailyWindowKey } from "./daily-reset-rules";
 import type {
   PublicSeason,
   PowerLeaderboardEntry,
@@ -197,8 +198,10 @@ export function SeasonPanel({
           ),
         );
 
-  const dailyCycleKey = `daily_${Math.floor(data.serverTime / (24 * 60 * 60 * 1000))}`;
-  const weeklyCycleKey = `weekly_${Math.floor(data.serverTime / (7 * 24 * 60 * 60 * 1000))}`;
+  const dailyCycleKey = `daily_${dailyWindowKey(data.serverTime)}`;
+  const seasonStartDay = dailyWindowIndex(season.startsAt);
+  const currentDay = dailyWindowIndex(data.serverTime);
+  const weeklyCycleKey = `weekly_${Math.floor((currentDay - seasonStartDay) / 7)}`;
 
   return (
     <section className="season-panel space-race-season">

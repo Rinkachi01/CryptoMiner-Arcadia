@@ -26,7 +26,6 @@ import {
 import {
   settleReferralMiningShare,
 } from "../../referral-server";
-import { registerSeasonDailyLogin } from "../../season-server";
 
 export const dynamic = "force-dynamic";
 
@@ -587,11 +586,6 @@ export async function POST(request: Request) {
   );
 
   if (body.action === "bootstrap") {
-    // O login diário é registrado na primeira sincronização da conta, mesmo
-    // quando o jogador ainda não abriu a tela da temporada.
-    await registerSeasonDailyLogin(context.db, context.accountId, now).catch(
-      () => undefined,
-    );
     return json(
       responsePayload(
         row,

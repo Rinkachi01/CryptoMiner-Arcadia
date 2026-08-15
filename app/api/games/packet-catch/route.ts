@@ -26,6 +26,7 @@ import {
   arcadePowerExpiresAt,
   nextArcadeDifficulty,
 } from "../../../arcade-progression-rules";
+import { readActivePcLevel } from "../../../pc-progression-server";
 import {
   detectAutomationPattern,
   guardArcadeAction,
@@ -515,7 +516,7 @@ export async function POST(request: Request) {
   if ((update.meta.changes ?? 0) !== 1) {
     return json({ error: "Esta partida já foi processada." }, 409);
   }
-  const emissionBudget = survived
+  let emissionBudget = survived
     ? await reserveDailyGamePower(
         current.db,
         current.accountId,
@@ -526,8 +527,23 @@ export async function POST(request: Request) {
   let rewardPowerGh = emissionBudget.awardedPowerGh;
   let drop = null;
   if (survived && Math.random() < 0.3) {
-    rewardPowerGh += 300;
-    drop = { type: "power", quantity: 300 };
+    // Drops are part of the same server-side daily budget; they cannot
+    // bypass the cap when the base reward already consumed the allowance.
+    const dropBudget = await reserveDailyGamePower(
+      current.db,
+      current.accountId,
+      300,
+      now,
+    );
+    rewardPowerGh += dropBudget.awardedPowerGh;
+    if (dropBudget.awardedPowerGh > 0) {
+      drop = { type: "power", quantity: dropBudget.awardedPowerGh };
+    }
+    emissionBudget = await readDailyGamePowerBudget(
+      current.db,
+      current.accountId,
+      now,
+    );
   }
 
   if (survived) {
@@ -575,8 +591,9 @@ export async function POST(request: Request) {
     )
     .run();
 
-  const powerExpiresAt = arcadePowerExpiresAt(now, session.difficulty);
-  const powerDurationDays = arcadePowerDurationDays(session.difficulty);
+  const pcLevel = await readActivePcLevel(current.db, current.accountId, now);
+  const powerExpiresAt = arcadePowerExpiresAt(now, pcLevel);
+  const powerDurationDays = arcadePowerDurationDays(pcLevel);
   if (rewardPowerGh > 0) {
     await current.db
       .prepare(

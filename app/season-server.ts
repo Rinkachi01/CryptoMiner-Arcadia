@@ -1835,8 +1835,10 @@ export async function claimSeasonQuest(
   }
 
   const expectedCycleKey = dailyMatch
-    ? `daily_${Math.floor(now / DAY_MS)}`
-    : `weekly_${Math.floor(now / (7 * DAY_MS))}`;
+    ? `daily_${dailyResetWindow(now).windowKey}`
+    : `weekly_${Math.floor(
+        (dailyWindowIndex(now) - dailyWindowIndex(overview.season.startsAt)) / 7,
+      )}`;
     
   if (cycleKey !== expectedCycleKey) {
     throw new Error("O ciclo da Quest expirou.");
