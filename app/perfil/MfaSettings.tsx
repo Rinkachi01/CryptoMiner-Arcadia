@@ -121,6 +121,14 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     // If Supabase reports a duplicate despite the first cleanup, retry once
     // after the eventual-consistency window rather than trapping the user.
     if (error && (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate"))) {
+      const pendingListing = await supabase.auth.mfa.listFactors();
+      const pending = pendingListing.data?.totp?.find((item) => item.status === "unverified");
+      if (pending) {
+        setPendingFactorId(pending.id);
+        setMessage("Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador.");
+        setBusy(false);
+        return;
+      }
       const retryCleanup = await clearPendingFactors();
       if (retryCleanup.ok) {
         const retry = await supabase.auth.mfa.enroll({
