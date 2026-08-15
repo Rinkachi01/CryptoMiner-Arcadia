@@ -320,6 +320,41 @@ function isPendingPixStatus(status: string) {
   );
 }
 
+function nowPaymentsStatus(status: string, english: boolean) {
+  const labels: Record<string, { en: string; pt: string; tone: string }> = {
+    waiting: { en: "Waiting for payment", pt: "Aguardando pagamento", tone: "waiting" },
+    confirming: { en: "Confirming on the network", pt: "Confirmando na rede", tone: "review" },
+    confirmed: { en: "Blockchain confirmed", pt: "Confirmado na blockchain", tone: "review" },
+    sending: { en: "Settling with the provider", pt: "Liquidando com o provedor", tone: "review" },
+    partially_paid: { en: "Partially paid — contact support", pt: "Pagamento parcial — fale com o suporte", tone: "failed" },
+    finished: { en: "Credited", pt: "Saldo creditado", tone: "success" },
+    credited: { en: "Credited", pt: "Saldo creditado", tone: "success" },
+    failed: { en: "Payment failed", pt: "Pagamento falhou", tone: "failed" },
+    refunded: { en: "Refunded by provider", pt: "Reembolsado pelo provedor", tone: "failed" },
+    expired: { en: "Invoice expired", pt: "Fatura expirada", tone: "failed" },
+    provider_failed: { en: "Invoice not created", pt: "Fatura não criada", tone: "failed" },
+    review_required: { en: "Under review", pt: "Em revisão", tone: "review" },
+    pending_account: { en: "Waiting for account sync", pt: "Aguardando sincronização da conta", tone: "review" },
+    crediting: { en: "Applying credit", pt: "Aplicando crédito", tone: "review" },
+  };
+  const fallback = english ? "Status unavailable" : "Status indisponível";
+  const entry = labels[status] ?? { en: fallback, pt: fallback, tone: "waiting" };
+  return { label: english ? entry.en : entry.pt, tone: entry.tone };
+}
+
+function isPendingNowPaymentsStatus(status: string) {
+  return [
+    "waiting",
+    "confirming",
+    "confirmed",
+    "sending",
+    "partially_paid",
+    "crediting",
+    "pending_account",
+    "review_required",
+  ].includes(status);
+}
+
 export function ConversionView({
   btcBalanceAtomic,
   cmaBalance,
@@ -338,6 +373,7 @@ export function ConversionView({
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
+  const [walletRefreshing, setWalletRefreshing] = useState(false);
   const [quoting, setQuoting] = useState(false);
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState("");
@@ -456,6 +492,12 @@ export function ConversionView({
     ),
   );
 
+  const hasPendingCrypto = Boolean(
+    wallet?.deposits?.recent?.some((entry) =>
+      isPendingNowPaymentsStatus(entry.status),
+    ),
+  );
+
   useEffect(() => {
     if (!hasPendingPix) return;
     let active = true;
@@ -479,6 +521,36 @@ export function ConversionView({
       window.clearInterval(timer);
     };
   }, [hasPendingPix, onRefreshAccount]);
+
+  useEffect(() => {
+    if (!hasPendingCrypto) return;
+    let active = true;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch("/api/wallet", { cache: "no-store" });
+        const payload = (await response.json()) as WalletResponse;
+        if (!response.ok || !payload.deposits || !active) return;
+        setWallet(payload);
+        const credited = payload.deposits.recent.some(
+          (entry) => entry.status === "credited",
+        );
+        if (credited) {
+          await onRefreshAccount();
+          setSuccess(
+            english
+              ? "Crypto payment confirmed and credited."
+              : "Pagamento cripto confirmado e creditado.",
+          );
+        }
+      } catch {
+        // The next poll retries; the server remains the source of truth.
+      }
+    }, 20_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [english, hasPendingCrypto, onRefreshAccount]);
 
   useEffect(() => {
     if (!wallet?.deposits?.enabled) return;
@@ -642,6 +714,39 @@ export function ConversionView({
     }
     setError("");
     setTargetCma(String(maximumCmaUnits));
+  }
+
+  async function refreshWallet() {
+    setWalletRefreshing(true);
+    try {
+      const response = await fetch("/api/wallet", { cache: "no-store" });
+      const payload = (await response.json()) as WalletResponse;
+      if (!response.ok || !payload.deposits) {
+        throw new Error(
+          payload.error ??
+            (english
+              ? "The crypto statement could not be refreshed."
+              : "Não foi possível atualizar o extrato cripto."),
+        );
+      }
+      setWallet(payload);
+      if (payload.deposits.recent.some((entry) => entry.status === "credited")) {
+        await onRefreshAccount();
+      }
+      setSuccess(
+        english ? "Crypto statement updated." : "Extrato cripto atualizado.",
+      );
+    } catch (reason) {
+      setDepositError(
+        reason instanceof Error
+          ? reason.message
+          : english
+            ? "Could not refresh the crypto statement."
+            : "Não foi possível atualizar o extrato cripto.",
+      );
+    } finally {
+      setWalletRefreshing(false);
+    }
   }
 
   async function runSandbox(action: "deposit" | "withdrawal") {
@@ -1413,7 +1518,19 @@ export function ConversionView({
           )}
           {wallet?.deposits?.recent.some((item) => item.provider === "nowpayments") && (
             <div className="wallet-live-history">
-              <span>FATURAS RECENTES · ÚLTIMOS 30 DIAS</span>
+              <div className="wallet-live-history-header">
+                <span>{english ? "RECENT INVOICES · LAST 30 DAYS" : "FATURAS RECENTES · ÚLTIMOS 30 DIAS"}</span>
+                <button
+                  className="wallet-history-refresh"
+                  disabled={walletRefreshing}
+                  onClick={() => void refreshWallet()}
+                  type="button"
+                >
+                  {walletRefreshing
+                    ? english ? "UPDATING…" : "ATUALIZANDO…"
+                    : english ? "REFRESH STATUS" : "ATUALIZAR STATUS"}
+                </button>
+              </div>
               {wallet.deposits.recent
                 .filter((item) => item.provider === "nowpayments")
                 .slice(0, 4)
@@ -1421,12 +1538,16 @@ export function ConversionView({
                   <article key={item.id}>
                     <b>{item.asset}</b>
                     <span>{formatUsd(item.requestedUsd)}</span>
-                    <em>{item.status.replaceAll("_", " ").toUpperCase()}</em>
+                    <em className={nowPaymentsStatus(item.status, english).tone}>
+                      {nowPaymentsStatus(item.status, english).label}
+                    </em>
                     {item.status === "credited" && (
                       <strong>+{formatCryptoAtomic(item.receivedAtomic)} {item.asset}</strong>
                     )}
-                    {item.checkoutUrl && item.status !== "credited" && (
-                      <a href={item.checkoutUrl} rel="noreferrer">ABRIR FATURA</a>
+                    {item.checkoutUrl && isPendingNowPaymentsStatus(item.status) && (
+                      <a href={item.checkoutUrl} rel="noreferrer" target="_blank">
+                        {english ? "OPEN INVOICE" : "ABRIR FATURA"}
+                      </a>
                     )}
                   </article>
                 ))}

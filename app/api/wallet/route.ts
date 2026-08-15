@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
+import { readBoundedRequestJson } from "../../request-json";
 import {
   createBrlWithdrawalQuote,
   createBrlWithdrawalRequest,
@@ -45,7 +46,10 @@ export async function POST(request: Request) {
   const user = await getArcadiaUser();
   if (!user) return json({ error: "Faça login para usar a carteira." }, 401);
   if (!env.DB) return json({ error: "Banco autoritativo indisponível." }, 503);
-  const body = (await request.json().catch(() => null)) as
+  const body = (await (async () => {
+    const result = await readBoundedRequestJson<Record<string, unknown>>(request);
+    return "value" in result ? result.value : null;
+  })()) as
     | {
         action?: unknown;
         amount?: unknown;
