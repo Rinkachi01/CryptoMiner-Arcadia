@@ -62,3 +62,15 @@ test("Arcade mostra tutorial rápido e usa o mesmo aviso nos quatro jogos", asyn
   assert.match(packet, /Coin Cascade/);
   assert.match(notice, /aria-live="polite"/);
 });
+
+test("Hash Match mantém seleção acessível e uma pausa curta de validação", async () => {
+  const [hash, styles] = await Promise.all([
+    readFile(new URL("../app/HashMatchView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(hash, /onClick=\{\(\) => void flipCard\(card\.id\)\}/);
+  assert.match(hash, /CARD_UNLOCK_DELAY_MS = 240/);
+  assert.match(hash, /MISMATCH_REVEAL_HOLD_MS = 620/);
+  assert.match(styles, /\.packet-board::before/);
+  assert.match(styles, /radial-gradient\(circle at 12% 16%/);
+});

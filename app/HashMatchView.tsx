@@ -33,11 +33,12 @@ type HashSession = {
   cards: Array<{ id: string }>;
 };
 
-// Keep the feedback readable without making the player wait between moves.
-// The server still validates every flip; these values only control the local UI.
-const CARD_UNLOCK_DELAY_MS = 25;
-const MISMATCH_REVEAL_HOLD_MS = 280;
-const COMPLETION_SETTLE_DELAY_MS = 450;
+// Keep a short, visible validation beat between flips. The server still
+// validates every card; these values only pace the local feedback so the
+// result never feels instantaneous or skips the reveal animation.
+const CARD_UNLOCK_DELAY_MS = 240;
+const MISMATCH_REVEAL_HOLD_MS = 620;
+const COMPLETION_SETTLE_DELAY_MS = 800;
 
 export function HashMatchView({
   onRefreshAccount,
@@ -237,7 +238,7 @@ export function HashMatchView({
         await onRefreshAccount();
         setPhase("result");
       } else if (reveals.length === 2 && !data.matched) {
-        unlockDelay = MISMATCH_REVEAL_HOLD_MS + 10;
+        unlockDelay = MISMATCH_REVEAL_HOLD_MS + 40;
         window.setTimeout(() => {
           const ids = new Set(reveals.map((item) => item.cardId));
           setCards((current) =>
@@ -308,7 +309,7 @@ export function HashMatchView({
               className={`hash-card ${card.reveal ? "revealed" : ""} ${
                 card.matched ? "matched" : ""
               }`}
-              onPointerDown={() => flipCard(card.id)}
+              onClick={() => void flipCard(card.id)}
               disabled={
                 phase !== "playing" ||
                 pending ||
