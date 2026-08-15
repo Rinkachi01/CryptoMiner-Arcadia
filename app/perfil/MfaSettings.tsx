@@ -10,6 +10,10 @@ type MfaSettingsProps = {
 
 type TotpFactor = { id: string; status: string; friendly_name?: string | null };
 
+type PendingCleanup =
+  | { ok: true }
+  | { ok: false; message: string };
+
 function friendlyMfaError(error: { message?: string } | null | undefined) {
   const message = error?.message?.toLowerCase() ?? "";
   if (message.includes("mfa") && message.includes("disabled")) {
@@ -53,27 +57,62 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
+  async function clearPendingFactors(): Promise<PendingCleanup> {
+    // Refresh first so a previous interrupted enrollment cannot leave us
+    // operating with a stale AAL1 access token.
+    await supabase.auth.refreshSession().catch(() => null);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const listing = await supabase.auth.mfa.listFactors();
+      if (listing.error) {
+        return { ok: false, message: friendlyMfaError(listing.error) };
+      }
+      const pending = (listing.data?.totp ?? []).filter(
+        (item) => item.status === "unverified",
+      );
+      if (pending.length === 0) return { ok: true };
+
+      let removed = 0;
+      for (const item of pending) {
+        const result = await supabase.auth.mfa.unenroll({ factorId: item.id });
+        if (!result.error) removed += 1;
+      }
+      // Auth can take a short moment to make the factor deletion visible to
+      // the next enrollment request. Re-listing avoids a false duplicate.
+      if (removed > 0) await new Promise((resolve) => window.setTimeout(resolve, 300));
+    }
+    return {
+      ok: false,
+      message: "A configuração pendente não pôde ser removida. Saia da conta, entre novamente e tente ativar o autenticador.",
+    };
+  }
+
   async function beginSetup() {
     setBusy(true);
     setMessage("");
-    // A failed attempt can leave an unverified factor behind. Supabase will
-    // reject a second enrollment with a duplicate-factor error, so clean up
-    // only those incomplete factors before starting a fresh QR setup.
-    const existing = await supabase.auth.mfa.listFactors();
-    if (existing.error) {
-      setMessage(friendlyMfaError(existing.error));
+    const cleanup = await clearPendingFactors();
+    if (!cleanup.ok) {
+      setMessage(cleanup.message);
       setBusy(false);
       return;
     }
-    for (const pending of (existing.data?.totp ?? []).filter(
-      (item) => item.status === "unverified",
-    )) {
-      await supabase.auth.mfa.unenroll({ factorId: pending.id });
-    }
-    const { data, error } = await supabase.auth.mfa.enroll({
+
+    let { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
       friendlyName: "Arcadia Authenticator",
     });
+    // If Supabase reports a duplicate despite the first cleanup, retry once
+    // after the eventual-consistency window rather than trapping the user.
+    if (error && (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate"))) {
+      const retryCleanup = await clearPendingFactors();
+      if (retryCleanup.ok) {
+        const retry = await supabase.auth.mfa.enroll({
+          factorType: "totp",
+          friendlyName: "Arcadia Authenticator",
+        });
+        data = retry.data;
+        error = retry.error;
+      }
+    }
     if (error || !data?.id || !data.totp) {
       setMessage(friendlyMfaError(error));
       setBusy(false);
