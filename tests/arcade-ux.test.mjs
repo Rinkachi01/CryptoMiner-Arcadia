@@ -72,6 +72,8 @@ test("Hash Match mantém seleção acessível e uma pausa curta de validação",
   assert.match(hash, /onClick=\{\(\) => void flipCard\(card\.id\)\}/);
   assert.match(hash, /CARD_UNLOCK_DELAY_MS = 140/);
   assert.match(hash, /MISMATCH_REVEAL_HOLD_MS = 460/);
+  assert.match(hash, /pendingCardId/);
+  assert.match(hash, /hash-card-loading/);
   assert.match(styles, /\.packet-board::before/);
   assert.match(styles, /radial-gradient\(circle at 12% 16%/);
 });

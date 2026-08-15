@@ -59,6 +59,7 @@ export function HashMatchView({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [moves, setMoves] = useState(0);
   const [pending, setPending] = useState(false);
+  const [pendingCardId, setPendingCardId] = useState<string | null>(null);
   const [message, setMessage] = useState(
     "Encontre os pares de moedas antes que o tempo termine.",
   );
@@ -185,6 +186,7 @@ export function HashMatchView({
   async function flipCard(cardId: string) {
     if (!session || phase !== "playing" || pending) return;
     setPending(true);
+    setPendingCardId(cardId);
     let unlockDelay = CARD_UNLOCK_DELAY_MS;
     try {
       const response = await fetch("/api/games/hash-match", {
@@ -255,6 +257,7 @@ export function HashMatchView({
         error instanceof Error ? error.message : "Não foi possível virar.",
       );
     } finally {
+      setPendingCardId((current) => (current === cardId ? null : current));
       window.setTimeout(() => setPending(false), unlockDelay);
     }
   }
@@ -306,7 +309,9 @@ export function HashMatchView({
           {cards.map((card) => (
             <button
               type="button"
-              className={`hash-card ${card.reveal ? "revealed" : ""} ${
+              className={`hash-card ${
+                card.reveal || pendingCardId === card.id ? "revealed" : ""
+              } ${
                 card.matched ? "matched" : ""
               }`}
               // Pointer down removes the extra click delay on touch/mouse;
@@ -326,7 +331,9 @@ export function HashMatchView({
               }
               key={card.id}
               aria-label={
-                card.reveal
+                pendingCardId === card.id
+                  ? "Validando moeda"
+                  : card.reveal
                   ? `${card.reveal.name} revelada`
                   : "Virar carta de moeda"
               }
@@ -336,6 +343,12 @@ export function HashMatchView({
                 <span className="hash-card-face">
                   <img src={card.reveal.asset} alt="" />
                   <b>{card.reveal.symbol}</b>
+                </span>
+              )}
+              {!card.reveal && pendingCardId === card.id && (
+                <span className="hash-card-face hash-card-loading" aria-hidden="true">
+                  <span className="hash-card-spinner" />
+                  <b>VALIDANDO</b>
                 </span>
               )}
             </button>
