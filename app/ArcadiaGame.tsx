@@ -1569,6 +1569,8 @@ function MiningRoom({
   onClaimFreeBattery: () => void;
   cyclePending: boolean;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [operationsOpen, setOperationsOpen] = useState(false);
   const orderedRoomRacks = [...roomRacks].sort(
     (first, second) => first.positionIndex - second.positionIndex,
@@ -1591,17 +1593,17 @@ function MiningRoom({
               className={!editMode ? "selected" : ""}
               onClick={() => onSetEditMode(false)}
             >
-              <span>●</span> SALA
+              <span>●</span> {english ? "ROOM" : "SALA"}
             </button>
             <button
               type="button"
               className={editMode ? "selected edit-active" : ""}
               onClick={() => onSetEditMode(true)}
             >
-              <span>+</span> ORGANIZAR · {roomRacks.length}/{ROOM_RACK_CAPACITY}
+              <span>+</span> {english ? "ORGANIZE" : "ORGANIZAR"} · {roomRacks.length}/{ROOM_RACK_CAPACITY}
             </button>
             <button type="button" onClick={onOpenRooms}>
-              <span>▣</span> TROCAR SALA · {ownedRooms}/{roomDefinitions.length}
+              <span>▣</span> {english ? "SWITCH ROOM" : "TROCAR SALA"} · {ownedRooms}/{roomDefinitions.length}
             </button>
           </div>
         </div>
@@ -1634,14 +1636,14 @@ function MiningRoom({
                   style={style}
                   key={`empty-${positionIndex}`}
                   onClick={() => onPlaceRack(positionIndex)}
-                  aria-label={`Instalar rack na posição ${positionIndex + 1}`}
+                  aria-label={english ? `Install rack at position ${positionIndex + 1}` : `Instalar rack na posição ${positionIndex + 1}`}
                 >
                   <span>+</span>
-                  <small>POSIÇÃO {positionIndex + 1}</small>
+                  <small>{english ? "POSITION" : "POSIÇÃO"} {positionIndex + 1}</small>
                   <b>
                     {rackInventoryCount > 0
-                      ? `INSTALAR · ${rackInventoryCount} DISP.`
-                      : "ABRIR LOJA"}
+                      ? english ? `INSTALL · ${rackInventoryCount} AVAILABLE` : `INSTALAR · ${rackInventoryCount} DISP.`
+                      : english ? "OPEN SHOP" : "ABRIR LOJA"}
                   </b>
                 </button>
               );
@@ -1653,7 +1655,7 @@ function MiningRoom({
                 type="button"
                 className="room-rack multi-rack"
                 onClick={() => onOpenRack(rack.id)}
-                aria-label={`Abrir rack da posição ${positionIndex + 1}`}
+                aria-label={english ? `Open rack at position ${positionIndex + 1}` : `Abrir rack da posição ${positionIndex + 1}`}
                 style={style}
                 key={rack.id}
               >
@@ -1683,48 +1685,48 @@ function MiningRoom({
                 </span>
                 <span className="rack-click-label">
                   <b>RACK · {getUsedSlotCount(installed)}/8</b>
-                  CLIQUE PARA GERENCIAR
+                  {english ? "CLICK TO MANAGE" : "CLIQUE PARA GERENCIAR"}
                 </span>
               </button>
             );
           })}
 
           <div className="room-coordinates">
-            {ROOM_RACK_CAPACITY} POSIÇÕES GRATUITAS · LAYOUT V.03
+            {ROOM_RACK_CAPACITY} {english ? "FREE POSITIONS" : "POSIÇÕES GRATUITAS"} · LAYOUT V.03
           </div>
         </div>
 
-        <div className="room-command-dock" aria-label="Resumo da operação">
+        <div className="room-command-dock" aria-label={english ? "Operation summary" : "Resumo da operação"}>
           <div className="room-command-status">
-            <span><small>PODER</small><strong>{formatPower(effectivePower)}</strong></span>
-            <span><small>ENERGIA</small><strong>{formatEnergy(energySeconds)}</strong></span>
-            <span><small>PRÓXIMO BLOCO</small><strong>{formatTimer(secondsLeft)}</strong></span>
+            <span><small>{english ? "POWER" : "PODER"}</small><strong>{formatPower(effectivePower)}</strong></span>
+            <span><small>{english ? "ENERGY" : "ENERGIA"}</small><strong>{formatEnergy(energySeconds)}</strong></span>
+            <span><small>{english ? "NEXT BLOCK" : "PRÓXIMO BLOCO"}</small><strong>{formatTimer(secondsLeft)}</strong></span>
           </div>
           <div className="room-command-actions">
             <button type="button" onClick={() => setOperationsOpen(true)}>
-              <span>⌁</span> OPERAÇÃO
+              <span>⌁</span> {english ? "OPERATIONS" : "OPERAÇÃO"}
             </button>
             <button type="button" onClick={onOpenPools}>
               <span>◫</span> POOLS
             </button>
             <button type="button" onClick={() => onOpenStore("miners")}>
-              <span>＋</span> LOJA
+              <span>＋</span> {english ? "SHOP" : "LOJA"}
             </button>
           </div>
         </div>
 
         <nav
           className="mobile-rack-dock"
-          aria-label="Acesso rápido aos racks desta sala"
+          aria-label={english ? "Quick access to this room's racks" : "Acesso rápido aos racks desta sala"}
         >
           <header>
             <div>
-              <span>RACKS DA SALA</span>
+              <span>{english ? "ROOM RACKS" : "RACKS DA SALA"}</span>
               <strong>
-                {roomRacks.length}/{ROOM_RACK_CAPACITY} instalados
+                {roomRacks.length}/{ROOM_RACK_CAPACITY} {english ? "installed" : "instalados"}
               </strong>
             </div>
-            <small>Deslize e toque para gerenciar</small>
+            <small>{english ? "Swipe and tap to manage" : "Deslize e toque para gerenciar"}</small>
           </header>
           <div className="mobile-rack-scroll">
             {orderedRoomRacks.map((rack) => {
@@ -1735,9 +1737,9 @@ function MiningRoom({
                   type="button"
                   className="mobile-rack-card"
                   onClick={() => onOpenRack(rack.id)}
-                  aria-label={`Abrir rack da posição ${
+                  aria-label={`${english ? "Open rack at position" : "Abrir rack da posição"} ${
                     rack.positionIndex + 1
-                  }, ${usedSlots} de 8 slots ocupados`}
+                  }, ${usedSlots} ${english ? "of 8 occupied slots" : "de 8 slots ocupados"}`}
                   key={rack.id}
                 >
                   <span className="mobile-rack-sprite" aria-hidden="true">
@@ -1767,9 +1769,9 @@ function MiningRoom({
                     <strong>
                       RACK {String(rack.positionIndex + 1).padStart(2, "0")}
                     </strong>
-                    <small>{usedSlots}/8 slots ocupados</small>
+                    <small>{usedSlots}/8 {english ? "occupied slots" : "slots ocupados"}</small>
                   </span>
-                  <b>ABRIR</b>
+                  <b>{english ? "OPEN" : "ABRIR"}</b>
                 </button>
               );
             })}
@@ -1779,20 +1781,20 @@ function MiningRoom({
                 type="button"
                 className="mobile-rack-card add"
                 onClick={() => onPlaceRack(firstEmptyRackPosition)}
-                aria-label={`Instalar rack na posição ${firstEmptyRackPosition + 1}`}
+                aria-label={english ? `Install rack at position ${firstEmptyRackPosition + 1}` : `Instalar rack na posição ${firstEmptyRackPosition + 1}`}
               >
                 <span className="mobile-rack-add" aria-hidden="true">
                   +
                 </span>
                 <span className="mobile-rack-copy">
-                  <strong>POSIÇÃO {firstEmptyRackPosition + 1}</strong>
+                  <strong>{english ? "POSITION" : "POSIÇÃO"} {firstEmptyRackPosition + 1}</strong>
                   <small>
                     {rackInventoryCount > 0
-                      ? `${rackInventoryCount} rack disponível`
-                      : "Abrir loja de racks"}
+                      ? english ? `${rackInventoryCount} rack available` : `${rackInventoryCount} rack disponível`
+                      : english ? "Open rack shop" : "Abrir loja de racks"}
                   </small>
                 </span>
-                <b>{rackInventoryCount > 0 ? "INSTALAR" : "LOJA"}</b>
+                <b>{rackInventoryCount > 0 ? english ? "INSTALL" : "INSTALAR" : english ? "SHOP" : "LOJA"}</b>
               </button>
             )}
           </div>
@@ -1802,15 +1804,15 @@ function MiningRoom({
       {operationsOpen && (
         <>
           <button
-            aria-label="Fechar painel da operação"
+            aria-label={english ? "Close operations panel" : "Fechar painel da operação"}
             className="operation-drawer-backdrop"
             onClick={() => setOperationsOpen(false)}
             type="button"
           />
-          <aside className="operation-panel operation-drawer" aria-label="Detalhes da operação">
+          <aside className="operation-panel operation-drawer" aria-label={english ? "Operation details" : "Detalhes da operação"}>
         <div className="panel-title">
-          <span>OPERAÇÃO ATUAL</span>
-          <button aria-label="Fechar" onClick={() => setOperationsOpen(false)} type="button">×</button>
+          <span>{english ? "CURRENT OPERATIONS" : "OPERAÇÃO ATUAL"}</span>
+          <button aria-label={english ? "Close" : "Fechar"} onClick={() => setOperationsOpen(false)} type="button">×</button>
         </div>
 
         <EnergyCard
@@ -1827,8 +1829,8 @@ function MiningRoom({
 
         <div className="allocation-summary-card">
           <div className="allocation-summary-heading">
-            <span>DISTRIBUIÇÃO DE PODER · POOLS</span>
-            <strong>{energySeconds > 0 ? "ATIVA" : "PAUSADA"}</strong>
+            <span>{english ? "POWER DISTRIBUTION · POOLS" : "DISTRIBUIÇÃO DE PODER · POOLS"}</span>
+            <strong>{energySeconds > 0 ? english ? "ACTIVE" : "ATIVA" : english ? "PAUSED" : "PAUSADA"}</strong>
           </div>
           <div className="allocation-summary-list">
             {pools.map((pool) => {
@@ -1848,10 +1850,12 @@ function MiningRoom({
             })}
           </div>
           <p className="pool-allocation-note">
-            Mineradores e poder temporário dos minigames seguem automaticamente esta mesma distribuição.
+            {english
+              ? "Miners and temporary minigame power automatically follow this same distribution."
+              : "Mineradores e poder temporário dos minigames seguem automaticamente esta mesma distribuição."}
           </p>
           <button type="button" onClick={onOpenPools}>
-            AJUSTAR DISTRIBUIÇÃO
+            {english ? "ADJUST DISTRIBUTION" : "AJUSTAR DISTRIBUIÇÃO"}
           </button>
         </div>
 
@@ -1866,11 +1870,11 @@ function MiningRoom({
 
         <div className="reward-box multi-reward-box">
           <div className="fixed-block-heading">
-            <span>BLOCO FIXO DA REDE · 10 MIN</span>
+            <span>{english ? "FIXED NETWORK BLOCK · 10 MIN" : "BLOCO FIXO DA REDE · 10 MIN"}</span>
             <b>
               {network.bonusActive && network.bonusBps != null
                 ? `EVENTO ${(network.bonusBps / 100).toFixed(2)}%`
-                : "EMISSÃO-BASE"}
+                : english ? "BASE EMISSION" : "EMISSÃO-BASE"}
             </b>
           </div>
           <div className="reward-split-list">
@@ -1913,7 +1917,7 @@ function MiningRoom({
                     {pool.symbol}
                   </strong>
                   <small>
-                    Sua parte: {personalEstimateAtomic > 0n ? formatAtomic(personalEstimateAtomic, safeDecimals) : formattedFractionalEstimate}{" "}
+                    {english ? "Your share:" : "Sua parte:"} {personalEstimateAtomic > 0n ? formatAtomic(personalEstimateAtomic, safeDecimals) : formattedFractionalEstimate}{" "}
                     {pool.symbol}
                   </small>
                 </div>
@@ -1921,9 +1925,9 @@ function MiningRoom({
             })}
           </div>
           <small>
-            Mais poder altera sua porcentagem na disputa, nunca o valor total
-            emitido pelo bloco. Se você for o único minerador ativo, recebe 100%
-            do bloco fixo daquela rede.
+            {english
+              ? "More power changes your share of the competition, never the total block emission. If you are the only active miner, you receive 100% of that network's fixed block."
+              : "Mais poder altera sua porcentagem na disputa, nunca o valor total emitido pelo bloco. Se você for o único minerador ativo, recebe 100% do bloco fixo daquela rede."}
           </small>
         </div>
 
