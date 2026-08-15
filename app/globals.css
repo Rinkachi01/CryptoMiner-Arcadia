@@ -12647,14 +12647,14 @@ img {
   will-change: transform;
   transform: translateZ(0);
   transition:
-    border-color 110ms ease,
-    transform 110ms ease,
-    box-shadow 110ms ease;
+    border-color 90ms ease,
+    transform 90ms ease,
+    box-shadow 90ms ease;
 }
 
 .hash-card.revealed .hash-card-face,
 .hash-card.matched .hash-card-face {
-  animation: hash-face-in 140ms ease-out both;
+  animation: hash-face-in 95ms ease-out both;
 }
 
 @keyframes hash-face-in {

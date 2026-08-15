@@ -33,6 +33,12 @@ type HashSession = {
   cards: Array<{ id: string }>;
 };
 
+// Keep the feedback readable without making the player wait between moves.
+// The server still validates every flip; these values only control the local UI.
+const CARD_UNLOCK_DELAY_MS = 25;
+const MISMATCH_REVEAL_HOLD_MS = 280;
+const COMPLETION_SETTLE_DELAY_MS = 450;
+
 export function HashMatchView({
   onRefreshAccount,
 }: {
@@ -120,7 +126,7 @@ export function HashMatchView({
       } finally {
         setReward(0);
         setPending(false);
-        await new Promise((resolve) => window.setTimeout(resolve, 650));
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
         setPhase("result");
       }
     },
@@ -178,7 +184,7 @@ export function HashMatchView({
   async function flipCard(cardId: string) {
     if (!session || phase !== "playing" || pending) return;
     setPending(true);
-    let unlockDelay = 40;
+    let unlockDelay = CARD_UNLOCK_DELAY_MS;
     try {
       const response = await fetch("/api/games/hash-match", {
         method: "POST",
@@ -225,11 +231,13 @@ export function HashMatchView({
         setDifficulty(data.nextDifficulty ?? difficulty);
         setNextPlayAt(data.nextPlayAt ?? 0);
         setMessage(data.message ?? "Todos os pares foram encontrados.");
-        await new Promise((resolve) => window.setTimeout(resolve, 780));
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, COMPLETION_SETTLE_DELAY_MS),
+        );
         await onRefreshAccount();
         setPhase("result");
       } else if (reveals.length === 2 && !data.matched) {
-        unlockDelay = 430;
+        unlockDelay = MISMATCH_REVEAL_HOLD_MS + 10;
         window.setTimeout(() => {
           const ids = new Set(reveals.map((item) => item.cardId));
           setCards((current) =>
@@ -239,7 +247,7 @@ export function HashMatchView({
                 : card,
             ),
           );
-        }, 420);
+        }, MISMATCH_REVEAL_HOLD_MS);
       }
     } catch (error) {
       setMessage(
