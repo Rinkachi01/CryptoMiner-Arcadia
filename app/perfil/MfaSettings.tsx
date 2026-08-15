@@ -20,7 +20,7 @@ function friendlyMfaError(error: { message?: string } | null | undefined) {
     return "A autenticação em duas etapas ainda está desativada no projeto Supabase.";
   }
   if (message.includes("already exists") || message.includes("duplicate")) {
-    return "Já existe uma configuração pendente. Reinicie a configuração e tente novamente.";
+    return "A configuração anterior ficou pendente no provedor. Use a recuperação abaixo para limpar somente o fator não confirmado e começar novamente.";
   }
   if (message.includes("not authenticated") || message.includes("jwt")) {
     return "Sua sessão expirou. Entre novamente para configurar a proteção.";
@@ -35,6 +35,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
   );
   const [factor, setFactor] = useState<TotpFactor | null>(null);
   const [pendingFactorId, setPendingFactorId] = useState<string | null>(null);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
   const [setup, setSetup] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(true);
@@ -50,6 +51,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       const pending = data?.totp?.find((item) => item.status === "unverified") ?? null;
       setFactor(verified);
       setPendingFactorId(verified ? null : pending?.id ?? null);
+      setRecoveryRequired(false);
       setMessage(
         verified
           ? ""
@@ -100,6 +102,20 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
   async function beginSetup() {
     setBusy(true);
     setMessage("");
+    if (recoveryRequired) {
+      const cleanup = await clearPendingFactors();
+      if (!cleanup.ok) {
+        setMessage(cleanup.message);
+        setBusy(false);
+        return;
+      }
+      setRecoveryRequired(false);
+      setPendingFactorId(null);
+      setSetup(null);
+      setMessage("Configuração pendente removida. Clique novamente para gerar um novo QR code.");
+      await loadFactor();
+      return;
+    }
     // Keep the existing QR enrollment when the user already scanned it. The
     // six-digit code can finish that factor without generating a new secret.
     if (pendingFactorId) {
@@ -140,6 +156,9 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       }
     }
     if (error || !data?.id || !data.totp) {
+      if (error && (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate"))) {
+        setRecoveryRequired(true);
+      }
       setMessage(friendlyMfaError(error));
       setBusy(false);
       return;
@@ -180,6 +199,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     }
     setSetup(null);
     setCode("");
+    setRecoveryRequired(false);
     setMessage("Autenticação em duas etapas ativada nesta conta.");
     await loadFactor();
   }
@@ -234,7 +254,15 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
           </div>
         </form>
       ) : (
-        <button className="mfa-enable-button" disabled={busy} onClick={() => void beginSetup()} type="button">{busy ? "CARREGANDO..." : pendingFactorId ? "CONTINUAR CONFIGURAÇÃO" : "ATIVAR AUTENTICADOR"}</button>
+        <button className="mfa-enable-button" disabled={busy} onClick={() => void beginSetup()} type="button">
+          {busy
+            ? "CARREGANDO..."
+            : recoveryRequired
+              ? "RECUPERAR CONFIGURAÇÃO"
+              : pendingFactorId
+                ? "CONTINUAR CONFIGURAÇÃO"
+                : "ATIVAR AUTENTICADOR"}
+        </button>
       )}
     </article>
   );

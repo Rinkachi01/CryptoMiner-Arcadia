@@ -78,6 +78,7 @@ test("fluxo publico inclui sessao SSR, confirmacao, recuperacao e documentos", a
   assert.match(source, /refreshSession/);
   assert.match(source, /eventual-consistency/);
   assert.match(source, /pendingFactorId/);
+  assert.match(source, /RECUPERAR CONFIGURAÇÃO/);
   assert.match(source, /CONTINUAR CONFIGURAÇÃO/);
   assert.match(source, /cma-coin\.png/);
   assert.match(source, /resetPasswordForEmail/);
