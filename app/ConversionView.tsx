@@ -1580,8 +1580,9 @@ export function ConversionView({
             <span>{english ? "WITHDRAWAL · MANUAL PROCESSING" : "SAQUE · PROCESSAMENTO MANUAL"}</span>
             <h3>{english ? "Choose how you want to receive" : "Escolha como deseja receber"}</h3>
             <p>
-              Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um
-              pagamento Pix cotado em real. O valor fica reservado até a análise.
+              {english
+                ? "Receive BTC, DOGE or LTC on-chain, or convert the selected balance to a Pix payout quoted in BRL. Funds remain reserved during review."
+                : "Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um pagamento Pix cotado em real. O valor fica reservado até a análise."}
             </p>
           </header>
           <div className="wallet-withdraw-summary">
@@ -1616,7 +1617,7 @@ export function ConversionView({
           </nav>
 
           {withdrawMethod === "crypto" ? (
-            <div className="wallet-withdraw-request">
+            <div className="wallet-withdraw-request wallet-withdraw-crypto-form">
               <label>
                 MOEDA
                 <select
@@ -1631,18 +1632,32 @@ export function ConversionView({
                   <option value="BTC">Bitcoin · BTC</option>
                 </select>
               </label>
-              <label>
-                QUANTIDADE EM {withdrawAsset}
-                <input
-                  inputMode="decimal"
-                  placeholder={
-                    wallet?.withdrawals?.ratesAvailable
-                      ? `Mínimo atual ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
-                      : "Cotação indisponível"
-                  }
-                  value={withdrawAmount}
-                  onChange={(event) => setWithdrawAmount(event.target.value)}
-                />
+              <label className="wallet-withdraw-amount-field">
+                <span className="wallet-withdraw-field-title">
+                  {english ? `AMOUNT IN ${withdrawAsset}` : `QUANTIDADE EM ${withdrawAsset}`}
+                </span>
+                <span className="wallet-withdraw-amount-wrap">
+                  <input
+                    inputMode="decimal"
+                    placeholder={
+                      wallet?.withdrawals?.ratesAvailable
+                        ? english
+                          ? `Minimum ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
+                          : `Mínimo atual ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])}`
+                        : english ? "Quote unavailable" : "Cotação indisponível"
+                    }
+                    value={withdrawAmount}
+                    onChange={(event) => setWithdrawAmount(event.target.value)}
+                  />
+                  <b>{withdrawAsset}</b>
+                </span>
+                <small>
+                  {wallet?.withdrawals?.ratesAvailable
+                    ? english
+                      ? `Provider minimum: ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])} ${withdrawAsset}`
+                      : `Mínimo do provedor: ${formatCryptoAtomic(wallet.withdrawals.minimumAtomic[withdrawAsset])} ${withdrawAsset}`
+                    : english ? "The current minimum will appear here." : "O mínimo atual aparecerá aqui."}
+                </small>
               </label>
               <label className="wallet-withdraw-address">
                 ENDEREÇO NA REDE {withdrawAsset}
@@ -1677,7 +1692,7 @@ export function ConversionView({
             </div>
           ) : (
             <div className="wallet-brl-withdrawal">
-              <div className="wallet-withdraw-request">
+              <div className="wallet-withdraw-request wallet-withdraw-brl-form">
                 <label>
                   USAR SALDO DE
                   <select
@@ -1725,15 +1740,17 @@ export function ConversionView({
               </div>
               {brlQuote ? (
                 <div className="wallet-brl-quote" aria-live="polite">
-                  <div><small>VOCÊ RECEBE</small><strong>{formatBrl(brlQuote.netBrl)}</strong></div>
-                  <div><small>RESERVA EM {brlQuote.asset}</small><strong>{brlQuote.sourceAmount.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} {brlQuote.asset}</strong></div>
-                  <div><small>MARGEM OPERACIONAL</small><strong>{formatBrl(brlQuote.feeBrl)} · {(brlQuote.feeBps / 100).toLocaleString("pt-BR")}%</strong></div>
+                  <div><small>{english ? "YOU RECEIVE" : "VOCÊ RECEBE"}</small><strong>{formatBrl(brlQuote.netBrl)}</strong></div>
+                  <div><small>{english ? `RESERVED IN ${brlQuote.asset}` : `RESERVA EM ${brlQuote.asset}`}</small><strong>{brlQuote.sourceAmount.toLocaleString(english ? "en-US" : "pt-BR", { maximumFractionDigits: 8 })} {brlQuote.asset}</strong></div>
+                  <div><small>{english ? "OPERATIONAL MARGIN" : "MARGEM OPERACIONAL"}</small><strong>{formatBrl(brlQuote.feeBrl)} · {(brlQuote.feeBps / 100).toLocaleString(english ? "en-US" : "pt-BR")}%</strong></div>
                   <button
                     disabled={brlWithdrawalBusy !== null || pixWithdrawalKey.trim().length < 5}
                     onClick={() => void createBrlWithdrawal()}
                     type="button"
                   >
-                    {brlWithdrawalBusy === "create" ? "RESERVANDO…" : "CONFIRMAR E ENVIAR PARA ANÁLISE"}
+                    {brlWithdrawalBusy === "create"
+                      ? english ? "RESERVING…" : "RESERVANDO…"
+                      : english ? "CONFIRM AND SEND FOR REVIEW" : "CONFIRMAR E ENVIAR PARA ANÁLISE"}
                   </button>
                 </div>
               ) : (
@@ -1743,7 +1760,9 @@ export function ConversionView({
                   onClick={() => void quoteBrlWithdrawal()}
                   type="button"
                 >
-                  {brlWithdrawalBusy === "quote" ? "CONSULTANDO COTAÇÃO…" : "VER COTAÇÃO DO SAQUE PIX"}
+                  {brlWithdrawalBusy === "quote"
+                    ? english ? "CHECKING QUOTE…" : "CONSULTANDO COTAÇÃO…"
+                    : english ? "VIEW PIX WITHDRAWAL QUOTE" : "VER COTAÇÃO DO SAQUE PIX"}
                 </button>
               )}
             </div>
@@ -1753,11 +1772,12 @@ export function ConversionView({
           <p className="wallet-provider-notice">
             <strong>
               {withdrawMethod === "pix"
-                ? "CONFIRA A CHAVE PIX E O VALOR COTADO."
-                : "CONFIRA MOEDA, REDE E ENDEREÇO ANTES DE ENVIAR."}
+                ? english ? "CHECK THE PIX KEY AND QUOTED AMOUNT." : "CONFIRA A CHAVE PIX E O VALOR COTADO."
+                : english ? "CHECK THE ASSET, NETWORK AND ADDRESS BEFORE SENDING." : "CONFIRA MOEDA, REDE E ENDEREÇO ANTES DE ENVIAR."}
             </strong>{" "}
-            O saldo de origem fica reservado até a análise. Se o pedido for recusado,
-            a mesma quantidade de {withdrawAsset} volta automaticamente para a carteira.
+            {english
+              ? `The source balance stays reserved during review. If the request is rejected, the same ${withdrawAsset} amount returns automatically to the wallet.`
+              : `O saldo de origem fica reservado até a análise. Se o pedido for recusado, a mesma quantidade de ${withdrawAsset} volta automaticamente para a carteira.`}
           </p>
           {wallet?.withdrawals?.recent && wallet.withdrawals.recent.length > 0 && (
             <div className="wallet-live-history wallet-withdraw-history">
