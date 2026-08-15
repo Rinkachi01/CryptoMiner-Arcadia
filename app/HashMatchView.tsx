@@ -36,9 +36,9 @@ type HashSession = {
 // Keep a short, visible validation beat between flips. The server still
 // validates every card; these values only pace the local feedback so the
 // result never feels instantaneous or skips the reveal animation.
-const CARD_UNLOCK_DELAY_MS = 240;
-const MISMATCH_REVEAL_HOLD_MS = 620;
-const COMPLETION_SETTLE_DELAY_MS = 800;
+const CARD_UNLOCK_DELAY_MS = 140;
+const MISMATCH_REVEAL_HOLD_MS = 460;
+const COMPLETION_SETTLE_DELAY_MS = 650;
 
 export function HashMatchView({
   onRefreshAccount,
@@ -309,6 +309,9 @@ export function HashMatchView({
               className={`hash-card ${card.reveal ? "revealed" : ""} ${
                 card.matched ? "matched" : ""
               }`}
+              // Pointer down removes the extra click delay on touch/mouse;
+              // click remains the keyboard-accessible fallback.
+              onPointerDown={() => void flipCard(card.id)}
               onClick={() => void flipCard(card.id)}
               disabled={
                 phase !== "playing" ||

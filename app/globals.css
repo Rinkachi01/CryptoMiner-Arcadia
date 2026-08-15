@@ -13991,8 +13991,8 @@ img {
   backface-visibility: hidden;
   pointer-events: none;
   transition:
-    opacity 240ms ease,
-    transform 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+    opacity 140ms ease,
+    transform 180ms cubic-bezier(0.22, 0.8, 0.24, 1);
 }
 
 .hash-card-back {
