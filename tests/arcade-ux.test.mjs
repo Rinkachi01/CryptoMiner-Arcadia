@@ -68,7 +68,7 @@ test("Hash Match mantém seleção acessível e uma pausa curta de validação",
     readFile(new URL("../app/HashMatchView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.match(hash, /onPointerDown=\{\(\) => void flipCard\(card\.id\)\}/);
+  assert.match(hash, /onPointerDown=\{\(event\) =>/);
   assert.match(hash, /onClick=\{\(\) => void flipCard\(card\.id\)\}/);
   assert.match(hash, /CARD_UNLOCK_DELAY_MS = 140/);
   assert.match(hash, /MISMATCH_REVEAL_HOLD_MS = 460/);

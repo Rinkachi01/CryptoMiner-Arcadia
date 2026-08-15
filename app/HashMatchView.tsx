@@ -311,7 +311,12 @@ export function HashMatchView({
               }`}
               // Pointer down removes the extra click delay on touch/mouse;
               // click remains the keyboard-accessible fallback.
-              onPointerDown={() => void flipCard(card.id)}
+              onPointerDown={(event) => {
+                // Start on the first physical interaction and suppress the
+                // follow-up compatibility click so one touch is one flip.
+                event.preventDefault();
+                void flipCard(card.id);
+              }}
               onClick={() => void flipCard(card.id)}
               disabled={
                 phase !== "playing" ||
