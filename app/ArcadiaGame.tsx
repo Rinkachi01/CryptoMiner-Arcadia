@@ -116,6 +116,10 @@ type GameApiResponse = {
     nextExpiryAt: number;
   };
   network?: NetworkPowerSnapshot;
+  account?: {
+    displayName: string;
+    email: string;
+  };
   message: string;
   error?: string;
   actionResult?: {
@@ -306,6 +310,7 @@ export function ArcadiaGame({
 }: ArcadiaGameProps) {
   const { t } = useArcadiaLanguage();
   const [activeView, setActiveView] = useState<ViewId>(initialView);
+  const [accountDisplayName, setAccountDisplayName] = useState(user.displayName);
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
@@ -387,7 +392,7 @@ export function ArcadiaGame({
     roomDefinitions[0];
   const [blockDeadline, setBlockDeadline] = useState(0);
   const playerInitial =
-    user.displayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M";
+    accountDisplayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M";
   const secondsLeft = hydrated
     ? Math.max(0, Math.ceil((blockDeadline - clockNow) / 1000))
     : selectedPool.blockSeconds;
@@ -459,6 +464,9 @@ export function ArcadiaGame({
         : (state.racks[0]?.id ?? "rack-01"),
     );
     setServerVersion(snapshot.version);
+    if (snapshot.account?.displayName?.trim()) {
+      setAccountDisplayName(snapshot.account.displayName.trim());
+    }
     setClockNow(snapshot.serverTime);
     setBlockDeadline(snapshot.nextBlockAt);
     setServerStatus("online");
@@ -536,8 +544,9 @@ export function ArcadiaGame({
 
   useEffect(() => {
     const controller = new AbortController();
+    let retryTimer: number | undefined;
 
-    void (async () => {
+    const bootstrap = async (attempt = 0): Promise<void> => {
       try {
         const response = await fetch("/api/game", {
           method: "POST",
@@ -554,9 +563,14 @@ export function ArcadiaGame({
         applyServerSnapshot(result);
       } catch (error) {
         if (controller.signal.aborted) return;
-        setClockNow(Date.now());
-        setEnergyExpiresAt(Date.now());
-        setHydrated(true);
+        if (attempt < 2) {
+          retryTimer = window.setTimeout(() => {
+            void bootstrap(attempt + 1);
+          }, 750 * (attempt + 1));
+          return;
+        }
+        // Nunca apresentar zeros/defaults como se fossem o estado real da conta.
+        setHydrated(false);
         setServerStatus("error");
         setToast(
           error instanceof Error
@@ -564,9 +578,14 @@ export function ArcadiaGame({
             : "Não foi possível carregar a conta.",
         );
       }
-    })();
+    };
 
-    return () => controller.abort();
+    void bootstrap();
+
+    return () => {
+      controller.abort();
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
     // A inicialização autoritativa acontece uma única vez por sessão.
   }, []);
 
@@ -990,7 +1009,7 @@ export function ArcadiaGame({
             <small>
               {serverStatus === "online" ? t("profile.account") : "CONECTANDO"}
             </small>
-            <strong>{user.displayName}</strong>
+            <strong>{accountDisplayName}</strong>
           </a>
           <a href={signOutPath}>SAIR</a>
           <a className="account-avatar" href="/perfil" title={t("profile.open")}>
@@ -1008,6 +1027,29 @@ export function ArcadiaGame({
             : "SERVIDOR INDISPONÍVEL · AÇÕES BLOQUEADAS"}
         <small>BLOCO SINCRONIZADO #{lastSettledBlock}</small>
       </div>
+
+      {!hydrated && (
+        <div className="account-sync-overlay" role="status" aria-live="polite">
+          <div className="account-sync-card">
+            <span className="online-dot" />
+            <strong>
+              {serverStatus === "error"
+                ? "Nao foi possivel sincronizar sua conta"
+                : "Sincronizando sua conta"}
+            </strong>
+            <p>
+              {serverStatus === "error"
+                ? "Seu saldo, nome e poder continuam protegidos. Tente novamente para carregar os dados do servidor."
+                : "Carregando saldo, poder e equipamentos salvos no servidor."}
+            </p>
+            {serverStatus === "error" && (
+              <button type="button" onClick={() => window.location.reload()}>
+                TENTAR NOVAMENTE
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <DailyWelcomeModal onClose={() => {}} />
 
@@ -1031,7 +1073,7 @@ export function ArcadiaGame({
           <div className="avatar-frame">{playerInitial}</div>
           <div>
             <span>OPERADOR</span>
-            <strong>{user.displayName}</strong>
+            <strong>{accountDisplayName}</strong>
             <small>CONTA NO SERVIDOR</small>
           </div>
         </div>

@@ -16844,6 +16844,64 @@ body {
   box-shadow: 0 0 8px var(--danger);
 }
 
+.account-sync-overlay {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 8, 13, 0.86);
+  backdrop-filter: blur(8px);
+}
+
+.account-sync-card {
+  display: grid;
+  max-width: 440px;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid rgba(95, 215, 255, 0.35);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(15, 30, 42, 0.98), rgba(10, 16, 25, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45), 0 0 36px rgba(77, 221, 255, 0.12);
+  color: #e8f5ff;
+  text-align: center;
+}
+
+.account-sync-card > .online-dot {
+  width: 10px;
+  height: 10px;
+  margin-inline: auto;
+}
+
+.account-sync-card strong {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  letter-spacing: 0.03em;
+}
+
+.account-sync-card p {
+  margin: 0;
+  color: #9fb5c6;
+  line-height: 1.55;
+}
+
+.account-sync-card button {
+  justify-self: center;
+  padding: 11px 18px;
+  border: 1px solid rgba(157, 255, 48, 0.65);
+  border-radius: 8px;
+  background: rgba(157, 255, 48, 0.12);
+  color: #b9ff69;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.account-sync-card button:hover,
+.account-sync-card button:focus-visible {
+  background: rgba(157, 255, 48, 0.22);
+}
+
 .sidebar {
   top: 74px;
   height: calc(100vh - 74px);
