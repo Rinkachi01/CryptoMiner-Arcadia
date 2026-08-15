@@ -8,6 +8,10 @@ import {
   reserveDailyGamePower,
 } from "../../../game-emission-budget";
 import {
+  BONUS_POWER_DROP_REQUEST_GH,
+  shouldAwardBonusPower,
+} from "../../../game-power-bonus";
+import {
   PACKET_CATCH_DAILY_LIMIT,
   PACKET_CATCH_DURATION_MS,
   PACKET_CATCH_HOURLY_LIMIT,
@@ -526,13 +530,13 @@ export async function POST(request: Request) {
     : await readDailyGamePowerBudget(current.db, current.accountId, now);
   let rewardPowerGh = emissionBudget.awardedPowerGh;
   let drop = null;
-  if (survived && Math.random() < 0.3) {
+  if (survived && shouldAwardBonusPower()) {
     // Drops are part of the same server-side daily budget; they cannot
     // bypass the cap when the base reward already consumed the allowance.
     const dropBudget = await reserveDailyGamePower(
       current.db,
       current.accountId,
-      300,
+      BONUS_POWER_DROP_REQUEST_GH,
       now,
     );
     rewardPowerGh += dropBudget.awardedPowerGh;

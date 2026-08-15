@@ -197,6 +197,14 @@ recompensa continuam sendo recalculados no servidor.
 - o painel do Arcade mostra uso, saldo restante e horário de reinício;
 - esse teto limita inflação de poder sem criar CMA ou baterias.
 
+### Bônus opcional de poder
+
+O bônus extra não substitui a recompensa-base validada de cada jogo. Ele é um
+sorteio separado, com chance de 12% por vitória válida e solicitação máxima de
+150 GH/s. A entrega continua consumindo o mesmo orçamento global de 10.000
+GH/s, portanto nunca ultrapassa o teto do ciclo. Essa calibração reduz a
+frequência de picos sem remover a progressão principal dos minijogos.
+
 ## Progressão do operador e telemetria
 
 - cada partida concede 18 XP de atividade;

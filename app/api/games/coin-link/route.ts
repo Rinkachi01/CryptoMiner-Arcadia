@@ -5,6 +5,10 @@ import {
   reserveDailyGamePower,
 } from "../../../game-emission-budget";
 import {
+  BONUS_POWER_DROP_REQUEST_GH,
+  shouldAwardBonusPower,
+} from "../../../game-power-bonus";
+import {
   COIN_LINK_DAILY_LIMIT,
   COIN_LINK_HOURLY_LIMIT,
   COIN_LINK_MAX_MOVES,
@@ -449,11 +453,11 @@ export async function POST(request: Request) {
   );
   let rewardPowerGh = emissionBudget.awardedPowerGh;
   let drop = null;
-  if (Math.random() < 0.3) {
+  if (shouldAwardBonusPower()) {
     const dropBudget = await reserveDailyGamePower(
       current.db,
       current.accountId,
-      300,
+      BONUS_POWER_DROP_REQUEST_GH,
       now,
     );
     rewardPowerGh += dropBudget.awardedPowerGh;
