@@ -34,6 +34,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     [publishableKey, supabaseUrl],
   );
   const [factor, setFactor] = useState<TotpFactor | null>(null);
+  const [pendingFactorId, setPendingFactorId] = useState<string | null>(null);
   const [setup, setSetup] = useState<{ factorId: string; qrCode: string; secret: string } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(true);
@@ -45,7 +46,17 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     if (error) {
       setMessage(friendlyMfaError(error));
     } else {
-      setFactor(data?.totp?.find((item) => item.status === "verified") ?? null);
+      const verified = data?.totp?.find((item) => item.status === "verified") ?? null;
+      const pending = data?.totp?.find((item) => item.status === "unverified") ?? null;
+      setFactor(verified);
+      setPendingFactorId(verified ? null : pending?.id ?? null);
+      setMessage(
+        verified
+          ? ""
+          : pending
+            ? "Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador."
+            : "",
+      );
     }
     setBusy(false);
   }
@@ -89,6 +100,13 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
   async function beginSetup() {
     setBusy(true);
     setMessage("");
+    // Keep the existing QR enrollment when the user already scanned it. The
+    // six-digit code can finish that factor without generating a new secret.
+    if (pendingFactorId) {
+      setSetup({ factorId: pendingFactorId, qrCode: "", secret: "" });
+      setBusy(false);
+      return;
+    }
     const cleanup = await clearPendingFactors();
     if (!cleanup.ok) {
       setMessage(cleanup.message);
@@ -185,11 +203,19 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
         </div>
       ) : setup ? (
         <form className="mfa-setup-form" onSubmit={confirmSetup}>
-          <div className="mfa-qr-wrap">
-            <img alt="QR code para configurar o autenticador" src={setup.qrCode} />
-            <small>Escaneie no Google Authenticator, Authy ou outro app compatível.</small>
-          </div>
-          <label>Chave manual <code>{setup.secret}</code></label>
+          {setup.qrCode ? (
+            <>
+              <div className="mfa-qr-wrap">
+                <img alt="QR code para configurar o autenticador" src={setup.qrCode} />
+                <small>Escaneie no Google Authenticator, Authy ou outro app compatível.</small>
+              </div>
+              <label>Chave manual <code>{setup.secret}</code></label>
+            </>
+          ) : (
+            <div className="public-auth-message" role="status">
+              Use o código de seis dígitos que aparece no seu aplicativo autenticador para concluir a configuração.
+            </div>
+          )}
           <label>
             Código de confirmação
             <input autoComplete="one-time-code" inputMode="numeric" maxLength={6} pattern="[0-9]{6}" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
@@ -200,7 +226,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
           </div>
         </form>
       ) : (
-        <button className="mfa-enable-button" disabled={busy} onClick={() => void beginSetup()} type="button">{busy ? "CARREGANDO..." : "ATIVAR AUTENTICADOR"}</button>
+        <button className="mfa-enable-button" disabled={busy} onClick={() => void beginSetup()} type="button">{busy ? "CARREGANDO..." : pendingFactorId ? "CONTINUAR CONFIGURAÇÃO" : "ATIVAR AUTENTICADOR"}</button>
       )}
     </article>
   );
