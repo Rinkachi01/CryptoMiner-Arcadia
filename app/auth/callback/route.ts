@@ -79,9 +79,15 @@ async function handleCallback(request: Request, requestUrl: URL) {
     ? `/auth?error=${encodeURIComponent("O link expirou ou já foi utilizado.")}`
     : next;
   if (!error && supabase) {
-    const assurance = await supabase.auth
-      .getAuthenticatorAssuranceLevel()
-      .catch((caughtError) => {
+    // Older supabase-js builds do not expose the optional MFA assurance helper.
+    // OAuth must still complete when MFA is not configured for the account.
+    const authWithAal = supabase.auth as typeof supabase.auth & {
+      getAuthenticatorAssuranceLevel?: () => Promise<{
+        data: { nextLevel?: string | null; currentLevel?: string | null } | null;
+      }>;
+    };
+    if (typeof authWithAal.getAuthenticatorAssuranceLevel === "function") {
+      const assurance = await authWithAal.getAuthenticatorAssuranceLevel().catch((caughtError) => {
         const diagnostic =
           caughtError instanceof Error
             ? { name: caughtError.name, message: caughtError.message }
@@ -89,11 +95,12 @@ async function handleCallback(request: Request, requestUrl: URL) {
         console.error("[auth/callback] assurance lookup failure", diagnostic);
         return { data: null };
       });
-    if (
-      assurance.data?.nextLevel === "aal2" &&
-      assurance.data.currentLevel !== "aal2"
-    ) {
-      destination = `/auth/mfa?next=${encodeURIComponent(next)}`;
+      if (
+        assurance.data?.nextLevel === "aal2" &&
+        assurance.data.currentLevel !== "aal2"
+      ) {
+        destination = `/auth/mfa?next=${encodeURIComponent(next)}`;
+      }
     }
   }
   return NextResponse.redirect(new URL(destination, requestUrl.origin), {
