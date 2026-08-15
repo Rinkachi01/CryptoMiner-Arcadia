@@ -20303,6 +20303,19 @@ body {
   color: var(--lime);
 }
 
+.public-auth-tabs button:hover,
+.public-auth-tabs button:focus-visible {
+  color: #eaffd0;
+  background: rgba(169, 255, 63, 0.05);
+}
+
+.public-auth-mode-hint {
+  margin: 18px 26px 0;
+  color: #9db1ba;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
 .public-auth-card form,
 .update-password-card {
   display: grid;
@@ -20397,7 +20410,19 @@ body {
   cursor: pointer;
   font-family: var(--font-display);
   font-size: 0.78rem;
+  letter-spacing: 0.06em;
   text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.public-auth-submit:hover:not(:disabled),
+.public-auth-submit:focus-visible {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 24px rgba(169, 255, 63, 0.22);
+  transform: translateY(-2px);
 }
 
 .public-auth-submit:disabled,

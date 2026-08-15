@@ -73,6 +73,7 @@ export function AuthForm({
   const [fullName, setFullName] = useState("");
   const [message, setMessage] = useState(initialError ?? "");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [sentEmail, setSentEmail] = useState<
     "confirmation" | "recovery" | null
   >(null);
@@ -94,6 +95,7 @@ export function AuthForm({
     setSentEmail(null);
     setResendSeconds(0);
     setCaptchaToken("");
+    setPasswordConfirmation("");
     setCaptchaReset((current) => current + 1);
   }
 
@@ -164,6 +166,10 @@ export function AuthForm({
       if (mode === "signup") {
         if (password.length < 10) {
           setMessage("Use uma senha com pelo menos 10 caracteres.");
+          return;
+        }
+        if (password !== passwordConfirmation) {
+          setMessage("As senhas não coincidem. Confira os dois campos.");
           return;
         }
         if (!termsAccepted) {
@@ -319,6 +325,14 @@ export function AuthForm({
           </button>
         </div>
 
+        <p className="public-auth-mode-hint">
+          {mode === "signin"
+            ? "Entre para voltar à sua sala e acompanhar sua mineração."
+            : mode === "signup"
+              ? "Crie seu operador e comece com seu primeiro rack."
+              : "Recupere o acesso com segurança pelo seu e-mail."}
+        </p>
+
         {sentEmail ? (
           <section className="public-auth-email-sent" aria-live="polite">
             <div className="email-sent-icon" aria-hidden="true">✓</div>
@@ -428,6 +442,20 @@ export function AuthForm({
             </label>
           )}
           {mode === "signup" && (
+            <label>
+              Confirmar senha
+              <input
+                autoComplete="new-password"
+                minLength={10}
+                required
+                type="password"
+                value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)}
+              />
+              <small>Repita a senha com pelo menos 10 caracteres.</small>
+            </label>
+          )}
+          {mode === "signup" && (
             <label className="public-auth-consent">
               <input
                 checked={termsAccepted}
@@ -473,9 +501,9 @@ export function AuthForm({
             {busy
               ? "PROCESSANDO..."
               : mode === "signin"
-                ? "ENTRAR NA OPERAÇÃO"
+                ? "ENTRAR NO ARCADIA"
                 : mode === "signup"
-                  ? "CRIAR CONTA"
+                  ? "CRIAR CONTA E COMEÇAR"
                   : "ENVIAR RECUPERAÇÃO"}
           </button>
         </form>
