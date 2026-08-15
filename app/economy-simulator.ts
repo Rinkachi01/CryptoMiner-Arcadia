@@ -1,7 +1,7 @@
 import { storeMiners } from "./game-rules.ts";
 import { supplyCrates } from "./supply-crate-rules.ts";
 
-export const BASE_DAILY_GAME_POWER_BUDGET_GH = 5_000;
+export const BASE_DAILY_GAME_POWER_BUDGET_GH = 10_000;
 
 export const DEFAULT_SIMULATION_INPUT = {
   cratePricePercent: 100,

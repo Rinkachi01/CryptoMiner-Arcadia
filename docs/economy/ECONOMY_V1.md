@@ -186,7 +186,8 @@ recompensa continuam sendo recalculados no servidor.
 
 ### Orçamento global de poder temporário
 
-- cada conta pode receber no máximo 5.000 GH/s de poder temporário por dia UTC;
+- cada conta pode receber no máximo 10.000 GH/s de poder temporário por ciclo de
+  24 horas (reinício às 21h locais / 00:00 UTC);
 - os três minigames compartilham o mesmo orçamento;
 - o servidor reserva cada recompensa com controle de concorrência;
 - se uma vitória ultrapassar o saldo restante, apenas a parcela disponível é

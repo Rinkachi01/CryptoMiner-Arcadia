@@ -22,7 +22,7 @@ const settings = {
 test("cenário base preserva os números econômicos atuais", () => {
   const result = simulateEconomy(DEFAULT_SIMULATION_INPUT);
   assert.equal(result.progressionDays, 303);
-  assert.equal(result.dailyPowerBudgetGh, 5_000);
+  assert.equal(result.dailyPowerBudgetGh, 10_000);
   assert.equal(result.sinkIndex, 100);
   assert.equal(result.status, "stable");
   assert.equal(result.adjustedCrates[0].priceCma, 0.9);

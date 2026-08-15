@@ -162,7 +162,7 @@ Status: quinta entrega concluída.
 - painel de desempenho separado por minigame;
 - dados de vitórias, tentativas, sequência e taxa de conclusão;
 - proteção visual para que uma falha isolada nunca apague a interface inteira;
-- orçamento global de 5.000 GH/s temporários por conta e dia;
+- orçamento global de 10.000 GH/s temporários por conta e ciclo;
 - reserva concorrente de emissão para impedir que partidas simultâneas
   ultrapassem o orçamento;
 - painel de saúde econômica com uso, saldo restante e reinício do ciclo;

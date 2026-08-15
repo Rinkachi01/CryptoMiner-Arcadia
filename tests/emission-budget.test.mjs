@@ -8,9 +8,9 @@ import {
 } from "../app/game-emission-budget.ts";
 
 test("orçamento diário nunca concede poder acima do restante", () => {
-  assert.equal(DAILY_GAME_POWER_BUDGET_GH, 5_000);
-  assert.equal(calculateEmissionAward(4_850, 320), 150);
-  assert.equal(calculateEmissionAward(5_000, 300), 0);
+  assert.equal(DAILY_GAME_POWER_BUDGET_GH, 10_000);
+  assert.equal(calculateEmissionAward(9_850, 320), 150);
+  assert.equal(calculateEmissionAward(10_000, 300), 0);
   assert.equal(calculateEmissionAward(1_000, 280), 280);
 });
 

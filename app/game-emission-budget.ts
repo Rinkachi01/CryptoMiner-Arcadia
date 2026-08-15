@@ -1,7 +1,10 @@
 import { readAdminRuntimeSettings } from "./admin-settings.ts";
 import { dailyResetWindow } from "./daily-reset-rules.ts";
 
-export const DAILY_GAME_POWER_BUDGET_GH = 5_000;
+// Conservative server-side ceiling for temporary minigame power per account
+// and reset cycle. 10,000 GH/s gives active players room to progress while
+// keeping a hard cap against runaway emission.
+export const DAILY_GAME_POWER_BUDGET_GH = 10_000;
 
 export type GameEmissionBudget = {
   awardedPowerGh: number;
