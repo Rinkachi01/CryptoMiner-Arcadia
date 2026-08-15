@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   seasonPremiumMaxPriceCma,
+  seasonPremiumPriceCma,
   seasonXpRequiredForLevel,
   isSeasonRewardUnlocked,
   isSeasonTrackUnlocked,
@@ -202,6 +203,7 @@ export function SeasonPanel({
   const seasonStartDay = dailyWindowIndex(season.startsAt);
   const currentDay = dailyWindowIndex(data.serverTime);
   const weeklyCycleKey = `weekly_${Math.floor((currentDay - seasonStartDay) / 7)}`;
+  const standardPassPrice = seasonPremiumPriceCma(progress.level);
 
   return (
     <section className="season-panel space-race-season">
@@ -243,7 +245,7 @@ export function SeasonPanel({
                 onClick={() => void runAction("buy-premium", { action: "buy-premium" })}
                 style={{ background: "#2a3845", color: "#e2e8f0" }}
               >
-                {`BÁSICO · ${season.premiumPriceCma} CMA`}
+                {`BÁSICO · ${standardPassPrice} CMA`}
               </button>
             )}
             {!progress.maxUnlocked && (() => {

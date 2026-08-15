@@ -17,6 +17,7 @@ import {
   isSeasonTrackUnlocked,
   normalizeSeasonDurationDays,
   seasonLevelForXp,
+  seasonPremiumPriceCma,
   seasonPremiumMaxPriceCma,
   seasonProgressPercent,
   seasonXpRequiredForLevel,
@@ -1267,7 +1268,7 @@ export async function purchaseSeasonPremium(
   const priceMicros = Math.round(
     (isMax
       ? seasonPremiumMaxPriceCma(overview.playerProgress.level, premiumOwned)
-      : season.premium_price_cma_micros / 1_000_000) * 1_000_000,
+      : seasonPremiumPriceCma(overview.playerProgress.level)) * 1_000_000,
   );
   const purchaseKind = isMax ? "max" : "premium";
 

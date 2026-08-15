@@ -10,6 +10,24 @@ export const SPACE_RACE_DURATION_DAYS = 120;
 export const SPACE_RACE_LEVELS = 50;
 export const SPACE_RACE_PREMIUM_PRICE_CMA = 29;
 export const SPACE_RACE_PREMIUM_MAX_PRICE_CMA = 100;
+export const SPACE_RACE_PREMIUM_MIN_PRICE_CMA = 9;
+
+/**
+ * The standard pass rewards players who progress before buying it.
+ * The discount is deliberately gradual and capped so late purchases still
+ * contribute meaningful CMA to the season economy.
+ */
+export function seasonPremiumPriceCma(level: number) {
+  const normalizedLevel = Math.max(
+    1,
+    Math.min(SPACE_RACE_LEVELS, Math.floor(level || 1)),
+  );
+  const completedLevelDiscount = Math.floor((normalizedLevel - 1) * 0.42);
+  return Math.max(
+    SPACE_RACE_PREMIUM_MIN_PRICE_CMA,
+    SPACE_RACE_PREMIUM_PRICE_CMA - completedLevelDiscount,
+  );
+}
 
 export function seasonPremiumMaxPriceCma(
   level: number,

@@ -6,6 +6,7 @@ import {
   compareSeasonSnapshots,
   normalizeSeasonDurationDays,
   seasonLevelForXp,
+  seasonPremiumPriceCma,
   seasonPremiumMaxPriceCma,
   isSeasonRewardUnlocked,
   isSeasonTrackUnlocked,
@@ -73,6 +74,10 @@ test("Corrida Espacial tem 120 dias, 50 níveis e folga de XP", () => {
   assert.equal(SPACE_RACE_DURATION_DAYS, 120);
   assert.equal(SPACE_RACE_LEVELS, 50);
   assert.equal(SPACE_RACE_PREMIUM_PRICE_CMA, 29);
+  assert.equal(seasonPremiumPriceCma(1), 29);
+  assert.equal(seasonPremiumPriceCma(20) < seasonPremiumPriceCma(1), true);
+  assert.equal(seasonPremiumPriceCma(50), 9);
+  assert.equal(seasonPremiumPriceCma(999), 9);
   assert.equal(seasonXpRequiredForLevel(50), 12_250);
   assert.equal(seasonLevelForXp(12_249), 49);
   assert.equal(seasonLevelForXp(12_250), 50);
@@ -97,6 +102,7 @@ test("Orbit Pass Max tem posse própria e libera a trilha sem fabricar XP", asyn
   assert.match(server, /CREATE TABLE IF NOT EXISTS season_pass_max/);
   assert.match(server, /maxUnlocked: Boolean\(maxPass\)/);
   assert.match(server, /progress\.maxUnlocked/);
+  assert.match(server, /seasonPremiumPriceCma\(overview\.playerProgress\.level\)/);
   assert.doesNotMatch(server, /xpToGrant/);
   assert.match(server, /quest_id != 'buy-premium-max'/);
   assert.match(route, /Orbit Pass Max ativado/);
