@@ -26,7 +26,7 @@ export function PCStatusPanel({
   }, [refreshKey]);
 
   const totalPlays = summary?.totals?.totalPlays ?? 0;
-  const pcLevel = pcLevelForPlays(totalPlays);
+  const pcLevel = summary?.pc?.level ?? pcLevelForPlays(totalPlays);
   const nextPlayTarget = pcNextPlayTarget(pcLevel + 1);
   const progress = pcProgressPercent(totalPlays, pcLevel);
   const powerDays = ARCADE_POWER_DAYS_BY_LEVEL[pcLevel] ?? 0;
@@ -82,7 +82,7 @@ export function PCStatusPanel({
             </li>
           ))}
         </ol>
-        <small className="pc-ladder-note">Um nível é perdido após um dia completo sem jogar.</small>
+        <small className="pc-ladder-note">A cada virada das 09:00 sem jogar, um nível é perdido.</small>
       </div>
     </section>
   );

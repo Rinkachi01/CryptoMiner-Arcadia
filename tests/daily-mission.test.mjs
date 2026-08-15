@@ -26,11 +26,11 @@ test("tour diário exige participação nos três minigames", () => {
 });
 
 test("missão diária reinicia na virada UTC", () => {
-  const now = Date.UTC(2026, 6, 28, 23, 59, 30);
+  const now = Date.UTC(2026, 6, 28, 15, 59, 30);
   const window = dailyMissionWindow(now);
   assert.equal(window.windowKey, "2026-07-28");
-  assert.equal(window.startsAt, Date.UTC(2026, 6, 28));
-  assert.equal(window.resetAt, Date.UTC(2026, 6, 29));
+  assert.equal(window.startsAt, Date.UTC(2026, 6, 28, 12));
+  assert.equal(window.resetAt, Date.UTC(2026, 6, 29, 12));
   assert.equal(
     dailyMissionIdempotencyKey(window.windowKey),
     `mission:${DAILY_ARCADE_MISSION_ID}:2026-07-28`,

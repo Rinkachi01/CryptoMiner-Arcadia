@@ -1,3 +1,5 @@
+import { dailyBoundariesBetween } from "./daily-reset-rules.ts";
+
 const PC_PLAY_THRESHOLDS = [0, 10, 30, 60, 100, 150] as const;
 
 export function pcLevelForPlays(totalPlays: number): number {
@@ -22,6 +24,22 @@ export function pcProgressPercent(totalPlays: number, level: number): number {
   const end = PC_PLAY_THRESHOLDS[safeLevel + 1];
   const plays = Math.max(0, Math.floor(Number.isFinite(totalPlays) ? totalPlays : 0));
   return Math.max(0, Math.min(100, Math.round(((plays - start) / (end - start)) * 100)));
+}
+
+/**
+ * The PC keeps the player's earned progress, but its active level decays by
+ * one step at each 09:00 daily boundary without a validated game.
+ */
+export function pcLevelAfterInactivity(
+  totalPlays: number,
+  lastActivityAt: number,
+  now: number,
+) {
+  const earnedLevel = pcLevelForPlays(totalPlays);
+  if (!Number.isFinite(lastActivityAt) || lastActivityAt <= 0 || now <= lastActivityAt) {
+    return earnedLevel;
+  }
+  return Math.max(0, earnedLevel - dailyBoundariesBetween(lastActivityAt, now));
 }
 
 export const PC_PLAY_THRESHOLDS_EXPORT = PC_PLAY_THRESHOLDS;

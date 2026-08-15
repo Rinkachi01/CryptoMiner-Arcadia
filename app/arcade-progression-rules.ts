@@ -1,4 +1,4 @@
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { dailyBoundariesBetween, DAY_MS } from "./daily-reset-rules.ts";
 
 export const ARCADE_DIFFICULTY_MAX = 5;
 export const ARCADE_POWER_DAYS_BY_LEVEL = [0, 1, 2, 3, 5, 7] as const;
@@ -28,6 +28,6 @@ export function arcadeDifficultyAfterInactivity(
   if (!Number.isFinite(lastActivityAt) || lastActivityAt <= 0 || now <= lastActivityAt) {
     return level;
   }
-  const inactiveDays = Math.floor((now - lastActivityAt) / DAY_MS);
+  const inactiveDays = dailyBoundariesBetween(lastActivityAt, now);
   return Math.max(1, level - inactiveDays);
 }

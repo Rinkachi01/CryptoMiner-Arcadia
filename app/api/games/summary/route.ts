@@ -20,6 +20,7 @@ import {
 } from "../../../game-server";
 import { STARTER_KIT_VERSION } from "../../../onboarding-rules";
 import { calculateOperatorProgress } from "../../../operator-progress-rules";
+import { pcLevelAfterInactivity } from "../../../pc-progression-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ type ProgressRow = {
   next_play_at: number;
   total_plays: number;
   total_wins: number;
+  updated_at: number;
 };
 
 type TodayRow = {
@@ -61,6 +63,11 @@ export type GameSummaryResult = {
     winsToday: number;
     powerToday: number;
     flaggedSessions: number;
+  };
+  pc: {
+    level: number;
+    lastActivityAt: number;
+    resetAt: number;
   };
   emission: Awaited<ReturnType<typeof readDailyGamePowerBudget>> & {
     rollingPower24h: number;
@@ -418,7 +425,7 @@ export async function GET() {
     await Promise.all([
       db.prepare(
         `SELECT game_id, level, win_streak, next_play_at,
-                total_plays, total_wins
+                total_plays, total_wins, updated_at
          FROM game_progress
          WHERE account_id = ?
          ORDER BY game_id`,
@@ -469,6 +476,11 @@ export async function GET() {
     (sum, row) => sum + Number(row.total_wins),
     0,
   );
+  const lastActivityAt = progressRows.reduce(
+    (latest, row) => Math.max(latest, Number(row.updated_at ?? 0)),
+    0,
+  );
+  const pcLevel = pcLevelAfterInactivity(totalPlays, lastActivityAt, now);
   const playsToday = [...todayRows.values()].reduce(
     (sum, row) => sum + Number(row.plays_today),
     0,
@@ -499,6 +511,11 @@ export async function GET() {
       winsToday,
       powerToday: emissionBudget.usedPowerGh,
       flaggedSessions: Number(flaggedRow?.total ?? 0),
+    },
+    pc: {
+      level: pcLevel,
+      lastActivityAt,
+      resetAt,
     },
     emission: {
       ...emissionBudget,

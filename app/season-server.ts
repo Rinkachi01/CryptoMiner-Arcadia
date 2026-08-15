@@ -28,6 +28,11 @@ import { ensureAdminSchema } from "./admin-settings";
 import { getMiner } from "./game-rules";
 import type { PublicGameState } from "./game-server";
 import { ensureNetworkSchema } from "./network-server";
+import {
+  DAILY_RESET_OFFSET_MS,
+  dailyResetWindow,
+  dailyWindowIndex,
+} from "./daily-reset-rules";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -650,7 +655,7 @@ export async function readSeasonLeaderboard(
            AND status = 'completed'
          GROUP BY account_id, activity_key`,
       )
-      .bind(season.starts_at, DAY_MS, season.starts_at, until)
+       .bind(DAILY_RESET_OFFSET_MS, DAY_MS, season.starts_at, until)
       .all<DailyActivityRow>(),
     db
       .prepare(
@@ -662,7 +667,7 @@ export async function readSeasonLeaderboard(
            AND delta_cma_micros < 0
          GROUP BY account_id, activity_key`,
       )
-      .bind(season.starts_at, DAY_MS, season.starts_at, until)
+       .bind(DAILY_RESET_OFFSET_MS, DAY_MS, season.starts_at, until)
       .all<DailyActivityRow>(),
     db
       .prepare(
@@ -698,6 +703,7 @@ export async function readSeasonLeaderboard(
   }
 
   const weeklyGames = new Map<string, number>();
+  const seasonStartDay = dailyWindowIndex(season.starts_at);
   for (const row of gameRows.results) {
     const dailyGames = Math.max(0, Number(row.total));
     const progress = ensureXp(row.account_id);
@@ -705,7 +711,9 @@ export async function readSeasonLeaderboard(
       SEASON_DAILY_GAME_XP_CAP,
       dailyGames * SEASON_GAME_XP,
     );
-    const week = Math.floor(Number(row.activity_key) / 7);
+    const week = Math.floor(
+      (Number(row.activity_key) - seasonStartDay) / 7,
+    );
     const key = `${row.account_id}:${week}`;
     weeklyGames.set(key, (weeklyGames.get(key) ?? 0) + dailyGames);
   }
@@ -819,7 +827,7 @@ async function readPlayerProgress(
            AND status IN ('completed', 'failed')
          GROUP BY activity_key`,
       )
-      .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
+       .bind(DAILY_RESET_OFFSET_MS, DAY_MS, accountId, season.starts_at, season.ends_at)
       .all<{ activity_key: string; total: number; wins: number }>(),
     db
       .prepare(
@@ -830,7 +838,7 @@ async function readPlayerProgress(
            AND delta_cma_micros < 0
          GROUP BY activity_key`,
       )
-      .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
+       .bind(DAILY_RESET_OFFSET_MS, DAY_MS, accountId, season.starts_at, season.ends_at)
       .all<DailyActivityRow>(),
     db
       .prepare(
@@ -849,7 +857,7 @@ async function readPlayerProgress(
            AND action = 'open_supply_crate'
          GROUP BY activity_key`,
       )
-      .bind(season.starts_at, DAY_MS, accountId, season.starts_at, season.ends_at)
+       .bind(DAILY_RESET_OFFSET_MS, DAY_MS, accountId, season.starts_at, season.ends_at)
       .all<DailyActivityRow>(),
   ]);
   let games = 0;
@@ -861,8 +869,11 @@ async function readPlayerProgress(
   let cratesToday = 0;
   let cratesWeek = 0;
   
-  const todayActivityKey = Math.floor((now - season.starts_at) / DAY_MS);
-  const currentWeek = Math.floor((now - season.starts_at) / (7 * DAY_MS));
+  const seasonStartDay = dailyWindowIndex(season.starts_at);
+  const todayActivityKey = dailyWindowIndex(now);
+  const currentWeek = Math.floor(
+    (todayActivityKey - seasonStartDay) / 7,
+  );
   
   for (const row of gameDaily.results) {
     const count = Math.max(0, Number(row.total));
@@ -874,7 +885,9 @@ async function readPlayerProgress(
       totalWinsToday += wins;
     }
     
-    const week = Math.floor(Number(row.activity_key) / 7);
+    const week = Math.floor(
+      (Number(row.activity_key) - seasonStartDay) / 7,
+    );
     if (week === currentWeek) {
       totalGamesWeek += count;
       totalWinsWeek += wins;
@@ -889,7 +902,9 @@ async function readPlayerProgress(
       if (Number(row.activity_key) === todayActivityKey) {
         spendingTodayCma += spentCma;
       }
-      const week = Math.floor(Number(row.activity_key) / 7);
+      const week = Math.floor(
+        (Number(row.activity_key) - seasonStartDay) / 7,
+      );
       if (week === currentWeek) {
         spendingWeekCma += spentCma;
       }
@@ -898,9 +913,9 @@ async function readPlayerProgress(
     0,
   );
   const loginDays = new Set(
-    loginRows.results.map((row) => Math.floor(Number(row.created_at) / DAY_MS)),
+    loginRows.results.map((row) => dailyWindowIndex(Number(row.created_at))),
   );
-  const today = Math.floor(now / DAY_MS);
+  const today = dailyWindowIndex(now);
   const claimedToday = loginDays.has(today);
   let streakDays = 0;
   let cursor = claimedToday ? today : today - 1;
@@ -913,8 +928,9 @@ async function readPlayerProgress(
     : (streakDays % SEASON_DAILY_LOGIN_XP.length) + 1;
 
   // Quest Evaluation
-  const cycleKeyDaily = `daily_${today}`;
-  const cycleKeyWeekly = `weekly_${Math.floor(now / (7 * DAY_MS))}`;
+  const cycleWindow = dailyResetWindow(now);
+  const cycleKeyDaily = `daily_${cycleWindow.windowKey}`;
+  const cycleKeyWeekly = `weekly_${currentWeek}`;
   const claimedSet = new Set(questClaims.results.map(c => `${c.quest_id}:${c.cycle_key}`));
   
   missions = questClaims.results.reduce(
@@ -932,7 +948,9 @@ async function readPlayerProgress(
   for (const row of crateDaily.results) {
     const count = Math.max(0, Number(row.total));
     if (Number(row.activity_key) === todayActivityKey) cratesToday += count;
-    const week = Math.floor(Number(row.activity_key) / 7);
+    const week = Math.floor(
+      (Number(row.activity_key) - seasonStartDay) / 7,
+    );
     if (week === currentWeek) cratesWeek += count;
   }
 
@@ -1140,7 +1158,7 @@ export async function registerSeasonDailyLogin(
   if (now < season.starts_at || now >= season.ends_at) {
     throw new Error("O ciclo de XP não está aberto.");
   }
-  const today = Math.floor(now / DAY_MS);
+  const today = dailyWindowIndex(now);
   const rows = await db
     .prepare(
       `SELECT day_key, xp, created_at
@@ -1152,7 +1170,7 @@ export async function registerSeasonDailyLogin(
     .bind(season.id, accountId)
     .all<SeasonLoginRow>();
   const byDay = new Map(
-    rows.results.map((row) => [Math.floor(Number(row.created_at) / DAY_MS), row]),
+    rows.results.map((row) => [dailyWindowIndex(Number(row.created_at)), row]),
   );
   const alreadyClaimed = byDay.get(today);
   if (alreadyClaimed) {
@@ -1166,7 +1184,7 @@ export async function registerSeasonDailyLogin(
   }
   const cycleDay = (previousStreak % SEASON_DAILY_LOGIN_XP.length) + 1;
   const loginXp = SEASON_DAILY_LOGIN_XP[cycleDay - 1];
-  const dayKey = `${season.id}:utc:${today}`;
+  const dayKey = `${season.id}:daily:${dailyResetWindow(now).windowKey}`;
   const result = await db
     .prepare(
       `INSERT OR IGNORE INTO season_daily_logins (

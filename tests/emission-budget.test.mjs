@@ -15,10 +15,10 @@ test("orçamento diário nunca concede poder acima do restante", () => {
 });
 
 test("janela de emissão reinicia no próximo dia UTC", () => {
-  const now = Date.UTC(2026, 6, 28, 23, 59, 30);
+  const now = Date.UTC(2026, 6, 28, 15, 59, 30);
   const window = emissionWindow(now);
   assert.equal(window.windowKey, "2026-07-28");
-  assert.equal(window.resetAt, Date.UTC(2026, 6, 29));
+  assert.equal(window.resetAt, Date.UTC(2026, 6, 29, 12));
 });
 
 test("os quatro minigames reservam poder no orçamento global", async () => {

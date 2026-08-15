@@ -1,4 +1,5 @@
 import { readAdminRuntimeSettings } from "./admin-settings.ts";
+import { dailyResetWindow } from "./daily-reset-rules.ts";
 
 export const DAILY_GAME_POWER_BUDGET_GH = 5_000;
 
@@ -20,14 +21,7 @@ type BudgetRow = {
 };
 
 export function emissionWindow(now: number) {
-  const date = new Date(now);
-  const windowKey = date.toISOString().slice(0, 10);
-  const resetAt = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate() + 1,
-  );
-  return { resetAt, windowKey };
+  return dailyResetWindow(now);
 }
 
 export function calculateEmissionAward(

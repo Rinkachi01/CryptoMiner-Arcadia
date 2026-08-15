@@ -99,10 +99,9 @@ export async function POST() {
   if (!cycle.claimable) {
     return json(
       {
-        error: "A próxima bateria ainda está no ciclo de 9 horas.",
+        error: "A proxima bateria ainda esta no ciclo de 12 horas.",
         batteryCycle: cycle,
         batteryCount: state.batteryCount,
-        ...Object.fromEntries([["error", "A proxima bateria ainda esta no ciclo de 12 horas."]]),
       },
       409,
     );
