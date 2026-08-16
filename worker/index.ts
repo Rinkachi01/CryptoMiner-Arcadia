@@ -51,7 +51,15 @@ const worker = {
       allowedHosts,
     });
     if (hostDisposition === "redirect") {
-      const redirect = Response.redirect(canonicalArcadiaUrl(request.url), 308);
+      // Response.redirect() exposes immutable headers in the Workers runtime.
+      // Build the redirect explicitly so the shared security headers can be
+      // added without throwing a "Can't modify immutable headers" exception.
+      const redirect = new Response(null, {
+        status: 308,
+        headers: {
+          Location: canonicalArcadiaUrl(request.url).toString(),
+        },
+      });
       applyArcadiaSecurityHeaders(redirect.headers, true);
       return redirect;
     }
