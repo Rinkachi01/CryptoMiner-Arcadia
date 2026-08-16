@@ -36,16 +36,28 @@ export function PublicSiteFooter() {
         </section>
         <section className="public-footer-column public-footer-contact">
           <h2>{t("footer.contact")}</h2>
-          <p>{t("footer.discordDescription")}</p>
-          <a
-            className="public-footer-discord"
-            href="https://discord.gg/Kj4c4PFe8"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t("footer.discord")}
-          </a>
-          <span>{t("footer.discordNote")}</span>
+          <p>{t("footer.contactDescription")}</p>
+          <div className="public-footer-contact-links">
+            <a className="public-footer-contact-link" href="mailto:support@cryptominerarcadia.com">
+              <span className="public-footer-contact-icon" aria-hidden="true">✉</span>
+              <span>
+                <strong>support@cryptominerarcadia.com</strong>
+                <small>{t("footer.emailNote")}</small>
+              </span>
+            </a>
+            <a
+              className="public-footer-contact-link public-footer-discord"
+              href="https://discord.gg/Kj4c4PFe8"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="public-footer-contact-icon" aria-hidden="true">💬</span>
+              <span>
+                <strong>{t("footer.discord")}</strong>
+                <small>{t("footer.discordNote")}</small>
+              </span>
+            </a>
+          </div>
         </section>
       </div>
       <div className="public-footer-bottom">

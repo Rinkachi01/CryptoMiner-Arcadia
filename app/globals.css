@@ -24713,25 +24713,14 @@ body {
 }
 
 .public-footer-discord {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  width: fit-content;
-  padding: 0 14px;
   border: 1px solid rgba(88, 101, 242, 0.72);
   background: linear-gradient(135deg, rgba(88, 101, 242, 0.22), rgba(88, 101, 242, 0.08));
-  color: #e9ecff !important;
-  border-radius: 8px;
-  letter-spacing: 0.03em;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .public-footer-discord:hover,
 .public-footer-discord:focus-visible {
   border-color: #8d9aff;
   background: rgba(88, 101, 242, 0.35);
-  color: #ffffff !important;
-  transform: translateY(-1px);
 }
 
 .public-footer-cta {
@@ -24752,6 +24741,66 @@ body {
   padding: 18px;
   border: 1px solid #2b4655;
   background: rgba(16, 31, 43, 0.62);
+}
+
+.public-footer-contact-links {
+  display: grid;
+  gap: 9px;
+  margin-top: 2px;
+}
+
+.public-footer-contact-link {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid rgba(120, 153, 168, 0.28);
+  background: rgba(8, 19, 28, 0.55);
+  border-radius: 7px;
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.public-footer-contact-link:hover,
+.public-footer-contact-link:focus-visible {
+  border-color: rgba(169, 255, 63, 0.7);
+  background: rgba(169, 255, 63, 0.08);
+  transform: translateY(-1px);
+}
+
+.public-footer-contact-link > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.public-footer-contact-link strong {
+  overflow: hidden;
+  color: #dcecf0;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-footer-contact-link small {
+  color: #8298a4;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.public-footer-contact-icon {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(169, 255, 63, 0.48);
+  background: rgba(169, 255, 63, 0.1);
+  border-radius: 7px;
+  color: var(--lime);
+  font-size: 0.95rem;
 }
 
 .public-footer-bottom {

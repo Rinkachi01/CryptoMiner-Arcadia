@@ -106,6 +106,8 @@ const entries: Record<string, Localized> = {
   "footer.discordDescription": ["Suporte, novidades e comunidade oficial.", "Official support, updates and community."],
   "footer.discord": ["Entrar no Discord", "Join Discord"],
   "footer.discordNote": ["Acesse o servidor oficial do Arcadia.", "Open the official Arcadia server."],
+  "footer.email": ["E-mail de suporte", "Support email"],
+  "footer.emailNote": ["Conta, pagamentos e atendimento.", "Account, payments and support."],
   "footer.reply": ["Responderemos pelo protocolo dentro do site.", "We reply through an in-site ticket."],
   "footer.documents": ["Documentos", "Documents"],
   "footer.terms": ["Termos de uso", "Terms of use"],
