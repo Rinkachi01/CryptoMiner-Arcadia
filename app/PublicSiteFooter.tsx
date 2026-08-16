@@ -19,7 +19,7 @@ export function PublicSiteFooter() {
             <a href="/">{t("nav.mine")}</a>
             <a href="/faq">FAQ</a>
             <a href="/support">{t("nav.support")}</a>
-            <a href="/legal">{isPortuguese ? "Documentos" : "Documents"}</a>
+            <a href="/legal">{t("footer.documents")}</a>
             <a href="/perfil">{t("profile.open")}</a>
           </nav>
         </section>
@@ -28,8 +28,10 @@ export function PublicSiteFooter() {
           <nav aria-label={t("footer.account")}>
             <a href="/auth?mode=signin">{isPortuguese ? "Entrar" : "Sign in"}</a>
             <a href="/auth?mode=signup">{isPortuguese ? "Criar conta" : "Create account"}</a>
-            <a href="/legal#privacy">{isPortuguese ? "Privacidade" : "Privacy"}</a>
-            <a href="/legal#cookies">Cookies</a>
+            <a href="/legal#terms">{t("footer.terms")}</a>
+            <a href="/legal#privacy">{t("footer.privacy")}</a>
+            <a href="/legal#risk">{t("footer.risk")}</a>
+            <a href="/legal#cookies">{t("footer.cookies")}</a>
           </nav>
         </section>
         <section className="public-footer-column public-footer-contact">

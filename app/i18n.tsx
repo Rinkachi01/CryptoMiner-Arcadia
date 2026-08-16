@@ -104,6 +104,11 @@ const entries: Record<string, Localized> = {
   "footer.contact": ["Fale conosco", "Contact us"],
   "footer.contactDescription": ["Atendimento oficial para conta, depósitos e segurança.", "Official help for account, deposits and security."],
   "footer.reply": ["Responderemos pelo protocolo dentro do site.", "We reply through an in-site ticket."],
+  "footer.documents": ["Documentos", "Documents"],
+  "footer.terms": ["Termos de uso", "Terms of use"],
+  "footer.privacy": ["Privacidade", "Privacy"],
+  "footer.risk": ["Aviso de risco", "Risk disclosure"],
+  "footer.cookies": ["Cookies", "Cookies"],
   "footer.rights": ["Todos os direitos reservados.", "All rights reserved."],
 };
 
