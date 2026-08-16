@@ -208,6 +208,7 @@ export function OperatorInbox({
   }, [
     batteryCount,
     energySeconds,
+    english,
     installedMinerCount,
     onboarding?.eligible,
     secondsLeft,
