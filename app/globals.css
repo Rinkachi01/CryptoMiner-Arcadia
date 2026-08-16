@@ -20882,6 +20882,315 @@ body {
   }
 }
 
+/* Premium entry experience: visual first impression with a focused conversion path. */
+.public-auth-layout {
+  position: relative;
+  width: min(1180px, calc(100% - 40px));
+  min-height: calc(100vh - 128px);
+  padding: clamp(36px, 6vw, 76px) 0;
+  grid-template-columns: minmax(0, 1.04fr) minmax(390px, 0.76fr);
+  gap: clamp(42px, 7vw, 96px);
+}
+
+.public-auth-layout::before {
+  position: absolute;
+  z-index: -1;
+  top: 7%;
+  left: -11%;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(169, 255, 63, 0.11), transparent 68%);
+  content: "";
+  pointer-events: none;
+}
+
+.public-auth-intro {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.public-auth-hero-visual {
+  position: relative;
+  width: min(100%, 650px);
+  aspect-ratio: 16 / 7.2;
+  margin: 20px 0 28px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 234, 255, 0.4);
+  border-radius: 20px;
+  background: #071018;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36), 0 0 46px rgba(54, 216, 242, 0.1);
+}
+
+.public-auth-hero-visual::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(4, 10, 16, 0.68), transparent 54%),
+    linear-gradient(0deg, rgba(4, 10, 16, 0.45), transparent 45%);
+  content: "";
+  pointer-events: none;
+}
+
+.public-auth-hero-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.88;
+}
+
+.public-auth-hero-overlay {
+  position: absolute;
+  z-index: 1;
+  right: 16px;
+  bottom: 15px;
+  display: grid;
+  min-width: 165px;
+  padding: 10px 12px;
+  border: 1px solid rgba(169, 255, 63, 0.36);
+  border-radius: 10px;
+  background: rgba(6, 14, 20, 0.78);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  gap: 3px;
+}
+
+.public-auth-hero-overlay strong {
+  color: #ddffc1;
+  font: 850 0.68rem/1.2 var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.public-auth-hero-overlay small {
+  color: #99b2bb;
+  font-size: 0.67rem;
+}
+
+.public-auth-hero-pulse {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 14px var(--lime);
+}
+
+.public-auth-intro h1 {
+  max-width: 12ch;
+  margin-top: 8px;
+  font-size: clamp(2.75rem, 5.2vw, 5.4rem);
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.public-auth-intro p {
+  max-width: 610px;
+  font-size: 1.03rem;
+}
+
+.public-auth-intro ul {
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.public-auth-intro li {
+  color: #c9dce1;
+  font-size: 0.9rem;
+}
+
+.public-auth-proof-strip {
+  display: grid;
+  width: min(100%, 650px);
+  margin-top: 28px;
+  border: 1px solid rgba(62, 101, 116, 0.72);
+  border-radius: 14px;
+  background: rgba(10, 23, 31, 0.65);
+  grid-template-columns: repeat(3, 1fr);
+  overflow: hidden;
+}
+
+.public-auth-proof-strip > div {
+  display: grid;
+  min-height: 74px;
+  padding: 13px 15px;
+  align-content: center;
+  gap: 4px;
+}
+
+.public-auth-proof-strip > div + div {
+  border-left: 1px solid rgba(62, 101, 116, 0.62);
+}
+
+.public-auth-proof-strip strong {
+  color: var(--cyan);
+  font: 900 1.08rem/1 var(--font-display);
+}
+
+.public-auth-proof-strip span {
+  color: #8199a5;
+  font-size: 0.67rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.public-auth-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(106, 146, 160, 0.54);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(169, 255, 63, 0.15), transparent 15rem),
+    linear-gradient(150deg, rgba(26, 54, 64, 0.34), rgba(8, 16, 24, 0.98) 55%),
+    #0b131b;
+  box-shadow: 0 34px 100px rgba(0, 0, 0, 0.54), 0 0 0 1px rgba(54, 216, 242, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.public-auth-card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--lime), var(--cyan));
+  content: "";
+}
+
+.public-auth-card > header {
+  padding: 27px 30px;
+  border-bottom-color: rgba(80, 113, 126, 0.56);
+}
+
+.public-auth-card .login-brand-mark {
+  border-radius: 16px;
+  box-shadow: 0 0 28px rgba(169, 255, 63, 0.14);
+}
+
+.public-auth-card > header strong {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.public-auth-tabs {
+  padding: 8px 14px 0;
+  border-bottom: 1px solid rgba(80, 113, 126, 0.56);
+  gap: 4px;
+}
+
+.public-auth-tabs button {
+  min-height: 46px;
+  border-bottom-width: 2px;
+  border-radius: 9px 9px 0 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+}
+
+.public-auth-mode-hint {
+  margin: 21px 30px 0;
+  color: #a9c0c9;
+}
+
+.public-auth-social {
+  padding: 21px 30px 0;
+}
+
+.public-auth-google {
+  min-height: 52px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.public-auth-card form {
+  gap: 15px;
+  padding: 24px 30px 28px;
+}
+
+.public-auth-card input:not([type="checkbox"]) {
+  min-height: 52px;
+  border-color: #385463;
+  border-radius: 10px;
+  background: rgba(5, 12, 18, 0.8);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.public-auth-card input:not([type="checkbox"]):hover {
+  border-color: #527888;
+  background: rgba(7, 17, 24, 0.92);
+}
+
+.public-auth-submit {
+  min-height: 54px;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(169, 255, 63, 0.13);
+}
+
+.public-auth-card > footer {
+  min-height: 62px;
+  padding: 14px 30px;
+  background: rgba(4, 10, 15, 0.28);
+}
+
+@media (max-width: 700px) {
+  .public-auth-layout {
+    width: min(100% - 24px, 540px);
+    padding: 30px 0 44px;
+    gap: 28px;
+  }
+
+  .public-auth-hero-visual {
+    margin: 16px 0 24px;
+    border-radius: 15px;
+  }
+
+  .public-auth-intro h1 {
+    max-width: 13ch;
+    font-size: clamp(2.45rem, 12vw, 4rem);
+  }
+
+  .public-auth-proof-strip {
+    margin-top: 24px;
+  }
+
+  .public-auth-card > header,
+  .public-auth-card form,
+  .public-auth-card > footer {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .public-auth-mode-hint {
+    margin-right: 20px;
+    margin-left: 20px;
+  }
+
+  .public-auth-social {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .public-auth-hero-overlay {
+    right: 10px;
+    bottom: 10px;
+    min-width: 142px;
+    padding: 8px 10px;
+  }
+
+  .public-auth-proof-strip > div {
+    min-height: 66px;
+    padding: 10px 8px;
+  }
+
+  .public-auth-proof-strip span {
+    font-size: 0.58rem;
+  }
+}
+
 @media (max-width: 430px) {
   .mfa-challenge-card {
     width: min(100% - 20px, 500px);

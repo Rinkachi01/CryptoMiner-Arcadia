@@ -282,6 +282,15 @@ export function AuthForm({
     <div className="public-auth-layout">
       <section className="public-auth-intro">
         <span>{english ? "START YOUR OPERATION" : "COMECE SUA OPERAÇÃO"}</span>
+        <div className="public-auth-hero-visual" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/og-arcade-v3.png" alt="" />
+          <div className="public-auth-hero-overlay">
+            <span className="public-auth-hero-pulse" />
+            <strong>{english ? "SERVER ONLINE" : "SERVIDOR ONLINE"}</strong>
+            <small>{english ? "Your progress is verified" : "Seu progresso é verificado"}</small>
+          </div>
+        </div>
         <h1>{english ? "Your mining operation starts here." : "Sua operação de mineração começa aqui."}</h1>
         <p>
           {english
@@ -293,6 +302,11 @@ export function AuthForm({
           <li>{english ? "New operators start with one rack and one starter miner" : "Novos operadores começam com um rack e um minerador inicial"}</li>
           <li>{english ? "No seed phrase, private key, or wallet password required" : "Não pedimos seed phrase, chave privada ou senha de carteira"}</li>
         </ul>
+        <div className="public-auth-proof-strip" aria-label={english ? "Arcadia highlights" : "Destaques do Arcadia"}>
+          <div><strong>04</strong><span>{english ? "global pools" : "pools globais"}</span></div>
+          <div><strong>10m</strong><span>{english ? "fixed blocks" : "blocos fixos"}</span></div>
+          <div><strong>12h</strong><span>{english ? "energy cycle" : "ciclo de energia"}</span></div>
+        </div>
       </section>
 
       <section className="public-auth-card">
