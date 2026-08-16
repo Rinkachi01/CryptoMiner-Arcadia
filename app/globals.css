@@ -21214,7 +21214,14 @@ body {
 /* Auth header: keep the account title and language control on one deliberate row. */
 .public-auth-card > header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.public-auth-card > header .public-auth-brand {
+  display: flex;
+  min-width: 0;
   align-items: center;
   gap: 14px;
 }
@@ -21237,6 +21244,11 @@ body {
   font-size: clamp(1.15rem, 3vw, 1.5rem);
 }
 
+.public-auth-card > header .login-brand-copy span,
+.public-auth-card > header .login-brand-copy strong {
+  display: block;
+}
+
 .public-auth-card > header .language-switcher {
   margin-left: 0;
   white-space: nowrap;
@@ -21250,6 +21262,10 @@ body {
   .public-auth-card > header {
     gap: 10px;
     padding: 20px 18px;
+  }
+
+  .public-auth-card > header .public-auth-brand {
+    gap: 10px;
   }
 
   .public-auth-card .login-brand-mark {

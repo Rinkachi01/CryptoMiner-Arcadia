@@ -311,18 +311,20 @@ export function AuthForm({
 
       <section className="public-auth-card">
         <header>
-          <div className="login-brand-mark">
-            <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
-          </div>
-          <div className="login-brand-copy">
-            <span>CRYPTO MINER ARCADIA</span>
-            <strong>
-              {mode === "signin"
-                ? english ? "Sign in" : "Entrar"
-                : mode === "signup"
-                  ? english ? "Create account" : "Criar conta"
-                  : english ? "Recover password" : "Recuperar senha"}
-            </strong>
+          <div className="public-auth-brand">
+            <div className="login-brand-mark">
+              <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
+            </div>
+            <div className="login-brand-copy">
+              <span>CRYPTO MINER ARCADIA</span>
+              <strong>
+                {mode === "signin"
+                  ? english ? "Sign in" : "Entrar"
+                  : mode === "signup"
+                    ? english ? "Create account" : "Criar conta"
+                    : english ? "Recover password" : "Recuperar senha"}
+              </strong>
+            </div>
           </div>
           <LanguageSwitcher />
         </header>
