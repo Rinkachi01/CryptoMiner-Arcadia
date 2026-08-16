@@ -46,16 +46,14 @@ export function PublicSiteFooter() {
               </span>
             </a>
             <a
-              className="public-footer-contact-link public-footer-discord"
+              className="public-footer-contact-link public-footer-discord public-footer-discord-icon"
               href="https://discord.gg/Kj4c4PFe8"
               target="_blank"
               rel="noreferrer"
+              title={t("footer.discord")}
+              aria-label={t("footer.discord")}
             >
               <span className="public-footer-contact-icon" aria-hidden="true">💬</span>
-              <span>
-                <strong>{t("footer.discord")}</strong>
-                <small>{t("footer.discordNote")}</small>
-              </span>
             </a>
           </div>
         </section>

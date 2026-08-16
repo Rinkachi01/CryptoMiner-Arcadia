@@ -24723,6 +24723,20 @@ body {
   background: rgba(88, 101, 242, 0.35);
 }
 
+.public-footer-discord-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+}
+
+.public-footer-discord-icon .public-footer-contact-icon {
+  border-color: rgba(141, 154, 255, 0.8);
+  background: rgba(88, 101, 242, 0.28);
+  color: #eef0ff;
+}
+
 .public-footer-cta {
   display: inline-grid;
   width: fit-content;
