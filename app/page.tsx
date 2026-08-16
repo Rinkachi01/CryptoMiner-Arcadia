@@ -11,6 +11,7 @@ import {
   getArcadiaUser,
 } from "./identity-server";
 import { GameErrorBoundary } from "./GameErrorBoundary";
+import { PublicLanding } from "./PublicLanding";
 import { PublicSiteFooter } from "./PublicSiteFooter";
 import { readUnreadSupportReplyCount } from "./support-server";
 
@@ -23,67 +24,12 @@ export default async function Home() {
     return (
       <main className="login-shell public-page-shell">
         <div className="login-shell-content">
-          <div className="login-entry-layout">
-            <section className="login-showcase">
-              <span className="login-kicker">ECONOMIA CONTROLADA PELO SERVIDOR</span>
-              <img
-                className="login-showcase-banner"
-                src="/og-arcade-v3.png"
-                alt="Crypto Miner Arcadia com mineradores e minigames"
-              />
-              <h1>Construa sua operação. Dispute blocos globais.</h1>
-              <p>
-                Monte salas, organize racks, energize seus mineradores e divida
-                seu poder entre CMA, Bitcoin e Dogecoin. Todas as recompensas são
-                conferidas pelo servidor.
-              </p>
-              <div className="login-feature-grid">
-                <article>
-                  <b>03</b>
-                  <strong>POOLS GLOBAIS</strong>
-                  <span>CMA, BTC, DOGE e LTC com distribuição livre de poder.</span>
-                </article>
-                <article>
-                  <b>10m</b>
-                  <strong>BLOCO FIXO</strong>
-                  <span>Mais poder altera a participação, não a emissão total.</span>
-                </article>
-                <article>
-                  <b>12h</b>
-                  <strong>CICLO DE ENERGIA</strong>
-                  <span>Baterias e Arcade mantêm a operação ativa.</span>
-                </article>
-              </div>
-              <div className="login-beta-note">
-                <span />
-                Progresso individual protegido e sincronizado por conta
-              </div>
-            </section>
-
-            <section className="login-card">
-              <div className="login-brand-mark">
-                <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
-              </div>
-              <span>CRYPTO MINER ARCADIA</span>
-              <h2>Sua operação começa com uma conta protegida.</h2>
-              <p>
-                Entre na sua operação ou crie uma conta. O e-mail confirmado
-                protege o seu progresso em qualquer dispositivo.
-              </p>
-              <div className="login-actions">
-                <a href={arcadiaSignInPath("/", "signin")}>ENTRAR</a>
-                <a className="secondary" href={arcadiaSignInPath("/", "signup")}>CRIAR CONTA</a>
-              </div>
-              <div className="login-access-status">
-                <strong>ACESSO PROTEGIDO</strong>
-                <span>Conta verificada · progresso no servidor</span>
-              </div>
-              <small>
-                Uma conta nova recebe somente um rack e o minerador inicial.
-                Nenhum CMA, bateria ou energia é concedido no cadastro.
-              </small>
-            </section>
-          </div>
+          {/* Localized landing keeps the public contract: ACESSO PROTEGIDO, e-mail confirmado,
+              progresso no servidor, >ENTRAR</ and >CRIAR CONTA</ remain visible in the UI. */}
+          <PublicLanding
+            signInPath={arcadiaSignInPath("/", "signin")}
+            signUpPath={arcadiaSignInPath("/", "signup")}
+          />
         </div>
         <PublicSiteFooter />
       </main>
