@@ -24817,6 +24817,31 @@ body {
   font-size: 0.95rem;
 }
 
+/* Keep every official contact method visible and comfortable on touch screens. */
+.public-footer-email-link,
+.public-footer-discord {
+  min-height: 48px;
+}
+
+.public-footer-contact-link strong {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 620px) {
+  .public-footer-contact {
+    width: 100%;
+  }
+
+  .public-footer-contact-links {
+    gap: 10px;
+  }
+
+  .public-footer-contact-link {
+    min-height: 50px;
+  }
+}
+
 .public-footer-bottom {
   display: flex !important;
   max-width: 1240px;

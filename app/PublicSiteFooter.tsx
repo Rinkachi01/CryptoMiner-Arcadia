@@ -5,6 +5,7 @@ import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
 export function PublicSiteFooter() {
   const { t, locale } = useArcadiaLanguage();
   const isPortuguese = locale === "pt-BR";
+
   return (
     <footer className="public-site-footer">
       <div className="public-footer-main">
@@ -38,29 +39,37 @@ export function PublicSiteFooter() {
           <h2>{t("footer.contact")}</h2>
           <p>{t("footer.contactDescription")}</p>
           <div className="public-footer-contact-links">
-            <a className="public-footer-contact-link" href="mailto:support@cryptominerarcadia.com">
-              <span className="public-footer-contact-icon" aria-hidden="true">✉</span>
+            <a
+              className="public-footer-contact-link public-footer-email-link"
+              href="mailto:support@cryptominerarcadia.com"
+              aria-label="support@cryptominerarcadia.com"
+            >
+              <span className="public-footer-contact-icon" aria-hidden="true">{"\u2709"}</span>
               <span>
                 <strong>support@cryptominerarcadia.com</strong>
                 <small>{t("footer.emailNote")}</small>
               </span>
             </a>
             <a
-              className="public-footer-contact-link public-footer-discord public-footer-discord-icon"
+              className="public-footer-contact-link public-footer-discord"
               href="https://discord.gg/Kj4c4PFe8"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               title={t("footer.discord")}
               aria-label={t("footer.discord")}
             >
-              <span className="public-footer-contact-icon" aria-hidden="true">💬</span>
+              <span className="public-footer-contact-icon" aria-hidden="true">{"\uD83D\uDCAC"}</span>
+              <span>
+                <strong>{t("footer.discord")}</strong>
+                <small>{t("footer.discordNote")}</small>
+              </span>
             </a>
           </div>
         </section>
       </div>
       <div className="public-footer-bottom">
-        <small>© 2026 Crypto Miner Arcadia. {t("footer.rights")}</small>
-        <span>Crypto Miner Arcadia · CMA</span>
+        <small>{"©"} 2026 Crypto Miner Arcadia. {t("footer.rights")}</small>
+        <span>Crypto Miner Arcadia {"·"} CMA</span>
         <LanguageSwitcher />
       </div>
     </footer>
