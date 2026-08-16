@@ -309,6 +309,7 @@ export function ArcadiaGame({
   initialView = "mine",
 }: ArcadiaGameProps) {
   const { t, locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [activeView, setActiveView] = useState<ViewId>(initialView);
   const [accountDisplayName, setAccountDisplayName] = useState(user.displayName);
   const [textScale, setTextScale] =
@@ -874,7 +875,7 @@ export function ArcadiaGame({
           className="brand"
           type="button"
           onClick={() => setActiveView("mine")}
-          aria-label="Voltar para a sala de mineração"
+          aria-label={english ? "Return to the mining room" : "Voltar para a sala de mineração"}
         >
           <span className="brand-mark">
             <img src={assetsManifest.cmaCoin.path} alt="" />
@@ -885,9 +886,9 @@ export function ArcadiaGame({
           </span>
         </button>
 
-        <div className="topbar-status" aria-label="Status do sistema">
+        <div className="topbar-status" aria-label={english ? "System status" : "Status do sistema"}>
           <span className="online-dot" />
-          SISTEMA ONLINE
+          {english ? "SYSTEM ONLINE" : "SISTEMA ONLINE"}
         </div>
 
         <OperatorInbox
@@ -910,24 +911,24 @@ export function ArcadiaGame({
         <button
           className="reading-mode-toggle"
           type="button"
-          aria-label={`Tamanho do texto: ${
+          aria-label={`${english ? "Text size" : "Tamanho do texto"}: ${
             textScale === "comfortable"
-              ? "confortável"
+              ? english ? "comfortable" : "confortável"
               : textScale === "large"
-                ? "grande"
-                : "extra grande"
-          }. Clique para alterar.`}
+                ? english ? "large" : "grande"
+                : english ? "extra large" : "extra grande"
+          }. ${english ? "Click to change." : "Clique para alterar."}`}
           onClick={cycleTextScale}
         >
           <b>A+</b>
           <span>
-            <small>LEITURA</small>
+            <small>{english ? "READING" : "LEITURA"}</small>
             <strong>
               {textScale === "comfortable"
-                ? "CONFORTÁVEL"
+                ? english ? "COMFORTABLE" : "CONFORTÁVEL"
                 : textScale === "large"
-                  ? "GRANDE"
-                  : "EXTRA GRANDE"}
+                  ? english ? "LARGE" : "GRANDE"
+                  : english ? "EXTRA LARGE" : "EXTRA GRANDE"}
             </strong>
           </span>
         </button>
@@ -938,14 +939,14 @@ export function ArcadiaGame({
             className="wallet-trigger"
             type="button"
             title={t("wallet.title")}
-            aria-label={`Abrir carteira virtual. Saldo exibido: ${displayedBalance.symbol} ${displayedBalance.value}`}
+            aria-label={`${english ? "Open virtual wallet" : "Abrir carteira virtual"}. ${english ? "Displayed balance" : "Saldo exibido"}: ${displayedBalance.symbol} ${displayedBalance.value}`}
             aria-expanded={walletOpen}
             aria-controls="wallet-menu"
             onClick={() => setWalletOpen((open) => !open)}
           >
             <img src={displayedBalance.asset} alt="" />
             <span>
-              <small>SALDO {displayedBalance.symbol}</small>
+              <small>{english ? "BALANCE" : "SALDO"} {displayedBalance.symbol}</small>
               <strong>{displayedBalance.value}</strong>
             </span>
             <b aria-hidden="true">⌄</b>
@@ -988,7 +989,7 @@ export function ArcadiaGame({
               <button
                 type="button"
                 className="wallet-conversion-link"
-                title="Abrir a carteira completa e a conversão para CMA"
+                title={english ? "Open the full wallet and convert to CMA" : "Abrir a carteira completa e a conversão para CMA"}
                 onClick={() => {
                   setRackOpen(false);
                   setWalletOpen(false);

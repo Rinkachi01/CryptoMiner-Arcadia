@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PoolAllocations } from "./game-server";
 import type { OnboardingStatus } from "./onboarding-rules";
+import { useArcadiaLanguage } from "./i18n";
 
 type GuideTarget = "mine" | "pools" | "inventory" | "games" | "career";
 
@@ -35,6 +36,8 @@ export function OperatorInbox({
   refreshKey,
   onNavigate,
 }: OperatorInboxProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState<GamesSummary | null>(null);
 
@@ -66,8 +69,8 @@ export function OperatorInbox({
       ? [
           {
             id: "kit",
-            label: "Receba seu kit inicial",
-            detail: "Somente rack e Byte Spark registrados",
+            label: english ? "Receive your starter kit" : "Receba seu kit inicial",
+            detail: english ? "Only the rack and Byte Spark are registered" : "Somente rack e Byte Spark registrados",
             complete: onboarding.milestones.kitDelivered,
             target: "mine" as const,
           },
@@ -77,9 +80,9 @@ export function OperatorInbox({
       ? [
           {
             id: "rack",
-            label: "Instale seu primeiro rack",
+            label: english ? "Install your first rack" : "Instale seu primeiro rack",
             detail:
-              rackCount > 0 ? `${rackCount} rack(s) instalado(s)` : "Abra a sala",
+              rackCount > 0 ? `${rackCount} rack(s) ${english ? "installed" : "instalado(s)"}` : english ? "Open the room" : "Abra a sala",
             complete: rackCount > 0,
             target: "mine" as const,
           },
@@ -87,11 +90,11 @@ export function OperatorInbox({
       : []),
     {
       id: "miner",
-      label: "Equipe um minerador",
+      label: english ? "Equip a miner" : "Equipe um minerador",
       detail:
         installedMinerCount > 0
-          ? `${installedMinerCount} equipamento(s) operando`
-          : "Escolha um slot do rack",
+          ? `${installedMinerCount} ${english ? "equipment item(s) operating" : "equipamento(s) operando"}`
+          : english ? "Choose a rack slot" : "Escolha um slot do rack",
       complete: onboarding?.eligible
         ? onboarding.milestones.minerInstalled
         : installedMinerCount > 0,
@@ -100,13 +103,13 @@ export function OperatorInbox({
     {
       id: "arcade",
       label: onboarding?.eligible
-        ? "Complete o Tour do Arcade"
-        : "Conclua um minigame",
+        ? english ? "Complete the Arcade Tour" : "Complete o Tour do Arcade"
+        : english ? "Complete a minigame" : "Conclua um minigame",
       detail: onboarding?.eligible
-        ? "Jogue Packet Catch, Hash Match e Circuit Rush"
+        ? english ? "Play Packet Catch, Hash Match and Circuit Rush" : "Jogue Packet Catch, Hash Match e Circuit Rush"
         : totalPlays > 0
-          ? `${totalPlays} partida(s) registrada(s)`
-          : "Visite o Arcade",
+          ? `${totalPlays} ${english ? "game(s) recorded" : "partida(s) registrada(s)"}`
+          : english ? "Visit the Arcade" : "Visite o Arcade",
       complete: onboarding?.eligible
         ? onboarding.milestones.arcadeCompleted
         : totalPlays > 0,
@@ -115,14 +118,14 @@ export function OperatorInbox({
     {
       id: "energy",
       label: onboarding?.eligible
-        ? "Conquiste e ative energia"
-        : "Mantenha a sala energizada",
+        ? english ? "Earn and activate energy" : "Conquiste e ative energia"
+        : english ? "Keep the room powered" : "Mantenha a sala energizada",
       detail:
         energySeconds > 0
-          ? "Energia ativa"
+          ? english ? "Energy active" : "Energia ativa"
           : onboarding?.eligible
-            ? "Resgate a bateria do Tour na Central do Operador"
-            : "Use ou resgate uma bateria",
+            ? english ? "Claim the Tour battery in the Operator Center" : "Resgate a bateria do Tour na Central do Operador"
+            : english ? "Use or claim a battery" : "Use ou resgate uma bateria",
       complete: onboarding?.eligible
         ? onboarding.milestones.energyOnline
         : energySeconds > 0,
@@ -130,11 +133,11 @@ export function OperatorInbox({
     },
     {
       id: "pools",
-      label: "Distribua 100% do poder",
+      label: english ? "Distribute 100% of your power" : "Distribua 100% do poder",
       detail:
         totalAllocation === 100
           ? `${poolAllocations.cma}% CMA · ${poolAllocations.btc}% BTC · ${poolAllocations.doge}% DOGE · ${poolAllocations.ltc}% LTC`
-          : `${totalAllocation}% distribuído`,
+          : `${totalAllocation}% ${english ? "distributed" : "distribuído"}`,
       complete: onboarding?.eligible
         ? onboarding.milestones.poolsConfirmed
         : totalAllocation === 100,
@@ -144,10 +147,10 @@ export function OperatorInbox({
       ? [
           {
             id: "first-block",
-            label: "Receba seu primeiro bloco",
+            label: english ? "Receive your first block" : "Receba seu primeiro bloco",
             detail: onboarding.milestones.firstBlockCredited
-              ? "Recompensa registrada no histórico"
-              : "Mantenha energia e poder ativos",
+              ? english ? "Reward recorded in your history" : "Recompensa registrada no histórico"
+              : english ? "Keep energy and power active" : "Mantenha energia e poder ativos",
             complete: onboarding.milestones.firstBlockCredited,
             target: "pools" as const,
           },
@@ -167,18 +170,18 @@ export function OperatorInbox({
     if (energySeconds <= 0) {
       items.push({
         id: "energy-empty",
-        label: "Mineração pausada",
+        label: english ? "Mining paused" : "Mineração pausada",
         detail: onboarding?.eligible
-          ? "Complete o Tour do Arcade para conquistar sua primeira bateria."
-          : "Sua energia acabou. Use uma bateria para voltar a produzir.",
+          ? english ? "Complete the Arcade Tour to earn your first battery." : "Complete o Tour do Arcade para conquistar sua primeira bateria."
+          : english ? "Your energy is empty. Use a battery to resume production." : "Sua energia acabou. Use uma bateria para voltar a produzir.",
         target: onboarding?.eligible ? "games" : "mine",
         severity: "attention",
       });
     } else if (energySeconds <= 3 * 60 * 60) {
       items.push({
         id: "energy-low",
-        label: "Energia abaixo de 3 horas",
-        detail: `${batteryCount} bateria(s) disponível(is) no inventário.`,
+        label: english ? "Energy below 3 hours" : "Energia abaixo de 3 horas",
+        detail: `${batteryCount} ${english ? "battery(ies) available in inventory." : "bateria(s) disponível(is) no inventário."}`,
         target: "mine",
         severity: "attention",
       });
@@ -186,8 +189,8 @@ export function OperatorInbox({
     if (installedMinerCount === 0) {
       items.push({
         id: "no-miner",
-        label: "Nenhum minerador instalado",
-        detail: "Abra o inventário e escolha um equipamento para o rack.",
+        label: english ? "No miner installed" : "Nenhum minerador instalado",
+        detail: english ? "Open Inventory and choose equipment for the rack." : "Abra o inventário e escolha um equipamento para o rack.",
         target: "inventory",
         severity: "attention",
       });
@@ -195,8 +198,8 @@ export function OperatorInbox({
     if (secondsLeft <= 60) {
       items.push({
         id: "block",
-        label: "Bloco quase fechado",
-        detail: "Menos de um minuto para o próximo processamento.",
+        label: english ? "Block closing soon" : "Bloco quase fechado",
+        detail: english ? "Less than one minute until the next settlement." : "Menos de um minuto para o próximo processamento.",
         target: "pools",
         severity: "info",
       });
@@ -226,7 +229,7 @@ export function OperatorInbox({
       >
         <span>!</span>
         <b>{notifications.length}</b>
-        <small>GUIA E AVISOS</small>
+        <small>{english ? "GUIDE & ALERTS" : "GUIA E AVISOS"}</small>
       </button>
 
       {open && (
@@ -235,21 +238,21 @@ export function OperatorInbox({
           id="operator-inbox"
           role="dialog"
           aria-modal="false"
-          aria-label="Guia e avisos da conta"
+          aria-label={english ? "Account guide and alerts" : "Guia e avisos da conta"}
         >
           <header>
             <div>
-              <span>CENTRAL DO OPERADOR</span>
-              <strong>Próximos passos</strong>
+              <span>{english ? "OPERATOR CENTER" : "CENTRAL DO OPERADOR"}</span>
+              <strong>{english ? "Next steps" : "Próximos passos"}</strong>
             </div>
             <button type="button" onClick={() => setOpen(false)}>
-              FECHAR
+              {english ? "CLOSE" : "FECHAR"}
             </button>
           </header>
 
           <section className="operator-guide-progress">
             <div>
-              <span>CONFIGURAÇÃO DA CONTA</span>
+              <span>{english ? "ACCOUNT SETUP" : "CONFIGURAÇÃO DA CONTA"}</span>
               <strong>{completedSteps} / {steps.length}</strong>
             </div>
             <i>
@@ -270,18 +273,18 @@ export function OperatorInbox({
                   <strong>{step.label}</strong>
                   <small>{step.detail}</small>
                 </span>
-                <em>ABRIR</em>
+                <em>{english ? "OPEN" : "ABRIR"}</em>
               </button>
             ))}
           </section>
 
           <section className="operator-live-alerts">
             <div>
-              <span>AGORA</span>
-              <strong>{notifications.length} aviso(s) útil(eis)</strong>
+              <span>{english ? "NOW" : "AGORA"}</span>
+              <strong>{notifications.length} {english ? "useful alert(s)" : "aviso(s) útil(eis)"}</strong>
             </div>
             {notifications.length === 0 ? (
-              <p>Conta organizada. Nenhuma ação urgente neste momento.</p>
+              <p>{english ? "Account is organized. No urgent action right now." : "Conta organizada. Nenhuma ação urgente neste momento."}</p>
             ) : (
               notifications.map((item) => (
                 <button
