@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
   title: "Crypto Miner Arcadia",
   description:
-    "Mineração virtual com seis salas, blocos fixos, quatro pools e economia controlada pelo servidor.",
+    "Virtual mining with six rooms, fixed blocks, four pools, and a server-controlled economy.",
   robots: {
     follow: publicIndexingEnabled,
     index: publicIndexingEnabled,
@@ -32,15 +32,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Crypto Miner Arcadia",
     description:
-      "Salas de mineração, energia, Arcade e progressão medidos pelo servidor.",
+      "Mining rooms, energy, Arcade games, and progress measured by the server.",
     type: "website",
-    locale: "pt_BR",
+    locale: "en_US",
     images: [
       {
         url: "/og-arcade-v3.png",
         width: 1672,
         height: 941,
-        alt: "Crypto Miner Arcadia — salas, energia, pools e Arcade",
+        alt: "Crypto Miner Arcadia — mining rooms, energy, pools, and Arcade",
       },
     ],
   },
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Crypto Miner Arcadia",
     description:
-      "Mineração virtual com progressão, energia, pools globais e Arcade.",
+      "Virtual mining with progress, energy, global pools, and Arcade games.",
     images: ["/og-arcade-v3.png"],
   },
 };
@@ -65,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="en">
       <head>
         <meta
           name="bitmedia-site-verification"

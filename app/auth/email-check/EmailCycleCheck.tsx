@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useArcadiaLanguage } from "../../i18n";
 
 type Props = { email: string; next: string };
 
@@ -10,23 +11,25 @@ type StatusResponse = {
   retryAt?: number | null;
 };
 
-function messageFor(status: string) {
+function messageFor(status: string, english: boolean) {
   switch (status) {
     case "cooldown":
-      return "Um código já foi enviado. Aguarde um instante antes de pedir outro.";
+      return english ? "A code was already sent. Wait a moment before requesting another." : "Um código já foi enviado. Aguarde um instante antes de pedir outro.";
     case "too_many_attempts":
-      return "Limite de tentativas atingido. Solicite um novo código.";
+      return english ? "Attempt limit reached. Request a new code." : "Limite de tentativas atingido. Solicite um novo código.";
     case "configuration_pending":
-      return "O envio de e-mail está temporariamente indisponível. Tente novamente mais tarde.";
+      return english ? "Email delivery is temporarily unavailable. Try again later." : "O envio de e-mail está temporariamente indisponível. Tente novamente mais tarde.";
     case "invalid_or_expired":
     case "invalid_code":
-      return "Código inválido ou expirado.";
+      return english ? "Invalid or expired code." : "Código inválido ou expirado.";
     default:
-      return "Não foi possível concluir agora. Tente novamente.";
+      return english ? "We could not complete that right now. Try again." : "Não foi possível concluir agora. Tente novamente.";
   }
 }
 
 export function EmailCycleCheck({ email, next }: Props) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -55,14 +58,14 @@ export function EmailCycleCheck({ email, next }: Props) {
         return;
       }
       if (!response.ok) {
-        setError(messageFor(result.status ?? "failed"));
+        setError(messageFor(result.status ?? "failed", english));
         if (result.retryAt) setRetryAt(result.retryAt);
         return;
       }
       setRetryAt(result.retryAt ?? Date.now() + 60_000);
-      setInfo("Código enviado. Confira sua caixa de entrada e o spam.");
+      setInfo(english ? "Code sent. Check your inbox and spam folder." : "Código enviado. Confira sua caixa de entrada e o spam.");
     } catch {
-      setError("Não foi possível enviar o código agora.");
+      setError(english ? "We could not send the code right now." : "Não foi possível enviar o código agora.");
     } finally {
       setSending(false);
       setLoading(false);
@@ -84,7 +87,7 @@ export function EmailCycleCheck({ email, next }: Props) {
       .catch(() => {
         if (!cancelled) {
           setLoading(false);
-          setError("Não foi possível preparar a verificação.");
+          setError(english ? "We could not prepare verification." : "Não foi possível preparar a verificação.");
         }
       });
     return () => {
@@ -92,7 +95,7 @@ export function EmailCycleCheck({ email, next }: Props) {
     };
     // The send action intentionally runs once for the current cycle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [next]);
+  }, [english, next]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -118,12 +121,12 @@ export function EmailCycleCheck({ email, next }: Props) {
         status?: string;
       };
       if (!response.ok || !result.ok) {
-        setError(messageFor(result.status ?? "failed"));
+        setError(messageFor(result.status ?? "failed", english));
         return;
       }
       window.location.assign(next);
     } catch {
-      setError("Não foi possível validar o código agora.");
+      setError(english ? "We could not validate the code right now." : "Não foi possível validar o código agora.");
     } finally {
       setLoading(false);
     }
@@ -131,13 +134,13 @@ export function EmailCycleCheck({ email, next }: Props) {
 
   return (
     <section className="email-cycle-card" aria-labelledby="email-cycle-title">
-      <div className="email-cycle-eyebrow">SEGURANÇA DA CONTA</div>
-      <h1 id="email-cycle-title">Confirme seu e-mail</h1>
+      <div className="email-cycle-eyebrow">{english ? "ACCOUNT SECURITY" : "SEGURANÇA DA CONTA"}</div>
+      <h1 id="email-cycle-title">{english ? "Confirm your email" : "Confirme seu e-mail"}</h1>
       <p>
-        Para manter sua conta protegida, confirme o código enviado para <strong>{email}</strong>.
+        {english ? <>To keep your account protected, confirm the code sent to <strong>{email}</strong>.</> : <>Para manter sua conta protegida, confirme o código enviado para <strong>{email}</strong>.</>}
       </p>
       <form onSubmit={verify}>
-        <label htmlFor="email-cycle-code">Código de 6 dígitos</label>
+        <label htmlFor="email-cycle-code">{english ? "6-digit code" : "Código de 6 dígitos"}</label>
         <input
           id="email-cycle-code"
           inputMode="numeric"
@@ -150,7 +153,7 @@ export function EmailCycleCheck({ email, next }: Props) {
           disabled={loading}
         />
         <button type="submit" disabled={loading || code.length !== 6}>
-          {loading ? "VALIDANDO…" : "CONFIRMAR E CONTINUAR"}
+          {loading ? (english ? "VERIFYING…" : "VALIDANDO…") : (english ? "CONFIRM AND CONTINUE" : "CONFIRMAR E CONTINUAR")}
         </button>
       </form>
       {info && <p className="email-cycle-info" role="status">{info}</p>}
@@ -161,9 +164,9 @@ export function EmailCycleCheck({ email, next }: Props) {
         disabled={sending || seconds > 0}
         onClick={() => void sendCode()}
       >
-        {seconds > 0 ? `REENVIAR EM ${seconds}s` : sending ? "ENVIANDO…" : "REENVIAR CÓDIGO"}
+        {seconds > 0 ? english ? `RESEND IN ${seconds}s` : `REENVIAR EM ${seconds}s` : sending ? english ? "SENDING…" : "ENVIANDO…" : english ? "RESEND CODE" : "REENVIAR CÓDIGO"}
       </button>
-      <p className="email-cycle-note">O código expira em 10 minutos. O MFA continua sendo a proteção mais forte quando ativado.</p>
+      <p className="email-cycle-note">{english ? "The code expires in 10 minutes. MFA remains the strongest protection when enabled." : "O código expira em 10 minutos. O MFA continua sendo a proteção mais forte quando ativado."}</p>
     </section>
   );
 }

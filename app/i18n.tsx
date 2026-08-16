@@ -6,7 +6,9 @@ export type ArcadiaLocale = "pt-BR" | "en";
 type Localized = [string, string];
 
 const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en"];
-const localeStorageKey = "arcadia-locale";
+// v2 makes the new English-first default effective for visitors who had the
+// old browser-detected Portuguese value cached before the international launch.
+const localeStorageKey = "arcadia-locale-v2";
 const localeCookieKey = "arcadia_locale";
 
 // Keep the dictionary small and shared so every visible shell label changes with the selector.
@@ -160,10 +162,9 @@ function isArcadiaLocale(value: string | null): value is ArcadiaLocale {
 }
 
 function browserLocale(): ArcadiaLocale {
-  if (typeof navigator === "undefined") return "pt-BR";
-  const language = navigator.language.toLowerCase();
-  if (language.startsWith("en")) return "en";
-  return "pt-BR";
+  // English is the platform default. Portuguese remains available through
+  // the selector and is persisted only after the operator chooses it.
+  return "en";
 }
 
 function applyLocale(next: ArcadiaLocale) {
@@ -180,7 +181,7 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<ArcadiaLocale>(() => {
-    if (typeof window === "undefined") return "pt-BR";
+    if (typeof window === "undefined") return "en";
     const saved = window.localStorage.getItem(localeStorageKey);
     return isArcadiaLocale(saved) ? saved : browserLocale();
   });

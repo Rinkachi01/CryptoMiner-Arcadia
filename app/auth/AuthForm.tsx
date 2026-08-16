@@ -3,6 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { TurnstileWidget } from "../TurnstileWidget";
+import { LanguageSwitcher, useArcadiaLanguage } from "../i18n";
 
 type AuthMode = "reset" | "signin" | "signup";
 
@@ -17,31 +18,31 @@ type AuthFormProps = {
   turnstileSiteKey: string | null;
 };
 
-function friendlyError(message: string) {
+function friendlyError(message: string, english: boolean) {
   const normalized = message.toLowerCase();
   if (normalized.includes("invalid login credentials")) {
-    return "E-mail ou senha incorretos.";
+    return english ? "Incorrect email or password." : "E-mail ou senha incorretos.";
   }
   if (normalized.includes("email rate limit")) {
-    return "Muitos e-mails foram solicitados. Aguarde alguns minutos.";
+    return english ? "Too many emails were requested. Please wait a few minutes." : "Muitos e-mails foram solicitados. Aguarde alguns minutos.";
   }
   if (normalized.includes("user already registered")) {
-    return "Esta conta já existe. Tente entrar ou recuperar a senha.";
+    return english ? "This account already exists. Try signing in or recovering your password." : "Esta conta já existe. Tente entrar ou recuperar a senha.";
   }
   if (normalized.includes("email not confirmed")) {
-    return "Confirme seu e-mail antes de entrar. Você pode reenviar a confirmação pelo cadastro.";
+    return english ? "Confirm your email before signing in. You can resend the confirmation from the sign-up screen." : "Confirme seu e-mail antes de entrar. Você pode reenviar a confirmação pelo cadastro.";
   }
   if (
     normalized.includes("error sending confirmation email") ||
     normalized.includes("unexpected_failure") ||
     normalized.includes("unexpected failure")
   ) {
-    return "O cadastro foi pausado porque o serviço de e-mail está indisponível. Nenhuma conta foi criada. Tente novamente mais tarde ou abra um chamado.";
+    return english ? "Sign-up is paused because the email service is unavailable. No account was created. Try again later or contact support." : "O cadastro foi pausado porque o serviço de e-mail está indisponível. Nenhuma conta foi criada. Tente novamente mais tarde ou abra um chamado.";
   }
   if (normalized.includes("captcha") || normalized.includes("turnstile")) {
-    return "A verificação humana expirou. Confirme novamente e repita o envio.";
+    return english ? "The human verification expired. Confirm it again and submit once more." : "A verificação humana expirou. Confirme novamente e repita o envio.";
   }
-  return "Não foi possível concluir agora. Revise os dados e tente novamente.";
+  return english ? "We could not complete that right now. Review the details and try again." : "Não foi possível concluir agora. Revise os dados e tente novamente.";
 }
 
 function maskEmail(email: string) {
@@ -61,6 +62,8 @@ export function AuthForm({
   supabaseUrl,
   turnstileSiteKey,
 }: AuthFormProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, publishableKey),
     [publishableKey, supabaseUrl],
@@ -104,7 +107,7 @@ export function AuthForm({
     // `auth` silently skipped the MFA challenge for every account.
     const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error) {
-      throw new Error("Não foi possível validar a proteção em duas etapas. Tente entrar novamente.");
+      throw new Error(english ? "We could not validate two-step protection. Try signing in again." : "Não foi possível validar a proteção em duas etapas. Tente entrar novamente.");
     }
     if (data?.nextLevel === "aal2" && data.currentLevel !== "aal2") {
       window.location.assign(
@@ -130,7 +133,7 @@ export function AuthForm({
       if (error) throw error;
     } catch (error) {
       setMessage(
-        friendlyError(error instanceof Error ? error.message : String(error)),
+        friendlyError(error instanceof Error ? error.message : String(error), english),
       );
       setBusy(false);
     }
@@ -144,7 +147,7 @@ export function AuthForm({
 
     try {
       if (captchaRequired && !captchaToken) {
-        setMessage("Confirme a verificação humana para continuar.");
+        setMessage(english ? "Confirm the human verification to continue." : "Confirme a verificação humana para continuar.");
         return;
       }
       if (mode === "reset") {
@@ -156,7 +159,7 @@ export function AuthForm({
         });
         if (error) throw error;
         setMessage(
-          "Se a conta existir, você receberá um e-mail com o próximo passo.",
+          english ? "If the account exists, you will receive an email with the next step." : "Se a conta existir, você receberá um e-mail com o próximo passo.",
         );
         setSentEmail("recovery");
         setResendSeconds(60);
@@ -165,15 +168,15 @@ export function AuthForm({
 
       if (mode === "signup") {
         if (password.length < 10) {
-          setMessage("Use uma senha com pelo menos 10 caracteres.");
+          setMessage(english ? "Use a password with at least 10 characters." : "Use uma senha com pelo menos 10 caracteres.");
           return;
         }
         if (password !== passwordConfirmation) {
-          setMessage("As senhas não coincidem. Confira os dois campos.");
+          setMessage(english ? "The passwords do not match. Check both fields." : "As senhas não coincidem. Confira os dois campos.");
           return;
         }
         if (!termsAccepted) {
-          setMessage("Aceite os Termos e a Política de Privacidade para continuar.");
+          setMessage(english ? "Accept the Terms and Privacy Policy to continue." : "Aceite os Termos e a Política de Privacidade para continuar.");
           return;
         }
         const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}${referralCode ? `&ref=${encodeURIComponent(referralCode)}` : ""}`;
@@ -200,7 +203,7 @@ export function AuthForm({
           return;
         }
         setMessage(
-          "Cadastro recebido. Confirme o e-mail para liberar sua conta.",
+          english ? "Sign-up received. Confirm your email to unlock the account." : "Cadastro recebido. Confirme o e-mail para liberar sua conta.",
         );
         setSentEmail("confirmation");
         setResendSeconds(60);
@@ -217,7 +220,7 @@ export function AuthForm({
       await redirectAfterAuthentication();
     } catch (error) {
       setMessage(
-        friendlyError(error instanceof Error ? error.message : String(error)),
+        friendlyError(error instanceof Error ? error.message : String(error), english),
       );
     } finally {
       if (captchaRequired && submittedToAuth) {
@@ -231,7 +234,7 @@ export function AuthForm({
   async function resendEmail() {
     if (!sentEmail || busy || resendSeconds > 0) return;
     if (captchaRequired && !captchaToken) {
-      setMessage("Confirme a verificação humana para reenviar.");
+      setMessage(english ? "Confirm the human verification to resend." : "Confirme a verificação humana para reenviar.");
       return;
     }
     setBusy(true);
@@ -258,13 +261,13 @@ export function AuthForm({
       if (error) throw error;
       setMessage(
         sentEmail === "confirmation"
-          ? "Se o cadastro estiver pendente, uma nova confirmação foi enviada."
-          : "Se a conta existir, um novo link de recuperação foi enviado.",
+          ? english ? "If sign-up is still pending, a new confirmation was sent." : "Se o cadastro estiver pendente, uma nova confirmação foi enviada."
+          : english ? "If the account exists, a new recovery link was sent." : "Se a conta existir, um novo link de recuperação foi enviado.",
       );
       setResendSeconds(60);
     } catch (error) {
       setMessage(
-        friendlyError(error instanceof Error ? error.message : String(error)),
+        friendlyError(error instanceof Error ? error.message : String(error), english),
       );
     } finally {
       if (captchaRequired) {
@@ -278,16 +281,17 @@ export function AuthForm({
   return (
     <div className="public-auth-layout">
       <section className="public-auth-intro">
-        <span>CONTA ARCADIA</span>
-        <h1>Seu progresso pertence a uma conta verificada.</h1>
+        <span>{english ? "ARCADIA ACCOUNT" : "CONTA ARCADIA"}</span>
+        <h1>{english ? "Your progress belongs to a verified account." : "Seu progresso pertence a uma conta verificada."}</h1>
         <p>
-          O login público usa e-mail confirmado e sessão protegida. O jogo nunca
-          pede seed phrase, chave privada ou senha de carteira.
+          {english
+            ? "Public access uses a confirmed email and a protected session. The game never asks for a seed phrase, private key, or wallet password."
+            : "O login público usa e-mail confirmado e sessão protegida. O jogo nunca pede seed phrase, chave privada ou senha de carteira."}
         </p>
         <ul>
-          <li>Conta nova: 1 rack e 1 minerador inicial</li>
-          <li>Sem CMA, bateria ou energia grátis no cadastro</li>
-          <li>Progresso e recompensas conferidos pelo servidor</li>
+          <li>{english ? "New account: 1 rack and 1 starter miner" : "Conta nova: 1 rack e 1 minerador inicial"}</li>
+          <li>{english ? "No CMA, battery, or free energy at sign-up" : "Sem CMA, bateria ou energia grátis no cadastro"}</li>
+          <li>{english ? "Progress and rewards verified by the server" : "Progresso e recompensas conferidos pelo servidor"}</li>
         </ul>
       </section>
 
@@ -300,37 +304,38 @@ export function AuthForm({
             <span>CRYPTO MINER ARCADIA</span>
             <strong>
               {mode === "signin"
-                ? "Entrar"
+                ? english ? "Sign in" : "Entrar"
                 : mode === "signup"
-                  ? "Criar conta"
-                  : "Recuperar senha"}
+                  ? english ? "Create account" : "Criar conta"
+                  : english ? "Recover password" : "Recuperar senha"}
             </strong>
           </div>
+          <LanguageSwitcher />
         </header>
 
-        <div className="public-auth-tabs" role="tablist" aria-label="Acesso à conta">
+        <div className="public-auth-tabs" role="tablist" aria-label={english ? "Account access" : "Acesso à conta"}>
           <button
             className={mode === "signin" ? "active" : ""}
             type="button"
             onClick={() => switchMode("signin")}
           >
-            ENTRAR
+            {english ? "SIGN IN" : "ENTRAR"}
           </button>
           <button
             className={mode === "signup" ? "active" : ""}
             type="button"
             onClick={() => switchMode("signup")}
           >
-            REGISTRAR
+            {english ? "SIGN UP" : "REGISTRAR"}
           </button>
         </div>
 
         <p className="public-auth-mode-hint">
           {mode === "signin"
-            ? "Entre para voltar à sua sala e acompanhar sua mineração."
+            ? english ? "Sign in to return to your room and track your mining." : "Entre para voltar à sua sala e acompanhar sua mineração."
             : mode === "signup"
-              ? "Crie seu operador e comece com seu primeiro rack."
-              : "Recupere o acesso com segurança pelo seu e-mail."}
+              ? english ? "Create your operator and start with your first rack." : "Crie seu operador e comece com seu primeiro rack."
+              : english ? "Recover access securely through your email." : "Recupere o acesso com segurança pelo seu e-mail."}
         </p>
 
         {sentEmail ? (
@@ -338,14 +343,14 @@ export function AuthForm({
             <div className="email-sent-icon" aria-hidden="true">✓</div>
             <span>
               {sentEmail === "confirmation"
-                ? "CONFIRMAÇÃO SOLICITADA"
-                : "RECUPERAÇÃO SOLICITADA"}
+                ? english ? "CONFIRMATION REQUESTED" : "CONFIRMAÇÃO SOLICITADA"
+                : english ? "RECOVERY REQUESTED" : "RECUPERAÇÃO SOLICITADA"}
             </span>
-            <h2>Confira sua caixa de entrada</h2>
+            <h2>{english ? "Check your inbox" : "Confira sua caixa de entrada"}</h2>
             <p>
-              Enviamos as instruções para <strong>{maskEmail(email)}</strong>.
-              Confira também spam e promoções. O Arcadia nunca pedirá sua senha
-              por e-mail.
+              {english
+                ? <>We sent instructions to <strong>{maskEmail(email)}</strong>. Check spam and promotions too. Arcadia will never ask for your password by email.</>
+                : <>Enviamos as instruções para <strong>{maskEmail(email)}</strong>. Confira também spam e promoções. O Arcadia nunca pedirá sua senha por e-mail.</>}
             </p>
 
             {captchaRequired && turnstileSiteKey && resendSeconds === 0 && (
@@ -357,7 +362,7 @@ export function AuthForm({
                   resetSignal={captchaReset}
                   siteKey={turnstileSiteKey}
                 />
-                <small>Confirme sua presença antes de solicitar outro envio.</small>
+                <small>{english ? "Confirm your presence before requesting another email." : "Confirme sua presença antes de solicitar outro envio."}</small>
               </div>
             )}
 
@@ -376,13 +381,13 @@ export function AuthForm({
                 onClick={() => void resendEmail()}
               >
                 {busy
-                  ? "REENVIANDO..."
+                  ? english ? "RESENDING..." : "REENVIANDO..."
                   : resendSeconds > 0
-                    ? `REENVIAR EM ${resendSeconds}s`
-                    : "REENVIAR E-MAIL"}
+                    ? english ? `RESEND IN ${resendSeconds}s` : `REENVIAR EM ${resendSeconds}s`
+                    : english ? "RESEND EMAIL" : "REENVIAR E-MAIL"}
               </button>
               <button type="button" onClick={() => switchMode("signin")}>
-                VOLTAR AO LOGIN
+                {english ? "BACK TO SIGN IN" : "VOLTAR AO LOGIN"}
               </button>
             </div>
           </section>
@@ -397,15 +402,15 @@ export function AuthForm({
               type="button"
             >
               <span aria-hidden="true">G</span>
-              CONTINUAR COM GOOGLE
+              {english ? "CONTINUE WITH GOOGLE" : "CONTINUAR COM GOOGLE"}
             </button>
-            <div className="public-auth-divider"><span>ou use seu e-mail</span></div>
+            <div className="public-auth-divider"><span>{english ? "or use your email" : "ou use seu e-mail"}</span></div>
           </div>
         )}
         <form onSubmit={submit}>
           {mode === "signup" && (
             <label>
-              Nome de operador
+              {english ? "Operator name" : "Nome de operador"}
               <input
                 autoComplete="name"
                 maxLength={60}
@@ -417,7 +422,7 @@ export function AuthForm({
             </label>
           )}
           <label>
-            E-mail
+            {english ? "Email" : "E-mail"}
             <input
               autoComplete="email"
               inputMode="email"
@@ -429,7 +434,7 @@ export function AuthForm({
           </label>
           {mode !== "reset" && (
             <label>
-              Senha
+              {english ? "Password" : "Senha"}
               <input
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 minLength={10}
@@ -438,12 +443,12 @@ export function AuthForm({
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              {mode === "signup" && <small>Mínimo de 10 caracteres.</small>}
+              {mode === "signup" && <small>{english ? "At least 10 characters." : "Mínimo de 10 caracteres."}</small>}
             </label>
           )}
           {mode === "signup" && (
             <label>
-              Confirmar senha
+              {english ? "Confirm password" : "Confirmar senha"}
               <input
                 autoComplete="new-password"
                 minLength={10}
@@ -452,7 +457,7 @@ export function AuthForm({
                 value={passwordConfirmation}
                 onChange={(event) => setPasswordConfirmation(event.target.value)}
               />
-              <small>Repita a senha com pelo menos 10 caracteres.</small>
+              <small>{english ? "Repeat the password with at least 10 characters." : "Repita a senha com pelo menos 10 caracteres."}</small>
             </label>
           )}
           {mode === "signup" && (
@@ -463,8 +468,7 @@ export function AuthForm({
                 type="checkbox"
               />
               <span>
-                Li e aceito os <a href="/legal#terms">Termos de Uso</a> e a{" "}
-                <a href="/legal#privacy">Política de Privacidade</a>.
+                {english ? <>I have read and accept the <a href="/legal#terms">Terms of Use</a> and <a href="/legal#privacy">Privacy Policy</a>.</> : <>Li e aceito os <a href="/legal#terms">Termos de Uso</a> e a <a href="/legal#privacy">Política de Privacidade</a>.</>}
               </span>
             </label>
           )}
@@ -478,13 +482,13 @@ export function AuthForm({
                 resetSignal={captchaReset}
                 siteKey={turnstileSiteKey}
               />
-              <small>A resposta confirma presença humana e não fica armazenada.</small>
+              <small>{english ? "The response confirms you are human and is not stored." : "A resposta confirma presença humana e não fica armazenada."}</small>
             </div>
           )}
 
           {captchaRequired && !turnstileSiteKey && (
             <div className="public-auth-message" role="alert">
-              Cadastro temporariamente pausado enquanto a proteção humana é configurada.
+              {english ? "Sign-up is temporarily paused while human verification is configured." : "Cadastro temporariamente pausado enquanto a proteção humana é configurada."}
             </div>
           )}
 
@@ -499,12 +503,12 @@ export function AuthForm({
             type="submit"
           >
             {busy
-              ? "PROCESSANDO..."
+              ? english ? "PROCESSING..." : "PROCESSANDO..."
               : mode === "signin"
-                ? "ENTRAR NO ARCADIA"
+                ? english ? "SIGN IN TO ARCADIA" : "ENTRAR NO ARCADIA"
                 : mode === "signup"
-                  ? "CRIAR CONTA E COMEÇAR"
-                  : "ENVIAR RECUPERAÇÃO"}
+                  ? english ? "CREATE ACCOUNT AND START" : "CRIAR CONTA E COMEÇAR"
+                  : english ? "SEND RECOVERY LINK" : "ENVIAR RECUPERAÇÃO"}
           </button>
         </form>
         </>
@@ -513,16 +517,16 @@ export function AuthForm({
         <footer>
           {mode === "signin" ? (
             <button type="button" onClick={() => switchMode("reset")}>
-              Esqueci minha senha
+              {english ? "Forgot my password" : "Esqueci minha senha"}
             </button>
           ) : mode === "reset" ? (
             <button type="button" onClick={() => switchMode("signin")}>
-              Voltar para o login
+              {english ? "Back to sign in" : "Voltar para o login"}
             </button>
           ) : (
-            <span>Confirmação de e-mail obrigatória.</span>
+            <span>{english ? "Email confirmation is required." : "Confirmação de e-mail obrigatória."}</span>
           )}
-          <a href="/support">Preciso de ajuda</a>
+          <a href="/support">{english ? "I need help" : "Preciso de ajuda"}</a>
         </footer>
       </section>
     </div>

@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import { useEffect, useMemo, useState } from "react";
+import { useArcadiaLanguage } from "../i18n";
 
 type MfaSettingsProps = {
   publishableKey: string;
@@ -14,21 +15,23 @@ type PendingCleanup =
   | { ok: true }
   | { ok: false; message: string };
 
-function friendlyMfaError(error: { message?: string } | null | undefined) {
+function friendlyMfaError(error: { message?: string } | null | undefined, english: boolean) {
   const message = error?.message?.toLowerCase() ?? "";
   if (message.includes("mfa") && message.includes("disabled")) {
-    return "A autenticação em duas etapas ainda está desativada no projeto Supabase.";
+    return english ? "Two-step authentication is still disabled in the Supabase project." : "A autenticação em duas etapas ainda está desativada no projeto Supabase.";
   }
   if (message.includes("already exists") || message.includes("duplicate")) {
-    return "A configuração anterior ficou pendente no provedor. Use a recuperação abaixo para limpar somente o fator não confirmado e começar novamente.";
+    return english ? "The previous setup is pending with the provider. Use recovery below to clear only the unconfirmed factor and start again." : "A configuração anterior ficou pendente no provedor. Use a recuperação abaixo para limpar somente o fator não confirmado e começar novamente.";
   }
   if (message.includes("not authenticated") || message.includes("jwt")) {
-    return "Sua sessão expirou. Entre novamente para configurar a proteção.";
+    return english ? "Your session expired. Sign in again to configure protection." : "Sua sessão expirou. Entre novamente para configurar a proteção.";
   }
-  return "Não foi possível concluir a configuração agora. Tente novamente.";
+  return english ? "We could not complete setup right now. Try again." : "Não foi possível concluir a configuração agora. Tente novamente.";
 }
 
 export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, publishableKey),
     [publishableKey, supabaseUrl],
@@ -45,7 +48,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setBusy(true);
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (error) {
-      setMessage(friendlyMfaError(error));
+      setMessage(friendlyMfaError(error, english));
     } else {
       const verified = data?.totp?.find((item) => item.status === "verified") ?? null;
       const pending = data?.totp?.find((item) => item.status === "unverified") ?? null;
@@ -56,7 +59,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
         verified
           ? ""
           : pending
-            ? "Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador."
+            ? english ? "A setup is already in progress. Continue with the code shown in your authenticator app." : "Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador."
             : "",
       );
     }
@@ -68,7 +71,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     return () => window.clearTimeout(timer);
     // The client is memoized for the lifetime of this panel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
+  }, [english, supabase]);
 
   async function clearPendingFactors(): Promise<PendingCleanup> {
     // Refresh first so a previous interrupted enrollment cannot leave us
@@ -77,7 +80,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const listing = await supabase.auth.mfa.listFactors();
       if (listing.error) {
-        return { ok: false, message: friendlyMfaError(listing.error) };
+        return { ok: false, message: friendlyMfaError(listing.error, english) };
       }
       const pending = (listing.data?.totp ?? []).filter(
         (item) => item.status === "unverified",
@@ -95,7 +98,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     }
     return {
       ok: false,
-      message: "A configuração pendente não pôde ser removida. Saia da conta, entre novamente e tente ativar o autenticador.",
+      message: english ? "The pending setup could not be removed. Sign out, sign in again, and try enabling the authenticator." : "A configuração pendente não pôde ser removida. Saia da conta, entre novamente e tente ativar o autenticador.",
     };
   }
 
@@ -129,7 +132,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       }
       if (fresh.error || !fresh.data?.id || !fresh.data.totp) {
         setRecoveryRequired(true);
-        setMessage(friendlyMfaError(fresh.error));
+        setMessage(friendlyMfaError(fresh.error, english));
         setBusy(false);
         return;
       }
@@ -138,7 +141,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
         qrCode: fresh.data.totp.qr_code,
         secret: fresh.data.totp.secret,
       });
-      setMessage("Novo QR Code gerado. Escaneie-o no aplicativo autenticador e confirme o código.");
+      setMessage(english ? "A new QR code was generated. Scan it in your authenticator app and confirm the code." : "Novo QR Code gerado. Escaneie-o no aplicativo autenticador e confirme o código.");
       setBusy(false);
       return;
     }
@@ -167,7 +170,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       const pending = pendingListing.data?.totp?.find((item) => item.status === "unverified");
       if (pending) {
         setPendingFactorId(pending.id);
-        setMessage("Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador.");
+        setMessage(english ? "A setup is already in progress. Continue with the code shown in your authenticator app." : "Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador.");
         setBusy(false);
         return;
       }
@@ -185,7 +188,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       if (error && (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate"))) {
         setRecoveryRequired(true);
       }
-      setMessage(friendlyMfaError(error));
+      setMessage(friendlyMfaError(error, english));
       setBusy(false);
       return;
     }
@@ -204,7 +207,7 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setMessage("");
     const challenge = await supabase.auth.mfa.challenge({ factorId: setup.factorId });
     if (challenge.error || !challenge.data?.id) {
-      setMessage(friendlyMfaError(challenge.error));
+      setMessage(friendlyMfaError(challenge.error, english));
       setBusy(false);
       return;
     }
@@ -216,8 +219,8 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     if (result.error) {
       setMessage(
         result.error.message?.toLowerCase().includes("expired")
-          ? "Código expirado. Aguarde o próximo código no aplicativo autenticador."
-          : "Código inválido. Confira o aplicativo autenticador e tente novamente.",
+          ? english ? "Code expired. Wait for the next code in your authenticator app." : "Código expirado. Aguarde o próximo código no aplicativo autenticador."
+          : english ? "Invalid code. Check your authenticator app and try again." : "Código inválido. Confira o aplicativo autenticador e tente novamente.",
       );
       setCode("");
       setBusy(false);
@@ -226,68 +229,68 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     setSetup(null);
     setCode("");
     setRecoveryRequired(false);
-    setMessage("Autenticação em duas etapas ativada nesta conta.");
+    setMessage(english ? "Two-step authentication is active on this account." : "Autenticação em duas etapas ativada nesta conta.");
     await loadFactor();
   }
 
   async function disableMfa() {
-    if (!factor || !window.confirm("Desativar a autenticação em duas etapas nesta conta?")) return;
+    if (!factor || !window.confirm(english ? "Disable two-step authentication on this account?" : "Desativar a autenticação em duas etapas nesta conta?")) return;
     setBusy(true);
     setMessage("");
     const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
     if (error) {
-      setMessage(friendlyMfaError(error));
+      setMessage(friendlyMfaError(error, english));
     } else {
       setFactor(null);
-      setMessage("Autenticação em duas etapas desativada.");
+      setMessage(english ? "Two-step authentication is disabled." : "Autenticação em duas etapas desativada.");
     }
     setBusy(false);
   }
 
   return (
     <article className="profile-panel mfa-settings" aria-labelledby="mfa-settings-title">
-      <header><span>SEGURANÇA</span><strong id="mfa-settings-title">Autenticação em duas etapas</strong></header>
-      <p>Use um aplicativo autenticador para proteger o acesso mesmo quando a senha for descoberta.</p>
+      <header><span>{english ? "SECURITY" : "SEGURANÇA"}</span><strong id="mfa-settings-title">{english ? "Two-step authentication" : "Autenticação em duas etapas"}</strong></header>
+      <p>{english ? "Use an authenticator app to protect access even if your password is discovered." : "Use um aplicativo autenticador para proteger o acesso mesmo quando a senha for descoberta."}</p>
       {message && <div className="public-auth-message" role="status">{message}</div>}
       {factor ? (
         <div className="mfa-active-state">
           <span className="mfa-status-dot" aria-hidden="true" />
-          <div><strong>Proteção ativa</strong><small>Um código será solicitado em novos acessos.</small></div>
-          <button className="mfa-danger-button" disabled={busy} onClick={() => void disableMfa()} type="button">DESATIVAR</button>
+          <div><strong>{english ? "Protection active" : "Proteção ativa"}</strong><small>{english ? "A code will be requested on new sign-ins." : "Um código será solicitado em novos acessos."}</small></div>
+          <button className="mfa-danger-button" disabled={busy} onClick={() => void disableMfa()} type="button">{english ? "DISABLE" : "DESATIVAR"}</button>
         </div>
       ) : setup ? (
         <form className="mfa-setup-form" onSubmit={confirmSetup}>
           {setup.qrCode ? (
             <>
               <div className="mfa-qr-wrap">
-                <img alt="QR code para configurar o autenticador" src={setup.qrCode} />
-                <small>Escaneie no Google Authenticator, Authy ou outro app compatível.</small>
+                <img alt={english ? "QR code to configure the authenticator" : "QR code para configurar o autenticador"} src={setup.qrCode} />
+                <small>{english ? "Scan with Google Authenticator, Authy, or another compatible app." : "Escaneie no Google Authenticator, Authy ou outro app compatível."}</small>
               </div>
               <label>Chave manual <code>{setup.secret}</code></label>
             </>
           ) : (
             <div className="public-auth-message" role="status">
-              Use o código de seis dígitos que aparece no seu aplicativo autenticador para concluir a configuração.
+            {english ? "Use the six-digit code shown in your authenticator app to complete setup." : "Use o código de seis dígitos que aparece no seu aplicativo autenticador para concluir a configuração."}
             </div>
           )}
           <label>
-            Código de confirmação
+            {english ? "Confirmation code" : "Código de confirmação"}
             <input autoComplete="one-time-code" inputMode="numeric" maxLength={6} pattern="[0-9]{6}" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
           </label>
           <div className="mfa-setup-actions">
-            <button className="public-auth-submit" disabled={busy || code.length !== 6} type="submit">{busy ? "VALIDANDO..." : "ATIVAR PROTEÇÃO"}</button>
-            <button type="button" onClick={() => { setSetup(null); setCode(""); }}>CANCELAR</button>
+            <button className="public-auth-submit" disabled={busy || code.length !== 6} type="submit">{busy ? (english ? "VERIFYING..." : "VALIDANDO...") : (english ? "ENABLE PROTECTION" : "ATIVAR PROTEÇÃO")}</button>
+            <button type="button" onClick={() => { setSetup(null); setCode(""); }}>{english ? "CANCEL" : "CANCELAR"}</button>
           </div>
         </form>
       ) : (
         <button className="mfa-enable-button" disabled={busy} onClick={() => void beginSetup()} type="button">
           {busy
-            ? "CARREGANDO..."
+            ? english ? "LOADING..." : "CARREGANDO..."
             : recoveryRequired
-              ? "RECUPERAR CONFIGURAÇÃO"
+              ? english ? "RECOVER SETUP" : "RECUPERAR CONFIGURAÇÃO"
               : pendingFactorId
-                ? "CONTINUAR CONFIGURAÇÃO"
-                : "ATIVAR AUTENTICADOR"}
+                ? english ? "CONTINUE SETUP" : "CONTINUAR CONFIGURAÇÃO"
+                : english ? "ENABLE AUTHENTICATOR" : "ATIVAR AUTENTICADOR"}
         </button>
       )}
     </article>

@@ -20323,6 +20323,11 @@ body {
   font-size: 1.35rem;
 }
 
+.public-auth-card > header .language-switcher {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .public-auth-card .login-brand-mark img {
   width: 76%;
   height: 76%;

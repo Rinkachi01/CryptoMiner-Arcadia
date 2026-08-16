@@ -1,4 +1,5 @@
 import { PublicSiteFooter } from "../PublicSiteFooter";
+import { LanguageSwitcher } from "../i18n";
 import { safeArcadiaReturnPath } from "../identity-rules";
 import { publicLoginConfig } from "../supabase-server";
 import { AuthForm } from "./AuthForm";
@@ -41,16 +42,17 @@ export default async function AuthPage({ searchParams }: AuthPageProps) {
         />
       ) : (
         <section className="public-status-card">
-          <span>ACESSO CONTROLADO</span>
-          <h1>O cadastro público ainda não foi liberado.</h1>
+          <span>CONTROLLED ACCESS</span>
+          <h1>Public sign-up is not available yet.</h1>
           <p>
-            O cadastro está temporariamente fechado. Use o acesso autorizado
-            ou consulte o suporte para acompanhar a disponibilidade.
+            Sign-up is temporarily closed. Use authorized access or contact
+            support to check availability.
           </p>
           <div>
-            <a href="/signin-with-chatgpt?return_to=%2F">ENTRAR</a>
-            <a className="secondary" href="/support">VER SUPORTE</a>
+            <a href="/signin-with-chatgpt?return_to=%2F">SIGN IN</a>
+            <a className="secondary" href="/support">OPEN SUPPORT</a>
           </div>
+          <LanguageSwitcher />
         </section>
       )}
       <PublicSiteFooter />

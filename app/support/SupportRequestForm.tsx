@@ -6,6 +6,7 @@ import {
   supportCategoryLabels,
   type SupportCategory,
 } from "../support-rules";
+import { useArcadiaLanguage } from "../i18n";
 
 type PersonalTicket = {
   adminReply: string | null;
@@ -23,8 +24,8 @@ type PersonalTicket = {
   updatedAt: number;
 };
 
-function formatTicketDate(timestamp: number) {
-  return new Intl.DateTimeFormat("pt-BR", {
+function formatTicketDate(timestamp: number, english: boolean) {
+  return new Intl.DateTimeFormat(english ? "en-US" : "pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(timestamp));
@@ -46,6 +47,21 @@ export function SupportRequestForm({
   loginPath: string;
   signedIn: boolean;
 }) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
+  const categoryLabels: Record<SupportCategory, string> = {
+    account: english ? "Account and access" : supportCategoryLabels.account,
+    game: english ? "Game and inventory" : supportCategoryLabels.game,
+    wallet: english ? "Wallet and conversions" : supportCategoryLabels.wallet,
+    security: english ? "Security" : supportCategoryLabels.security,
+    other: english ? "Other topic" : supportCategoryLabels.other,
+  };
+  const localizedStatusLabels: Record<string, string> = {
+    closed: english ? "CLOSED" : statusLabels.closed,
+    open: english ? "OPEN" : statusLabels.open,
+    resolved: english ? "RESOLVED" : statusLabels.resolved,
+    reviewing: english ? "IN REVIEW" : statusLabels.reviewing,
+  };
   const [category, setCategory] = useState<SupportCategory>("account");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -92,9 +108,9 @@ export function SupportRequestForm({
         publicId?: string;
         tickets?: PersonalTicket[];
       };
-      if (!response.ok) throw new Error(data.error ?? "Chamado não enviado.");
+      if (!response.ok) throw new Error(data.error ?? (english ? "Ticket was not sent." : "Chamado não enviado."));
       setStatusMessage(
-        `${data.message ?? "Chamado registrado."} Protocolo ${data.publicId}.`,
+        `${data.message ?? (english ? "Ticket created." : "Chamado registrado.")} ${english ? "Protocol" : "Protocolo"} ${data.publicId}.`,
       );
       setSubject("");
       setMessage("");
@@ -103,7 +119,7 @@ export function SupportRequestForm({
       setStatusMessage(
         error instanceof Error
           ? error.message
-          : "Não foi possível registrar o chamado.",
+          : english ? "We could not create the ticket." : "Não foi possível registrar o chamado.",
       );
     } finally {
       setBusy(false);
@@ -114,41 +130,43 @@ export function SupportRequestForm({
     <section className="support-request-center">
       <header>
         <div>
-          <span>ATENDIMENTO SEGURO</span>
-          <h2>Fale com nossa equipe</h2>
+          <span>{english ? "SECURE SUPPORT" : "ATENDIMENTO SEGURO"}</span>
+          <h2>{english ? "Contact our team" : "Fale com nossa equipe"}</h2>
           <p>
-            Sua solicitação fica ligada à conta verificada. Nunca envie senha,
-            código de acesso ou chave privada.
+            {english
+              ? "Your request is linked to your verified account. Never send a password, access code, or private key."
+              : "Sua solicitação fica ligada à conta verificada. Nunca envie senha, código de acesso ou chave privada."}
           </p>
         </div>
         <div className="ready">
-          <strong>ATENDIMENTO ATIVO</strong>
-          <small>Acompanhe o andamento e as respostas nesta página.</small>
+          <strong>{english ? "SUPPORT ACTIVE" : "ATENDIMENTO ATIVO"}</strong>
+          <small>{english ? "Track progress and replies on this page." : "Acompanhe o andamento e as respostas nesta página."}</small>
         </div>
       </header>
 
       {!signedIn ? (
         <div className="support-signin-required">
-          <span>CONTA NECESSÁRIA</span>
-          <h3>Entre para criar um protocolo seguro.</h3>
+          <span>{english ? "ACCOUNT REQUIRED" : "CONTA NECESSÁRIA"}</span>
+          <h3>{english ? "Sign in to create a secure ticket." : "Entre para criar um protocolo seguro."}</h3>
           <p>
-            Se você perdeu a senha, use primeiro a recuperação. O suporte não
-            redefine credenciais manualmente e não pede dados secretos.
+            {english
+              ? "If you lost your password, use recovery first. Support does not reset credentials manually or ask for secret data."
+              : "Se você perdeu a senha, use primeiro a recuperação. O suporte não redefine credenciais manualmente e não pede dados secretos."}
           </p>
           <div>
-            <a href={loginPath}>ENTRAR NA CONTA</a>
-            <a className="secondary" href="/auth?mode=reset">RECUPERAR SENHA</a>
+            <a href={loginPath}>{english ? "SIGN IN TO YOUR ACCOUNT" : "ENTRAR NA CONTA"}</a>
+            <a className="secondary" href="/auth?mode=reset">{english ? "RECOVER PASSWORD" : "RECUPERAR SENHA"}</a>
           </div>
         </div>
       ) : (
         <div className="support-request-layout">
           <form onSubmit={submit}>
             <div className="support-account-chip">
-              <span>CONTA VERIFICADA</span>
+              <span>{english ? "VERIFIED ACCOUNT" : "CONTA VERIFICADA"}</span>
               <strong>{accountEmail}</strong>
             </div>
             <label>
-              Assunto
+              {english ? "Topic" : "Assunto"}
               <select
                 value={category}
                 onChange={(event) =>
@@ -157,13 +175,13 @@ export function SupportRequestForm({
               >
                 {supportCategories.map((item) => (
                   <option value={item} key={item}>
-                    {supportCategoryLabels[item]}
+                    {categoryLabels[item]}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              Título do problema
+              {english ? "Problem title" : "Título do problema"}
               <input
                 maxLength={100}
                 minLength={5}
@@ -173,7 +191,7 @@ export function SupportRequestForm({
               />
             </label>
             <label>
-              O que aconteceu?
+              {english ? "What happened?" : "O que aconteceu?"}
               <textarea
                 maxLength={2_000}
                 minLength={20}
@@ -182,7 +200,7 @@ export function SupportRequestForm({
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
               />
-              <small>{message.length}/2.000 caracteres</small>
+              <small>{message.length}/2,000 {english ? "characters" : "caracteres"}</small>
             </label>
             {statusMessage && (
               <div className="support-form-message" role="status">
@@ -190,23 +208,25 @@ export function SupportRequestForm({
               </div>
             )}
             <button type="submit" disabled={busy}>
-              {busy ? "REGISTRANDO..." : "CRIAR PROTOCOLO"}
+              {busy ? (english ? "CREATING..." : "REGISTRANDO...") : (english ? "CREATE TICKET" : "CRIAR PROTOCOLO")}
             </button>
           </form>
 
           <aside className="support-ticket-history">
             <header>
-              <span>MEUS PROTOCOLOS</span>
+              <span>{english ? "MY TICKETS" : "MEUS PROTOCOLOS"}</span>
               <strong>
                 {unreadReplies > 0
-                  ? `${unreadReplies} NOVA${unreadReplies > 1 ? "S" : ""}`
-                  : `${tickets.length} RECENTES`}
+                  ? english
+                    ? `${unreadReplies} NEW ${unreadReplies === 1 ? "REPLY" : "REPLIES"}`
+                    : `${unreadReplies} NOVA${unreadReplies > 1 ? "S" : ""}`
+                  : english ? `${tickets.length} RECENT` : `${tickets.length} RECENTES`}
               </strong>
             </header>
             {tickets.length === 0 ? (
               <div className="support-ticket-empty">
                 <b>00</b>
-                <p>Seus chamados aparecerão aqui depois do primeiro envio.</p>
+                <p>{english ? "Your tickets will appear here after your first submission." : "Seus chamados aparecerão aqui depois do primeiro envio."}</p>
               </div>
             ) : (
               tickets.map((ticket) => (
@@ -217,7 +237,7 @@ export function SupportRequestForm({
                   <div>
                     <span>{ticket.publicId}</span>
                     <b className={ticket.status}>
-                      {statusLabels[ticket.status] ?? ticket.status.toUpperCase()}
+                      {localizedStatusLabels[ticket.status] ?? ticket.status.toUpperCase()}
                     </b>
                   </div>
                   <h3>{ticket.subject}</h3>
@@ -226,20 +246,20 @@ export function SupportRequestForm({
                     <div className="support-ticket-reply">
                       <span>
                         {ticket.replyUnread
-                          ? "NOVA RESPOSTA DO ARCADIA"
-                          : "RESPOSTA DO ARCADIA"}
+                          ? english ? "NEW ARCADIA REPLY" : "NOVA RESPOSTA DO ARCADIA"
+                          : english ? "ARCADIA REPLY" : "RESPOSTA DO ARCADIA"}
                       </span>
                       <p>{ticket.adminReply}</p>
                       {ticket.lastReplyAt && (
-                        <small>{formatTicketDate(ticket.lastReplyAt)}</small>
+                        <small>{formatTicketDate(ticket.lastReplyAt, english)}</small>
                       )}
                     </div>
                   )}
                   <small>
-                    {supportCategoryLabels[ticket.category as SupportCategory] ??
+                    {categoryLabels[ticket.category as SupportCategory] ??
                       ticket.category}
                     {" · "}
-                    {formatTicketDate(ticket.createdAt)}
+                    {formatTicketDate(ticket.createdAt, english)}
                   </small>
                 </article>
               ))
