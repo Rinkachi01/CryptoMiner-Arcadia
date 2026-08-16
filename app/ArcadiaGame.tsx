@@ -1494,18 +1494,24 @@ export function ArcadiaGame({
             <img src={assetsManifest.cmaCoin.path} alt="" />
           </div>
           <div>
-            <strong>{blockNotice.count === 1 ? "Bloco minerado" : "Blocos minerados"}</strong>
+            <strong>{english
+              ? blockNotice.count === 1 ? "Block mined" : "Blocks mined"
+              : blockNotice.count === 1 ? "Bloco minerado" : "Blocos minerados"}</strong>
             <span>
               {blockNotice.count === 1
-                ? `O bloco #${blockNotice.block.toLocaleString("pt-BR")} foi processado.`
-                : `${blockNotice.count} blocos foram processados até o #${blockNotice.block.toLocaleString("pt-BR")}.`}
+                ? english
+                  ? `Block #${blockNotice.block.toLocaleString("en-US")} was processed.`
+                  : `O bloco #${blockNotice.block.toLocaleString("pt-BR")} foi processado.`
+                : english
+                  ? `${blockNotice.count} blocks were processed through #${blockNotice.block.toLocaleString("en-US")}.`
+                  : `${blockNotice.count} blocos foram processados até o #${blockNotice.block.toLocaleString("pt-BR")}.`}
             </span>
-            <small>Recompensa e extrato sincronizados pelo servidor.</small>
+            <small>{english ? "Reward and ledger synced by the server." : "Recompensa e extrato sincronizados pelo servidor."}</small>
           </div>
           <button
             type="button"
             onClick={() => setBlockNotice(null)}
-            aria-label="Fechar aviso de bloco"
+            aria-label={english ? "Close block notice" : "Fechar aviso de bloco"}
           >
             ×
           </button>

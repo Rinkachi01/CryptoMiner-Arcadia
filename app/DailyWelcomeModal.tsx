@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useArcadiaLanguage } from "./i18n";
 import type { PublicSeason, SeasonPlayerProgress } from "./season-server";
 import type { SeasonResponse } from "./SeasonPanel";
 
@@ -19,6 +20,8 @@ export function DailyWelcomeModal({
   onClose,
   enabled = true,
 }: DailyWelcomeModalProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   const [data, setData] = useState<{
     season: PublicSeason | null;
     playerProgress: SeasonPlayerProgress | null;
@@ -40,7 +43,7 @@ export function DailyWelcomeModal({
           | (SeasonResponse & { error?: string })
           | null;
         if (!response.ok) {
-          throw new Error(result?.error ?? "Temporada indisponível.");
+          throw new Error(result?.error ?? (english ? "Season unavailable." : "Temporada indisponível."));
         }
         if (!cancelled && result) setData(result);
       } catch {
@@ -67,7 +70,7 @@ export function DailyWelcomeModal({
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshOnFocus);
     };
-  }, [enabled]);
+  }, [enabled, english]);
 
   if (typeof document === "undefined") return null;
   if (closed || !data || !data.season || data.season.status !== "active") return null;
@@ -89,16 +92,16 @@ export function DailyWelcomeModal({
         message?: string;
       };
       if (response.ok) {
-        setMessage(result.message ?? "XP resgatado!");
+        setMessage(result.message ?? (english ? "XP claimed!" : "XP resgatado!"));
         setTimeout(() => {
           setClosed(true);
           onClose();
         }, 1500);
       } else {
-        setMessage(result.error ?? "Erro ao resgatar.");
+        setMessage(result.error ?? (english ? "Claim failed." : "Erro ao resgatar."));
       }
     } catch {
-      setMessage("Erro de conexão.");
+      setMessage(english ? "Connection error." : "Erro de conexão.");
     } finally {
       setBusy(false);
     }
@@ -111,7 +114,7 @@ export function DailyWelcomeModal({
         <header>
           <div className="header-title">
             <span className="gift-icon">🎁</span>
-            <h2>Bônus de Acesso Diário</h2>
+            <h2>{english ? "Daily Login Bonus" : "Bônus de Acesso Diário"}</h2>
           </div>
           <button type="button" className="close-btn" onClick={() => { setClosed(true); onClose(); }} disabled={busy}>
             &times;
@@ -119,7 +122,9 @@ export function DailyWelcomeModal({
         </header>
         <div className="daily-welcome-body">
           <p className="subtitle">
-            Acesse todos os dias consecutivos para ganhar cada vez mais XP!
+            {english
+              ? "Log in on consecutive days to earn more XP each time!"
+              : "Acesse todos os dias consecutivos para ganhar cada vez mais XP!"}
           </p>
           
           <div className="daily-track">
@@ -134,7 +139,7 @@ export function DailyWelcomeModal({
 
               return (
                 <div key={day} className={`daily-card ${state}`}>
-                  <span className="day-label">DIA {day}</span>
+                  <span className="day-label">{english ? "DAY" : "DIA"} {day}</span>
                   <div className="reward-icon">
                     {state === "claimed" ? "✓" : `+${xp}`}
                   </div>
@@ -154,7 +159,9 @@ export function DailyWelcomeModal({
                 onClick={handleClaim} 
                 disabled={busy}
               >
-                {busy ? "RESGATANDO..." : "COLETAR RECOMPENSA"}
+                {busy
+                  ? english ? "CLAIMING..." : "RESGATANDO..."
+                  : english ? "CLAIM REWARD" : "COLETAR RECOMPENSA"}
               </button>
             )}
           </div>

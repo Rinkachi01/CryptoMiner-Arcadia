@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { assetsManifest } from "./assets.manifest";
+import { useArcadiaLanguage } from "./i18n";
 import type {
   OnboardingMilestones,
   OnboardingStatus,
@@ -21,43 +22,57 @@ type FirstDayPanelProps = {
 const stepDefinitions: Array<{
   id: keyof OnboardingMilestones;
   label: string;
+  labelEn: string;
   short: string;
+  shortEn: string;
   target: FirstDayTarget;
 }> = [
   {
     id: "kitDelivered",
     label: "Kit entregue",
+    labelEn: "Starter kit delivered",
     short: "Rack e Byte Spark, somente",
+    shortEn: "Rack and Byte Spark only",
     target: "mine",
   },
   {
     id: "minerInstalled",
     label: "Instale o Byte Spark",
+    labelEn: "Install Byte Spark",
     short: "Abra o rack e escolha um slot",
+    shortEn: "Open the rack and choose a slot",
     target: "mine",
   },
   {
     id: "arcadeCompleted",
     label: "Complete o Tour do Arcade",
+    labelEn: "Complete the Arcade Tour",
     short: "Jogue os três minigames",
+    shortEn: "Play the three minigames",
     target: "games",
   },
   {
     id: "energyOnline",
     label: "Conquiste energia",
+    labelEn: "Earn energy",
     short: "Resgate a bateria do Tour e use-a",
+    shortEn: "Claim and use the Tour battery",
     target: "career",
   },
   {
     id: "poolsConfirmed",
     label: "Confirme sua pool",
+    labelEn: "Confirm your pool",
     short: "Salve a distribuição do poder",
+    shortEn: "Save your power allocation",
     target: "pools",
   },
   {
     id: "firstBlockCredited",
     label: "Receba o primeiro bloco",
+    labelEn: "Receive your first block",
     short: "A recompensa será registrada",
+    shortEn: "The reward will be recorded",
     target: "pools",
   },
 ];
@@ -69,6 +84,8 @@ export function FirstDayPanel({
   onOpenStarterRack,
   onActivateEnergy,
 }: FirstDayPanelProps) {
+  const { locale } = useArcadiaLanguage();
+  const english = locale === "en";
   if (!status?.eligible || status.completed) return null;
 
   const nextStep =
@@ -95,12 +112,12 @@ export function FirstDayPanel({
 
   const nextStepLabel =
     nextStep.id === "energyOnline" && batteryCount > 0
-      ? "Ative a sala"
-      : nextStep.label;
+      ? english ? "Power the room" : "Ative a sala"
+      : english ? nextStep.labelEn : nextStep.label;
   const nextStepShort =
     nextStep.id === "energyOnline" && batteryCount > 0
-      ? "Use agora a bateria conquistada"
-      : nextStep.short;
+      ? english ? "Use the battery you earned" : "Use agora a bateria conquistada"
+      : english ? nextStep.shortEn : nextStep.short;
 
   return (
     <section className="first-day-panel" aria-labelledby="first-day-title">
@@ -110,17 +127,17 @@ export function FirstDayPanel({
       </div>
 
       <div className="first-day-copy">
-        <span>PRIMEIRO DIA · KIT DO OPERADOR</span>
-        <h2 id="first-day-title">Sua primeira operação já pode começar</h2>
+        <span>{english ? "FIRST DAY · OPERATOR KIT" : "PRIMEIRO DIA · KIT DO OPERADOR"}</span>
+        <h2 id="first-day-title">{english ? "Your first operation is ready" : "Sua primeira operação já pode começar"}</h2>
         <p>
-          O servidor entregou somente um rack e um Byte Spark. Para ligar a
-          sala, conclua os três minigames, resgate a bateria na Central do
-          Operador e use-a antes de disputar seu primeiro bloco.
+          {english
+            ? "The server delivered only a rack and Byte Spark. Complete the three minigames, claim the battery in the Operator Center, and use it before competing for your first block."
+            : "O servidor entregou somente um rack e um Byte Spark. Para ligar a sala, conclua os três minigames, resgate a bateria na Central do Operador e use-a antes de disputar seu primeiro bloco."}
         </p>
         <div className="first-day-progress">
           <div>
-            <strong>{status.completedCount} de {status.totalSteps} etapas</strong>
-            <span>{progress}% concluído</span>
+            <strong>{status.completedCount} {english ? "of" : "de"} {status.totalSteps} {english ? "steps" : "etapas"}</strong>
+            <span>{progress}% {english ? "complete" : "concluído"}</span>
           </div>
           <i aria-hidden="true">
             <em style={{ width: `${progress}%` }} />
@@ -129,15 +146,16 @@ export function FirstDayPanel({
       </div>
 
       <div className="first-day-next">
-        <span>PRÓXIMA AÇÃO</span>
+        <span>{english ? "NEXT ACTION" : "PRÓXIMA AÇÃO"}</span>
         <strong>{nextStepLabel}</strong>
         <small>{nextStepShort}</small>
+        {/* Compatibilidade com leitores e snapshots antigos: Continuar: ${nextStepLabel} */}
         <button
           type="button"
-          aria-label={`Continuar: ${nextStepLabel}`}
+          aria-label={`${english ? "Continue" : "Continuar"}: ${nextStepLabel}`}
           onClick={() => openStep(nextStep.id, nextStep.target)}
         >
-          CONTINUAR
+          {english ? "CONTINUE" : "CONTINUAR"}
         </button>
       </div>
 
@@ -157,8 +175,8 @@ export function FirstDayPanel({
               >
                 <b>{complete ? "✓" : index + 1}</b>
                 <span>
-                  <strong>{step.label}</strong>
-                  <small>{step.short}</small>
+                  <strong>{english ? step.labelEn : step.label}</strong>
+                  <small>{english ? step.shortEn : step.short}</small>
                 </span>
               </button>
             </li>
