@@ -6,9 +6,9 @@ export type ArcadiaLocale = "pt-BR" | "en";
 type Localized = [string, string];
 
 const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en"];
-// v2 makes the new English-first default effective for visitors who had the
+// v3 makes the English-first default effective for visitors who had the
 // old browser-detected Portuguese value cached before the international launch.
-const localeStorageKey = "arcadia-locale-v2";
+const localeStorageKey = "arcadia-locale-v3";
 const localeCookieKey = "arcadia_locale";
 
 // Keep the dictionary small and shared so every visible shell label changes with the selector.
@@ -143,8 +143,8 @@ const entries: Record<string, Localized> = {
   "landing.communityDiscord": ["Entrar no Discord", "Join Discord"],
   "landing.brandAlt": ["Logo CMA", "CMA logo"],
   "landing.brand": ["CRYPTO MINER ARCADIA", "CRYPTO MINER ARCADIA"],
-  "landing.cardTitle": ["Sua operação começa com uma conta protegida.", "Your operation starts with a protected account."],
-  "landing.cardDescription": ["Entre na sua operação ou crie uma conta. O e-mail confirmado protege o seu progresso em qualquer dispositivo.", "Sign in to your operation or create an account. A confirmed email protects your progress on every device."],
+  "landing.cardTitle": ["Comece sua operação com segurança.", "Start your operation with confidence."],
+  "landing.cardDescription": ["Entre na sua operação ou crie uma conta. O e-mail confirmado protege o seu progresso em qualquer dispositivo.", "Sign in or create an account to build your rooms, place miners, play the Arcade, and track server-verified rewards."],
   "landing.signIn": ["ENTRAR", "SIGN IN"],
   "landing.signUp": ["CRIAR CONTA", "CREATE ACCOUNT"],
   "landing.accessStatus": ["ACESSO PROTEGIDO", "PROTECTED ACCESS"],
@@ -160,7 +160,6 @@ const copy = Object.fromEntries(
 function isArcadiaLocale(value: string | null): value is ArcadiaLocale {
   return Boolean(value && supportedLocales.includes(value as ArcadiaLocale));
 }
-
 function browserLocale(): ArcadiaLocale {
   // English is the platform default. Portuguese remains available through
   // the selector and is persisted only after the operator chooses it.

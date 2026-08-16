@@ -281,17 +281,17 @@ export function AuthForm({
   return (
     <div className="public-auth-layout">
       <section className="public-auth-intro">
-        <span>{english ? "ARCADIA ACCOUNT" : "CONTA ARCADIA"}</span>
-        <h1>{english ? "Your progress belongs to a verified account." : "Seu progresso pertence a uma conta verificada."}</h1>
+        <span>{english ? "START YOUR OPERATION" : "COMECE SUA OPERAÇÃO"}</span>
+        <h1>{english ? "Your mining operation starts here." : "Sua operação de mineração começa aqui."}</h1>
         <p>
           {english
-            ? "Public access uses a confirmed email and a protected session. The game never asks for a seed phrase, private key, or wallet password."
-            : "O login público usa e-mail confirmado e sessão protegida. O jogo nunca pede seed phrase, chave privada ou senha de carteira."}
+            ? "Create an account or sign in to build your rooms, place miners, play the Arcade, and track rewards verified by the server."
+            : "Crie uma conta ou entre para montar suas salas, instalar mineradores, jogar no Arcade e acompanhar recompensas verificadas pelo servidor."}
         </p>
         <ul>
-          <li>{english ? "New account: 1 rack and 1 starter miner" : "Conta nova: 1 rack e 1 minerador inicial"}</li>
-          <li>{english ? "No CMA, battery, or free energy at sign-up" : "Sem CMA, bateria ou energia grátis no cadastro"}</li>
-          <li>{english ? "Progress and rewards verified by the server" : "Progresso e recompensas conferidos pelo servidor"}</li>
+          <li>{english ? "Progress stays protected and synced across devices" : "Seu progresso fica protegido e sincronizado entre dispositivos"}</li>
+          <li>{english ? "New operators start with one rack and one starter miner" : "Novos operadores começam com um rack e um minerador inicial"}</li>
+          <li>{english ? "No seed phrase, private key, or wallet password required" : "Não pedimos seed phrase, chave privada ou senha de carteira"}</li>
         </ul>
       </section>
 
