@@ -1078,7 +1078,13 @@ export function AdminDashboard({
             <span>PRÉ-LANÇAMENTO PÚBLICO · SEGURANÇA E FINANÇAS</span>
             <h2>Portões antes de abrir o Arcadia</h2>
           </div>
-          <small>CRIPTO CONTROLADO · PIX EM HOMOLOGAÇÃO · SAQUES MANUAIS</small>
+          <small>
+            CRIPTO CONTROLADO · PIX {overview.launch.pix.enabled
+              ? overview.launch.pix.mode === "production"
+                ? "PRODUÇÃO ATIVA"
+                : "HOMOLOGAÇÃO ATIVA"
+              : "AGUARDA CONFIGURAÇÃO"} · SAQUES MANUAIS
+          </small>
         </div>
 
         <div className="admin-launch-grid">
@@ -1113,14 +1119,14 @@ export function AdminDashboard({
             <span>LOGIN PÚBLICO</span>
             <strong>
               {overview.launch.identity.publicLoginEnabled
-                ? "EM HOMOLOGAÇÃO"
+                ? "ATIVO"
                 : overview.launch.identity.projectConfigured
                   ? "SUPABASE PREPARADO"
                   : "AGUARDA PROJETO"}
             </strong>
             <p>
-              Supabase conectado com confirmação e recuperação. SMTP, domínio
-              e teste completo ainda bloqueiam a abertura pública.
+              Supabase conectado com confirmação de e-mail, recuperação de senha
+              e sessões seguras.
             </p>
           </article>
           <article className="ready">
@@ -1243,7 +1249,13 @@ export function AdminDashboard({
               <span>PRÓXIMAS AÇÕES DO PROPRIETÁRIO</span>
               <h3 id="owner-next-actions">O que você precisa providenciar</h3>
             </div>
-            <strong>DEPÓSITOS EM HOMOLOGAÇÃO · SAQUES REAIS DEPOIS</strong>
+            <strong>
+              DEPÓSITOS {overview.launch.pix.enabled
+                ? overview.launch.pix.mode === "production"
+                  ? "EM PRODUÇÃO"
+                  : "EM HOMOLOGAÇÃO"
+                : "AGUARDANDO CONFIGURAÇÃO"} · SAQUES MANUAIS
+            </strong>
           </header>
           <div>
             <article className="next">

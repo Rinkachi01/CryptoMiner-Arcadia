@@ -37,7 +37,7 @@ test("central do proprietário separa publicação, depósitos e saques", async 
   );
 
   assert.match(dashboard, /O que você precisa providenciar/);
-  assert.match(dashboard, /DEPÓSITOS EM HOMOLOGAÇÃO/);
+  assert.match(dashboard, /DEPÓSITOS \{overview\.launch\.pix\.enabled/);
   assert.match(dashboard, /DEPÓSITOS BTC \/ DOGE \/ LTC/);
   assert.match(dashboard, /CMA não é sacável/);
   assert.match(dashboard, /FILA MANUAL DO PROPRIETÁRIO/i);

@@ -98,7 +98,8 @@ test("migração, recuperação, painel e guia cobrem o pré-lançamento", async
   assert.match(recovery, /arcade_security_passes/);
   assert.match(recovery, /security_rate_windows/);
   assert.match(recovery, /security_events/);
-  assert.match(dashboard, /CRIPTO CONTROLADO · PIX EM HOMOLOGAÇÃO · SAQUES MANUAIS/);
+  assert.match(dashboard, /CRIPTO CONTROLADO · PIX \{overview\.launch\.pix\.enabled/);
+  assert.doesNotMatch(dashboard, /PIX EM HOMOLOGAÇÃO · SAQUES MANUAIS/);
   assert.match(guide, /CMA é um crédito virtual fechado/);
   assert.match(guide, /TURNSTILE_REQUIRED=true/);
 });

@@ -1271,7 +1271,9 @@ export function ConversionView({
                   ? pix.mode === "test"
                     ? "ACESSO RESTRITO"
                     : "PRODUÇÃO ATIVA"
-                  : "INDISPONÍVEL"}
+                  : pix?.providerReady
+                    ? "AGUARDA ATIVAÇÃO"
+                    : "CONFIGURANDO"}
               </strong>
             </header>
             <div className="wallet-pix-controls">
@@ -1335,10 +1337,11 @@ export function ConversionView({
                 </button>
               </div>
             </div>
-            {!pix?.enabled && (
+            {!pix?.enabled && pix && (
               <p className="wallet-pix-setup">
-                A estrutura está pronta, mas pagamentos reais continuam bloqueados.
-                A configuração de pagamento e o webhook ainda não estão disponíveis.
+                {pix.providerReady
+                  ? "O Pix está temporariamente pausado. Tente novamente em instantes."
+                  : "O Pix está sendo configurado neste ambiente."}
               </p>
             )}
             {pixError && <p className="conversion-error" role="alert">{pixError}</p>}

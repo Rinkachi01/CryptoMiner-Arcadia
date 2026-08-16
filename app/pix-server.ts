@@ -273,7 +273,7 @@ export async function createPixDeposit(input: {
   targetCma: unknown;
 }) {
   const config = readMercadoPagoConfig(input.environment);
-  if (!config.enabled) throw new Error("Pix ainda aguarda credenciais de teste e webhook.");
+  if (!config.enabled) throw new Error("Pix não está habilitado neste ambiente.");
   const now = input.now ?? Date.now();
   await ensurePixSchema(input.db);
   const recent = await input.db
