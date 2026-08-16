@@ -21211,6 +21211,73 @@ body {
   }
 }
 
+/* Auth header: keep the account title and language control on one deliberate row. */
+.public-auth-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.public-auth-card > header .login-brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.public-auth-card > header .login-brand-copy span,
+.public-auth-card > header .login-brand-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-auth-card > header .login-brand-copy strong {
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+}
+
+.public-auth-card > header .language-switcher {
+  margin-left: 0;
+  white-space: nowrap;
+}
+
+.public-auth-card > header .language-switcher-icon {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .public-auth-card > header {
+    gap: 10px;
+    padding: 20px 18px;
+  }
+
+  .public-auth-card .login-brand-mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .public-auth-card > header .login-brand-copy span {
+    font-size: 0.58rem;
+    letter-spacing: 0.07em;
+  }
+
+  .public-auth-card > header .login-brand-copy strong {
+    font-size: 1.15rem;
+  }
+
+  .public-auth-card > header .language-switcher {
+    min-height: 32px;
+    padding: 0 7px;
+    font-size: 0.68rem;
+  }
+
+  .public-auth-card > header .language-switcher select {
+    max-width: 92px;
+  }
+}
+
 .update-password-card > span {
   color: var(--lime);
   font-size: 0.72rem;

@@ -216,7 +216,7 @@ export function LanguageSwitcher() {
   return (
     <label className="language-switcher">
       <span className="sr-only">{t("language.label")}</span>
-      <span aria-hidden="true">◎</span>
+      <span className="language-switcher-icon" aria-hidden="true">◎</span>
       <select value={locale} aria-label={t("language.label")} onChange={(event) => setLocale(event.target.value as ArcadiaLocale)}>
         <option value="pt-BR">{t("language.pt")}</option>
         <option value="en">{t("language.en")}</option>

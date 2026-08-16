@@ -314,7 +314,7 @@ export function AuthForm({
           <div className="login-brand-mark">
             <img src="/assets/brand/cma-coin.png" alt="Logo CMA" />
           </div>
-          <div>
+          <div className="login-brand-copy">
             <span>CRYPTO MINER ARCADIA</span>
             <strong>
               {mode === "signin"
