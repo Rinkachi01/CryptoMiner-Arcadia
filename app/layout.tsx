@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     locale: "pt_BR",
     images: [
       {
-        url: "/og.png",
+        url: "/og-arcade-v3.png",
         width: 1672,
         height: 941,
         alt: "Crypto Miner Arcadia — salas, energia, pools e Arcade",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     title: "Crypto Miner Arcadia",
     description:
       "Mineração virtual com progressão, energia, pools globais e Arcade.",
-    images: ["/og.png"],
+    images: ["/og-arcade-v3.png"],
   },
 };
 

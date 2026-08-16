@@ -21405,6 +21405,21 @@ body {
   max-width: 760px;
 }
 
+.login-showcase-banner {
+  display: block;
+  width: min(100%, 720px);
+  aspect-ratio: 16 / 9;
+  margin: 24px 0 28px;
+  border: 1px solid rgba(97, 231, 255, 0.38);
+  border-radius: 18px;
+  object-fit: cover;
+  object-position: center;
+  box-shadow:
+    0 0 0 1px rgba(169, 255, 63, 0.08),
+    0 22px 70px rgba(0, 0, 0, 0.42),
+    0 0 40px rgba(54, 216, 242, 0.12);
+}
+
 .login-kicker {
   color: var(--lime);
   font: 800 0.78rem/1.4 var(--font-mono);
@@ -22190,6 +22205,10 @@ body {
     text-align: center;
   }
 
+  .login-showcase-banner {
+    margin-inline: auto;
+  }
+
   .login-showcase > p {
     margin-inline: auto;
   }
@@ -22215,6 +22234,11 @@ body {
 
   .login-showcase h1 {
     font-size: clamp(2.35rem, 12vw, 4rem);
+  }
+
+  .login-showcase-banner {
+    margin: 18px 0 22px;
+    border-radius: 14px;
   }
 
   .login-feature-grid {

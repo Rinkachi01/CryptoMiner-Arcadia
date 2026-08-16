@@ -26,6 +26,11 @@ export default async function Home() {
           <div className="login-entry-layout">
             <section className="login-showcase">
               <span className="login-kicker">ECONOMIA CONTROLADA PELO SERVIDOR</span>
+              <img
+                className="login-showcase-banner"
+                src="/og-arcade-v3.png"
+                alt="Crypto Miner Arcadia com mineradores e minigames"
+              />
               <h1>Construa sua operação. Dispute blocos globais.</h1>
               <p>
                 Monte salas, organize racks, energize seus mineradores e divida
