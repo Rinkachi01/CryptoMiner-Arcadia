@@ -24712,6 +24712,28 @@ body {
   color: var(--lime);
 }
 
+.public-footer-discord {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  width: fit-content;
+  padding: 0 14px;
+  border: 1px solid rgba(88, 101, 242, 0.72);
+  background: linear-gradient(135deg, rgba(88, 101, 242, 0.22), rgba(88, 101, 242, 0.08));
+  color: #e9ecff !important;
+  border-radius: 8px;
+  letter-spacing: 0.03em;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.public-footer-discord:hover,
+.public-footer-discord:focus-visible {
+  border-color: #8d9aff;
+  background: rgba(88, 101, 242, 0.35);
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
 .public-footer-cta {
   display: inline-grid;
   width: fit-content;
