@@ -25,6 +25,7 @@ import {
 } from "../../wallet-server";
 import {
   settleReferralMiningShare,
+  type ReferralSettlementResult,
 } from "../../referral-server";
 
 export const dynamic = "force-dynamic";
@@ -385,6 +386,9 @@ export async function GET() {
       now,
     );
   }
+  if (!row) {
+    return json({ error: "Estado da conta indisponível." }, 503);
+  }
 
   const temporaryPowerGh = await activeTemporaryPower(
     context.db,
@@ -553,6 +557,9 @@ export async function POST(request: Request) {
       context.user.displayName,
       now,
     );
+  }
+  if (!row) {
+    return json({ error: "Estado da conta indisponível." }, 503);
   }
   const temporaryPowerGh = await activeTemporaryPower(
     context.db,
@@ -723,7 +730,7 @@ export async function POST(request: Request) {
     body.action === "sync"
       ? result.deltaCmaMicros
       : result.deltaCmaMicros + settlementPreview.rewards.cma;
-  const referralResult =
+  const referralResult: ReferralSettlementResult =
     settlementPreview.settledBlocks > 0
       ? await settleReferralMiningShare(
           context.db,

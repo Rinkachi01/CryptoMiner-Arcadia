@@ -40,7 +40,7 @@ export function CircuitRushView({
     "Siga o pulso verde e não toque nos circuitos vermelhos.",
   );
   const [reward, setReward] = useState(0);
-  const [drop, setDrop] = useState<number | null>(null);
+  const [drop, setDrop] = useState<GameDropValue>(null);
   const localStartedAt = useRef(0);
   const eventsRef = useRef<CircuitEvent[]>([]);
   const finishStarted = useRef(false);

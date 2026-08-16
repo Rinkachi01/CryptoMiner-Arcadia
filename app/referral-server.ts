@@ -213,6 +213,23 @@ export type PrimaryMiningLedger = {
   metadata: Record<string, unknown>;
 };
 
+export type ReferralSettlementResult =
+  | {
+      applied: true;
+      conflict: false;
+      nextReferredState: PublicGameState;
+      nextReferredVersion: number;
+      referrerAccountId: string;
+      share: MiningRewards;
+    }
+  | { applied: false; conflict: true; share: MiningRewards }
+  | {
+      applied: false;
+      conflict: false;
+      alreadyPaid?: boolean;
+      share?: MiningRewards;
+    };
+
 /**
  * Transfers 5% of a referred operator's validated mining reward to the
  * referrer. The amount is taken from the referred reward before persistence,
@@ -227,7 +244,7 @@ export async function settleReferralMiningShare(
   settlementKey: string,
   primaryLedger: PrimaryMiningLedger,
   now: number,
-) {
+): Promise<ReferralSettlementResult> {
   await ensureReferralSchema(db);
   const attribution = await db
     .prepare(

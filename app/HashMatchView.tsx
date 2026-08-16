@@ -64,7 +64,7 @@ export function HashMatchView({
     "Encontre os pares de moedas antes que o tempo termine.",
   );
   const [reward, setReward] = useState(0);
-  const [drop, setDrop] = useState<number | null>(null);
+  const [drop, setDrop] = useState<GameDropValue>(null);
   const [clockNow, setClockNow] = useState(0);
   const localStartedAt = useRef(0);
   const timeoutSent = useRef(false);

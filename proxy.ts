@@ -26,10 +26,17 @@ function secureResponse(response: NextResponse, request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+  // ARCADIA_ALLOWED_HOSTS is intentionally optional in production (the
+  // canonical-domain policy is the source of truth there), but staging uses
+  // it to allow its dedicated hostname. Keep the assertion local so the
+  // generated production Env type remains authoritative for real bindings.
+  const configuredAllowedHosts = (env as typeof env & {
+    ARCADIA_ALLOWED_HOSTS?: string;
+  }).ARCADIA_ALLOWED_HOSTS;
   const allowedHosts =
-    typeof env.ARCADIA_ALLOWED_HOSTS === "string"
-      ? env.ARCADIA_ALLOWED_HOSTS.split(",")
-          .map((host) => host.trim())
+    typeof configuredAllowedHosts === "string"
+      ? configuredAllowedHosts.split(",")
+          .map((host: string) => host.trim())
           .filter(Boolean)
       : [];
   const disposition = arcadiaHostDisposition(request.nextUrl.hostname, {

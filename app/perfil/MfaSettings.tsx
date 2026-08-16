@@ -51,7 +51,11 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       setMessage(friendlyMfaError(error, english));
     } else {
       const verified = data?.totp?.find((item) => item.status === "verified") ?? null;
-      const pending = data?.totp?.find((item) => item.status === "unverified") ?? null;
+      // Supabase exposes verified TOTP factors through `totp`; pending
+      // enrollments are intentionally kept in the complete `all` list.
+      const pending = data?.all?.find(
+        (item) => item.factor_type === "totp" && item.status === "unverified",
+      ) ?? null;
       setFactor(verified);
       setPendingFactorId(verified ? null : pending?.id ?? null);
       setRecoveryRequired(false);
@@ -82,8 +86,8 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
       if (listing.error) {
         return { ok: false, message: friendlyMfaError(listing.error, english) };
       }
-      const pending = (listing.data?.totp ?? []).filter(
-        (item) => item.status === "unverified",
+      const pending = (listing.data?.all ?? []).filter(
+        (item) => item.factor_type === "totp" && item.status === "unverified",
       );
       if (pending.length === 0) return { ok: true };
 
@@ -167,7 +171,9 @@ export function MfaSettings({ publishableKey, supabaseUrl }: MfaSettingsProps) {
     // after the eventual-consistency window rather than trapping the user.
     if (error && (error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("duplicate"))) {
       const pendingListing = await supabase.auth.mfa.listFactors();
-      const pending = pendingListing.data?.totp?.find((item) => item.status === "unverified");
+      const pending = pendingListing.data?.all?.find(
+        (item) => item.factor_type === "totp" && item.status === "unverified",
+      );
       if (pending) {
         setPendingFactorId(pending.id);
         setMessage(english ? "A setup is already in progress. Continue with the code shown in your authenticator app." : "Há uma configuração iniciada. Continue usando o código que já aparece no aplicativo autenticador.");

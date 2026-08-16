@@ -72,7 +72,7 @@ export function CoinLinkView({
     "Troque duas moedas vizinhas e forme linhas com três ou mais.",
   );
   const [reward, setReward] = useState(0);
-  const [drop, setDrop] = useState<number | null>(null);
+  const [drop, setDrop] = useState<GameDropValue>(null);
   const [lastGain, setLastGain] = useState(0);
   const [resolving, setResolving] = useState(false);
   const [motion, setMotion] = useState<BoardMotion | null>(null);

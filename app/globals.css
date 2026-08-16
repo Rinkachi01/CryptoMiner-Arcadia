@@ -21294,6 +21294,98 @@ body {
   }
 }
 
+/* Auth header overflow guard: keep the brand and mode title readable on narrow cards. */
+.public-auth-card > header {
+  min-width: 0;
+}
+
+.public-auth-card > header .public-auth-brand {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.public-auth-card > header .public-auth-brand > .login-brand-mark {
+  flex: 0 0 auto;
+}
+
+.public-auth-card > header .login-brand-copy {
+  min-width: 0;
+  max-width: 100%;
+  align-items: start;
+}
+
+.public-auth-card > header .login-brand-copy span {
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.public-auth-card > header .login-brand-copy strong {
+  max-width: 100%;
+  overflow: visible;
+  line-height: 1.1;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.public-auth-card > header .language-switcher {
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .public-auth-card > header {
+    gap: 10px;
+    padding: 20px 18px;
+  }
+
+  .public-auth-card > header .public-auth-brand {
+    gap: 10px;
+    align-items: start;
+  }
+
+  .public-auth-card .login-brand-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 13px;
+  }
+
+  .public-auth-card > header .login-brand-copy span {
+    font-size: 0.58rem;
+    letter-spacing: 0.07em;
+  }
+
+  .public-auth-card > header .login-brand-copy strong {
+    font-size: 1.2rem;
+  }
+
+  .public-auth-card > header .language-switcher {
+    min-height: 32px;
+    padding: 0 7px;
+    font-size: 0.68rem;
+  }
+
+  .public-auth-card > header .language-switcher select {
+    max-width: 96px;
+  }
+}
+
+@media (max-width: 400px) {
+  .public-auth-card > header {
+    grid-template-columns: 1fr;
+  }
+
+  .public-auth-card > header .language-switcher {
+    justify-self: end;
+  }
+}
+
 .update-password-card > span {
   color: var(--lime);
   font-size: 0.72rem;
