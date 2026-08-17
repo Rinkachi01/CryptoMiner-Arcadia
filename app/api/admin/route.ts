@@ -11,9 +11,11 @@ import {
   type AdminThresholdKey,
 } from "../../admin-settings";
 import { evaluateAdminAlerts } from "../../admin-alert-rules";
+import { buildAdminCrmAlerts } from "../../admin-crm-alert-rules";
 import { accountIdForUser, getArcadiaUser } from "../../identity-server";
 import { getMiner, type PoolId } from "../../game-rules";
-import type { PublicGameState } from "../../game-server";
+import { normalizePoolAllocations, type PublicGameState } from "../../game-server";
+import { getRoomDefinition } from "../../room-rules";
 import {
   ensureBetaFeedbackSchema,
   readAdminBetaFeedback,
@@ -21,15 +23,15 @@ import {
 import { isBetaFeedbackStatus } from "../../feedback-rules";
 import {
   compactEligibleGameProofs,
-  readBetaObservability,
 } from "../../beta-observability";
 import {
   DEFAULT_NETWORK_BASE_POWER,
   ZERO_NETWORK_POWER,
   ensureNetworkSchema,
   readNetworkPowerSnapshot,
-  updateBlockRewardBonus,
+  updateBlockRewardSchedules,
   updateBlockRewards,
+  type PoolBonusSchedules,
   updateNetworkBasePower,
 } from "../../network-server";
 import {
@@ -65,6 +67,10 @@ import {
   manuallyCreditPixDeposit,
   readAdminPixDeposits,
 } from "../../pix-server";
+import {
+  readAdminCryptoDeposits,
+  readAdminWithdrawalOverview,
+} from "../../wallet-server";
 import {
   deliverSupportReply,
   readSupportEmailConfig,
@@ -128,6 +134,8 @@ type LedgerRow = {
 };
 
 type BlockSettlementRow = {
+  created_at: number;
+  id: string;
   metadata_json: string;
 };
 
@@ -439,11 +447,11 @@ async function readAdminOverview(
       .all<LedgerSummaryRow>(),
     db
       .prepare(
-        `SELECT metadata_json
+        `SELECT id, metadata_json, created_at
          FROM ledger_entries
          WHERE action = 'block_settlement' AND created_at >= ?
          ORDER BY created_at DESC
-         LIMIT 10000`,
+         LIMIT 500`,
       )
       .bind(since)
       .all<BlockSettlementRow>(),
@@ -459,7 +467,10 @@ async function readAdminOverview(
       )
       .all<LedgerRow>(),
     db
-      .prepare("SELECT state_json FROM game_states LIMIT 1000")
+      // Inventory telemetry is intentionally bounded. Full state snapshots
+      // are large JSON documents; loading thousands of them in one request
+      // can exhaust the Worker memory budget while opening the CRM.
+      .prepare("SELECT state_json FROM game_states LIMIT 250")
       .all<StateRow>(),
     db
       .prepare(
@@ -571,6 +582,7 @@ async function readAdminOverview(
       completedAt: row.completed_at,
       difficulty: Number(row.difficulty),
       displayName: row.display_name ?? row.email ?? "Operador",
+      email: row.email ?? "",
       gameId: row.game_id,
       id: row.id,
       resolution: row.review_resolution,
@@ -672,10 +684,11 @@ export async function GET(request: Request) {
          FROM game_states
          WHERE LOWER(COALESCE(display_name, '')) LIKE ?
             OR LOWER(COALESCE(email, '')) LIKE ?
+            OR LOWER(account_id) LIKE ?
          ORDER BY updated_at DESC
          LIMIT 20`,
       )
-      .bind(pattern, pattern)
+      .bind(pattern, pattern, pattern)
       .all<{
         account_id: string;
         created_at: number;
@@ -699,6 +712,31 @@ export async function GET(request: Request) {
           createdAt: row.created_at,
           displayName: row.display_name ?? "Operador Arcadia",
           email: row.email ?? "",
+          poolAllocations:
+            normalizePoolAllocations(
+              state.poolAllocations ??
+                (state as unknown as Record<string, unknown>).gamePoolAllocations,
+            ) ??
+            ({ cma: 100, btc: 0, doge: 0, ltc: 0 } as const),
+          activeRoomId: state.activeRoomId ?? "room-1",
+          activeRoomName:
+            getRoomDefinition(state.activeRoomId)?.name ?? "Oficina Neon",
+          mainRoomName: getRoomDefinition("room-1")?.name ?? "Oficina Neon",
+          mainRoomRackCount: Array.isArray(state.racks)
+            ? state.racks.filter((rack) => rack.roomId === "room-1").length
+            : 0,
+          mainRoomMinerCount: Array.isArray(state.racks)
+            ? state.racks
+                .filter((rack) => rack.roomId === "room-1")
+                .reduce(
+                  (total, rack) =>
+                    total +
+                    (Array.isArray(state.rackMiners?.[rack.id])
+                      ? state.rackMiners?.[rack.id].length ?? 0
+                      : 0),
+                  0,
+                )
+            : 0,
           minerCount:
             (Array.isArray(state.minerInventory) ? state.minerInventory.length : 0) +
             Object.values(state.rackMiners ?? {}).reduce(
@@ -718,25 +756,27 @@ export async function GET(request: Request) {
     overview,
     network,
     feedback,
-    beta,
     operations,
     recovery,
     security,
     conversion,
     support,
     pixDeposits,
+    cryptoDeposits,
+    withdrawalQueue,
   ] = await Promise.all([
     readAdminRuntimeSettings(context.db),
     readAdminOverview(context.db, now),
     readNetworkPowerSnapshot(context.db, now),
     readAdminBetaFeedback(context.db, now),
-    readBetaObservability(context.db, now),
     readOperationalHealth(context.db, now),
     readRecoveryOverview(context.db, bucket, now),
     readSecurityOverview(context.db, env, now),
     readConversionOverview(context.db, now),
     readAdminSupportOverview(context.db),
     readAdminPixDeposits(context.db),
+    readAdminCryptoDeposits(context.db),
+    readAdminWithdrawalOverview({ db: context.db, environment: env }),
   ]);
   await ensureDefaultSeason(context.db, now);
   const [season, seasonReport, ownerBalanceCma] = await Promise.all([
@@ -748,6 +788,52 @@ export async function GET(request: Request) {
     context.db,
     season.season?.id ?? season.draft?.id ?? null,
   );
+  const crmAlerts = buildAdminCrmAlerts({
+    auditEvents: overview.audit,
+    feedbackEvents: feedback.recent,
+    now,
+    securityEvents: security.recentEvents,
+    supportEvents: support.tickets.filter((ticket) => ticket.status === "open").map((ticket) => ({
+      createdAt: ticket.createdAt,
+      email: ticket.email,
+      publicId: ticket.publicId,
+      status: ticket.status,
+      subject: ticket.subject,
+    })),
+    treasuryEvents: [
+      ...pixDeposits.deposits.map((deposit) => ({
+        amount: `BRL ${deposit.brlAmount.toFixed(2)}`,
+        createdAt: deposit.updatedAt || deposit.createdAt,
+        displayName: deposit.displayName,
+        id: deposit.id,
+        kind: "deposit" as const,
+        reference: deposit.providerReference ?? undefined,
+        status: deposit.status,
+      })),
+      ...cryptoDeposits.map((deposit) => ({
+        amount: deposit.amount,
+        asset: deposit.asset,
+        createdAt: deposit.createdAt,
+        displayName: deposit.displayName,
+        id: deposit.id,
+        kind: "deposit" as const,
+        reference: deposit.reference,
+        status: deposit.status,
+      })),
+      ...withdrawalQueue.requests.map((request) => ({
+        amount: request.payoutBrlCents > 0
+          ? `BRL ${(request.payoutBrlCents / 100).toFixed(2)}`
+          : "",
+        asset: request.asset,
+        createdAt: request.updatedAt || request.createdAt,
+        displayName: request.displayName,
+        id: request.id,
+        kind: "withdrawal" as const,
+        reference: request.transactionReference ?? undefined,
+        status: request.status,
+      })),
+    ],
+  });
   return json({
     owner: {
       claimedAt: context.owner?.created_at ?? now,
@@ -771,7 +857,6 @@ export async function GET(request: Request) {
     seasonReport,
     network,
     feedback,
-    beta,
     operations,
     recovery,
     security,
@@ -783,6 +868,7 @@ export async function GET(request: Request) {
       emailProvider: readSupportEmailConfig(env).provider,
     },
     launch: readPublicLaunchReadiness(env, request.url),
+    crmAlerts,
     ...overview,
     serverTime: now,
   });
@@ -806,6 +892,8 @@ export async function POST(request: Request) {
         pixReason?: unknown;
         bonusBps?: unknown;
         durationHours?: unknown;
+        startAt?: unknown;
+        poolIds?: unknown;
         feedbackId?: unknown;
         feedbackStatus?: unknown;
         rewards?: unknown;
@@ -1188,48 +1276,71 @@ export async function POST(request: Request) {
   if (body?.action === "start-block-bonus") {
     const bonusBps = Number(body.bonusBps);
     const durationHours = Number(body.durationHours);
+    const requestedStartAt = Number(body.startAt);
+    const bonusStartsAt = Number.isFinite(requestedStartAt)
+      ? Math.floor(requestedStartAt)
+      : now;
     if (
       ![12_500, 15_000, 20_000].includes(bonusBps) ||
       !Number.isFinite(durationHours) ||
       durationHours < 1 ||
-      durationHours > 24
+      durationHours > 168 ||
+      bonusStartsAt < now - 5 * 60 * 1000 ||
+      bonusStartsAt > now + 30 * 24 * 60 * 60 * 1000
     ) {
       return json({ error: "Bônus ou duração fora dos limites seguros." }, 400);
     }
-    const bonusEndsAt = now + Math.floor(durationHours * 60 * 60 * 1000);
-    await updateBlockRewardBonus(
-      context.db,
-      bonusBps,
-      bonusEndsAt,
-      context.accountId,
-      now,
-    );
+    const bonusEndsAt =
+      bonusStartsAt + Math.floor(durationHours * 60 * 60 * 1000);
+    const requestedPools = Array.isArray(body.poolIds)
+      ? body.poolIds.filter((value): value is PoolId =>
+          ["cma", "btc", "doge", "ltc"].includes(value as PoolId),
+        )
+      : [];
+    const poolIds = [...new Set(requestedPools)];
+    if (Array.isArray(body.poolIds) && (poolIds.length === 0 || poolIds.length !== body.poolIds.length)) {
+      return json({ error: "Selecione pelo menos uma pool válida." }, 400);
+    }
+    const network = await readNetworkPowerSnapshot(context.db, now);
+    const schedules: PoolBonusSchedules = { ...network.bonusSchedules };
+    const targets: PoolId[] = poolIds.length > 0 ? poolIds : ["cma", "btc", "doge", "ltc"];
+    for (const poolId of targets) {
+      schedules[poolId] = { bps: bonusBps, startsAt: bonusStartsAt, endsAt: bonusEndsAt };
+    }
+    await updateBlockRewardSchedules(context.db, schedules, context.accountId, now);
     await writeAdminAudit(
       context.db,
       context.accountId,
-      "block_bonus_started",
-      { bonusBps, bonusEndsAt, durationHours },
+      "block_bonus_scheduled",
+      { bonusBps, bonusStartsAt, bonusEndsAt, durationHours, poolIds: targets },
       now,
     );
     return json({
-      message: `Evento de ${bonusBps / 100}% ativado por ${durationHours}h.`,
+      message:
+        bonusStartsAt > now
+          ? `Evento de ${bonusBps / 100}% agendado por ${durationHours}h para ${targets.join(", ")}.`
+          : `Evento de ${bonusBps / 100}% ativado para ${targets.join(", ")} por ${durationHours}h.`,
       network: await readNetworkPowerSnapshot(context.db, now),
     });
   }
 
   if (body?.action === "stop-block-bonus") {
-    await updateBlockRewardBonus(
-      context.db,
-      10_000,
-      0,
-      context.accountId,
-      now,
-    );
+    const requestedPools = Array.isArray(body.poolIds)
+      ? body.poolIds.filter((value): value is PoolId =>
+          ["cma", "btc", "doge", "ltc"].includes(value as PoolId),
+        )
+      : [];
+    const poolIds = [...new Set(requestedPools)];
+    const network = await readNetworkPowerSnapshot(context.db, now);
+    const schedules: PoolBonusSchedules = { ...network.bonusSchedules };
+    const targets: PoolId[] = poolIds.length > 0 ? poolIds : ["cma", "btc", "doge", "ltc"];
+    for (const poolId of targets) schedules[poolId] = { bps: 10_000, startsAt: 0, endsAt: 0 };
+    await updateBlockRewardSchedules(context.db, schedules, context.accountId, now);
     await writeAdminAudit(
       context.db,
       context.accountId,
       "block_bonus_stopped",
-      {},
+      { poolIds: targets },
       now,
     );
     return json({

@@ -10,6 +10,7 @@ import {
   canonicalArcadiaUrl,
 } from "./app/host-policy.ts";
 import { accountIdForVerifiedEmail } from "./app/identity-rules.ts";
+import { adminOwnerAccountIdFromEnv } from "./app/admin-settings.ts";
 import {
   emailCycleIsEnabled,
   ensureEmailCycleSchema,
@@ -135,6 +136,47 @@ export async function proxy(request: NextRequest) {
   // but the proxy closes the bypass where an old AAL1 session navigated
   // directly to the game or called an API without entering the code.
   const pathname = request.nextUrl.pathname;
+  const isFounderPath =
+    pathname === "/admin" || pathname.startsWith("/admin/");
+
+  // Defense in depth for the founder console: the page and API handlers also
+  // authorize the owner, but an authenticated non-owner should not reach the
+  // admin route tree at all. The owner id is a server-only binding derived
+  // from the verified email; if it is missing, fail closed instead of letting
+  // the first authenticated account claim the console.
+  if (claimsAuthenticated && isFounderPath) {
+    const configuredOwnerId = adminOwnerAccountIdFromEnv(env);
+    let requesterAccountId = "";
+    let requesterEmail = claimsEmail;
+    if (!requesterEmail) {
+      try {
+        const userResult = await supabase.auth.getUser();
+        requesterEmail = userResult.data.user?.email?.trim().toLowerCase() ?? "";
+      } catch {
+        requesterEmail = "";
+      }
+    }
+    if (requesterEmail) {
+      requesterAccountId = await accountIdForVerifiedEmail(requesterEmail);
+    }
+    if (
+      !configuredOwnerId ||
+      !requesterAccountId ||
+      requesterAccountId !== configuredOwnerId
+    ) {
+      return secureResponse(
+        new NextResponse("Not Found", {
+          status: 404,
+          headers: {
+            "Cache-Control": "private, no-store",
+            "X-Robots-Tag": "noindex, nofollow, noarchive",
+          },
+        }),
+        request,
+      );
+    }
+  }
+
   const isAuthFlow = pathname === "/auth" || pathname.startsWith("/auth/");
   const isEmailCycleFlow = pathname === "/api/auth/email-cycle";
   if (claimsAuthenticated && !isAuthFlow && !isEmailCycleFlow) {

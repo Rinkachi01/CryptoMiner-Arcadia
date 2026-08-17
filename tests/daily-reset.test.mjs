@@ -15,14 +15,18 @@ test("janela diária começa às 21:00 no fuso do operador", () => {
   assert.equal(after.resetAt, Date.UTC(2026, 6, 30, 0));
 });
 
-test("PC perde um nível na virada sem nova partida", () => {
+test("PC volta ao nível zero quando o ciclo fecha sem uma vitória", () => {
   const lastPlay = Date.UTC(2026, 6, 28, 23, 59);
   assert.equal(
-    pcLevelAfterInactivity(60, lastPlay, Date.UTC(2026, 6, 29, 0, 1)),
-    2,
+    pcLevelAfterInactivity(60, lastPlay, 0, Date.UTC(2026, 6, 29, 0, 1)),
+    0,
   );
   assert.equal(
-    pcLevelAfterInactivity(60, lastPlay, Date.UTC(2026, 6, 30, 0, 1)),
-    1,
+    pcLevelAfterInactivity(60, lastPlay, lastPlay, Date.UTC(2026, 6, 29, 0, 1)),
+    3,
+  );
+  assert.equal(
+    pcLevelAfterInactivity(60, lastPlay, lastPlay, Date.UTC(2026, 6, 30, 0, 1)),
+    0,
   );
 });

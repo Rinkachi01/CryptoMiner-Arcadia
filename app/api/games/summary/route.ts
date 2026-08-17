@@ -20,7 +20,7 @@ import {
 } from "../../../game-server";
 import { STARTER_KIT_VERSION } from "../../../onboarding-rules";
 import { calculateOperatorProgress } from "../../../operator-progress-rules";
-import { pcLevelAfterInactivity } from "../../../pc-progression-rules";
+import { readActivePcLevel } from "../../../pc-progression-server";
 
 export const dynamic = "force-dynamic";
 
@@ -391,6 +391,9 @@ export async function GET() {
   const accountId = await accountIdForUser(user);
   const { resetAt, startsAt, windowKey } = dailyMissionWindow(now);
   await ensureSchema(db);
+  // Synchronize the authoritative PC before reading progress. This resets
+  // every game row when the previous cycle ended without a validated win.
+  await readActivePcLevel(db, accountId, now);
   const settings = await readAdminRuntimeSettings(db);
   if (!settings.dailyBatteryEnabled) {
     return json(
@@ -480,7 +483,7 @@ export async function GET() {
     (latest, row) => Math.max(latest, Number(row.updated_at ?? 0)),
     0,
   );
-  const pcLevel = pcLevelAfterInactivity(totalPlays, lastActivityAt, now);
+  const pcLevel = await readActivePcLevel(db, accountId, now);
   const playsToday = [...todayRows.values()].reduce(
     (sum, row) => sum + Number(row.plays_today),
     0,

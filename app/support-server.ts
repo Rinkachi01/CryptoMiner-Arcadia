@@ -121,16 +121,25 @@ export async function readUnreadSupportReplyCount(
   db: D1Database,
   accountId: string,
 ) {
-  await ensureSupportSchema(db);
-  const row = await db
-    .prepare(`SELECT COUNT(*) AS total
-      FROM support_tickets
-      WHERE account_id = ?
-        AND last_reply_at IS NOT NULL
-        AND (player_seen_reply_at IS NULL OR player_seen_reply_at < last_reply_at)`)
-    .bind(accountId)
-    .first<{ total: number }>();
-  return Math.max(0, Number(row?.total ?? 0));
+  // This count runs during every authenticated page render. The schema is
+  // applied by the D1 migration set, so running CREATE TABLE/INDEX statements
+  // on every navigation needlessly consumes Worker/D1 CPU and can cause an
+  // otherwise healthy request to hit Cloudflare's 1102 resource limit under
+  // concurrent logins. Keep this hot path read-only; an uninitialized local
+  // database simply behaves as having no unread replies.
+  try {
+    const row = await db
+      .prepare(`SELECT COUNT(*) AS total
+        FROM support_tickets
+        WHERE account_id = ?
+          AND last_reply_at IS NOT NULL
+          AND (player_seen_reply_at IS NULL OR player_seen_reply_at < last_reply_at)`)
+      .bind(accountId)
+      .first<{ total: number }>();
+    return Math.max(0, Number(row?.total ?? 0));
+  } catch {
+    return 0;
+  }
 }
 
 export async function acknowledgeSupportReplies(

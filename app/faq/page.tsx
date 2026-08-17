@@ -42,8 +42,8 @@ const faqCopy: Record<ArcadiaLocale, {
         label: "ARCADE",
         title: "Partidas, energia e baterias",
         items: [
-          { question: "Como o Arcade concede poder?", answer: "O resultado é validado no servidor. A dificuldade, a quantidade de partidas e o nível do PC definem a duração do poder temporário, sem confirmar prêmios apenas pelo navegador." },
-          { question: "O que acontece se eu ficar alguns dias sem jogar?", answer: "O nível de atividade pode cair gradualmente e o poder temporário expira conforme a data registrada. O inventário e o poder permanente não são apagados por inatividade." },
+          { question: "Como o Arcade concede poder?", answer: "O resultado é validado no servidor. O nível ativo do PC define a duração de cada recompensa temporária: N1 dura 1 dia, N2 2, N3 3, N4 4 e N5 5 dias. Cada concessão tem sua própria expiração e não altera as baterias dos mineradores." },
+          { question: "O que acontece se eu ficar um ciclo sem vencer?", answer: "Se um ciclo fechar sem pelo menos uma vitória validada, o PC e seu progresso de partidas voltam ao nível 0. É preciso jogar e vencer novamente para reconstruir a progressão." },
           { question: "Para que servem as baterias?", answer: "Baterias estendem o ciclo de energia dos mineradores. O ciclo gratuito da sala é separado do XP do Arcade e segue as regras atuais de energia." },
           { question: "Por que uma partida pode não liberar recompensa?", answer: "A partida precisa ser concluída dentro do limite, sem comportamento automatizado e com a validação do servidor. Recarregar a página não substitui uma confirmação autoritativa." },
         ],
@@ -104,8 +104,8 @@ const faqCopy: Record<ArcadiaLocale, {
         label: "ARCADE",
         title: "Games, energy and batteries",
         items: [
-          { question: "How does the Arcade grant power?", answer: "Results are validated by the server. Difficulty, game count and PC level determine temporary power duration; the browser alone cannot confirm rewards." },
-          { question: "What happens if I stop playing for a few days?", answer: "Activity level may gradually fall and temporary power expires on its recorded date. Inventory and permanent power are not deleted for inactivity." },
+          { question: "How does the Arcade grant power?", answer: "Results are validated by the server. The active PC level sets each temporary reward's lifetime: level 1 lasts 1 day, level 2 lasts 2, level 3 lasts 3, level 4 lasts 4 and level 5 lasts 5 days. Each grant has its own expiry and does not change miner batteries." },
+          { question: "What happens if I go one cycle without a win?", answer: "If a cycle closes without at least one validated win, the PC and its play progress return to level 0. You must play and win again to rebuild the progression." },
           { question: "What are batteries for?", answer: "Batteries extend the miners' energy cycle. The room's free cycle is separate from Arcade XP and follows the current energy rules." },
           { question: "Why might a game not grant a reward?", answer: "The game must finish within its limits, without automated behavior, and pass server validation. Reloading the page does not replace an authoritative confirmation." },
         ],

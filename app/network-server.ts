@@ -12,6 +12,14 @@ import type {
 export type NetworkPowerMap = Record<PoolId, number>;
 export type BlockRewardMap = Record<PoolId, number>;
 
+export type PoolBonusSchedule = {
+  bps: number;
+  startsAt: number;
+  endsAt: number;
+};
+
+export type PoolBonusSchedules = Record<PoolId, PoolBonusSchedule>;
+
 export type NetworkPowerSnapshot = {
   basePowerGh: NetworkPowerMap;
   playerPowerGh: NetworkPowerMap;
@@ -20,7 +28,9 @@ export type NetworkPowerSnapshot = {
   blockRewardAtomic: BlockRewardMap;
   bonusActive: boolean;
   bonusBps: number;
+  bonusStartsAt: number;
   bonusEndsAt: number;
+  bonusSchedules: PoolBonusSchedules;
   testMode: boolean;
   updatedAt: number;
 };
@@ -35,7 +45,9 @@ type NetworkSettingsRow = {
   reward_doge_atomic: number;
   reward_ltc_atomic: number;
   reward_bonus_bps: number;
+  reward_bonus_starts_at: number;
   reward_bonus_ends_at: number;
+  reward_bonus_schedule_json?: string;
   updated_at: number;
 };
 
@@ -58,7 +70,14 @@ export type AccountNetworkContribution = {
   energyExpiresAt: number;
 };
 
-const NETWORK_BACKFILL_BATCH_SIZE = 250;
+// Never rebuild the entire index in the request that is serving a page. The
+// old loop kept reading batches until every account was migrated, which made
+// a single network snapshot scale with the whole database and could exhaust
+// the Worker CPU/memory budget (Cloudflare 1102). A small bounded batch keeps
+// the index convergent while leaving the request responsive; active accounts
+// are also synchronised on every game mutation.
+const NETWORK_BACKFILL_BATCH_SIZE = 25;
+const NETWORK_POOL_IDS = ["cma", "btc", "doge", "ltc"] as const;
 
 export const DEFAULT_NETWORK_BASE_POWER: NetworkPowerMap = {
   cma: pools.find((pool) => pool.id === "cma")?.networkPowerGh ?? 0,
@@ -77,6 +96,62 @@ export const ZERO_NETWORK_POWER: NetworkPowerMap = {
 export const DEFAULT_BLOCK_REWARDS: BlockRewardMap = {
   ...DEFAULT_BLOCK_REWARD_ATOMIC,
 };
+
+function emptyBonusSchedules(): PoolBonusSchedules {
+  return {
+    cma: { bps: 10_000, startsAt: 0, endsAt: 0 },
+    btc: { bps: 10_000, startsAt: 0, endsAt: 0 },
+    doge: { bps: 10_000, startsAt: 0, endsAt: 0 },
+    ltc: { bps: 10_000, startsAt: 0, endsAt: 0 },
+  };
+}
+
+function normalizeBonusSchedule(value: unknown): PoolBonusSchedule {
+  const candidate = value && typeof value === "object"
+    ? value as Partial<PoolBonusSchedule>
+    : {};
+  const bps = safePower(candidate.bps);
+  const startsAt = safePower(candidate.startsAt);
+  const endsAt = safePower(candidate.endsAt);
+  return {
+    bps: bps >= 10_000 ? bps : 10_000,
+    startsAt,
+    endsAt: endsAt > startsAt ? endsAt : 0,
+  };
+}
+
+export function readBonusSchedules(settings: Pick<NetworkSettingsRow, "reward_bonus_schedule_json" | "reward_bonus_bps" | "reward_bonus_starts_at" | "reward_bonus_ends_at"> | null | undefined): PoolBonusSchedules {
+  const schedules = emptyBonusSchedules();
+  let parsed: unknown = null;
+  try {
+    parsed = settings?.reward_bonus_schedule_json
+      ? JSON.parse(settings.reward_bonus_schedule_json)
+      : null;
+  } catch {
+    parsed = null;
+  }
+  let hasStoredSchedule = false;
+  if (parsed && typeof parsed === "object") {
+    for (const poolId of NETWORK_POOL_IDS) {
+      const candidate = (parsed as Record<string, unknown>)[poolId];
+      if (candidate) {
+        schedules[poolId] = normalizeBonusSchedule(candidate);
+        hasStoredSchedule = true;
+      }
+    }
+  }
+  // Keep older installations (and the original global event) working until
+  // the first per-pool schedule is saved.
+  if (!hasStoredSchedule) {
+    const global = normalizeBonusSchedule({
+      bps: settings?.reward_bonus_bps,
+      startsAt: settings?.reward_bonus_starts_at,
+      endsAt: settings?.reward_bonus_ends_at,
+    });
+    for (const poolId of NETWORK_POOL_IDS) schedules[poolId] = global;
+  }
+  return schedules;
+}
 
 function safePower(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
@@ -189,7 +264,9 @@ export async function ensureNetworkSchema(db: D1Database) {
         reward_doge_atomic INTEGER DEFAULT 1000000 NOT NULL,
         reward_ltc_atomic INTEGER DEFAULT 5000 NOT NULL,
         reward_bonus_bps INTEGER DEFAULT 10000 NOT NULL,
+        reward_bonus_starts_at INTEGER DEFAULT 0 NOT NULL,
         reward_bonus_ends_at INTEGER DEFAULT 0 NOT NULL,
+        reward_bonus_schedule_json TEXT DEFAULT '{}' NOT NULL,
         updated_at INTEGER DEFAULT 0 NOT NULL,
         updated_by TEXT
       )`,
@@ -215,8 +292,9 @@ export async function ensureNetworkSchema(db: D1Database) {
         singleton_id, base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
         reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
         reward_ltc_atomic,
-        reward_bonus_bps, reward_bonus_ends_at, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 10000, 0, 0)`,
+        reward_bonus_bps, reward_bonus_starts_at, reward_bonus_ends_at,
+        reward_bonus_schedule_json, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 10000, 0, 0, '{}', 0)`,
     )
     .bind(
       DEFAULT_NETWORK_BASE_POWER.cma,
@@ -229,6 +307,30 @@ export async function ensureNetworkSchema(db: D1Database) {
       DEFAULT_BLOCK_REWARDS.ltc,
     ),
   ]);
+
+  // Upgrade databases created before scheduled bonuses without requiring a
+  // manual production migration.
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE network_runtime_settings
+         ADD COLUMN reward_bonus_starts_at INTEGER DEFAULT 0 NOT NULL`,
+      )
+      .run();
+  } catch {
+    // The column already exists.
+  }
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE network_runtime_settings
+         ADD COLUMN reward_bonus_schedule_json TEXT DEFAULT '{}' NOT NULL`,
+      )
+      .run();
+  } catch {
+    // The column already exists.
+  }
 
 }
 
@@ -250,51 +352,46 @@ export async function syncAccountNetworkPower(
 }
 
 async function backfillAccountNetworkPower(db: D1Database, now: number) {
-  while (true) {
-    const result = await db
-      .prepare(
-        `SELECT game_states.account_id, game_states.state_json
-         FROM game_states
-         LEFT JOIN account_network_power
-           ON account_network_power.account_id = game_states.account_id
-         WHERE account_network_power.account_id IS NULL
-         ORDER BY game_states.account_id ASC
-         LIMIT ?`,
-      )
-      .bind(NETWORK_BACKFILL_BATCH_SIZE)
-      .all<NetworkStateRow>();
-    const rows = result.results ?? [];
-    if (rows.length === 0) return;
+  // Process one bounded batch only. Remaining legacy accounts converge on
+  // subsequent requests (or when their owner next opens the game), instead
+  // of turning one request into an unbounded migration job.
+  const result = await db
+    .prepare(
+      `SELECT game_states.account_id, game_states.state_json
+       FROM game_states
+       LEFT JOIN account_network_power
+         ON account_network_power.account_id = game_states.account_id
+       WHERE account_network_power.account_id IS NULL
+       ORDER BY game_states.account_id ASC
+       LIMIT ?`,
+    )
+    .bind(NETWORK_BACKFILL_BATCH_SIZE)
+    .all<NetworkStateRow>();
+  const rows = result.results ?? [];
+  if (rows.length === 0) return;
 
-    const statements = rows.flatMap((row) => {
-      try {
-        const state = JSON.parse(row.state_json) as PublicGameState;
-        return [
-          contributionUpsert(
-            db,
-            buildAccountNetworkContribution(row.account_id, state),
-            now,
-          ),
-        ];
-      } catch {
-        return [
-          contributionUpsert(
-            db,
-            {
-              accountId: row.account_id,
-              installedPowerGh: 0,
-              allocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
-              energyExpiresAt: 0,
-            },
-            now,
-          ),
-        ];
-      }
-    });
-    if (statements.length > 0) await db.batch(statements);
-
-    if (rows.length < NETWORK_BACKFILL_BATCH_SIZE) return;
-  }
+  const statements = rows.map((row) => {
+    try {
+      const state = JSON.parse(row.state_json) as PublicGameState;
+      return contributionUpsert(
+        db,
+        buildAccountNetworkContribution(row.account_id, state),
+        now,
+      );
+    } catch {
+      return contributionUpsert(
+        db,
+        {
+          accountId: row.account_id,
+          installedPowerGh: 0,
+          allocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
+          energyExpiresAt: 0,
+        },
+        now,
+      );
+    }
+  });
+  await db.batch(statements);
 }
 
 async function readIndexedPlayerPower(
@@ -396,18 +493,56 @@ export async function updateBlockRewardBonus(
   bonusEndsAt: number,
   actorAccountId: string,
   now: number,
+  bonusStartsAt = 0,
+) {
+  const schedule = normalizeBonusSchedule({
+    bps: bonusBps,
+    startsAt: bonusStartsAt,
+    endsAt: bonusEndsAt,
+  });
+  const schedules: PoolBonusSchedules = {
+    cma: schedule,
+    btc: schedule,
+    doge: schedule,
+    ltc: schedule,
+  };
+  await updateBlockRewardSchedules(db, schedules, actorAccountId, now);
+}
+
+export async function updateBlockRewardSchedules(
+  db: D1Database,
+  schedules: PoolBonusSchedules,
+  actorAccountId: string,
+  now: number,
 ) {
   await ensureNetworkSchema(db);
+  const normalized = emptyBonusSchedules();
+  for (const poolId of NETWORK_POOL_IDS) {
+    normalized[poolId] = normalizeBonusSchedule(schedules[poolId]);
+  }
+  const values = NETWORK_POOL_IDS.map((poolId) => normalized[poolId]);
+  const allEqual = values.every(
+    (value) =>
+      value.bps === values[0].bps &&
+      value.startsAt === values[0].startsAt &&
+      value.endsAt === values[0].endsAt,
+  );
+  const compatibility = allEqual
+    ? values[0]
+    : { bps: 10_000, startsAt: 0, endsAt: 0 };
   await db
     .prepare(
       `UPDATE network_runtime_settings
-       SET reward_bonus_bps = ?, reward_bonus_ends_at = ?,
+       SET reward_bonus_bps = ?, reward_bonus_starts_at = ?,
+           reward_bonus_ends_at = ?, reward_bonus_schedule_json = ?,
            updated_at = ?, updated_by = ?
        WHERE singleton_id = 1`,
     )
     .bind(
-      Math.max(10_000, Math.floor(bonusBps)),
-      Math.max(0, Math.floor(bonusEndsAt)),
+      compatibility.bps,
+      compatibility.startsAt,
+      compatibility.endsAt,
+      JSON.stringify(normalized),
       now,
       actorAccountId,
     )
@@ -426,7 +561,8 @@ export async function readNetworkPowerSnapshot(
         `SELECT base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
                 reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
                 reward_ltc_atomic,
-                reward_bonus_bps, reward_bonus_ends_at, updated_at
+                reward_bonus_bps, reward_bonus_starts_at,
+                reward_bonus_ends_at, reward_bonus_schedule_json, updated_at
          FROM network_runtime_settings
          WHERE singleton_id = 1`,
       )
@@ -451,18 +587,54 @@ export async function readNetworkPowerSnapshot(
     doge: safePower(settings?.reward_doge_atomic),
     ltc: safePower(settings?.reward_ltc_atomic),
   };
-  const storedBonusBps = Math.max(
-    10_000,
-    safePower(settings?.reward_bonus_bps),
-  );
+  const bonusStartsAt = safePower(settings?.reward_bonus_starts_at);
   const bonusEndsAt = safePower(settings?.reward_bonus_ends_at);
-  const bonusActive = storedBonusBps > 10_000 && bonusEndsAt > now;
-  const bonusBps = bonusActive ? storedBonusBps : 10_000;
+  const bonusSchedules = readBonusSchedules(settings);
+  const upcomingSchedules = NETWORK_POOL_IDS
+    .map((poolId) => bonusSchedules[poolId])
+    .filter((schedule) => schedule.bps > 10_000 && schedule.endsAt > now);
+  const activeSchedules = upcomingSchedules.filter(
+    (schedule) => schedule.startsAt <= now,
+  );
+  const bonusActive = activeSchedules.length > 0;
+  const bonusBps = upcomingSchedules.length > 0
+    ? Math.max(...upcomingSchedules.map((schedule) => schedule.bps))
+    : 10_000;
+  const effectiveBonusStartsAt = upcomingSchedules.length > 0
+    ? Math.min(...upcomingSchedules.map((schedule) => schedule.startsAt))
+    : bonusStartsAt;
+  const effectiveBonusEndsAt = upcomingSchedules.length > 0
+    ? Math.max(...upcomingSchedules.map((schedule) => schedule.endsAt))
+    : bonusEndsAt;
   const blockRewardAtomic: BlockRewardMap = {
-    cma: Math.floor((baseBlockRewardAtomic.cma * bonusBps) / 10_000),
-    btc: Math.floor((baseBlockRewardAtomic.btc * bonusBps) / 10_000),
-    doge: Math.floor((baseBlockRewardAtomic.doge * bonusBps) / 10_000),
-    ltc: Math.floor((baseBlockRewardAtomic.ltc * bonusBps) / 10_000),
+    cma: Math.floor(
+      (baseBlockRewardAtomic.cma *
+        (bonusSchedules.cma.startsAt <= now && bonusSchedules.cma.endsAt > now
+          ? bonusSchedules.cma.bps
+          : 10_000)) /
+        10_000,
+    ),
+    btc: Math.floor(
+      (baseBlockRewardAtomic.btc *
+        (bonusSchedules.btc.startsAt <= now && bonusSchedules.btc.endsAt > now
+          ? bonusSchedules.btc.bps
+          : 10_000)) /
+        10_000,
+    ),
+    doge: Math.floor(
+      (baseBlockRewardAtomic.doge *
+        (bonusSchedules.doge.startsAt <= now && bonusSchedules.doge.endsAt > now
+          ? bonusSchedules.doge.bps
+          : 10_000)) /
+        10_000,
+    ),
+    ltc: Math.floor(
+      (baseBlockRewardAtomic.ltc *
+        (bonusSchedules.ltc.startsAt <= now && bonusSchedules.ltc.endsAt > now
+          ? bonusSchedules.ltc.bps
+          : 10_000)) /
+        10_000,
+    ),
   };
 
   return {
@@ -473,7 +645,9 @@ export async function readNetworkPowerSnapshot(
     blockRewardAtomic,
     bonusActive,
     bonusBps,
-    bonusEndsAt,
+    bonusStartsAt: effectiveBonusStartsAt,
+    bonusEndsAt: effectiveBonusEndsAt,
+    bonusSchedules,
     testMode: Object.values(basePowerGh).every((value) => value === 0),
     updatedAt: Number(settings?.updated_at ?? 0),
   };

@@ -9,13 +9,16 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-test("níveis do arcade vão de 1 a 5 e liberam até sete dias", () => {
+test("níveis do arcade dão exatamente um dia por nível", () => {
   assert.deepEqual(
     [1, 2, 3, 4, 5].map(arcadePowerDurationDays),
-    [1, 2, 3, 5, 7],
+    [1, 2, 3, 4, 5],
   );
   assert.equal(nextArcadeDifficulty(5), 5);
-  assert.equal(arcadePowerExpiresAt(1_000, 4), 1_000 + 5 * DAY_MS);
+  assert.deepEqual(
+    [1, 2, 3, 4, 5].map((level) => arcadePowerExpiresAt(1_000, level)),
+    [1, 2, 3, 4, 5].map((days) => 1_000 + days * DAY_MS),
+  );
 });
 
 test("inatividade reduz um nível por dia completo", () => {

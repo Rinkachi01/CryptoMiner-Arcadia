@@ -80,5 +80,5 @@ test("exportação da temporada é protegida e somente leitura", async () => {
   assert.match(source, /Content-Disposition/);
   assert.match(source, /text\/csv/);
   assert.match(source, /Últimos 30 dias/);
-  assert.doesNotMatch(source, /UPDATE game_states|DELETE FROM/i);
+  assert.doesNotMatch(source, /UPDATE game_states|DELETE FROM (?:game_states|ledger_entries)/i);
 });

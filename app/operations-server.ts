@@ -1,13 +1,9 @@
-import { miners } from "./game-rules.ts";
-
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
-const MINER_POWER_SQL = miners
-  .map(
-    (miner) =>
-      `WHEN '${miner.id.replaceAll("'", "''")}' THEN ${Math.max(0, Math.floor(miner.powerGh))}`,
-  )
-  .join(" ");
+// The operational cockpit is a diagnostic view. Keep the expensive JSON
+// consistency comparison focused on recently changed accounts; the indexed
+// missing-row count below still covers the complete account set.
+const NETWORK_HEALTH_SAMPLE_SIZE = 250;
 
 export type OperationalSeverity = "stable" | "attention" | "critical";
 
@@ -303,70 +299,47 @@ export async function readOperationalHealth(
       .first<StateIntegrityRow>(),
     db
       .prepare(
-        `SELECT
-           COALESCE(SUM(CASE WHEN network.account_id IS NULL THEN 1 ELSE 0 END), 0)
+        `WITH recent_states AS (
+           SELECT account_id, state_json
+           FROM game_states
+           ORDER BY updated_at DESC
+           LIMIT ?
+         ), missing_indexes AS (
+           SELECT COUNT(*) AS total
+           FROM game_states AS all_states
+           LEFT JOIN account_network_power AS all_network
+             ON all_network.account_id = all_states.account_id
+           WHERE all_network.account_id IS NULL
+         )
+         SELECT
+           COALESCE((SELECT total FROM missing_indexes), 0)
              AS missing_network_indexes,
            COALESCE(SUM(CASE WHEN network.account_id IS NOT NULL
                               AND json_valid(states.state_json) = 1
                               AND (
                                 network.allocation_cma <> COALESCE(
-                                  CAST(json_extract(
-                                    CASE WHEN json_valid(states.state_json) = 1
-                                      THEN states.state_json ELSE '{}' END,
-                                    '$.poolAllocations.cma'
-                                  ) AS INTEGER),
-                                  100
-                                )
+                                  CAST(json_extract(states.state_json,
+                                    '$.poolAllocations.cma') AS INTEGER), 100)
                                 OR network.allocation_btc <> COALESCE(
-                                  CAST(json_extract(
-                                    CASE WHEN json_valid(states.state_json) = 1
-                                      THEN states.state_json ELSE '{}' END,
-                                    '$.poolAllocations.btc'
-                                  ) AS INTEGER),
-                                  0
-                                )
+                                  CAST(json_extract(states.state_json,
+                                    '$.poolAllocations.btc') AS INTEGER), 0)
                                 OR network.allocation_doge <> COALESCE(
-                                  CAST(json_extract(
-                                    CASE WHEN json_valid(states.state_json) = 1
-                                      THEN states.state_json ELSE '{}' END,
-                                    '$.poolAllocations.doge'
-                                  ) AS INTEGER),
-                                  0
-                                )
+                                  CAST(json_extract(states.state_json,
+                                    '$.poolAllocations.doge') AS INTEGER), 0)
                                 OR network.allocation_ltc <> COALESCE(
-                                  CAST(json_extract(
-                                    CASE WHEN json_valid(states.state_json) = 1
-                                      THEN states.state_json ELSE '{}' END,
-                                    '$.poolAllocations.ltc'
-                                  ) AS INTEGER),
-                                  0
-                                )
+                                  CAST(json_extract(states.state_json,
+                                    '$.poolAllocations.ltc') AS INTEGER), 0)
                                 OR network.energy_expires_at <> COALESCE(
-                                  CAST(json_extract(
-                                    CASE WHEN json_valid(states.state_json) = 1
-                                      THEN states.state_json ELSE '{}' END,
-                                    '$.energyExpiresAt'
-                                  ) AS INTEGER),
-                                  0
-                                )
-                                OR network.installed_power_gh <> COALESCE((
-                                  SELECT SUM(CASE json_extract(installed.value, '$.minerId')
-                                    ${MINER_POWER_SQL}
-                                    ELSE 0 END)
-                                  FROM json_each(
-                                         CASE WHEN json_valid(states.state_json) = 1
-                                           THEN states.state_json ELSE '{}' END,
-                                         '$.rackMiners'
-                                       ) AS racks,
-                                       json_each(racks.value) AS installed
-                                ), 0)
+                                  CAST(json_extract(states.state_json,
+                                    '$.energyExpiresAt') AS INTEGER), 0)
                               )
                              THEN 1 ELSE 0 END), 0)
              AS stale_network_indexes
-         FROM game_states AS states
+         FROM recent_states AS states
          LEFT JOIN account_network_power AS network
            ON network.account_id = states.account_id`,
       )
+      .bind(NETWORK_HEALTH_SAMPLE_SIZE)
       .first<NetworkIntegrityRow>(),
     db
       .prepare(

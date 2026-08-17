@@ -2,6 +2,12 @@ import type { PublicGameState } from "./game-server.ts";
 
 const REFERRAL_CODE_LENGTH = 10;
 export const REFERRAL_MINING_SHARE_BPS = 500;
+// Referral mining is intentionally bounded so a group of throwaway accounts
+// cannot turn the program into an unbounded CMA faucet.
+export const REFERRAL_MIN_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
+export const REFERRAL_MIN_COMPLETED_GAMES = 3;
+export const REFERRAL_MAX_CMA_PER_REFERRAL_MICROS = 250_000; // 0.25 CMA
+export const REFERRAL_WEEKLY_CMA_CAP_MICROS = 1_000_000; // 1 CMA / UTC week
 
 type MiningRewards = {
   cma: number;
@@ -15,6 +21,7 @@ type StoredGameStateRow = {
   display_name: string;
   state_json: string;
   version: number;
+  created_at?: number;
 };
 
 type ReferralCodeRow = {
@@ -65,6 +72,10 @@ export async function ensureReferralSchema(db: D1Database) {
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS ledger_entries_idempotency_unique
        ON ledger_entries (account_id, idempotency_key)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS ledger_entries_referral_in_idx
+       ON ledger_entries (account_id, action, created_at)`,
     ),
   ]);
 }
@@ -129,12 +140,11 @@ export async function readReferralOverview(
     link: `${origin}/auth?mode=signup&ref=${encodeURIComponent(code)}`,
     proposal: {
       miningRewardPercent: REFERRAL_MINING_SHARE_BPS / 100,
-      validationDays: 14,
-      earningWindowDays: 0,
+      eligibilityHours: REFERRAL_MIN_ACCOUNT_AGE_MS / (60 * 60 * 1000),
+      minimumCompletedGames: REFERRAL_MIN_COMPLETED_GAMES,
+      perReferralCapCma: REFERRAL_MAX_CMA_PER_REFERRAL_MICROS / 1_000_000,
+      weeklyCapCma: REFERRAL_WEEKLY_CMA_CAP_MICROS / 1_000_000,
       status: "active" as const,
-      // Legacy purchase-only settings remain documented for old clients.
-      eligibleSpendPercent: 2,
-      weeklyCapCma: 2,
     },
   };
 }
@@ -189,6 +199,47 @@ function referralShare(rewards: MiningRewards): MiningRewards {
     btc: Math.floor(positiveInteger(rewards.btc) * REFERRAL_MINING_SHARE_BPS / 10_000),
     doge: Math.floor(positiveInteger(rewards.doge) * REFERRAL_MINING_SHARE_BPS / 10_000),
     ltc: Math.floor(positiveInteger(rewards.ltc) * REFERRAL_MINING_SHARE_BPS / 10_000),
+  };
+}
+
+function utcWeekStart(now: number) {
+  const date = new Date(now);
+  const day = date.getUTCDay();
+  const daysSinceMonday = (day + 6) % 7;
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - daysSinceMonday);
+  return date.getTime();
+}
+
+async function readReferralCmaUsage(
+  db: D1Database,
+  referrerAccountId: string,
+  referredAccountId: string,
+  now: number,
+) {
+  const usage = await db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(
+           CASE
+             WHEN json_valid(metadata_json)
+              AND json_extract(metadata_json, '$.referredAccountId') = ?
+              AND delta_cma_micros > 0
+             THEN delta_cma_micros ELSE 0
+           END
+         ), 0) AS lifetime_cma_micros,
+         COALESCE(SUM(
+           CASE WHEN created_at >= ? AND delta_cma_micros > 0
+             THEN delta_cma_micros ELSE 0 END
+         ), 0) AS weekly_cma_micros
+       FROM ledger_entries
+       WHERE account_id = ? AND action = 'referral_mining_share_in'`,
+    )
+    .bind(referredAccountId, utcWeekStart(now), referrerAccountId)
+    .first<{ lifetime_cma_micros: number; weekly_cma_micros: number }>();
+  return {
+    lifetimeCmaMicros: Math.max(0, Number(usage?.lifetime_cma_micros ?? 0)),
+    weeklyCmaMicros: Math.max(0, Number(usage?.weekly_cma_micros ?? 0)),
   };
 }
 
@@ -261,7 +312,44 @@ export async function settleReferralMiningShare(
     return { applied: false, conflict: false };
   }
 
-  const share = referralShare(rewards);
+  // Do not release mining referral rewards immediately to a fresh account.
+  // This protects the fixed CMA emission from signup farms while keeping the
+  // program useful for genuine operators.
+  const accountAge = now - Number(referredRow.created_at ?? now);
+  if (accountAge < REFERRAL_MIN_ACCOUNT_AGE_MS) {
+    return { applied: false, conflict: false };
+  }
+  const completedGames = await db
+    .prepare(
+      `SELECT COUNT(*) AS wins
+       FROM game_sessions
+       WHERE account_id = ? AND status = 'completed'`,
+    )
+    .bind(referredAccountId)
+    .first<{ wins: number }>();
+  if (Number(completedGames?.wins ?? 0) < REFERRAL_MIN_COMPLETED_GAMES) {
+    return { applied: false, conflict: false };
+  }
+
+  const rawShare = referralShare(rewards);
+  const usage = await readReferralCmaUsage(
+    db,
+    attribution.referrer_account_id,
+    referredAccountId,
+    now,
+  );
+  const remainingPerReferral = Math.max(
+    0,
+    REFERRAL_MAX_CMA_PER_REFERRAL_MICROS - usage.lifetimeCmaMicros,
+  );
+  const remainingWeekly = Math.max(
+    0,
+    REFERRAL_WEEKLY_CMA_CAP_MICROS - usage.weeklyCmaMicros,
+  );
+  const share: MiningRewards = {
+    ...rawShare,
+    cma: Math.min(rawShare.cma, remainingPerReferral, remainingWeekly),
+  };
   if (!hasShare(share)) return { applied: false, conflict: false };
 
   const payoutKey = `referral-mining:${referredAccountId}:${settlementKey}`;

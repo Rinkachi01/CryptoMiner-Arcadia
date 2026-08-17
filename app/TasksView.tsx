@@ -334,7 +334,6 @@ export function TasksView({
           ["mine", "Minhas tarefas", "✓"],
           ["surveys", "Pesquisas", "▤"],
           ["guide", "Como funciona", "?"],
-          ["accessibility", "Acessibilidade", "A"],
           ["feedback", "Feedback", "✦"],
         ].map(([id, label, glyph]) => (
           <button
@@ -381,20 +380,6 @@ export function TasksView({
               </div>
               <button type="button" onClick={() => setTab("feedback")}>
                 AVALIAR
-              </button>
-            </article>
-            <article>
-              <span className="task-accessibility-glyph" aria-hidden="true">
-                Aa
-              </span>
-              <div>
-                <span>ACESSIBILIDADE</span>
-                <h4>Avaliação de leitura e controle</h4>
-                <p>Confira texto, botões, movimento e montagem dos racks.</p>
-                <small>Sem prêmio · perfil técnico mínimo salvo por conta</small>
-              </div>
-              <button type="button" onClick={() => setTab("accessibility")}>
-                AVALIAR ACESSO
               </button>
             </article>
             <article className="locked">

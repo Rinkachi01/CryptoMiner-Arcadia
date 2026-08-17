@@ -55,11 +55,11 @@ Marcos como “primeiro rack”, “primeiro bloco” e “sete dias ativos” r
 cosméticos e progresso de temporada. Recompensas econômicas continuam sujeitas
 às cotas já existentes.
 
-### 5. Feed de blocos discreto
+### 5. Alertas operacionais do fundador
 
-Manter o aviso de bloco minerado no canto, com opção de silenciar e uma gaveta
-de histórico. Mostrar pool, horário e valor creditado sem expor dados de outros
-jogadores.
+O cockpit deve destacar apenas eventos que exigem ação: suporte, feedback,
+depósitos, saques e antifraude. Liquidações de bloco permanecem no histórico
+econômico, mas não geram notificações visuais repetitivas.
 
 ### 6. Central de suporte enxuta
 
@@ -69,9 +69,8 @@ SLA visível e anexos limitados. Registros resolvidos podem ser arquivados após
 
 ### Ordem sugerida
 
-1. Tour de primeiro acesso e feed de blocos.
+1. Tour de primeiro acesso e alertas operacionais.
 2. Arcade semanal e conquistas cosméticas.
 3. Perfil compartilhável com privacidade por padrão.
 4. Monetização publicitária somente depois de medir retenção, erros e custo de
    infraestrutura por usuário.
-

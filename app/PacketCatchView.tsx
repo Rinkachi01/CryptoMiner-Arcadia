@@ -381,7 +381,7 @@ export function PacketCatchView({
         <div>
           <span>PROGRESSÃO DO ARCADE</span>
           <strong>Quanto maior o nível, mais tempo dura o poder</strong>
-          <small>Um nível é perdido a cada dia completo sem jogar.</small>
+          <small>Se um ciclo terminar sem uma vitória, o PC volta ao nível 0.</small>
         </div>
         <ol>
           {ARCADE_POWER_DAYS_BY_LEVEL.slice(1).map((days, index) => (

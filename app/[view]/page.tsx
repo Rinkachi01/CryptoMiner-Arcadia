@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { notFound, redirect } from "next/navigation";
 import { ArcadiaGame, type ViewId } from "../ArcadiaGame";
+import { OperatorRouteClient } from "../OperatorRouteClient";
 import {
   accountIdForUser,
   arcadiaSignInPath,
@@ -51,16 +52,26 @@ export default async function ViewRoute({
     ? await readUnreadSupportReplyCount(env.DB, accountId).catch(() => 0)
     : 0;
 
+  const sharedProps = {
+    user: { displayName: user.displayName, email: user.email },
+    isOwner,
+    signOutPath: arcadiaSignOutPath("/", user.provider),
+    unreadSupportReplies,
+  };
+
+  if (initialView === "career") {
+    return (
+      <div className="app-route-shell">
+        <OperatorRouteClient {...sharedProps} />
+        <PublicSiteFooter />
+      </div>
+    );
+  }
+
   return (
     <GameErrorBoundary>
       <div className="app-route-shell">
-        <ArcadiaGame
-          initialView={initialView}
-          user={{ displayName: user.displayName, email: user.email }}
-          isOwner={isOwner}
-          signOutPath={arcadiaSignOutPath("/", user.provider)}
-          unreadSupportReplies={unreadSupportReplies}
-        />
+        <ArcadiaGame initialView={initialView} {...sharedProps} />
         <PublicSiteFooter />
       </div>
     </GameErrorBoundary>

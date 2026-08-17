@@ -43,6 +43,8 @@ export type SecurityOverview = {
     accountId: string;
     category: string;
     createdAt: number;
+    displayName: string;
+    email: string;
     reason: string;
   }>;
   required: boolean;
@@ -383,12 +385,17 @@ export async function readSecurityOverview(
         rate_limit_total: number;
         turnstile_total: number;
       }>(),
-    db.prepare(`SELECT account_id, category, reason, created_at
-      FROM security_events ORDER BY created_at DESC LIMIT 12`).all<{
+    db.prepare(`SELECT events.account_id, events.category, events.reason, events.created_at,
+                       states.display_name, states.email
+      FROM security_events events
+      LEFT JOIN game_states states ON states.account_id = events.account_id
+      ORDER BY events.created_at DESC LIMIT 12`).all<{
         account_id: string;
         category: string;
         reason: string;
         created_at: number;
+        display_name: string | null;
+        email: string | null;
       }>(),
   ]);
   const automationEvents24h = Number(categories?.automation_total ?? 0);
@@ -417,6 +424,8 @@ export async function readSecurityOverview(
       accountId: row.account_id,
       category: row.category,
       createdAt: row.created_at,
+      displayName: row.display_name ?? row.email ?? "Operador",
+      email: row.email ?? "",
       reason: row.reason,
     })),
     required: config.required,

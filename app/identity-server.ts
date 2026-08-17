@@ -6,6 +6,7 @@ import {
 } from "./chatgpt-auth.ts";
 import { env } from "cloudflare:workers";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import {
   accountIdForVerifiedEmail,
   CURRENT_IDENTITY_PROVIDER,
@@ -53,6 +54,22 @@ async function persistedDisplayName(email: string, fallback: string) {
 }
 
 async function getSupabaseUser(): Promise<ArcadiaUser | null> {
+  // Anonymous visits are the most common requests to the public entry point.
+  // Avoid a remote Supabase validation when the browser does not carry an
+  // auth cookie at all. Besides being faster, this prevents a burst of public
+  // traffic from consuming Worker resources on requests that cannot be
+  // authenticated.
+  try {
+    const cookieStore = await cookies();
+    const hasSupabaseSession = cookieStore
+      .getAll()
+      .some(({ name }) => /^sb-[^-]+(?:-[^-]+)*-auth-token(?:\.|$)/i.test(name));
+    if (!hasSupabaseSession) return null;
+  } catch {
+    // If the runtime cannot expose cookies, keep the previous safe behavior
+    // and let Supabase decide whether a session exists.
+  }
+
   let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> = null;
   try {
     supabase = await createSupabaseServerClient();

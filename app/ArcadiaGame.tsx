@@ -239,6 +239,7 @@ const defaultNetworkSnapshot: NetworkPowerSnapshot = {
   ) as Record<PoolId, number>,
   bonusActive: false,
   bonusBps: 10_000,
+  bonusStartsAt: 0,
   bonusEndsAt: 0,
   testMode: true,
   updatedAt: 0,
@@ -711,9 +712,18 @@ export function ArcadiaGame({
   }
 
   async function applyPoolAllocations(next: PoolAllocations) {
-    await performGameAction("apply_allocations", {
+    const result = await performGameAction("apply_allocations", {
       allocations: next,
     });
+    if (!result) return;
+
+    // Read the authoritative row once more after the write. This catches a
+    // stale session/version or an edge write that did not reach D1 before the
+    // player refreshes the page.
+    const verified = await refreshServerState();
+    if (!verified) {
+      setToast("A distribuição foi enviada, mas não foi possível confirmá-la. Atualize e tente novamente.");
+    }
   }
 
   function openRack(rackId: string) {
@@ -1345,10 +1355,12 @@ export function ArcadiaGame({
 
         {!rackOpen && activeView === "pools" && (
           <PoolsView
+            key={serverVersion}
             allocations={poolAllocations}
             installedPower={minerPower}
             temporaryPowerGh={temporaryPowerGh}
             network={network}
+            saving={actionPending}
             onApplyAllocations={applyPoolAllocations}
           />
         )}
@@ -2258,13 +2270,15 @@ function PoolsView({
   installedPower,
   temporaryPowerGh,
   network,
+  saving,
   onApplyAllocations,
 }: {
   allocations: PoolAllocations;
   installedPower: number;
   temporaryPowerGh: number;
   network: NetworkPowerSnapshot;
-  onApplyAllocations: (allocations: PoolAllocations) => void;
+  saving: boolean;
+  onApplyAllocations: (allocations: PoolAllocations) => void | Promise<void>;
 }) {
   const { locale } = useArcadiaLanguage();
   const english = locale === "en";
@@ -2272,6 +2286,9 @@ function PoolsView({
   const totalAllocation = pools.reduce(
     (total, pool) => total + draft[pool.id],
     0,
+  );
+  const hasUnsavedChanges = pools.some(
+    (pool) => draft[pool.id] !== allocations[pool.id],
   );
 
   function setAllocation(poolId: PoolId, value: number) {
@@ -2489,13 +2506,28 @@ function PoolsView({
           <small>
             {formatPower(installedPower)} {english ? "miners" : "mineradores"} + {formatPower(Math.max(0, temporaryPowerGh))} minigames
           </small>
+          <small className={hasUnsavedChanges ? "allocation-save-status is-dirty" : "allocation-save-status"}>
+            {hasUnsavedChanges
+              ? english
+                ? "Changes are local until you apply them."
+                : "As mudanças ficam locais até você aplicar."
+              : english
+                ? "Saved on the server."
+                : "Salvo no servidor."}
+          </small>
         </div>
         <button
           type="button"
-          disabled={totalAllocation !== 100}
+          disabled={saving || totalAllocation !== 100}
           onClick={() => onApplyAllocations(draft)}
         >
-          {english ? "APPLY ALLOCATION" : "APLICAR DISTRIBUIÇÃO"}
+          {saving
+            ? english
+              ? "SAVING..."
+              : "SALVANDO..."
+            : english
+              ? "APPLY ALLOCATION"
+              : "APLICAR DISTRIBUIÇÃO"}
         </button>
       </div>
 

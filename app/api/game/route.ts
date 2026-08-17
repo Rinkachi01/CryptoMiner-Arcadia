@@ -6,6 +6,7 @@ import {
   applyGameAction,
   applySupplyCratePurchase,
   createInitialGameState,
+  normalizePoolAllocations,
   nextBlockAt,
   settleMiningBlocks,
   type GameActionName,
@@ -181,11 +182,28 @@ async function readState(db: D1Database, accountId: string) {
 
 function parseState(row: StoredRow): PublicGameState {
   const parsed = JSON.parse(row.state_json) as Record<string, unknown>;
-  // Estados antigos podiam guardar uma distribuição separada para os jogos.
-  // Ela é descartada na leitura: a única distribuição autoritativa é a das Pools.
-  if (parsed && typeof parsed === "object" && "gamePoolAllocations" in parsed) {
-    delete parsed.gamePoolAllocations;
+  const currentAllocations = normalizePoolAllocations(parsed.poolAllocations);
+  const legacyAllocations = normalizePoolAllocations(
+    parsed.gamePoolAllocations,
+  );
+
+  // During the three-pool rollout, some rows kept the user's distribution in
+  // `gamePoolAllocations` while `poolAllocations` remained at its initial 100%
+  // CMA value. Prefer that legacy value only when the current value is still
+  // the untouched default; otherwise preserve the current authoritative value.
+  const isDefaultCmaAllocation =
+    currentAllocations?.cma === 100 &&
+    currentAllocations.btc === 0 &&
+    currentAllocations.doge === 0 &&
+    currentAllocations.ltc === 0;
+  if (legacyAllocations && (!currentAllocations || isDefaultCmaAllocation)) {
+    parsed.poolAllocations = legacyAllocations;
+  } else if (currentAllocations) {
+    parsed.poolAllocations = currentAllocations;
+  } else {
+    parsed.poolAllocations = { cma: 100, btc: 0, doge: 0, ltc: 0 };
   }
+  delete parsed.gamePoolAllocations;
   return parsed as PublicGameState;
 }
 

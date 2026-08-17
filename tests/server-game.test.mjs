@@ -5,6 +5,7 @@ import {
   applyGameAction,
   createInitialGameState,
   normalizeBootstrapState,
+  normalizePoolAllocations,
   settleMiningBlocks,
 } from "../app/game-server.ts";
 
@@ -46,6 +47,46 @@ test("alocação precisa fechar em cem por cento", () => {
   );
 });
 
+test("migra uma distribuição legada de três pools sem voltar para CMA", () => {
+  assert.deepEqual(normalizePoolAllocations({ cma: 25, btc: 35, doge: 40 }), {
+    cma: 25,
+    btc: 35,
+    doge: 40,
+    ltc: 0,
+  });
+
+  const migrated = normalizeBootstrapState(
+    {
+      poolAllocations: { cma: 100, btc: 0, doge: 0, ltc: 0 },
+      gamePoolAllocations: { cma: 25, btc: 35, doge: 40 },
+    },
+    1_800_000_000_000,
+  );
+  assert.deepEqual(migrated.poolAllocations, {
+    cma: 25,
+    btc: 35,
+    doge: 40,
+    ltc: 0,
+  });
+});
+
+test("salvar alocação sempre grava o formato completo de quatro pools", () => {
+  const now = 1_800_000_000_000;
+  const state = createInitialGameState(now);
+  const updated = applyGameAction(
+    state,
+    "apply_allocations",
+    { allocations: { cma: 10, btc: 20, doge: 30, ltc: 40 } },
+    now,
+  ).state;
+  assert.deepEqual(updated.poolAllocations, {
+    cma: 10,
+    btc: 20,
+    doge: 30,
+    ltc: 40,
+  });
+});
+
 test("blocos são liquidados pelo relógio do servidor", () => {
   const now = 1_800_000_000_000;
   let state = createInitialGameState(now);
@@ -81,6 +122,12 @@ test("nova conta recebe somente o kit inicial equilibrado", () => {
   assert.equal(state.batteryCount, 0);
   assert.equal(state.energyExpiresAt, now);
   assert.equal(state.lastEnergyClaimAt, now);
+  assert.deepEqual(state.poolAllocations, {
+    cma: 100,
+    btc: 0,
+    doge: 0,
+    ltc: 0,
+  });
   assert.deepEqual(
     state.minerInventory.map((unit) => unit.minerId),
     ["byte-spark"],

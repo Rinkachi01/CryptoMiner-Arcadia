@@ -10,6 +10,7 @@ const files = await Promise.all(
   [
     "../app/admin-settings.ts",
     "../app/api/admin/route.ts",
+    "../app/api/admin/export/route.ts",
     "../app/admin/page.tsx",
     "../app/page.tsx",
     "../app/ArcadiaGame.tsx",
@@ -18,12 +19,14 @@ const files = await Promise.all(
     "../app/api/game/route.ts",
     "../app/api/games/summary/route.ts",
     "../drizzle/0005_sweet_magneto.sql",
+    "../proxy.ts",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")),
 );
 
 const [
   settingsSource,
   apiSource,
+  exportSource,
   adminPageSource,
   homePageSource,
   gameSource,
@@ -32,6 +35,7 @@ const [
   gameRouteSource,
   summaryRouteSource,
   migrationSource,
+  proxySource,
 ] = files;
 
 test("somente a identidade fundadora configurada pode ocupar o painel", () => {
@@ -61,6 +65,10 @@ test("somente a identidade fundadora configurada pode ocupar o painel", () => {
   );
   assert.match(adminPageSource, /redirect\("\/"\)/);
   assert.match(apiSource, /Ação permitida apenas ao proprietário/);
+  assert.match(proxySource, /const isFounderPath/);
+  assert.match(proxySource, /adminOwnerAccountIdFromEnv\(env\)/);
+  assert.match(proxySource, /requesterAccountId !== configuredOwnerId/);
+  assert.match(proxySource, /status: 404/);
   assert.doesNotMatch(
     dashboardSource,
     /localStorage\.(?:getItem|setItem)\([^)]*(?:owner|admin|account)/i,
@@ -95,4 +103,13 @@ test("fila antifraude registra resolução sem apagar a sessão", () => {
   assert.match(apiSource, /resolution === "cleared"/);
   assert.match(apiSource, /resolution === "confirmed"/);
   assert.doesNotMatch(apiSource, /DELETE FROM game_sessions/i);
+});
+
+test("exportação administrativa limita a telemetria pesada", () => {
+  assert.match(exportSource, /MAX_EXPORT_STATES\s*=\s*250/);
+  assert.match(exportSource, /EXPORT_STATE_CHUNK_SIZE\s*=\s*25/);
+  assert.match(exportSource, /ORDER BY updated_at DESC/);
+  assert.match(exportSource, /LIMIT \?/);
+  assert.match(exportSource, /admin_export_jobs/);
+  assert.doesNotMatch(exportSource, /LIMIT 5000/);
 });

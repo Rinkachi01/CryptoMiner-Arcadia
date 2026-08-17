@@ -1789,6 +1789,43 @@ export async function readAdminWithdrawalOverview(input: {
   };
 }
 
+/** Lightweight operational view used by the founder cockpit alert feed. */
+export async function readAdminCryptoDeposits(db: D1Database) {
+  const now = Date.now();
+  await ensureWalletSchema(db);
+  await pruneWalletOperationalHistory(db, now);
+  const result = await db
+    .prepare(`SELECT deposits.id, deposits.asset, deposits.provider,
+      deposits.provider_reference, deposits.status, deposits.requested_usd_micros,
+      deposits.created_at, deposits.updated_at, states.display_name
+      FROM wallet_deposit_intents deposits
+      LEFT JOIN game_states states ON states.account_id = deposits.account_id
+      WHERE deposits.provider = 'nowpayments'
+      ORDER BY deposits.created_at DESC
+      LIMIT 100`)
+    .all<{
+      asset: string;
+      created_at: number;
+      display_name: string | null;
+      id: string;
+      provider_reference: string | null;
+      requested_usd_micros: number;
+      status: string;
+      updated_at: number;
+    }>();
+  return (result.results ?? []).map((row) => ({
+    asset: row.asset,
+    amount: row.requested_usd_micros > 0
+      ? `$${(row.requested_usd_micros / 1_000_000).toFixed(2)}`
+      : "",
+    createdAt: Number(row.updated_at || row.created_at),
+    displayName: row.display_name ?? "Operador",
+    id: row.id,
+    reference: row.provider_reference ?? undefined,
+    status: row.status,
+  }));
+}
+
 export async function reviewManualWithdrawal(input: {
   action: "review" | "pay" | "reject";
   actorAccountId: string;

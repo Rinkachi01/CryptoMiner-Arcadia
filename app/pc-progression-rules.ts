@@ -1,4 +1,4 @@
-import { dailyBoundariesBetween } from "./daily-reset-rules.ts";
+import { dailyWindowIndex } from "./daily-reset-rules.ts";
 
 // Smooth progression calibrated against the four-game daily allowance. The
 // final level is reachable in roughly two active cycles without changing the
@@ -30,19 +30,43 @@ export function pcProgressPercent(totalPlays: number, level: number): number {
 }
 
 /**
- * The PC keeps the player's earned progress, but its active level decays by
- * one step at each 21:00 daily boundary without a validated game.
+ * A PC cycle is only valid when the player records at least one win in that
+ * cycle. If the cycle closes without a validated win, the next authoritative
+ * read resets the PC completely so the player must build it again from zero.
  */
+export function pcResetRequired(
+  totalPlays: number,
+  lastActivityAt: number,
+  lastWinAt: number,
+  now: number,
+) {
+  const plays = Math.max(0, Math.floor(Number.isFinite(totalPlays) ? totalPlays : 0));
+  if (plays <= 0 || !Number.isFinite(lastActivityAt) || lastActivityAt <= 0 || now <= lastActivityAt) {
+    return false;
+  }
+
+  const currentWindow = dailyWindowIndex(now);
+  const activityWindow = dailyWindowIndex(lastActivityAt);
+  if (activityWindow >= currentWindow) return false;
+
+  // A second untouched boundary is conclusive even if older records are
+  // incomplete. Otherwise, inspect the cycle in which the player last acted.
+  if (currentWindow - activityWindow >= 2) return true;
+  const winWindow =
+    Number.isFinite(lastWinAt) && lastWinAt > 0 ? dailyWindowIndex(lastWinAt) : -1;
+  return winWindow !== activityWindow;
+}
+
 export function pcLevelAfterInactivity(
   totalPlays: number,
   lastActivityAt: number,
+  lastWinAt: number,
   now: number,
 ) {
   const earnedLevel = pcLevelForPlays(totalPlays);
-  if (!Number.isFinite(lastActivityAt) || lastActivityAt <= 0 || now <= lastActivityAt) {
-    return earnedLevel;
-  }
-  return Math.max(0, earnedLevel - dailyBoundariesBetween(lastActivityAt, now));
+  return pcResetRequired(totalPlays, lastActivityAt, lastWinAt, now)
+    ? 0
+    : earnedLevel;
 }
 
 export const PC_PLAY_THRESHOLDS_EXPORT = PC_PLAY_THRESHOLDS;

@@ -620,7 +620,11 @@ export const networkRuntimeSettings = sqliteTable("network_runtime_settings", {
     .default(1_000_000),
   rewardLtcAtomic: integer("reward_ltc_atomic").notNull().default(5_000),
   rewardBonusBps: integer("reward_bonus_bps").notNull().default(10_000),
+  rewardBonusStartsAt: integer("reward_bonus_starts_at").notNull().default(0),
   rewardBonusEndsAt: integer("reward_bonus_ends_at").notNull().default(0),
+  rewardBonusScheduleJson: text("reward_bonus_schedule_json")
+    .notNull()
+    .default("{}"),
   updatedAt: integer("updated_at").notNull().default(0),
   updatedBy: text("updated_by"),
 });

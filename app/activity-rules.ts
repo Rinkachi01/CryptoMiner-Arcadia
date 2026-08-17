@@ -30,6 +30,8 @@ const gameLabels: Record<string, string> = {
   "packet-catch": "Packet Catch",
   "hash-match": "Hash Match",
   "circuit-rush": "Circuit Rush",
+  // O identificador técnico permanece coin-link para não quebrar o histórico.
+  "coin-link": "Coin Cascade",
 };
 
 export function gameLabel(gameId: string) {

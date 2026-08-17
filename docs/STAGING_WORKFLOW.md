@@ -7,6 +7,10 @@ O Arcadia agora possui ambientes independentes de publicação:
 - **Homologação Cloudflare alternativa:** https://crypto-miner-arcadia-staging.criptomineracardia.workers.dev
 - **Prévia visual privada:** https://crypto-miner-arcadia-staging.mateusmoraes12345678.chatgpt.site
 
+O histórico de correções e melhorias que podem virar anúncios fica em
+[`STAGING_CHANGELOG.md`](./STAGING_CHANGELOG.md). Ele é separado do domínio
+oficial e deve ser atualizado a cada nova alteração validada em staging.
+
 ## Como usar
 
 1. Toda alteração nova deve ser validada primeiro na homologação.

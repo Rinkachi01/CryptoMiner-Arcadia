@@ -9,8 +9,11 @@ type ReferralOverview = {
   link: string;
   proposal: {
     miningRewardPercent: number;
+    eligibilityHours: number;
+    minimumCompletedGames: number;
+    perReferralCapCma: number;
+    weeklyCapCma: number;
     status: "active";
-    validationDays: number;
   };
 };
 
@@ -66,10 +69,10 @@ export function ReferralPanel() {
       <div className="referral-policy-grid">
         <article><strong>{data.proposal.miningRewardPercent}%</strong><span>{english ? "of validated mining" : "da mineração validada"}</span></article>
         <article><strong>0%</strong><span>{english ? "additional emission" : "de emissão adicional"}</span></article>
-        <article><strong>{data.proposal.validationDays} {english ? "days" : "dias"}</strong><span>{english ? "anti-fraud window" : "prazo antifraude"}</span></article>
-        <article><strong>{english ? "Ongoing" : "Contínua"}</strong><span>{english ? "while the referral is active" : "enquanto a indicação estiver ativa"}</span></article>
+        <article><strong>{data.proposal.perReferralCapCma} CMA</strong><span>{english ? "maximum per referred operator" : "máximo por operador indicado"}</span></article>
+        <article><strong>{data.proposal.weeklyCapCma} CMA</strong><span>{english ? "weekly cap per referrer" : "teto semanal por indicador"}</span></article>
       </div>
-      <p className="referral-note">{english ? "The share is deducted from the invitee's reward without increasing fixed block values. The model does not deduct mined BTC, DOGE or LTC and does not increase fixed block values." : "A participação é descontada da recompensa do indicado, sem aumentar o valor fixo dos blocos. O modelo não desconta BTC, DOGE ou LTC minerados e não aumenta o valor fixo dos blocos."}</p>
+      <p className="referral-note">{english ? `The share is released after ${data.proposal.eligibilityHours} hours and ${data.proposal.minimumCompletedGames} completed games. It is deducted from the invitee's validated reward without increasing fixed block values.` : `A participação é liberada após ${data.proposal.eligibilityHours} horas e ${data.proposal.minimumCompletedGames} partidas concluídas. Ela é descontada da recompensa validada do indicado sem aumentar o valor fixo dos blocos.`}</p>
       {message && <p className="conversion-success" role="status">{message}</p>}
     </section>
   );

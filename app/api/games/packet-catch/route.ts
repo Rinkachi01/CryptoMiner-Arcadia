@@ -196,6 +196,7 @@ async function progress(
   accountId: string,
   now: number,
 ) {
+  await readActivePcLevel(db, accountId, now);
   await db
     .prepare(
       `INSERT OR IGNORE INTO game_progress (

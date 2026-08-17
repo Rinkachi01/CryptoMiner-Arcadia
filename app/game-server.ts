@@ -120,16 +120,21 @@ function isWalletSymbol(value: unknown): value is WalletSymbol {
   return value === "CMA" || value === "BTC" || value === "DOGE" || value === "LTC";
 }
 
-function isAllocation(value: unknown): value is PoolAllocations {
-  if (!value || typeof value !== "object") return false;
+/**
+ * Returns a canonical pool distribution or null for invalid data.
+ *
+ * A few staging accounts were created while the game still had three pools.
+ * Those rows do not have an `ltc` key; treating the missing key as 0 lets us
+ * migrate them without silently falling back to 100% CMA on the next reload.
+ */
+export function normalizePoolAllocations(
+  value: unknown,
+): PoolAllocations | null {
+  if (!value || typeof value !== "object") return null;
   const allocation = value as Partial<PoolAllocations>;
-  const values = [
-    allocation.cma,
-    allocation.btc,
-    allocation.doge,
-    allocation.ltc,
-  ];
-  return (
+  const values = [allocation.cma, allocation.btc, allocation.doge];
+  const hasThreePoolShape =
+    !Object.prototype.hasOwnProperty.call(allocation, "ltc") &&
     values.every(
       (item) =>
         typeof item === "number" &&
@@ -137,8 +142,42 @@ function isAllocation(value: unknown): value is PoolAllocations {
         item >= 0 &&
         item <= 100,
     ) &&
-    values.reduce<number>((sum, item) => sum + (item ?? 0), 0) === 100
-  );
+    values.reduce<number>((sum, item) => sum + (item ?? 0), 0) === 100;
+
+  if (hasThreePoolShape) {
+    return {
+      cma: allocation.cma as number,
+      btc: allocation.btc as number,
+      doge: allocation.doge as number,
+      ltc: 0,
+    };
+  }
+
+  const canonical = [
+    allocation.cma,
+    allocation.btc,
+    allocation.doge,
+    allocation.ltc,
+  ];
+  if (
+    !canonical.every(
+      (item) =>
+        typeof item === "number" &&
+        Number.isInteger(item) &&
+        item >= 0 &&
+        item <= 100,
+    ) ||
+    canonical.reduce<number>((sum, item) => sum + (item ?? 0), 0) !== 100
+  ) {
+    return null;
+  }
+
+  return {
+    cma: allocation.cma as number,
+    btc: allocation.btc as number,
+    doge: allocation.doge as number,
+    ltc: allocation.ltc as number,
+  };
 }
 
 function safeNumber(value: unknown, fallback: number, min: number, max: number) {
@@ -307,9 +346,20 @@ export function normalizeBootstrapState(
     !("ltc" in candidateAllocations)
       ? { ...(candidateAllocations as Record<string, unknown>), ltc: 0 }
       : candidateAllocations;
-  const poolAllocations = isAllocation(legacyAllocations)
-    ? legacyAllocations
-    : initial.poolAllocations;
+  const normalizedCandidateAllocations =
+    normalizePoolAllocations(legacyAllocations);
+  const legacyGameAllocations = normalizePoolAllocations(
+    (candidate as Record<string, unknown>).gamePoolAllocations,
+  );
+  const poolAllocations =
+    legacyGameAllocations &&
+    (!normalizedCandidateAllocations ||
+      (normalizedCandidateAllocations.cma === 100 &&
+        normalizedCandidateAllocations.btc === 0 &&
+        normalizedCandidateAllocations.doge === 0 &&
+        normalizedCandidateAllocations.ltc === 0))
+      ? legacyGameAllocations
+      : normalizedCandidateAllocations ?? initial.poolAllocations;
   const selectedPoolId = pools.reduce((largest, pool) =>
     poolAllocations[pool.id] > poolAllocations[largest.id] ? pool : largest,
   ).id;
@@ -846,10 +896,13 @@ export function applyGameAction(
   }
 
   if (action === "apply_allocations") {
-    if (!isAllocation(payload.allocations)) {
+    const normalizedAllocations = normalizePoolAllocations(payload.allocations);
+    if (!normalizedAllocations) {
       throw new Error("A distribuição precisa somar exatamente 100%.");
     }
-    state.poolAllocations = payload.allocations;
+    // Persist a fresh canonical object, never the request object. This keeps
+    // the four-pool shape stable across D1 writes and subsequent reloads.
+    state.poolAllocations = normalizedAllocations;
     state.selectedPoolId = pools.reduce((largest, pool) =>
       state.poolAllocations[pool.id] >
       state.poolAllocations[largest.id]

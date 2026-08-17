@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type {
   AdminRuntimeSettings,
@@ -37,6 +37,15 @@ import type { AdminWithdrawalOverview } from "./wallet-server";
 
 type AdminOverview = {
   alerts: AdminAlert[];
+  crmAlerts: Array<{
+    category: "support" | "feedback" | "treasury" | "operations";
+    createdAt: number;
+    id: string;
+    message: string;
+    reference?: string;
+    severity: "info" | "attention" | "success";
+    title: string;
+  }>;
   audit: Array<{
     action: string;
     createdAt: number;
@@ -288,9 +297,11 @@ type AdminOverview = {
   seasonReport: SeasonEconomicReport | null;
   settings: AdminRuntimeSettings;
   suspiciousSessions: Array<{
+    accountId: string;
     completedAt: number | null;
     difficulty: number;
     displayName: string;
+    email: string;
     gameId: string;
     id: string;
     resolution: string | null;
@@ -315,12 +326,18 @@ type AdminDashboardProps = {
 type TextScale = "comfortable" | "large" | "extra";
 type AdminUserSearchResult = {
   accountId: string;
+  activeRoomId: string;
+  activeRoomName: string;
   batteryCount: number;
   cmaBalance: number;
   createdAt: number;
   displayName: string;
   email: string;
+  mainRoomMinerCount: number;
+  mainRoomName: string;
+  mainRoomRackCount: number;
   minerCount: number;
+  poolAllocations: Record<PoolId, number>;
   rackCount: number;
   roomCount: number;
   updatedAt: number;
@@ -352,6 +369,8 @@ const gameLabels: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
   "hash-match": "Hash Match",
   "packet-catch": "Packet Catch",
+  // Mantemos o ID legado para preservar histórico e sessões já registradas.
+  "coin-link": "Coin Cascade",
 };
 
 const feedbackCategoryLabels: Record<string, string> = {
@@ -367,6 +386,13 @@ const feedbackStatusLabels: Record<string, string> = {
   reviewing: "Em análise",
   planned: "Planejado",
   resolved: "Resolvido",
+};
+
+const poolLabels: Record<PoolId, string> = {
+  cma: "CMA",
+  btc: "BTC",
+  doge: "DOGE",
+  ltc: "LTC",
 };
 
 const supportStatusLabels: Record<string, string> = {
@@ -509,6 +535,12 @@ function formatDate(value: number | null) {
   }).format(new Date(value));
 }
 
+function dateTimeLocalValue(value: number) {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function formatCma(value: number) {
   return `${new Intl.NumberFormat("pt-BR", {
     maximumFractionDigits: 2,
@@ -624,6 +656,12 @@ export function AdminDashboard({
   const [rewardDrafts, setRewardDrafts] = useState<
     Partial<Record<PoolId, string>>
   >({});
+  const [bonusPoolIds, setBonusPoolIds] = useState<PoolId[]>(["cma"]);
+  const [bonusDraftBps, setBonusDraftBps] = useState("12500");
+  const [bonusDraftStartAt, setBonusDraftStartAt] = useState(() =>
+    dateTimeLocalValue(Date.now() + 10 * 60 * 1000),
+  );
+  const [bonusDraftDuration, setBonusDraftDuration] = useState("1");
   const [simulationInput, setSimulationInput] =
     useState<EconomySimulationInput>(DEFAULT_SIMULATION_INPUT);
   const [seasonName, setSeasonName] = useState("Temporada Arcadia");
@@ -646,8 +684,16 @@ export function AdminDashboard({
   const [userSearch, setUserSearch] = useState("");
   const [userSearchResults, setUserSearchResults] = useState<AdminUserSearchResult[]>([]);
   const [userSearchBusy, setUserSearchBusy] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{
+    processed: number;
+    status: "idle" | "processing";
+    total: number;
+  }>({ processed: 0, status: "idle", total: 0 });
+  const loadInFlightRef = useRef(false);
 
   const loadOverview = useCallback(async () => {
+    if (loadInFlightRef.current) return;
+    loadInFlightRef.current = true;
     setError("");
     try {
       const [overviewResponse, withdrawalResponse] = await Promise.all([
@@ -670,6 +716,7 @@ export function AdminDashboard({
           : "Não foi possível carregar o painel.",
       );
     } finally {
+      loadInFlightRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -680,7 +727,7 @@ export function AdminDashboard({
   }, [loadOverview]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => void loadOverview(), 30_000);
+    const timer = window.setInterval(() => void loadOverview(), 60_000);
     return () => window.clearInterval(timer);
   }, [loadOverview]);
 
@@ -774,8 +821,8 @@ export function AdminDashboard({
     }
   }
 
-  async function searchUsers() {
-    const query = userSearch.trim();
+  async function searchUsers(queryOverride?: string) {
+    const query = (queryOverride ?? userSearch).trim();
     if (query.length < 2) {
       setError("Digite pelo menos 2 caracteres para pesquisar.");
       return;
@@ -825,6 +872,127 @@ export function AdminDashboard({
       action: "set-block-budget",
       rewards,
     });
+  }
+
+  async function exportAdminCsv() {
+    setBusyAction("export");
+    setError("");
+    setMessage("");
+    setExportProgress({ processed: 0, status: "processing", total: 0 });
+    try {
+      const startResponse = await fetch("/api/admin/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const startPayload = (await startResponse.json()) as {
+        error?: string;
+        jobId?: string;
+        processed?: number;
+        total?: number;
+      };
+      if (!startResponse.ok || !startPayload.jobId) {
+        throw new Error(startPayload.error ?? "Não foi possível iniciar a exportação.");
+      }
+      const jobId = startPayload.jobId;
+      const total = Number(startPayload.total ?? 0);
+      setExportProgress({ processed: Number(startPayload.processed ?? 0), status: "processing", total });
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        const statusResponse = await fetch(
+          `/api/admin/export?jobId=${encodeURIComponent(jobId)}`,
+          { cache: "no-store" },
+        );
+        const statusPayload = (await statusResponse.json()) as {
+          error?: string;
+          processed?: number;
+          status?: "processing" | "complete";
+          total?: number;
+        };
+        if (!statusResponse.ok) {
+          throw new Error(statusPayload.error ?? "A exportação não pôde continuar.");
+        }
+        setExportProgress({
+          processed: Number(statusPayload.processed ?? 0),
+          status: statusPayload.status === "complete" ? "idle" : "processing",
+          total: Number(statusPayload.total ?? total),
+        });
+        if (statusPayload.status === "complete") {
+          const downloadResponse = await fetch(
+            `/api/admin/export?jobId=${encodeURIComponent(jobId)}&download=1`,
+            { cache: "no-store" },
+          );
+          if (!downloadResponse.ok) {
+            throw new Error("A exportação terminou, mas o arquivo não pôde ser baixado.");
+          }
+          const blob = await downloadResponse.blob();
+          const downloadUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = downloadUrl;
+          anchor.download = "arcadia-season.csv";
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(downloadUrl);
+          setMessage("Relatório exportado com segurança.");
+          return;
+        }
+      }
+      throw new Error("A exportação está demorando mais que o esperado. Tente novamente.");
+    } catch (exportError) {
+      setExportProgress({ processed: 0, status: "idle", total: 0 });
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "Não foi possível exportar o relatório.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function locatePlayer(accountId: string, displayName: string, email: string) {
+    const query = displayName.trim() || email.trim() || accountId.trim();
+    setAdminSection("players");
+    setUserSearch(query);
+    void searchUsers(query);
+  }
+
+  function openCrmAlert(category: AdminOverview["crmAlerts"][number]["category"]) {
+    if (category === "support") setAdminSection("support");
+    else if (category === "feedback") {
+      setAdminSection("players");
+    } else if (category === "treasury") {
+      setAdminSection("treasury");
+    } else {
+      setAdminSection("operations");
+    }
+  }
+
+  function schedulePoolBonus() {
+    if (bonusPoolIds.length === 0) {
+      setError("Selecione pelo menos uma pool para o evento.");
+      return;
+    }
+    const startAt = new Date(bonusDraftStartAt).getTime();
+    if (!Number.isFinite(startAt)) {
+      setError("Escolha uma data e hora válidas para o evento.");
+      return;
+    }
+    void runAdminAction("schedule-block-bonus", {
+      action: "start-block-bonus",
+      bonusBps: Number(bonusDraftBps),
+      durationHours: Number(bonusDraftDuration),
+      poolIds: bonusPoolIds,
+      startAt,
+    });
+  }
+
+  function toggleBonusPool(poolId: PoolId) {
+    setBonusPoolIds((current) =>
+      current.includes(poolId)
+        ? current.filter((value) => value !== poolId)
+        : [...current, poolId],
+    );
   }
 
   function cycleTextScale() {
@@ -963,7 +1131,20 @@ export function AdminDashboard({
             TAMANHO DO TEXTO · {textScale === "comfortable" ? "PADRÃO" : textScale === "large" ? "GRANDE" : "EXTRA"}
           </button>
           <button type="button" onClick={() => void loadOverview()}>ATUALIZAR DADOS</button>
-          <a href="/api/admin/export" download>EXPORTAR CSV</a>
+          <button
+            type="button"
+            disabled={busyAction === "export"}
+            onClick={() => void exportAdminCsv()}
+            title={
+              busyAction === "export"
+                ? `Exportando ${exportProgress.processed}/${exportProgress.total}`
+                : "Gerar relatório em lotes leves"
+            }
+          >
+            {busyAction === "export"
+              ? `EXPORTANDO ${exportProgress.processed}/${exportProgress.total}`
+              : "EXPORTAR CSV"}
+          </button>
           <a href="/admin/transfer">MIGRAR CONTA</a>
           <Link href="/">VOLTAR AO JOGO</Link>
           <a href={signOutPath} className="admin-logout-btn">ENCERRAR SESSÃO</a>
@@ -1016,6 +1197,54 @@ export function AdminDashboard({
           <b>ABRIR TESOURARIA</b>
         </button>
       )}
+
+      <section className="admin-panel admin-crm-alerts-panel" hidden={adminSection !== "overview"}>
+        <div className="admin-panel-heading">
+          <div>
+            <span>ATIVIDADE DO CRM</span>
+            <h2>Fila operacional</h2>
+          </div>
+          <small>
+            {overview.crmAlerts.length === 0
+              ? "SEM PENDÊNCIAS"
+              : `${overview.crmAlerts.length} ALERTA(S) NAS ÚLTIMAS 24H`}
+          </small>
+        </div>
+        {overview.crmAlerts.length === 0 ? (
+          <div className="admin-crm-alert-empty">
+            <span>✓</span>
+            <p>Novos suportes, feedbacks, depósitos, saques e sinais antifraude aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className="admin-crm-alert-list" aria-live="polite">
+            {overview.crmAlerts.slice(0, 8).map((alert) => (
+              <button
+                className={`admin-crm-alert ${alert.severity}`}
+                key={alert.id}
+                onClick={() => openCrmAlert(alert.category)}
+                type="button"
+              >
+                <span className="admin-crm-alert-icon" aria-hidden="true">
+                  {alert.category === "support"
+                    ? "?"
+                    : alert.category === "feedback"
+                      ? "✦"
+                      : alert.category === "treasury"
+                        ? "¤"
+                        : "!"}
+                </span>
+                <span className="admin-crm-alert-copy">
+                  <strong>{alert.title}</strong>
+                  <small>{alert.message}</small>
+                </span>
+                <time dateTime={new Date(alert.createdAt).toISOString()}>
+                  {formatDate(alert.createdAt)}
+                </time>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="admin-metric-grid" hidden={adminSection !== "overview"}>
         <article>
@@ -1393,7 +1622,17 @@ export function AdminDashboard({
                     </span>
                     <time>{formatDate(event.createdAt)}</time>
                   </div>
-                  <strong>Conta {event.accountId.slice(0, 8)}…</strong>
+                  <strong>{event.displayName}</strong>
+                  <small>
+                    {event.email || `Conta ${shortId(event.accountId)}`}
+                  </small>
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={() => locatePlayer(event.accountId, event.displayName, event.email)}
+                  >
+                    LOCALIZAR JOGADOR
+                  </button>
                   <p>{event.reason}</p>
                 </article>
               ))
@@ -1418,10 +1657,10 @@ export function AdminDashboard({
           }}
         >
           <label>
-            NOME OU E-MAIL
+            NOME, E-MAIL OU ID DA CONTA
             <input
               maxLength={80}
-              placeholder="Ex.: Mateus ou usuario@email.com"
+              placeholder="Ex.: Mateus, e-mail ou ID completo"
               value={userSearch}
               onChange={(event) => setUserSearch(event.target.value)}
             />
@@ -1448,6 +1687,26 @@ export function AdminDashboard({
                   <div><dt>Salas</dt><dd>{result.roomCount}</dd></div>
                   <div><dt>Baterias</dt><dd>{result.batteryCount}</dd></div>
                 </dl>
+                <div className="admin-user-room-summary">
+                  <div>
+                    <span>SALA ATUAL</span>
+                    <strong>{result.activeRoomName}</strong>
+                  </div>
+                  <small>
+                    Principal: {result.mainRoomName} · {result.mainRoomRackCount} rack(s) ·{" "}
+                    {result.mainRoomMinerCount} minerador(es)
+                  </small>
+                </div>
+                <div className="admin-user-pools" aria-label="Distribuição de pools">
+                  <span>POOL ALOCADA</span>
+                  <div>
+                    {pools.map((pool) => (
+                      <b key={pool.id}>
+                        {poolLabels[pool.id]} {result.poolAllocations[pool.id] ?? 0}%
+                      </b>
+                    ))}
+                  </div>
+                </div>
               </article>
             ))}
           </div>
@@ -1456,7 +1715,7 @@ export function AdminDashboard({
         ) : null}
       </section>
 
-      <section className="admin-panel admin-beta-observability" hidden={adminSection !== "players"}>
+      {false && <section className="admin-panel admin-beta-observability" hidden={adminSection !== "players"}>
         <div className="admin-panel-heading">
           <div>
             <span>VISÃO DE USO · JANELA DE 7 DIAS</span>
@@ -1616,35 +1875,8 @@ export function AdminDashboard({
             </section>
           </div>
 
-          <div className="admin-accessibility-summary">
-            <article>
-              <span>LEITURA APROVADA</span>
-              <strong>{overview.beta.accessibility.textReadableRate}%</strong>
-            </article>
-            <article>
-              <span>CONTROLES APROVADOS</span>
-              <strong>{overview.beta.accessibility.controlsEasyRate}%</strong>
-            </article>
-            <article>
-              <span>MOVIMENTO CONFORTÁVEL</span>
-              <strong>
-                {overview.beta.accessibility.motionComfortableRate}%
-              </strong>
-            </article>
-            <article>
-              <span>RACK CLARO</span>
-              <strong>{overview.beta.accessibility.rackClearRate}%</strong>
-            </article>
-            <aside>
-              <b>{overview.beta.accessibility.reviews30d}</b>
-              <span>avaliação(ões) em 30 dias</span>
-              <small>
-                {overview.beta.accessibility.touchReviews} por toque/híbrido ·{" "}
-                {overview.beta.accessibility.largeTextProfiles} perfil(is) com
-                texto ampliado
-              </small>
-            </aside>
-          </div>
+          {/* A preferência de leitura continua disponível no controle do rodapé.
+              O CRM não expõe mais avaliações de leitura do jogador. */}
         </section>
 
         <div className="admin-beta-analysis">
@@ -1787,7 +2019,7 @@ export function AdminDashboard({
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
       <section className="admin-panel admin-network-lab" hidden={adminSection !== "economy"}>
         <div className="admin-panel-heading">
@@ -2025,6 +2257,81 @@ export function AdminDashboard({
               ? `Encerramento automático: ${formatDate(overview.network.bonusEndsAt)}.`
               : "Nenhum bônus ativo. O valor-base continua protegido."}
           </small>
+        </div>
+
+        <div className="admin-bonus-scheduler">
+          <div>
+            <span className="admin-bonus-scheduler-kicker">AGENDADOR DE EVENTOS</span>
+            <h3>Bônus por pool</h3>
+            <p>
+              Programe uma janela de recompensa para uma ou mais pools. O servidor
+              aplica e encerra o bônus automaticamente, sem alterar o valor-base do bloco.
+            </p>
+          </div>
+          <div className="admin-bonus-scheduler-form">
+            <fieldset>
+              <legend>Pools participantes</legend>
+              <div className="admin-pool-checkboxes">
+                {pools.map((pool) => (
+                  <label key={pool.id}>
+                    <input
+                      type="checkbox"
+                      checked={bonusPoolIds.includes(pool.id)}
+                      onChange={() => toggleBonusPool(pool.id)}
+                    />
+                    <span>{pool.symbol}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label>
+              Multiplicador
+              <select value={bonusDraftBps} onChange={(event) => setBonusDraftBps(event.target.value)}>
+                <option value="12500">125%</option>
+                <option value="15000">150%</option>
+                <option value="20000">200%</option>
+              </select>
+            </label>
+            <label>
+              Início
+              <input
+                type="datetime-local"
+                value={bonusDraftStartAt}
+                onChange={(event) => setBonusDraftStartAt(event.target.value)}
+              />
+            </label>
+            <label>
+              Duração
+              <select value={bonusDraftDuration} onChange={(event) => setBonusDraftDuration(event.target.value)}>
+                <option value="1">1 hora</option>
+                <option value="2">2 horas</option>
+                <option value="4">4 horas</option>
+                <option value="6">6 horas</option>
+                <option value="12">12 horas</option>
+                <option value="24">24 horas</option>
+                <option value="48">48 horas</option>
+                <option value="72">72 horas</option>
+                <option value="168">7 dias</option>
+              </select>
+            </label>
+            <button type="button" onClick={schedulePoolBonus} disabled={Boolean(busyAction)}>
+              {busyAction === "schedule-block-bonus" ? "AGENDANDO..." : "AGENDAR EVENTO"}
+            </button>
+          </div>
+          <div className="admin-bonus-schedule-list">
+            <strong>Programações atuais</strong>
+            {pools.map((pool) => {
+              const schedule = overview.network.bonusSchedules?.[pool.id];
+              const scheduled = schedule && schedule.bps > 10_000 && schedule.endsAt > overview.serverTime;
+              return (
+                <div key={pool.id} className={scheduled ? "scheduled" : "idle"}>
+                  <span>{pool.symbol}</span>
+                  <b>{scheduled ? `${schedule.bps / 100}%` : "Base"}</b>
+                  <small>{scheduled ? `${formatDate(schedule.startsAt)} → ${formatDate(schedule.endsAt)}` : "Sem evento agendado"}</small>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -2807,6 +3114,10 @@ export function AdminDashboard({
                     <strong>
                       {overview.season.snapshots.length} snapshots preservados
                     </strong>
+                    <small>
+                      Snapshot é uma fotografia imutável do ciclo naquele momento;
+                      serve para comparar evolução e não altera saldos, XP ou recompensas.
+                    </small>
                   </div>
                   {overview.season.snapshots.length === 0 ? (
                     <p>Registre o primeiro ponto de comparação desta temporada.</p>
@@ -3199,6 +3510,12 @@ export function AdminDashboard({
               </aside>
             </div>
 
+            <details className="admin-operations-advanced">
+              <summary>
+                <span>DETALHES AVANÇADOS</span>
+                <strong>Plano de resposta e simulações</strong>
+                <small>Abra somente quando precisar investigar um cenário.</small>
+              </summary>
             <section className="admin-incident-runbook">
               <header>
                 <div>
@@ -3234,6 +3551,7 @@ export function AdminDashboard({
                 ))}
               </div>
             </section>
+            </details>
           </section>
 
           <section className="admin-panel admin-recovery-panel">
@@ -3739,13 +4057,24 @@ export function AdminDashboard({
                       <div>
                         <strong>{session.displayName}</strong>
                         <small>
-                          {gameLabels[session.gameId] ?? session.gameId} · nível{" "}
+                          {session.email || `Conta ${shortId(session.accountId)}`} · {gameLabels[session.gameId] ?? session.gameId} · nível{" "}
                           {session.difficulty} · {shortId(session.id)}
                         </small>
                       </div>
                       <time>{formatDate(session.startedAt)}</time>
                     </div>
                     <p>{session.reviewReason}</p>
+                    <div className="admin-review-identity">
+                      <span>ID DA CONTA</span>
+                      <code>{session.accountId}</code>
+                      <button
+                        className="secondary"
+                        type="button"
+                        onClick={() => locatePlayer(session.accountId, session.displayName, session.email)}
+                      >
+                        LOCALIZAR JOGADOR
+                      </button>
+                    </div>
                     <dl>
                       <div>
                         <dt>STATUS</dt>

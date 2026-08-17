@@ -126,6 +126,27 @@ export function DailyWelcomeModal({
               ? "Log in on consecutive days to earn more XP each time!"
               : "Acesse todos os dias consecutivos para ganhar cada vez mais XP!"}
           </p>
+
+          <div className="discord-callout">
+            <span className="discord-callout-icon" aria-hidden="true">◈</span>
+            <div>
+              <strong>
+                {english ? "Stay ahead of special events" : "Fique por dentro dos eventos especiais"}
+              </strong>
+              <small>
+                {english
+                  ? "Block boosts and limited rewards are announced on Discord."
+                  : "Acelerações de blocos e recompensas especiais são anunciadas no Discord."}
+              </small>
+            </div>
+            <a
+              href="https://discord.gg/Kj4c4PFe8"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {english ? "JOIN DISCORD" : "ENTRAR NO DISCORD"}
+            </a>
+          </div>
           
           <div className="daily-track">
             {loginData.schedule.map((xp, index) => {
@@ -265,6 +286,62 @@ export function DailyWelcomeModal({
           margin-bottom: 35px;
           text-align: center;
         }
+        .discord-callout {
+          width: 100%;
+          display: grid;
+          grid-template-columns: 32px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 11px;
+          padding: 11px 13px;
+          margin: -12px 0 27px;
+          border: 1px solid rgba(88, 122, 255, 0.5);
+          border-radius: 10px;
+          background: linear-gradient(100deg, rgba(65, 74, 156, 0.28), rgba(30, 34, 67, 0.5));
+          text-align: left;
+        }
+        .discord-callout-icon {
+          display: grid;
+          width: 28px;
+          height: 28px;
+          place-items: center;
+          border-radius: 8px;
+          background: #5865f2;
+          color: #fff;
+          font-weight: 900;
+        }
+        .discord-callout div {
+          display: grid;
+          gap: 2px;
+          min-width: 0;
+        }
+        .discord-callout strong {
+          color: #edf0ff;
+          font-size: 12px;
+          letter-spacing: 0.2px;
+        }
+        .discord-callout small {
+          color: #b7b9d5;
+          font-size: 11px;
+          line-height: 1.35;
+        }
+        .discord-callout a {
+          padding: 8px 10px;
+          border: 1px solid rgba(137, 149, 255, 0.8);
+          border-radius: 7px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.5px;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .discord-callout a:hover,
+        .discord-callout a:focus-visible {
+          border-color: #fff;
+          background: rgba(88, 101, 242, 0.7);
+          outline: none;
+        }
         .daily-track {
           display: flex;
           gap: 12px;
@@ -388,6 +465,13 @@ export function DailyWelcomeModal({
           100% { opacity: 1; transform: scale(1); }
         }
         @media (max-width: 600px) {
+          .discord-callout {
+            grid-template-columns: 30px minmax(0, 1fr);
+          }
+          .discord-callout a {
+            grid-column: 2;
+            justify-self: start;
+          }
           .daily-card {
             min-width: calc(25% - 10px);
             padding: 10px 4px;

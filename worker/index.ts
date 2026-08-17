@@ -35,6 +35,20 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+function hasSupabaseSession(request: Request) {
+  const cookie = request.headers.get("Cookie") ?? "";
+  return /(?:^|;\s*)sb-[^-]+(?:-[^-]+)*-auth-token(?:\.|=|;|$)/i.test(cookie);
+}
+
+function isAnonymousLandingRequest(request: Request, url: URL) {
+  return (
+    request.method === "GET" &&
+    url.pathname === "/" &&
+    url.search === "" &&
+    !hasSupabaseSession(request)
+  );
+}
+
 const worker = {
   async fetch(
     request: Request,
@@ -126,19 +140,79 @@ const worker = {
       return withSecurityHeaders(imageResponse, url.pathname);
     }
 
+    // The public landing page is identical for anonymous visitors. A short
+    // edge cache shields the SSR route (and its auth check) from ad crawlers
+    // and traffic bursts while keeping authenticated pages uncached.
+    const cacheableLanding = isAnonymousLandingRequest(request, url);
+    const landingCacheKey = cacheableLanding
+      ? new Request(new URL("/", request.url).toString(), { method: "GET" })
+      : null;
+    if (landingCacheKey) {
+      const cached = await caches.default.match(landingCacheKey);
+      if (cached) return withSecurityHeaders(cached, url.pathname, request);
+    }
+
     const response = await handler.fetch(request, env, ctx);
-    return withSecurityHeaders(response, url.pathname);
+    if (
+      landingCacheKey &&
+      response.ok &&
+      !response.headers.has("Set-Cookie")
+    ) {
+      const cachedResponse = new Response(response.body, response);
+      cachedResponse.headers.set(
+        "Cache-Control",
+        "public, max-age=0, s-maxage=30, stale-while-revalidate=120",
+      );
+      ctx.waitUntil(caches.default.put(landingCacheKey, cachedResponse.clone()));
+      return withSecurityHeaders(cachedResponse, url.pathname, request);
+    }
+    return withSecurityHeaders(response, url.pathname, request);
   },
 };
 
-function withSecurityHeaders(response: Response, pathname: string) {
+function withSecurityHeaders(
+  response: Response,
+  pathname: string,
+  request?: Request,
+) {
   const secured = new Response(response.body, response);
   applyArcadiaSecurityHeaders(secured.headers, true);
+  // Vite emits hashed filenames for JS/CSS chunks. They are safe to cache for
+  // a year because a new deployment always gets a new URL; this avoids
+  // repeated downloads after navigation without caching any authenticated
+  // HTML or API response. Non-hashed public assets get a shorter cache window
+  // so future art changes are picked up promptly.
+  const isPublicAsset = pathname.startsWith("/assets/");
+  const isFingerprintedAsset =
+    isPublicAsset &&
+    /\/[^/]+-[A-Za-z0-9_-]{7,}\.[A-Za-z0-9]+$/.test(pathname);
+  if (isFingerprintedAsset) {
+    secured.headers.set(
+      "Cache-Control",
+      "public, max-age=31536000, immutable",
+    );
+  } else if (isPublicAsset) {
+    secured.headers.set(
+      "Cache-Control",
+      "public, max-age=86400, stale-while-revalidate=604800",
+    );
+  }
   if (pathname.startsWith("/api/")) {
     secured.headers.set("Cache-Control", "private, no-store");
   }
   if (pathname.startsWith("/api/") || pathname.startsWith("/admin")) {
     secured.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  if (
+    pathname === "/" &&
+    request &&
+    isAnonymousLandingRequest(request, new URL(request.url)) &&
+    !secured.headers.has("Set-Cookie")
+  ) {
+    secured.headers.set(
+      "Cache-Control",
+      "public, max-age=0, s-maxage=30, stale-while-revalidate=120",
+    );
   }
   return secured;
 }

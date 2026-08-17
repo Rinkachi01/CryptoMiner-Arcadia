@@ -82,7 +82,7 @@ export function PCStatusPanel({
             </li>
           ))}
         </ol>
-        <small className="pc-ladder-note">A cada virada das 21:00 sem jogar, um nível é perdido.</small>
+        <small className="pc-ladder-note">Se o ciclo terminar sem uma vitória, o PC volta ao nível 0.</small>
       </div>
     </section>
   );

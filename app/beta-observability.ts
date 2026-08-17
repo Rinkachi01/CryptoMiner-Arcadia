@@ -8,6 +8,11 @@ const COHORT_COUNT = 4;
 const SOURCE_DAYS = 35;
 const PROOF_RETENTION_DAYS = 30;
 const ARCHIVED_PROOF = JSON.stringify({ archived: true, version: 1 });
+// Observability is a diagnostic view, not a full database export. Keep its
+// working set deliberately small so a busy server cannot exhaust Worker RAM.
+const OBS_ACCOUNT_LIMIT = 500;
+const OBS_ACTIVITY_LIMIT = 1_000;
+const OBS_PROOF_LIMIT = 500;
 const energyActions = new Set([
   "claim_energy",
   "daily_mission_battery",
@@ -451,14 +456,18 @@ export async function readBetaObservability(
     onboardingSessionRows,
     deviceProfileRows,
     accessibilityReviewRows,
+    totalAccounts,
   ] = await Promise.all([
     db
       .prepare(
-        `SELECT account_id, created_at, updated_at, state_json
+        `SELECT account_id, created_at, updated_at,
+                substr(state_json, 1, 16384) AS state_json
          FROM game_states
+         WHERE created_at >= ? OR updated_at >= ?
          ORDER BY created_at DESC
-         LIMIT 10000`,
+         LIMIT ${OBS_ACCOUNT_LIMIT}`,
       )
+      .bind(since, since)
       .all<StateRow>(),
     db
       .prepare(
@@ -466,7 +475,7 @@ export async function readBetaObservability(
          FROM ledger_entries
          WHERE created_at >= ?
          ORDER BY created_at DESC
-         LIMIT 20000`,
+         LIMIT ${OBS_ACTIVITY_LIMIT}`,
       )
       .bind(since)
       .all<LedgerActivityRow>(),
@@ -476,7 +485,7 @@ export async function readBetaObservability(
          FROM game_sessions
          WHERE started_at >= ? AND status IN ('completed', 'failed')
          ORDER BY started_at DESC
-         LIMIT 20000`,
+         LIMIT ${OBS_ACTIVITY_LIMIT}`,
       )
       .bind(since)
       .all<SessionActivityRow>(),
@@ -518,23 +527,27 @@ export async function readBetaObservability(
            'apply_allocations',
            'block_settlement'
          )
+         AND created_at >= ?
          ORDER BY created_at DESC
-         LIMIT 50000`,
+         LIMIT ${OBS_PROOF_LIMIT}`,
       )
+      .bind(since)
       .all<OnboardingLedgerRow>(),
     db
       .prepare(
         `SELECT DISTINCT account_id, game_id
          FROM game_sessions
          WHERE status IN ('completed', 'failed')
-         LIMIT 50000`,
+           AND started_at >= ?
+         LIMIT ${OBS_PROOF_LIMIT}`,
       )
+      .bind(since)
       .all<OnboardingSessionRow>(),
     db
       .prepare(
         `SELECT account_id, first_viewport, first_input_mode, text_scale
          FROM beta_device_profiles
-         LIMIT 10000`,
+         LIMIT ${OBS_PROOF_LIMIT}`,
       )
       .all<DeviceProfileRow>(),
     db
@@ -544,10 +557,11 @@ export async function readBetaObservability(
          FROM beta_accessibility_reviews
          WHERE created_at >= ?
          ORDER BY created_at DESC
-         LIMIT 10000`,
+           LIMIT ${OBS_PROOF_LIMIT}`,
       )
       .bind(now - 30 * DAY_MS)
       .all<AccessibilityReviewRow>(),
+    db.prepare("SELECT COUNT(*) AS total FROM game_states").first<CountRow>(),
   ]);
 
   const accounts = accountRows.results ?? [];
@@ -675,7 +689,9 @@ export async function readBetaObservability(
       ...preferenceCounts,
       unset: Math.max(
         0,
-        accounts.length - preferenceCounts.ask - preferenceCounts.disabled,
+        Number(totalAccounts?.total ?? accounts.length) -
+          preferenceCounts.ask -
+          preferenceCounts.disabled,
       ),
     },
     summary: {
@@ -687,7 +703,7 @@ export async function readBetaObservability(
       returningPlayers7d: accounts.filter(
         (row) => row.created_at < since7d && activeAccounts.has(row.account_id),
       ).length,
-      totalPlayers: accounts.length,
+      totalPlayers: Number(totalAccounts?.total ?? accounts.length),
     },
     windowDays: COHORT_DAYS,
   };

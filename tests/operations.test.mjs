@@ -76,6 +76,9 @@ test("Central de Operações é exclusiva, auditável e não repara dados automa
   assert.match(migration, /CREATE TABLE `operational_checkpoints`/);
   assert.match(server, /json_valid\(state_json\)/);
   assert.match(server, /LEFT JOIN account_network_power/);
+  assert.match(server, /const NETWORK_HEALTH_SAMPLE_SIZE = 250/);
+  assert.match(server, /ORDER BY updated_at DESC/);
+  assert.match(server, /LIMIT \?/);
   assert.match(server, /status = 'reserved'/);
   assert.doesNotMatch(server, /DELETE FROM|UPDATE game_states|UPDATE game_sessions/i);
   assert.match(route, /operational_checkpoint_created/);

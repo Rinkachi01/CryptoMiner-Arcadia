@@ -87,6 +87,15 @@ test("rede global não possui mais teto silencioso de cinco mil contas", async (
   assert.doesNotMatch(source, /FROM game_states\s+LIMIT 5000/);
 });
 
+test("reconstrução legada da rede é limitada por requisição", async () => {
+  const source = await readFile(
+    new URL("../app/network-server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const NETWORK_BACKFILL_BATCH_SIZE = 25/);
+  assert.doesNotMatch(source, /while \(true\) \{[\s\S]*backfillAccountNetworkPower/);
+});
+
 test("laboratório do proprietário é limitado, reversível e auditado", async () => {
   const [route, dashboard, migration] = await Promise.all([
     readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8"),
@@ -104,10 +113,18 @@ test("laboratório do proprietário é limitado, reversível e auditado", async 
   assert.match(route, /replenish-owner-wallet/);
   assert.match(route, /set-block-budget/);
   assert.match(route, /start-block-bonus/);
+  assert.match(route, /poolIds/);
+  assert.match(route, /updateBlockRewardSchedules/);
+  assert.match(route, /bonusStartsAt/);
+  assert.match(route, /agendado por/);
   assert.match(route, /blockRewardBounds/);
   assert.match(route, /writeAdminAudit/);
   assert.match(dashboard, /Uma quantia fixa é disputada em cada bloco/);
   assert.match(dashboard, /SALVAR ORÇAMENTO FIXO/);
+  assert.match(dashboard, /AGENDADOR DE EVENTOS/);
+  assert.match(dashboard, /Bônus por pool/);
+  assert.match(dashboard, /datetime-local/);
+  assert.match(await readFile(new URL("../app/network-server.ts", import.meta.url), "utf8"), /bonusSchedules/);
   assert.match(migration, /reward_cma_atomic/);
   const litecoinMigration = await readFile(
     new URL("../drizzle/0026_concerned_snowbird.sql", import.meta.url),

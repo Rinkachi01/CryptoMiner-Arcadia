@@ -117,6 +117,15 @@ test("central persiste chamados por conta, limita abuso e entrega respostas", as
   assert.match(supportServer, /account_id = \?/);
   assert.match(supportServer, /player_seen_reply_at < last_reply_at/);
   assert.match(supportServer, /30 \* 24 \* 60 \* 60 \* 1000/);
+  const unreadCount = supportServer.slice(
+    supportServer.indexOf("export async function readUnreadSupportReplyCount"),
+    supportServer.indexOf("export async function acknowledgeSupportReplies"),
+  );
+  assert.doesNotMatch(
+    unreadCount,
+    /ensureSupportSchema\(db\)/,
+    "page renders must not run DDL on every navigation",
+  );
   assert.match(googleBridge, /computeHmacSha256Signature/);
   assert.match(googleBridge, /MailApp\.sendEmail/);
   assert.match(googleBridge, /ARCADIA_SUPPORT_EMAIL/);

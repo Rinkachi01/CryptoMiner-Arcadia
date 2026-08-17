@@ -1,8 +1,15 @@
-import { pcLevelAfterInactivity } from "./pc-progression-rules";
+import {
+  pcLevelAfterInactivity,
+  pcResetRequired,
+} from "./pc-progression-rules";
 
 type PcProgressRow = {
   total_plays: number | null;
   last_activity_at: number | null;
+};
+
+type PcWinRow = {
+  last_win_at: number | null;
 };
 
 /**
@@ -14,18 +21,40 @@ export async function readActivePcLevel(
   accountId: string,
   now: number,
 ) {
-  const row = await db
-    .prepare(
-      `SELECT COALESCE(SUM(total_plays), 0) AS total_plays,
-              COALESCE(MAX(updated_at), 0) AS last_activity_at
-       FROM game_progress
-       WHERE account_id = ?`,
-    )
-    .bind(accountId)
-    .first<PcProgressRow>();
-  return pcLevelAfterInactivity(
-    Number(row?.total_plays ?? 0),
-    Number(row?.last_activity_at ?? 0),
-    now,
-  );
+  const [progressRow, winRow] = await Promise.all([
+    db
+      .prepare(
+        `SELECT COALESCE(SUM(total_plays), 0) AS total_plays,
+                COALESCE(MAX(updated_at), 0) AS last_activity_at
+         FROM game_progress
+         WHERE account_id = ?`,
+      )
+      .bind(accountId)
+      .first<PcProgressRow>(),
+    db
+      .prepare(
+        `SELECT COALESCE(MAX(completed_at), 0) AS last_win_at
+         FROM game_sessions
+         WHERE account_id = ? AND status = 'completed'`,
+      )
+      .bind(accountId)
+      .first<PcWinRow>(),
+  ]);
+
+  const totalPlays = Number(progressRow?.total_plays ?? 0);
+  const lastActivityAt = Number(progressRow?.last_activity_at ?? 0);
+  const lastWinAt = Number(winRow?.last_win_at ?? 0);
+  if (pcResetRequired(totalPlays, lastActivityAt, lastWinAt, now)) {
+    await db
+      .prepare(
+        `UPDATE game_progress
+         SET level = 1, win_streak = 0, next_play_at = 0,
+             total_plays = 0, total_wins = 0, updated_at = ?
+         WHERE account_id = ? AND total_plays > 0`,
+      )
+      .bind(now, accountId)
+      .run();
+    return 0;
+  }
+  return pcLevelAfterInactivity(totalPlays, lastActivityAt, lastWinAt, now);
 }
