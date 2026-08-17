@@ -19,6 +19,16 @@ type Summary = {
     powerToday: number;
     flaggedSessions: number;
   };
+  emission: {
+    budgetPowerGh: number;
+    limited: boolean;
+    remainingPowerGh: number;
+    resetAt: number;
+    rollingPower24h: number;
+    status: "stable" | "attention" | "limited";
+    usagePercent: number;
+    usedPowerGh: number;
+  };
   games: Array<{
     id: string;
     level: number;
@@ -111,9 +121,61 @@ export function OperatorProgressPanel({
         ))}
       </div>
 
+      <div className={`economy-guard-panel ${summary.emission.status}`}>
+        <div className="economy-guard-heading">
+          <div>
+            <span>CONTROLE DE EMISSÃO · SERVIDOR</span>
+            <strong>
+              {summary.emission.status === "stable"
+                ? "ECONOMIA ESTÁVEL"
+                : summary.emission.status === "attention"
+                  ? "ORÇAMENTO EM ATENÇÃO"
+                  : "LIMITE DIÁRIO ATINGIDO"}
+            </strong>
+          </div>
+          <b>{summary.emission.usagePercent}% UTILIZADO</b>
+        </div>
+        <i>
+          <em style={{ width: `${summary.emission.usagePercent}%` }} />
+        </i>
+        <div className="economy-guard-metrics">
+          <article>
+            <span>PODER CONCEDIDO HOJE</span>
+            <strong>
+              {summary.emission.usedPowerGh.toLocaleString("pt-BR")} GH/s
+            </strong>
+          </article>
+          <article>
+            <span>PODER DISPONÍVEL PARA MINIGAMES</span>
+            <strong>
+              {summary.emission.remainingPowerGh.toLocaleString("pt-BR")} GH/s
+            </strong>
+          </article>
+          <article>
+            <span>LIMITE DIÁRIO</span>
+            <strong>
+              {summary.emission.budgetPowerGh.toLocaleString("pt-BR")} GH/s
+            </strong>
+          </article>
+          <article>
+            <span>REINÍCIO DO CICLO</span>
+            <strong>
+              {new Date(summary.emission.resetAt).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </strong>
+          </article>
+        </div>
+        <p>
+          O servidor limita apenas o poder temporário concedido pelos
+          minigames quando o orçamento do ciclo é atingido.
+        </p>
+      </div>
+
       <p className="operator-progress-note">
-        O restante da economia, da temporada e das emissões fica nas áreas
-        próprias para manter esta central objetiva.
+        Temporada, liga e histórico completo ficam nas áreas próprias; este
+        resumo mantém apenas o essencial para acompanhar sua operação.
       </p>
     </section>
   );

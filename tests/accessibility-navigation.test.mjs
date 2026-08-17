@@ -44,7 +44,8 @@ test("Central do Operador mantém somente visão geral, indicações e históric
   assert.doesNotMatch(career, /label: "Temporada"/);
   assert.doesNotMatch(career, /missions-tab-layout/);
   assert.match(progress, /show-\$\{section\}/);
-  assert.doesNotMatch(progress, /economy-guard-panel|operator-career-panel/);
+  assert.match(progress, /economy-guard-panel/);
+  assert.doesNotMatch(progress, /operator-career-panel/);
 });
 
 test("jogo e painel administrativo compartilham três escalas de leitura", () => {

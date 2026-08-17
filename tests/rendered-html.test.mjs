@@ -74,6 +74,8 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /rack-visual/i);
   assert.match(source, /rack-inline-panel/i);
   assert.match(source, /NÍVEL DO OPERADOR/i);
+  assert.match(source, /CONTROLE DE EMISSÃO/i);
+  assert.match(source, /PODER DISPONÍVEL PARA MINIGAMES/i);
   assert.match(source, /Tour diário do Arcade/i);
   assert.match(source, /CAIXAS ARCADIA/i);
   assert.match(source, /CHANCES PÚBLICAS/i);
