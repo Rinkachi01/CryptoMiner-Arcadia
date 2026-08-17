@@ -20,8 +20,8 @@ test("Arcade mostra os jogos sem carregar carreira e temporada antes deles", () 
   assert.match(arcade, /games-hub-body/);
   assert.doesNotMatch(arcade, /OperatorProgressPanel|SeasonPanel/);
   assert.match(career, /Visão geral/);
-  assert.match(career, /Temporada/);
-  assert.match(career, /Missões e carreira/);
+  assert.doesNotMatch(career, /SeasonPanel/);
+  assert.doesNotMatch(career, /Missões e carreira/);
 });
 
 test("guia de entrada leva o jogador às áreas certas sem overlay escuro", () => {
@@ -35,14 +35,16 @@ test("guia de entrada leva o jogador às áreas certas sem overlay escuro", () =
   assert.match(styles, /\.operator-inbox/);
 });
 
-test("Central do Operador separa visão geral, temporada, missões e histórico", () => {
+test("Central do Operador mantém somente visão geral, indicações e histórico", () => {
   assert.match(game, /Central do operador/);
   assert.match(game, /<CareerView/);
   assert.match(career, /Meu histórico/);
   assert.match(career, /ActivityPanel/);
+  assert.match(career, /Indicações/);
+  assert.doesNotMatch(career, /label: "Temporada"/);
+  assert.doesNotMatch(career, /missions-tab-layout/);
   assert.match(progress, /show-\$\{section\}/);
-  assert.match(styles, /show-overview \.daily-mission-panel/);
-  assert.match(styles, /show-missions \.operator-level-card/);
+  assert.doesNotMatch(progress, /economy-guard-panel|operator-career-panel/);
 });
 
 test("jogo e painel administrativo compartilham três escalas de leitura", () => {

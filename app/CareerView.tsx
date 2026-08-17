@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { ActivityPanel } from "./ActivityPanel";
 import { OperatorProgressPanel } from "./OperatorProgressPanel";
-import { SeasonPanel } from "./SeasonPanel";
 import { ReferralPanel } from "./ReferralPanel";
 import { useArcadiaLanguage } from "./i18n";
 
-type CareerTab = "overview" | "season" | "missions" | "referrals" | "activity";
+type CareerTab = "overview" | "referrals" | "activity";
 
 const tabs: Array<{
   id: CareerTab;
@@ -18,16 +17,6 @@ const tabs: Array<{
     id: "overview",
     label: "Visão geral",
     description: "Nível, desempenho e emissão",
-  },
-  {
-    id: "season",
-    label: "Temporada",
-    description: "Ranking e ciclo competitivo",
-  },
-  {
-    id: "missions",
-    label: "Missões e carreira",
-    description: "Bateria e conquistas",
   },
   {
     id: "referrals",
@@ -42,27 +31,16 @@ const tabs: Array<{
 ];
 
 export function CareerView({
-  onRefreshAccount,
   initialTab = "overview",
 }: {
-  onRefreshAccount: () => Promise<boolean>;
-  initialTab?: "overview" | "missions";
+  initialTab?: "overview";
 }) {
   const { locale } = useArcadiaLanguage();
   const english = locale === "en";
   const [activeTab, setActiveTab] = useState<CareerTab>(initialTab);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  async function refreshAccount() {
-    const refreshed = await onRefreshAccount();
-    setRefreshKey((current) => current + 1);
-    return refreshed;
-  }
 
   const tabCopy: Record<CareerTab, { label: string; description: string }> = {
-    overview: { label: "Overview", description: "Level, performance and emission" },
-    season: { label: "Season", description: "Competitive cycle" },
-    missions: { label: "Missions and career", description: "Batteries and achievements" },
+    overview: { label: "Overview", description: "Level and performance" },
     referrals: { label: "Referrals", description: "Your link and signups" },
     activity: { label: "My history", description: "Rounds, purchases and energy" },
   };
@@ -75,12 +53,12 @@ export function CareerView({
           <h2>{english ? "Your Arcadia career" : "Sua carreira no Arcadia"}</h2>
           <p>
             {english
-              ? "Track your level, season and missions in a space separate from the minigames. All progress remains server-validated."
-              : "Acompanhe seu nível, temporada e missões em um espaço separado dos minigames. Toda progressão continua validada pelo servidor."}
+              ? "Track your level and validated progress in a focused space separate from the season and minigames."
+              : "Acompanhe seu nível e seu progresso validado em um espaço separado da temporada e dos minigames."}
           </p>
         </div>
         <aside>
-          <strong>5</strong>
+          <strong>3</strong>
           <span>{english ? "ORGANIZED AREAS" : "ÁREAS ORGANIZADAS"}</span>
           <small>{english ? "Server-controlled rewards" : "Recompensas controladas pelo servidor"}</small>
         </aside>
@@ -105,39 +83,13 @@ export function CareerView({
       </nav>
 
       <div className="career-content">
-        {activeTab === "overview" ? (
-          <button
-            className="career-season-callout"
-            type="button"
-            onClick={() => setActiveTab("season")}
-          >
-            <span>SEASON 01</span>
-            <div>
-              <strong>{english ? "Space Race" : "Corrida Espacial"}</strong>
-              <small>{english ? "120 days · 50 levels · XP · rewards" : "120 dias · 50 níveis · XP · recompensas"}</small>
-            </div>
-            <b>{english ? "VIEW SEASON →" : "VER TEMPORADA →"}</b>
-          </button>
-        ) : null}
-        {activeTab === "season" ? (
-          <SeasonPanel
-            refreshKey={refreshKey}
-            onRefreshAccount={refreshAccount}
-          />
-        ) : activeTab === "referrals" ? (
+        {activeTab === "referrals" ? (
           <ReferralPanel />
         ) : activeTab === "activity" ? (
-          <ActivityPanel refreshKey={refreshKey} />
-        ) : activeTab === "missions" ? (
-          <div className="missions-tab-layout">
-            <OperatorProgressPanel
-              refreshKey={refreshKey}
-              section={activeTab}
-            />
-          </div>
+          <ActivityPanel refreshKey={0} />
         ) : (
           <OperatorProgressPanel
-            refreshKey={refreshKey}
+            refreshKey={0}
             section={activeTab}
           />
         )}

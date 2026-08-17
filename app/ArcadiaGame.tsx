@@ -317,9 +317,7 @@ export function ArcadiaGame({
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
-  const [careerStartTab, setCareerStartTab] = useState<
-    "overview" | "missions"
-  >("overview");
+  const [careerStartTab, setCareerStartTab] = useState<"overview">("overview");
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
   const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
     defaultPoolAllocations,
@@ -913,7 +911,7 @@ export function ArcadiaGame({
           onNavigate={(target) => {
             setRackOpen(false);
             setWalletOpen(false);
-            if (target === "career") setCareerStartTab("missions");
+            if (target === "career") setCareerStartTab("overview");
             setActiveView(target);
           }}
         />
@@ -1340,7 +1338,7 @@ export function ArcadiaGame({
             batteryCount={batteryCount}
             status={onboarding}
             onNavigate={(target) => {
-              if (target === "career") setCareerStartTab("missions");
+              if (target === "career") setCareerStartTab("overview");
               setActiveView(target);
             }}
             onOpenStarterRack={() => {
@@ -1446,7 +1444,6 @@ export function ArcadiaGame({
         {!rackOpen && activeView === "career" && (
           <CareerView
             initialTab={careerStartTab}
-            onRefreshAccount={refreshServerState}
           />
         )}
 

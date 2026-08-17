@@ -74,13 +74,6 @@ test("mantém a experiência principal e a conta autoritativa do Arcadia", async
   assert.match(source, /rack-visual/i);
   assert.match(source, /rack-inline-panel/i);
   assert.match(source, /NÍVEL DO OPERADOR/i);
-  assert.match(source, /LIGA DO OPERADOR/i);
-  assert.match(source, /CONQUISTAS DE CARREIRA/i);
-  assert.match(source, /CONTROLE DE EMISSÃO/i);
-  assert.match(source, /ECONOMIA ESTÁVEL/i);
-  assert.match(source, /ORÇAMENTO RESTANTE/i);
-  assert.match(source, /MISSÕES DIÁRIAS/i);
-  assert.match(source, /RESGATAR 1 BATERIA/i);
   assert.match(source, /Tour diário do Arcade/i);
   assert.match(source, /CAIXAS ARCADIA/i);
   assert.match(source, /CHANCES PÚBLICAS/i);

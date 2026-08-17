@@ -6,13 +6,6 @@ type Summary = {
   operator: {
     level: number;
     rank: string;
-    league: {
-      name: string;
-      nextName: string | null;
-      currentXp: number;
-      targetXp: number;
-      progressPercent: number;
-    };
     xp: number;
     currentLevelXp: number;
     nextLevelXp: number;
@@ -26,16 +19,6 @@ type Summary = {
     powerToday: number;
     flaggedSessions: number;
   };
-  emission: {
-    budgetPowerGh: number;
-    limited: boolean;
-    remainingPowerGh: number;
-    resetAt: number;
-    rollingPower24h: number;
-    status: "stable" | "attention" | "limited";
-    usagePercent: number;
-    usedPowerGh: number;
-  };
   games: Array<{
     id: string;
     level: number;
@@ -43,27 +26,6 @@ type Summary = {
     totalPlays: number;
     totalWins: number;
     winRate: number;
-  }>;
-  missions: Array<{
-    id: string;
-    label: string;
-    current: number;
-    target: number;
-    eligible?: boolean;
-    claimed?: boolean;
-    claimable?: boolean;
-    resetAt?: number;
-    reward?: {
-      type: "battery";
-      amount: number;
-    };
-  }>;
-  achievements: Array<{
-    id: string;
-    label: string;
-    description: string;
-    current: number;
-    target: number;
   }>;
 };
 
@@ -73,15 +35,12 @@ const gameNames: Record<string, string> = {
   "circuit-rush": "Circuit Rush",
 };
 
-// Tour diário do Arcade agora usa a meta de 10 partidas e entrega +12h.
-
-// MISSÕES DIÁRIAS continuam no domínio de progresso; RESGATAR 1 BATERIA agora é tratado pelo ciclo de 12h da sala.
 export function OperatorProgressPanel({
   refreshKey,
   section = "overview",
 }: {
   refreshKey: number;
-  section?: "overview" | "missions";
+  section?: "overview";
 }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [message, setMessage] = useState("Carregando progresso...");
@@ -152,105 +111,10 @@ export function OperatorProgressPanel({
         ))}
       </div>
 
-      <div className={`economy-guard-panel ${summary.emission.status}`}>
-        <div className="economy-guard-heading">
-          <div>
-            <span>CONTROLE DE EMISSÃO · SERVIDOR</span>
-            <strong>
-              {summary.emission.status === "stable"
-                ? "ECONOMIA ESTÁVEL"
-                : summary.emission.status === "attention"
-                  ? "ORÇAMENTO EM ATENÇÃO"
-                  : "LIMITE DIÁRIO ATINGIDO"}
-            </strong>
-          </div>
-          <b>{summary.emission.usagePercent}% UTILIZADO</b>
-        </div>
-        <i>
-          <em style={{ width: `${summary.emission.usagePercent}%` }} />
-        </i>
-        <div className="economy-guard-metrics">
-          <article>
-            <span>PODER CONCEDIDO HOJE</span>
-            <strong>
-              {summary.emission.usedPowerGh.toLocaleString("pt-BR")} GH/s
-            </strong>
-          </article>
-          <article>
-            <span>ORÇAMENTO RESTANTE</span>
-            <strong>
-              {summary.emission.remainingPowerGh.toLocaleString("pt-BR")} GH/s
-            </strong>
-          </article>
-          <article>
-            <span>LIMITE DIÁRIO</span>
-            <strong>
-              {summary.emission.budgetPowerGh.toLocaleString("pt-BR")} GH/s
-            </strong>
-          </article>
-          <article>
-            <span>REINÍCIO DO CICLO</span>
-            <strong>
-              {new Date(summary.emission.resetAt).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </strong>
-          </article>
-        </div>
-        <p>
-          O servidor reduz automaticamente apenas a parte da recompensa que
-          ultrapassaria o orçamento. Pontuação, nível e conquistas continuam
-          contando normalmente.
-        </p>
-      </div>
-
-      <div className="operator-career-panel">
-        <article className="operator-league-card">
-          <span>LIGA DO OPERADOR</span>
-          <strong>{summary.operator.league.name}</strong>
-          <p>
-            {summary.operator.league.nextName
-              ? `Próxima divisão: ${summary.operator.league.nextName}`
-              : "Divisão máxima alcançada"}
-          </p>
-          <i>
-            <em
-              style={{ width: `${summary.operator.league.progressPercent}%` }}
-            />
-          </i>
-          <small>
-            Progressão competitiva sem prêmio econômico nesta fase.
-          </small>
-        </article>
-
-        <div className="operator-achievements">
-          <div>
-            <span>CONQUISTAS DE CARREIRA</span>
-            <small>Marcos permanentes calculados pelo servidor.</small>
-          </div>
-          <section>
-            {summary.achievements.map((achievement) => {
-              const complete = achievement.current >= achievement.target;
-              return (
-                <article
-                  className={complete ? "complete" : ""}
-                  key={achievement.id}
-                >
-                  <b>{complete ? "✓" : "◇"}</b>
-                  <div>
-                    <strong>{achievement.label}</strong>
-                    <p>{achievement.description}</p>
-                  </div>
-                  <span>
-                    {achievement.current}/{achievement.target}
-                  </span>
-                </article>
-              );
-            })}
-          </section>
-        </div>
-      </div>
+      <p className="operator-progress-note">
+        O restante da economia, da temporada e das emissões fica nas áreas
+        próprias para manter esta central objetiva.
+      </p>
     </section>
   );
 }
