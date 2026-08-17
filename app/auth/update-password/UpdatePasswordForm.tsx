@@ -12,7 +12,7 @@ export function UpdatePasswordForm({
   supabaseUrl: string;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, publishableKey),
     [publishableKey, supabaseUrl],

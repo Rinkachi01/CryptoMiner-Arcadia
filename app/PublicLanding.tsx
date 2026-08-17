@@ -1,6 +1,6 @@
 "use client";
 
-import { useArcadiaLanguage } from "./i18n";
+import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
 
 type PublicLandingProps = {
   signInPath: string;
@@ -81,6 +81,7 @@ export function PublicLanding({ signInPath, signUpPath }: PublicLandingProps) {
       </section>
 
       <section className="login-card" aria-labelledby="public-login-title">
+        <div className="login-card-language"><LanguageSwitcher /></div>
         <div className="login-brand-mark">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/brand/cma-coin.png" alt={t("landing.brandAlt")} />

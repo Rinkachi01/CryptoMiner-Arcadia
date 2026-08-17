@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { spanishRuntime } from "./spanish-runtime";
 
-export type ArcadiaLocale = "pt-BR" | "en";
+export type ArcadiaLocale = "pt-BR" | "en" | "es";
 type Localized = [string, string];
 
-const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en"];
+const supportedLocales: ArcadiaLocale[] = ["pt-BR", "en", "es"];
 // v3 makes the English-first default effective for visitors who had the
 // old browser-detected Portuguese value cached before the international launch.
 const localeStorageKey = "arcadia-locale-v3";
@@ -38,6 +39,7 @@ const entries: Record<string, Localized> = {
   "language.label": ["Idioma", "Language"],
   "language.pt": ["Português", "Portuguese"],
   "language.en": ["Inglês", "English"],
+  "language.es": ["Espanhol", "Spanish"],
   "profile.open": ["Abrir meu perfil", "Open my profile"],
   "profile.account": ["Conta protegida", "Protected account"],
   "account.signout": ["Sair", "Sign out"],
@@ -152,9 +154,150 @@ const entries: Record<string, Localized> = {
   "landing.accountNote": ["Uma conta nova recebe somente um rack e o minerador inicial. Nenhum CMA, bateria ou energia é concedido no cadastro.", "A new account receives only a rack and the starter miner. No CMA, battery, or energy is granted at signup."],
 };
 
-const localeIndex: Record<ArcadiaLocale, number> = { "pt-BR": 0, en: 1 };
+const spanishEntries: Record<string, string> = {
+  "nav.mine": "Sala de minería",
+  "nav.pools": "Pools",
+  "nav.conversion": "Billetera",
+  "nav.inventory": "Inventario",
+  "nav.shop": "Tienda",
+  "nav.games": "Minijuegos",
+  "nav.season": "Temporada",
+  "nav.leaderboard": "Clasificación global",
+  "nav.tasks": "Tareas",
+  "nav.career": "Centro del operador",
+  "nav.short.mine": "Sala",
+  "nav.short.pools": "Pools",
+  "nav.short.conversion": "Billetera",
+  "nav.short.inventory": "Objetos",
+  "nav.short.shop": "Tienda",
+  "nav.short.games": "Juegos",
+  "nav.short.season": "Temporada",
+  "nav.short.leaderboard": "Ranking",
+  "nav.short.tasks": "Tareas",
+  "nav.short.career": "Carrera",
+  "nav.support": "Centro de soporte",
+  "nav.owner": "Consola del propietario",
+  "language.label": "Idioma",
+  "language.pt": "Portugués",
+  "language.en": "Inglés",
+  "language.es": "Español",
+  "profile.open": "Abrir mi perfil",
+  "profile.account": "Cuenta protegida",
+  "account.signout": "Salir",
+  "account.connecting": "Conectando",
+  "status.progress": "PROGRESO PROTEGIDO · VERSIÓN {version}",
+  "status.loading": "CARGANDO TU CUENTA SEGURA",
+  "status.error": "SERVIDOR NO DISPONIBLE · ACCIONES BLOQUEADAS",
+  "status.block": "BLOQUE SINCRONIZADO #{block}",
+  "sync.error": "No pudimos sincronizar tu cuenta",
+  "sync.loading": "Sincronizando tu cuenta",
+  "sync.errorDescription": "Tu saldo, nombre y poder siguen protegidos. Intenta de nuevo para cargar los datos del servidor.",
+  "sync.loadingDescription": "Cargando saldo, poder y equipos guardados en el servidor.",
+  "sync.retry": "Intentar de nuevo",
+  "sidebar.operator": "Operador",
+  "sidebar.serverAccount": "Cuenta en el servidor",
+  "sidebar.virtualSimulation": "Simulación virtual",
+  "sidebar.simulationDescription": "Operación virtual con progreso y economía controlados por el servidor.",
+  "sidebar.navigation": "Navegación principal",
+  "sidebar.terms": "Términos y privacidad",
+  "workspace.rack": "Control del rack",
+  "workspace.shopEyebrow": "Mercado Arcadia · equipos y energía",
+  "workspace.walletEyebrow": "Billetera del operador · saldos y conversión",
+  "workspace.gamesEyebrow": "Arcade Arcadia · minijuegos en línea",
+  "workspace.seasonEyebrow": "Temporada 01 · Carrera espacial",
+  "workspace.leaderboardEyebrow": "Clasificación global · mejores mineros",
+  "workspace.tasksEyebrow": "Centro de tareas · misiones y feedback",
+  "workspace.careerEyebrow": "Centro del operador · progreso y misiones",
+  "workspace.mineEyebrow": "Sala de minería",
+  "workspace.manage": "Gestionar equipos",
+  "workspace.mine": "Tu sala de minería",
+  "workspace.pools": "Pools de minería",
+  "workspace.wallet": "Billetera y conversión",
+  "workspace.inventory": "Inventario de equipos",
+  "workspace.shop": "Tienda de equipos",
+  "workspace.games": "Centro de minijuegos",
+  "workspace.season": "Pase de temporada",
+  "workspace.tasks": "Centro de tareas",
+  "workspace.career": "Carrera del operador",
+  "metric.minerPower": "Poder de los mineros",
+  "metric.gamePower": "Poder de los minijuegos",
+  "metric.racks": "Racks en esta sala",
+  "metric.energy": "Energía",
+  "metric.batteries": "baterías",
+  "metric.mainNetwork": "Red principal",
+  "metric.useBattery": "Usar una batería",
+  "metric.batteryPowered": "Alimentado por batería",
+  "metric.noBattery": "Sin batería",
+  "metric.playToGenerate": "Juega para generar",
+  "metric.free": "libres",
+  "wallet.title": "Billetera virtual",
+  "wallet.withdrawal": "retiro manual de BTC/DOGE/LTC",
+  "wallet.showing": "Mostrando",
+  "wallet.pin": "Fijar",
+  "wallet.open": "Abrir billetera",
+  "wallet.convert": "Convertir",
+  "block.single": "Bloque minado",
+  "block.multiple": "Bloques minados",
+  "block.singleDescription": "El bloque #{block} fue procesado.",
+  "block.multipleDescription": "Se procesaron {count} bloques hasta #{block}.",
+  "block.synced": "Recompensa y registro sincronizados por el servidor.",
+  "block.close": "Cerrar aviso del bloque",
+  "footer.brandSubtitle": "Minería virtual · entretenimiento digital",
+  "footer.start": "Comenzar a jugar",
+  "footer.navigation": "Navegación",
+  "footer.account": "Cuenta y seguridad",
+  "footer.contact": "Contáctanos",
+  "footer.contactDescription": "Soporte, novedades y comunidad oficial.",
+  "footer.discordDescription": "Soporte, novedades y comunidad oficial.",
+  "footer.discord": "Entrar al Discord",
+  "footer.discordNote": "Accede al servidor oficial de Arcadia.",
+  "footer.email": "Correo de soporte",
+  "footer.emailNote": "Cuenta, pagos y atención.",
+  "footer.reply": "Responderemos mediante el protocolo dentro del sitio.",
+  "footer.documents": "Documentos",
+  "footer.terms": "Términos de uso",
+  "footer.privacy": "Privacidad",
+  "footer.risk": "Aviso de riesgo",
+  "footer.cookies": "Cookies",
+  "footer.rights": "Todos los derechos reservados.",
+  "landing.kicker": "ECONOMÍA CONTROLADA POR EL SERVIDOR",
+  "landing.bannerAlt": "Crypto Miner Arcadia con mineros y minijuegos",
+  "landing.title": "Construye tu operación. Compite por bloques globales.",
+  "landing.description": "Construye salas, organiza racks, energiza tus mineros y distribuye tu poder entre CMA, Bitcoin, Dogecoin y Litecoin. Todas las recompensas son verificadas por el servidor.",
+  "landing.poolsTitle": "POOLS GLOBALES",
+  "landing.poolsDescription": "CMA, BTC, DOGE y LTC con distribución flexible de poder.",
+  "landing.blockTitle": "BLOQUE FIJO",
+  "landing.blockDescription": "Más poder cambia la participación, no la emisión total.",
+  "landing.energyTitle": "CICLO DE ENERGÍA",
+  "landing.energyDescription": "Las baterías y el Arcade mantienen activa la operación.",
+  "landing.protectionNote": "Progreso individual protegido y sincronizado con tu cuenta",
+  "landing.onboardingEyebrow": "CÓMO EMPEZAR",
+  "landing.onboardingTitle": "Tu primera operación en tres pasos.",
+  "landing.stepOneTitle": "Crea tu cuenta",
+  "landing.stepOneDescription": "Confirma tu correo para mantener tu progreso seguro en cualquier dispositivo.",
+  "landing.stepTwoTitle": "Configura el rack",
+  "landing.stepTwoDescription": "Instala el rack inicial y coloca tu minero para comenzar a generar poder.",
+  "landing.stepThreeTitle": "Juega y distribuye",
+  "landing.stepThreeDescription": "Juega en el Arcade, reclama baterías y distribuye tu poder entre los pools.",
+  "landing.communityTitle": "¿Necesitas ayuda antes de entrar?",
+  "landing.communityDescription": "Consulta respuestas rápidas, soporte y la comunidad oficial.",
+  "landing.communityFaq": "Ver FAQ",
+  "landing.communitySupport": "Abrir soporte",
+  "landing.communityDiscord": "Entrar al Discord",
+  "landing.brandAlt": "Logo CMA",
+  "landing.brand": "CRYPTO MINER ARCADIA",
+  "landing.cardTitle": "Comienza tu operación con seguridad.",
+  "landing.cardDescription": "Entra en tu operación o crea una cuenta. El correo confirmado protege tu progreso en cualquier dispositivo.",
+  "landing.signIn": "ENTRAR",
+  "landing.signUp": "CREAR CUENTA",
+  "landing.accessStatus": "ACCESO PROTEGIDO",
+  "landing.accessStatusDetail": "Cuenta verificada · progreso en el servidor",
+  "landing.accountNote": "Una cuenta nueva recibe solo un rack y el minero inicial. No se concede CMA, batería ni energía al registrarse.",
+};
+
+const localeIndex: Record<"pt-BR" | "en", number> = { "pt-BR": 0, en: 1 };
 const copy = Object.fromEntries(
-  supportedLocales.map((locale) => [locale, Object.fromEntries(Object.entries(entries).map(([key, values]) => [key, values[localeIndex[locale]]]))]),
+  supportedLocales.map((locale) => [locale, Object.fromEntries(Object.entries(entries).map(([key, values]) => [key, locale === "es" ? spanishEntries[key] ?? values[1] : values[localeIndex[locale as "pt-BR" | "en"]]]))]),
 ) as Record<ArcadiaLocale, Record<string, string>>;
 
 function isArcadiaLocale(value: string | null): value is ArcadiaLocale {
@@ -169,6 +312,102 @@ function browserLocale(): ArcadiaLocale {
 function applyLocale(next: ArcadiaLocale) {
   document.documentElement.lang = next;
   document.cookie = `${localeCookieKey}=${encodeURIComponent(next)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
+function spanishText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const dynamic = trimmed.match(/^(\d+)% REMAINING$/);
+  if (dynamic) return `${dynamic[1]}% RESTANTE`;
+  const over = trimmed.match(/^(\d+)% OVER$/);
+  if (over) return `${over[1]}% SUPERIOR`;
+  const cells = trimmed.match(/^(\d+) of 8 cells charged$/);
+  if (cells) return `${cells[1]} de 8 celdas cargadas`;
+  const translated = spanishRuntime[trimmed];
+  return translated && translated !== trimmed ? translated : null;
+}
+
+function translatedWithWhitespace(original: string, translated: string) {
+  const leading = original.match(/^\s*/)?.[0] ?? "";
+  const trailing = original.match(/\s*$/)?.[0] ?? "";
+  return `${leading}${translated}${trailing}`;
+}
+
+function useSpanishRuntime(locale: ArcadiaLocale) {
+  useEffect(() => {
+    if (typeof document === "undefined" || locale !== "es") return;
+    const root = document.body;
+    type TextRecord = { original: string; translated: string };
+    type AttributeRecord = { original: string; translated: string };
+    const textRecords = new WeakMap<Text, TextRecord>();
+    const attributeRecords = new WeakMap<HTMLElement, Map<string, AttributeRecord>>();
+    let syncing = false;
+
+    const sync = () => {
+      if (syncing) return;
+      syncing = true;
+      try {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node: Node | null = walker.nextNode();
+        while (node) {
+          const textNode = node as Text;
+          const parent = textNode.parentElement;
+          if (parent && !["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) {
+            const current = textNode.nodeValue ?? "";
+            const record = textRecords.get(textNode);
+            const source = record && current === record.translated ? record.original : current;
+            const translated = spanishText(source);
+            if (translated) {
+              const next = translatedWithWhitespace(source, translated);
+              textRecords.set(textNode, { original: source, translated: next });
+              if (current !== next) textNode.nodeValue = next;
+            } else if (record && current === record.translated) {
+              textNode.nodeValue = record.original;
+            }
+          }
+          node = walker.nextNode();
+        }
+
+        root.querySelectorAll<HTMLElement>("[aria-label], [title], [placeholder], [alt]").forEach((element) => {
+          const records = attributeRecords.get(element) ?? new Map<string, AttributeRecord>();
+          ["aria-label", "title", "placeholder", "alt"].forEach((name) => {
+            const current = element.getAttribute(name);
+            if (current === null) return;
+            const record = records.get(name);
+            const source = record && current === record.translated ? record.original : current;
+            const translated = spanishText(source);
+            if (!translated) return;
+            const next = translatedWithWhitespace(source, translated);
+            records.set(name, { original: source, translated: next });
+            if (current !== next) element.setAttribute(name, next);
+          });
+          if (records.size) attributeRecords.set(element, records);
+        });
+      } finally {
+        syncing = false;
+      }
+    };
+
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { childList: true, characterData: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node: Node | null = walker.nextNode();
+      while (node) {
+        const record = textRecords.get(node as Text);
+        if (record && (node.nodeValue ?? "") === record.translated) node.nodeValue = record.original;
+        node = walker.nextNode();
+      }
+      root.querySelectorAll<HTMLElement>("[aria-label], [title], [placeholder], [alt]").forEach((element) => {
+        const records = attributeRecords.get(element);
+        records?.forEach((record, name) => {
+          if (element.getAttribute(name) === record.translated) element.setAttribute(name, record.original);
+        });
+      });
+    };
+  }, [locale]);
 }
 
 export function formatTranslation(template: string, values: Record<string, string | number>) {
@@ -195,6 +434,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);
   }, [locale]);
+  useSpanishRuntime(locale);
 
   const setLocale = (next: ArcadiaLocale) => {
     if (!supportedLocales.includes(next)) return;
@@ -220,6 +460,7 @@ export function LanguageSwitcher() {
       <select value={locale} aria-label={t("language.label")} onChange={(event) => setLocale(event.target.value as ArcadiaLocale)}>
         <option value="pt-BR">{t("language.pt")}</option>
         <option value="en">{t("language.en")}</option>
+        <option value="es">{t("language.es")}</option>
       </select>
     </label>
   );

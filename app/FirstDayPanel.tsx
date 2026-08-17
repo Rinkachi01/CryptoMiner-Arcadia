@@ -85,7 +85,7 @@ export function FirstDayPanel({
   onActivateEnergy,
 }: FirstDayPanelProps) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   if (!status?.eligible || status.completed) return null;
 
   const nextStep =

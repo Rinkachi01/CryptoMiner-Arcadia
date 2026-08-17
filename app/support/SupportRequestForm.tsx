@@ -48,7 +48,7 @@ export function SupportRequestForm({
   signedIn: boolean;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const categoryLabels: Record<SupportCategory, string> = {
     account: english ? "Account and access" : supportCategoryLabels.account,
     game: english ? "Game and inventory" : supportCategoryLabels.game,

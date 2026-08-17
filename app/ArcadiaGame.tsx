@@ -312,7 +312,7 @@ export function ArcadiaGame({
   initialCareerTab = "overview",
 }: ArcadiaGameProps) {
   const { t, locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [activeView, setActiveView] = useState<ViewId>(initialView);
   const [accountDisplayName, setAccountDisplayName] = useState(user.displayName);
   const [textScale, setTextScale] =
@@ -1147,7 +1147,7 @@ export function ArcadiaGame({
             <span className="eyebrow">
               {rackOpen && activeRack ? (
                 <>
-                  {locale === "en" ? "RACK CONTROL" : "CONTROLE DE RACK"} <i /> {activeRoom.name.toUpperCase()}
+                  {locale !== "pt-BR" ? "RACK CONTROL" : "CONTROLE DE RACK"} <i /> {activeRoom.name.toUpperCase()}
                 </>
               ) : activeView === "shop" ? (
                 <>{t("workspace.shopEyebrow").toUpperCase()}</>
@@ -1169,7 +1169,7 @@ export function ArcadiaGame({
                 <>{t("workspace.inventory").toUpperCase()}</>
               ) : (
                 <>
-                  {locale === "en" ? t("workspace.mineEyebrow").toUpperCase() : activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
+                  {locale !== "pt-BR" ? t("workspace.mineEyebrow").toUpperCase() : activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
                 </>
               )}
             </span>
@@ -1590,7 +1590,7 @@ function MiningRoom({
   cyclePending: boolean;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [operationsOpen, setOperationsOpen] = useState(false);
   const orderedRoomRacks = [...roomRacks].sort(
     (first, second) => first.positionIndex - second.positionIndex,
@@ -1980,7 +1980,7 @@ function EnergyCard({
   cyclePending: boolean;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const chargedCells = Math.ceil(energySeconds / (BATTERY_HOURS * 3600));
   const batteryCycleMs = 12 * 60 * 60 * 1000;
   const cycleRemaining = Math.max(
@@ -2071,7 +2071,7 @@ function MiningStatusPanel({
   onOpenPools: () => void;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const activePools = pools.filter((pool) => allocations[pool.id] > 0);
 
   return (
@@ -2144,7 +2144,7 @@ function MiningStatusPanel({
 
 export function GamesView() {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const games = [
     {
       id: "packet-catch",
@@ -2282,7 +2282,7 @@ function PoolsView({
   onApplyAllocations: (allocations: PoolAllocations) => void | Promise<void>;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [draft, setDraft] = useState<PoolAllocations>(allocations);
   const totalAllocation = pools.reduce(
     (total, pool) => total + draft[pool.id],

@@ -25537,6 +25537,12 @@ body {
   text-align: left;
 }
 
+.login-card-language {
+  display: flex;
+  justify-content: flex-end;
+  margin: -12px 0 18px;
+}
+
 .admin-live-alert:hover,
 .admin-live-alert:focus-visible {
   border-color: #a9ff3f;

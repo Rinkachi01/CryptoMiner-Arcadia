@@ -364,7 +364,7 @@ export function ConversionView({
   serverVersion,
 }: ConversionViewProps) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [tab, setTab] = useState<WalletTab>("deposit");
   const [asset, setAsset] = useState<ConvertibleAsset>("BTC");
   const [targetCma, setTargetCma] = useState("1");

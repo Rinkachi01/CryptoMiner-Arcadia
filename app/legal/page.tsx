@@ -2,7 +2,7 @@
 
 import { PublicInfoHeader } from "../PublicInfoHeader";
 import { PublicSiteFooter } from "../PublicSiteFooter";
-import { useArcadiaLanguage, type ArcadiaLocale } from "../i18n";
+import { useArcadiaLanguage } from "../i18n";
 
 type LegalSection = { title: string; body: string };
 type LegalDocument = {
@@ -12,7 +12,7 @@ type LegalDocument = {
   sections: LegalSection[];
 };
 
-const legalCopy: Record<ArcadiaLocale, {
+const legalCopy: Record<"pt-BR" | "en", {
   headerLabel: string;
   heroLabel: string;
   heroTitle: string;
@@ -161,7 +161,7 @@ const legalCopy: Record<ArcadiaLocale, {
 
 export default function LegalPage() {
   const { locale } = useArcadiaLanguage();
-  const copy = legalCopy[locale];
+  const copy = locale === "pt-BR" ? legalCopy["pt-BR"] : legalCopy.en;
 
   return (
     <main className="public-info-page legal-page">

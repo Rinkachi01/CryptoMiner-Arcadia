@@ -72,7 +72,7 @@ export function OperatorTour({
   onOpenStarterRack,
 }: OperatorTourProps) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const storageKey = `arcadia-operator-tour:${accountKey.toLowerCase()}`;
   const [dismissed, setDismissed] = useState(() =>
     typeof window === "undefined"

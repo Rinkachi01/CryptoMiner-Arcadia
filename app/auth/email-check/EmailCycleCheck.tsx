@@ -29,7 +29,7 @@ function messageFor(status: string, english: boolean) {
 
 export function EmailCycleCheck({ email, next }: Props) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);

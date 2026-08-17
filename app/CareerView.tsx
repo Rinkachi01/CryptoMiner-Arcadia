@@ -36,7 +36,7 @@ export function CareerView({
   initialTab?: CareerTab;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [activeTab, setActiveTab] = useState<CareerTab>(initialTab);
 
   const tabCopy: Record<CareerTab, { label: string; description: string }> = {

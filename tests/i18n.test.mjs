@@ -9,8 +9,8 @@ test("idioma persiste, sincroniza entre abas e traduz o shell principal", async 
   assert.match(source, /addEventListener\("storage"/);
   assert.match(source, /Sala de mineração/);
   assert.match(source, /Mining room/);
-  assert.match(source, /supportedLocales: ArcadiaLocale\[\] = \["pt-BR", "en"\]/);
-  assert.doesNotMatch(source, /option value="es"/);
+  assert.match(source, /supportedLocales: ArcadiaLocale\[\] = \["pt-BR", "en", "es"\]/);
+  assert.match(source, /option value="es"/);
   assert.doesNotMatch(source, /option value="fr"/);
   assert.doesNotMatch(source, /Sala de mineraÃ§Ã£o/);
 });

@@ -21,7 +21,7 @@ export function DailyWelcomeModal({
   enabled = true,
 }: DailyWelcomeModalProps) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [data, setData] = useState<{
     season: PublicSeason | null;
     playerProgress: SeasonPlayerProgress | null;

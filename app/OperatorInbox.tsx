@@ -37,7 +37,7 @@ export function OperatorInbox({
   onNavigate,
 }: OperatorInboxProps) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [open, setOpen] = useState(false);
   const [summary, setSummary] = useState<GamesSummary | null>(null);
 

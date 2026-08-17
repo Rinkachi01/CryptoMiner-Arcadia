@@ -20,7 +20,7 @@ type ReferralOverview = {
 
 export function ReferralPanel() {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [data, setData] = useState<ReferralOverview | null>(null);
   const [message, setMessage] = useState(english ? "Loading your link…" : "Carregando seu link…");
 

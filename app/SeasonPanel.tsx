@@ -50,7 +50,7 @@ export function SeasonPanel({
   refreshKey: number;
 }) {
   const { locale } = useArcadiaLanguage();
-  const english = locale === "en";
+  const english = locale !== "pt-BR";
   const [data, setData] = useState<SeasonResponse | null>(null);
   const [message, setMessage] = useState(english ? "Loading season..." : "Carregando temporada...");
   const [error, setError] = useState("");

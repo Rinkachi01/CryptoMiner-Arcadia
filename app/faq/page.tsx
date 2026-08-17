@@ -2,12 +2,12 @@
 
 import { PublicInfoHeader } from "../PublicInfoHeader";
 import { PublicSiteFooter } from "../PublicSiteFooter";
-import { useArcadiaLanguage, type ArcadiaLocale } from "../i18n";
+import { useArcadiaLanguage } from "../i18n";
 
 type FaqItem = { question: string; answer: string };
 type FaqSection = { label: string; title: string; items: FaqItem[] };
 
-const faqCopy: Record<ArcadiaLocale, {
+const faqCopy: Record<"pt-BR" | "en", {
   heroLabel: string;
   heroTitle: string;
   heroDescription: string;
@@ -147,7 +147,7 @@ const faqCopy: Record<ArcadiaLocale, {
 
 export default function FaqPage() {
   const { locale } = useArcadiaLanguage();
-  const copy = faqCopy[locale];
+  const copy = locale === "pt-BR" ? faqCopy["pt-BR"] : faqCopy.en;
 
   return (
     <main className="public-info-page public-faq-page">
