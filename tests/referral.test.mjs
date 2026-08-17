@@ -23,14 +23,19 @@ test("cadastro preserva o código até a confirmação do e-mail", async () => {
   assert.match(callback, /email_confirmed_at/);
 });
 
-test("proposta de bônus tem teto e não divide mineração", async () => {
+test("proposta de bônus é calculada por bloco e preserva o indicado", async () => {
   const [server, panel] = await Promise.all([
     readFile(new URL("../app/referral-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/ReferralPanel.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(server, /REFERRAL_MAX_CMA_PER_REFERRAL_MICROS = 250_000/);
-  assert.match(server, /REFERRAL_WEEKLY_CMA_CAP_MICROS = 1_000_000/);
+  assert.match(server, /REFERRAL_CMA_SHARE_BPS = 800/);
+  assert.match(server, /REFERRAL_CRYPTO_SHARE_BPS = 500/);
   assert.match(server, /REFERRAL_MIN_COMPLETED_GAMES = 3/);
   assert.match(server, /REFERRAL_MIN_ACCOUNT_AGE_MS = 24 \* 60 \* 60 \* 1000/);
-  assert.match(panel, /máximo por operador indicado/i);
+  assert.match(server, /const nextReferredState = referredState/);
+  assert.match(server, /payoutMode: "per_validated_block"/);
+  assert.match(server, /hasPayoutCap: false/);
+  assert.match(panel, /sem recompensa acumulada/i);
+  assert.match(panel, /cmaRewardPercent/);
+  assert.match(panel, /cryptoRewardPercent/);
 });

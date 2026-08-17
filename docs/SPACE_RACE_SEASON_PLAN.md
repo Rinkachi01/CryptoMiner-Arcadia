@@ -51,8 +51,10 @@ Antes de ativar:
 
 ## Indicações
 
-O rastreamento de links já está ativo, mas o pagamento permanece em fase de
-validação. O modelo proposto concede 2% das compras elegíveis em CMA, com teto
-de 2 CMA por semana, espera antifraude de 14 dias e janela de 60 dias por
-indicado. O bônus nunca é retirado do que o jogador minerou e não incide sobre
-BTC, DOGE ou LTC.
+O rastreamento de links e o crédito por bloco são validados no servidor. Após a
+conta indicada completar a validação de segurança (24 horas e três partidas
+concluídas), cada bloco validado gera um bônus adicional de 8% em CMA ou 5% em
+BTC, DOGE e LTC para o indicador. O indicado mantém a recompensa integral do
+próprio bloco; não há saldo acumulado nem teto de indicação. A emissão do bônus
+é registrada separadamente no livro-razão para auditoria e deve ser monitorada
+no painel econômico antes de campanhas públicas.

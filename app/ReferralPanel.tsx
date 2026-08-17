@@ -8,11 +8,12 @@ type ReferralOverview = {
   invited: number;
   link: string;
   proposal: {
-    miningRewardPercent: number;
+    cmaRewardPercent: number;
+    cryptoRewardPercent: number;
     eligibilityHours: number;
     minimumCompletedGames: number;
-    perReferralCapCma: number;
-    weeklyCapCma: number;
+    payoutMode: "per_validated_block";
+    hasPayoutCap: boolean;
     status: "active";
   };
 };
@@ -58,7 +59,7 @@ export function ReferralPanel() {
         <div>
           <span>{english ? "REFERRAL PROGRAM · SHARED MINING" : "PROGRAMA DE INDICAÇÃO · MINERAÇÃO COMPARTILHADA"}</span>
           <h3>{english ? "Invite new operators" : "Convide novos operadores"}</h3>
-          <p>{english ? "Receive a share of validated mining rewards from operators who join through your link." : "Receba uma parte das recompensas de mineração validadas dos operadores que entrarem pelo seu link."}</p>
+          <p>{english ? "Receive a bonus on every validated block mined by operators who join through your link." : "Receba um bônus em cada bloco validado minerado pelos operadores que entrarem pelo seu link."}</p>
         </div>
         <aside><strong>{data.invited}</strong><span>{english ? "LINKED SIGNUPS" : "CADASTROS VINCULADOS"}</span></aside>
       </header>
@@ -67,12 +68,12 @@ export function ReferralPanel() {
         <button type="button" onClick={() => void copyLink()}>{english ? "COPY LINK" : "COPIAR LINK"}</button>
       </div>
       <div className="referral-policy-grid">
-        <article><strong>{data.proposal.miningRewardPercent}%</strong><span>{english ? "of validated mining" : "da mineração validada"}</span></article>
-        <article><strong>0%</strong><span>{english ? "additional emission" : "de emissão adicional"}</span></article>
-        <article><strong>{data.proposal.perReferralCapCma} CMA</strong><span>{english ? "maximum per referred operator" : "máximo por operador indicado"}</span></article>
-        <article><strong>{data.proposal.weeklyCapCma} CMA</strong><span>{english ? "weekly cap per referrer" : "teto semanal por indicador"}</span></article>
+        <article><strong>{data.proposal.cmaRewardPercent}%</strong><span>{english ? "of each CMA block" : "de cada bloco CMA"}</span></article>
+        <article><strong>{data.proposal.cryptoRewardPercent}%</strong><span>{english ? "of each BTC, DOGE or LTC block" : "de cada bloco BTC, DOGE ou LTC"}</span></article>
+        <article><strong>{english ? "PER BLOCK" : "POR BLOCO"}</strong><span>{english ? "paid as blocks are validated" : "pago conforme os blocos são validados"}</span></article>
+        <article><strong>{data.proposal.hasPayoutCap ? "CAP" : english ? "NO CAP" : "SEM TETO"}</strong><span>{english ? "no accumulated balance" : "sem recompensa acumulada"}</span></article>
       </div>
-      <p className="referral-note">{english ? `The share is released after ${data.proposal.eligibilityHours} hours and ${data.proposal.minimumCompletedGames} completed games. It is deducted from the invitee's validated reward without increasing fixed block values.` : `A participação é liberada após ${data.proposal.eligibilityHours} horas e ${data.proposal.minimumCompletedGames} partidas concluídas. Ela é descontada da recompensa validada do indicado sem aumentar o valor fixo dos blocos.`}</p>
+      <p className="referral-note">{english ? `After ${data.proposal.eligibilityHours} hours and ${data.proposal.minimumCompletedGames} completed games, the bonus is credited block by block. The invited operator keeps the full block reward; no balance is accumulated and the program does not change the fixed reward per block.` : `Após ${data.proposal.eligibilityHours} horas e ${data.proposal.minimumCompletedGames} partidas concluídas, o bônus é creditado bloco a bloco. O operador indicado mantém a recompensa integral do bloco; não há saldo acumulado e o programa não altera a recompensa fixa por bloco.`}</p>
       {message && <p className="conversion-success" role="status">{message}</p>}
     </section>
   );

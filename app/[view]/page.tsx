@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { notFound, redirect } from "next/navigation";
-import { ArcadiaGame, type ViewId } from "../ArcadiaGame";
+import type { ViewId } from "../ArcadiaGame";
+import { ArcadiaRouteClient } from "../ArcadiaRouteClient";
 import { OperatorRouteClient } from "../OperatorRouteClient";
 import {
   accountIdForUser,
@@ -13,7 +14,6 @@ import {
   isConfiguredAdminOwner,
 } from "../admin-settings";
 import { readUnreadSupportReplyCount } from "../support-server";
-import { GameErrorBoundary } from "../GameErrorBoundary";
 import { PublicSiteFooter } from "../PublicSiteFooter";
 
 export const dynamic = "force-dynamic";
@@ -69,11 +69,9 @@ export default async function ViewRoute({
   }
 
   return (
-    <GameErrorBoundary>
-      <div className="app-route-shell">
-        <ArcadiaGame initialView={initialView} {...sharedProps} />
-        <PublicSiteFooter />
-      </div>
-    </GameErrorBoundary>
+    <div className="app-route-shell">
+      <ArcadiaRouteClient initialView={initialView} {...sharedProps} />
+      <PublicSiteFooter />
+    </div>
   );
 }

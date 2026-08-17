@@ -3,14 +3,13 @@ import {
   adminOwnerAccountIdFromEnv,
   isConfiguredAdminOwner,
 } from "./admin-settings";
-import { ArcadiaGame } from "./ArcadiaGame";
+import { ArcadiaRouteClient } from "./ArcadiaRouteClient";
 import {
   accountIdForUser,
   arcadiaSignInPath,
   arcadiaSignOutPath,
   getArcadiaUser,
 } from "./identity-server";
-import { GameErrorBoundary } from "./GameErrorBoundary";
 import { PublicLanding } from "./PublicLanding";
 import { PublicSiteFooter } from "./PublicSiteFooter";
 import { readUnreadSupportReplyCount } from "./support-server";
@@ -46,19 +45,18 @@ export default async function Home() {
     : 0;
 
   return (
-    <GameErrorBoundary>
-      <div className="app-route-shell">
-        <ArcadiaGame
-          user={{
-            displayName: user.displayName,
-            email: user.email,
-          }}
-          isOwner={isOwner}
-          signOutPath={arcadiaSignOutPath("/", user.provider)}
-          unreadSupportReplies={unreadSupportReplies}
-        />
-        <PublicSiteFooter />
-      </div>
-    </GameErrorBoundary>
+    <div className="app-route-shell">
+      <ArcadiaRouteClient
+        initialView="mine"
+        user={{
+          displayName: user.displayName,
+          email: user.email,
+        }}
+        isOwner={isOwner}
+        signOutPath={arcadiaSignOutPath("/", user.provider)}
+        unreadSupportReplies={unreadSupportReplies}
+      />
+      <PublicSiteFooter />
+    </div>
   );
 }

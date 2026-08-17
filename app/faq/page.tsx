@@ -56,6 +56,7 @@ const faqCopy: Record<ArcadiaLocale, {
           { question: "O que é CMA?", answer: "CMA é o crédito interno usado para compras e progressão no jogo. Ele não é uma criptomoeda externa e não é sacável." },
           { question: "Como converter BTC, DOGE ou LTC para CMA?", answer: "Depois que o depósito estiver confirmado, escolha a moeda, informe uma quantidade inteira de CMA e confira a cotação do servidor antes de confirmar a conversão." },
           { question: "Por que o valor mínimo pode mudar?", answer: "Mínimos, taxas de rede e cotações são informados por moeda e podem mudar. A tela de depósito mostra a rede correta, o valor mínimo e a validade da fatura antes do envio." },
+          { question: "Como funciona o link de indicação?", answer: "Quando uma conta entra pelo seu link e passa pela validação de segurança, você recebe um bônus a cada bloco validado pelo indicado: 8% em CMA e 5% em BTC, DOGE e LTC. O indicado recebe a recompensa integral do próprio bloco; o bônus não fica acumulado e não altera o valor fixo do bloco." },
         ],
       },
       {
@@ -118,6 +119,7 @@ const faqCopy: Record<ArcadiaLocale, {
           { question: "What is CMA?", answer: "CMA is an internal credit used for in-game purchases and progression. It is not an external cryptocurrency and cannot be withdrawn." },
           { question: "How do I convert BTC, DOGE or LTC to CMA?", answer: "After a deposit is confirmed, choose the currency, enter a whole CMA amount and review the server quote before confirming the conversion." },
           { question: "Why can the minimum change?", answer: "Minimums, network fees and quotes are shown per currency and may change. The deposit screen shows the correct network, minimum and invoice validity before you send." },
+          { question: "How does the referral link work?", answer: "When an account joins through your link and passes the security checks, you receive a bonus for every block it validates: 8% in CMA and 5% in BTC, DOGE and LTC. The invited operator keeps the full reward for their own block; the bonus is not accumulated and does not change the fixed block value." },
         ],
       },
       {

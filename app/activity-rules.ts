@@ -203,20 +203,22 @@ export function presentLedgerActivity(
       description: `${Math.max(0, Math.floor(numberValue(reward.quantity, 0)))} bateria(s) da trilha ${track}, nivel ${level}.`,
     };
   }
-  if (action === "referral_mining_share_out") {
-    const percent = numberValue(metadata.sharePercent, 5);
+  if (action === "referral_mining_share_out" || action === "referral_mining_bonus_source") {
+    const cmaPercent = numberValue(metadata.cmaSharePercent, 8);
+    const cryptoPercent = numberValue(metadata.cryptoSharePercent, 5);
     return {
       category: "mining",
-      title: "Parte da mineracao compartilhada",
-      description: `${percent}% da recompensa validada foi enviada ao indicador, sem alterar o bloco fixo.`,
+      title: "Bônus de indicação processado",
+      description: `${cmaPercent}% em CMA e ${cryptoPercent}% em BTC, DOGE e LTC foram calculados por bloco validado.`,
     };
   }
-  if (action === "referral_mining_share_in") {
-    const percent = numberValue(metadata.sharePercent, 5);
+  if (action === "referral_mining_share_in" || action === "referral_mining_bonus_in") {
+    const cmaPercent = numberValue(metadata.cmaSharePercent, 8);
+    const cryptoPercent = numberValue(metadata.cryptoSharePercent, 5);
     return {
       category: "mining",
-      title: "Bonus de indicacao recebido",
-      description: `${percent}% da mineracao validada de um indicado entrou no seu saldo.`,
+      title: "Bônus de indicação recebido",
+      description: `${cmaPercent}% em CMA e ${cryptoPercent}% em BTC, DOGE e LTC da mineração validada de um indicado entraram no saldo.`,
     };
   }
   if (action === "open_supply_crate") {

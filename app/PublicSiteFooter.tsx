@@ -20,6 +20,7 @@ export function PublicSiteFooter() {
             <a href="/">{t("nav.mine")}</a>
             <a href="/faq">FAQ</a>
             <a href="/support">{t("nav.support")}</a>
+            <a href="/operador">{isPortuguese ? "Programa de indicação" : "Referral program"}</a>
             <a href="/legal">{t("footer.documents")}</a>
             <a href="/perfil">{t("profile.open")}</a>
           </nav>

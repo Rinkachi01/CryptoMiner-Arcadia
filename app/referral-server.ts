@@ -1,13 +1,13 @@
 import type { PublicGameState } from "./game-server.ts";
 
 const REFERRAL_CODE_LENGTH = 10;
-export const REFERRAL_MINING_SHARE_BPS = 500;
-// Referral mining is intentionally bounded so a group of throwaway accounts
-// cannot turn the program into an unbounded CMA faucet.
+export const REFERRAL_CMA_SHARE_BPS = 800;
+export const REFERRAL_CRYPTO_SHARE_BPS = 500;
+// Anti-abuse qualification is kept separate from the payout amount. Once an
+// account is validated, every settled block can generate its proportional
+// referral bonus; there is no accumulated balance or per-referrer payout cap.
 export const REFERRAL_MIN_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
 export const REFERRAL_MIN_COMPLETED_GAMES = 3;
-export const REFERRAL_MAX_CMA_PER_REFERRAL_MICROS = 250_000; // 0.25 CMA
-export const REFERRAL_WEEKLY_CMA_CAP_MICROS = 1_000_000; // 1 CMA / UTC week
 
 type MiningRewards = {
   cma: number;
@@ -139,11 +139,12 @@ export async function readReferralOverview(
     invited: Number(summary?.invited ?? 0),
     link: `${origin}/auth?mode=signup&ref=${encodeURIComponent(code)}`,
     proposal: {
-      miningRewardPercent: REFERRAL_MINING_SHARE_BPS / 100,
+      cmaRewardPercent: REFERRAL_CMA_SHARE_BPS / 100,
+      cryptoRewardPercent: REFERRAL_CRYPTO_SHARE_BPS / 100,
       eligibilityHours: REFERRAL_MIN_ACCOUNT_AGE_MS / (60 * 60 * 1000),
       minimumCompletedGames: REFERRAL_MIN_COMPLETED_GAMES,
-      perReferralCapCma: REFERRAL_MAX_CMA_PER_REFERRAL_MICROS / 1_000_000,
-      weeklyCapCma: REFERRAL_WEEKLY_CMA_CAP_MICROS / 1_000_000,
+      payoutMode: "per_validated_block" as const,
+      hasPayoutCap: false,
       status: "active" as const,
     },
   };
@@ -195,51 +196,10 @@ function positiveInteger(value: unknown) {
 
 function referralShare(rewards: MiningRewards): MiningRewards {
   return {
-    cma: Math.floor(positiveInteger(rewards.cma) * REFERRAL_MINING_SHARE_BPS / 10_000),
-    btc: Math.floor(positiveInteger(rewards.btc) * REFERRAL_MINING_SHARE_BPS / 10_000),
-    doge: Math.floor(positiveInteger(rewards.doge) * REFERRAL_MINING_SHARE_BPS / 10_000),
-    ltc: Math.floor(positiveInteger(rewards.ltc) * REFERRAL_MINING_SHARE_BPS / 10_000),
-  };
-}
-
-function utcWeekStart(now: number) {
-  const date = new Date(now);
-  const day = date.getUTCDay();
-  const daysSinceMonday = (day + 6) % 7;
-  date.setUTCHours(0, 0, 0, 0);
-  date.setUTCDate(date.getUTCDate() - daysSinceMonday);
-  return date.getTime();
-}
-
-async function readReferralCmaUsage(
-  db: D1Database,
-  referrerAccountId: string,
-  referredAccountId: string,
-  now: number,
-) {
-  const usage = await db
-    .prepare(
-      `SELECT
-         COALESCE(SUM(
-           CASE
-             WHEN json_valid(metadata_json)
-              AND json_extract(metadata_json, '$.referredAccountId') = ?
-              AND delta_cma_micros > 0
-             THEN delta_cma_micros ELSE 0
-           END
-         ), 0) AS lifetime_cma_micros,
-         COALESCE(SUM(
-           CASE WHEN created_at >= ? AND delta_cma_micros > 0
-             THEN delta_cma_micros ELSE 0 END
-         ), 0) AS weekly_cma_micros
-       FROM ledger_entries
-       WHERE account_id = ? AND action = 'referral_mining_share_in'`,
-    )
-    .bind(referredAccountId, utcWeekStart(now), referrerAccountId)
-    .first<{ lifetime_cma_micros: number; weekly_cma_micros: number }>();
-  return {
-    lifetimeCmaMicros: Math.max(0, Number(usage?.lifetime_cma_micros ?? 0)),
-    weeklyCmaMicros: Math.max(0, Number(usage?.weekly_cma_micros ?? 0)),
+    cma: Math.floor(positiveInteger(rewards.cma) * REFERRAL_CMA_SHARE_BPS / 10_000),
+    btc: Math.floor(positiveInteger(rewards.btc) * REFERRAL_CRYPTO_SHARE_BPS / 10_000),
+    doge: Math.floor(positiveInteger(rewards.doge) * REFERRAL_CRYPTO_SHARE_BPS / 10_000),
+    ltc: Math.floor(positiveInteger(rewards.ltc) * REFERRAL_CRYPTO_SHARE_BPS / 10_000),
   };
 }
 
@@ -282,9 +242,9 @@ export type ReferralSettlementResult =
     };
 
 /**
- * Transfers 5% of a referred operator's validated mining reward to the
- * referrer. The amount is taken from the referred reward before persistence,
- * so it never increases a pool's fixed block emission.
+ * Credits a referral bonus for each validated block. The invited operator
+ * keeps the full block reward; the bonus is an explicit promotional emission
+ * recorded in the ledger. CMA uses 8%; BTC, DOGE and LTC use 5%.
  */
 export async function settleReferralMiningShare(
   db: D1Database,
@@ -331,25 +291,7 @@ export async function settleReferralMiningShare(
     return { applied: false, conflict: false };
   }
 
-  const rawShare = referralShare(rewards);
-  const usage = await readReferralCmaUsage(
-    db,
-    attribution.referrer_account_id,
-    referredAccountId,
-    now,
-  );
-  const remainingPerReferral = Math.max(
-    0,
-    REFERRAL_MAX_CMA_PER_REFERRAL_MICROS - usage.lifetimeCmaMicros,
-  );
-  const remainingWeekly = Math.max(
-    0,
-    REFERRAL_WEEKLY_CMA_CAP_MICROS - usage.weeklyCmaMicros,
-  );
-  const share: MiningRewards = {
-    ...rawShare,
-    cma: Math.min(rawShare.cma, remainingPerReferral, remainingWeekly),
-  };
+  const share = referralShare(rewards);
   if (!hasShare(share)) return { applied: false, conflict: false };
 
   const payoutKey = `referral-mining:${referredAccountId}:${settlementKey}`;
@@ -380,13 +322,20 @@ export async function settleReferralMiningShare(
 
   const referredNextVersion = referredRow.version + 1;
   const referrerNextVersion = referrerRow.version + 1;
-  const nextReferredState = addRewards(referredState, share, -1);
+  // The invited operator receives the complete validated block reward. The
+  // referral bonus is additional and only affects the referrer's balance.
+  const nextReferredState = referredState;
   const nextReferrerState = addRewards(referrerState, share);
   const referredJson = JSON.stringify(nextReferredState);
   const referrerJson = JSON.stringify(nextReferrerState);
   const metadata = JSON.stringify({
-    shareBps: REFERRAL_MINING_SHARE_BPS,
-    sharePercent: REFERRAL_MINING_SHARE_BPS / 100,
+    cmaShareBps: REFERRAL_CMA_SHARE_BPS,
+    cryptoShareBps: REFERRAL_CRYPTO_SHARE_BPS,
+    cmaSharePercent: REFERRAL_CMA_SHARE_BPS / 100,
+    cryptoSharePercent: REFERRAL_CRYPTO_SHARE_BPS / 100,
+    sharePercent: REFERRAL_CRYPTO_SHARE_BPS / 100,
+    payoutMode: "per_validated_block",
+    additionalEmission: true,
     referredAccountId,
     referrerAccountId: referrerRow.account_id,
     rewards,
@@ -453,7 +402,7 @@ export async function settleReferralMiningShare(
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
       )
-      SELECT ?, ?, 'referral_mining_share_out', ?, ?, ?, ?, ?
+      SELECT ?, ?, 'referral_mining_bonus_source', ?, ?, ?, ?, ?
       WHERE EXISTS (
         SELECT 1 FROM game_states
         WHERE account_id = ? AND version = ? AND state_json = ?
@@ -466,7 +415,7 @@ export async function settleReferralMiningShare(
       referredAccountId,
       payoutKey,
       referredNextVersion,
-      -share.cma,
+      0,
       metadata,
       now,
       referredAccountId,
@@ -481,7 +430,7 @@ export async function settleReferralMiningShare(
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
       )
-      SELECT ?, ?, 'referral_mining_share_in', ?, ?, ?, ?, ?
+      SELECT ?, ?, 'referral_mining_bonus_in', ?, ?, ?, ?, ?
       WHERE EXISTS (
         SELECT 1 FROM game_states
         WHERE account_id = ? AND version = ? AND state_json = ?
@@ -510,7 +459,8 @@ export async function settleReferralMiningShare(
     Number(results[1]?.meta.changes ?? 0) !== 1 ||
     Number(results[2]?.meta.changes ?? 0) !== 1 ||
     Number(results[3]?.meta.changes ?? 0) !== 1 ||
-    Number(results[4]?.meta.changes ?? 0) !== 1
+    Number(results[4]?.meta.changes ?? 0) !== 1 ||
+    Number(results[5]?.meta.changes ?? 0) !== 1
   ) {
     return { applied: false, conflict: true, share };
   }
