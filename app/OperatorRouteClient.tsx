@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArcadiaGame } from "./ArcadiaGame";
+import { lazy, Suspense, useSyncExternalStore } from "react";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import type { ViewId } from "./ArcadiaGame";
+
+const ArcadiaGame = lazy(() =>
+  import("./ArcadiaGame").then(({ ArcadiaGame: Game }) => ({ default: Game })),
+);
+
+const noHydrationSubscription = () => () => {};
+const serverHydrationSnapshot = () => false;
+const clientHydrationSnapshot = () => true;
 
 type OperatorRouteClientProps = {
   user: {
@@ -30,11 +37,11 @@ export function OperatorRouteClient({
   signOutPath,
   unreadSupportReplies,
 }: OperatorRouteClientProps) {
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  const hydrated = useSyncExternalStore(
+    noHydrationSubscription,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
 
   if (!hydrated) {
     return (
@@ -46,13 +53,21 @@ export function OperatorRouteClient({
 
   return (
     <GameErrorBoundary>
-      <ArcadiaGame
-        initialView={"career" satisfies ViewId}
-        user={user}
-        isOwner={isOwner}
-        signOutPath={signOutPath}
-        unreadSupportReplies={unreadSupportReplies}
-      />
+      <Suspense
+        fallback={
+          <main className="operator-route-skeleton" aria-busy="true">
+            <span>Carregando central do operador…</span>
+          </main>
+        }
+      >
+        <ArcadiaGame
+          initialView={"career" satisfies ViewId}
+          user={user}
+          isOwner={isOwner}
+          signOutPath={signOutPath}
+          unreadSupportReplies={unreadSupportReplies}
+        />
+      </Suspense>
     </GameErrorBoundary>
   );
 }

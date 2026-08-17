@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArcadiaGame, type ViewId } from "./ArcadiaGame";
+import { lazy, Suspense, useSyncExternalStore } from "react";
+import type { ViewId } from "./ArcadiaGame";
 import { GameErrorBoundary } from "./GameErrorBoundary";
+
+// Keep the large interactive tree out of the initial browser and Worker path.
+// It is fetched only after the lightweight shell has hydrated.
+const ArcadiaGame = lazy(() =>
+  import("./ArcadiaGame").then(({ ArcadiaGame: Game }) => ({ default: Game })),
+);
+
+const noHydrationSubscription = () => () => {};
+const serverHydrationSnapshot = () => false;
+const clientHydrationSnapshot = () => true;
 
 type ArcadiaRouteClientProps = {
   initialView: ViewId;
@@ -27,11 +37,11 @@ export function ArcadiaRouteClient({
   signOutPath,
   unreadSupportReplies,
 }: ArcadiaRouteClientProps) {
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
+  const hydrated = useSyncExternalStore(
+    noHydrationSubscription,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
 
   if (!hydrated) {
     return (
@@ -43,13 +53,21 @@ export function ArcadiaRouteClient({
 
   return (
     <GameErrorBoundary>
-      <ArcadiaGame
-        initialView={initialView}
-        user={user}
-        isOwner={isOwner}
-        signOutPath={signOutPath}
-        unreadSupportReplies={unreadSupportReplies}
-      />
+      <Suspense
+        fallback={
+          <main className="operator-route-skeleton" aria-busy="true">
+            <span>Carregando central do operador…</span>
+          </main>
+        }
+      >
+        <ArcadiaGame
+          initialView={initialView}
+          user={user}
+          isOwner={isOwner}
+          signOutPath={signOutPath}
+          unreadSupportReplies={unreadSupportReplies}
+        />
+      </Suspense>
     </GameErrorBoundary>
   );
 }
