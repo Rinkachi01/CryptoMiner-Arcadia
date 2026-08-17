@@ -100,7 +100,7 @@ export function presentLedgerActivity(
       0,
       Math.floor(numberValue(metadata.settledBlocks, 0)),
     );
-    return settledBlocks > 0
+    return settledBlocks > 0 && metadata.settlementRecordedSeparately !== true
       ? {
           category: "mining",
           title:

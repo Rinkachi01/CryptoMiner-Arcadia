@@ -192,5 +192,19 @@ test("liquidação de blocos protege contra chamadas concorrentes", async () => 
     /WHERE account_id = \? AND version = \?/i,
   );
   assert.match(source, /INSERT OR IGNORE INTO ledger_entries/i);
-  assert.match(source, /updateResult\.meta\.changes/i);
+  assert.match(source, /settlementResults\[0\].*meta\.changes/is);
+});
+
+test("liquidação mantém uma fronteira idempotente por bloco em todas as rotas", async () => {
+  const [route, referral] = await Promise.all([
+    readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/referral-server.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /CREATE TABLE IF NOT EXISTS mining_settlements/i);
+  assert.match(route, /settlementKeyFor\(settlementPreview\)/i);
+  assert.match(route, /NOT EXISTS \(\s*SELECT 1 FROM mining_settlements/is);
+  assert.match(route, /settlementKey \?\? body\.idempotencyKey/i);
+  assert.match(referral, /PRIMARY KEY \(account_id, settled_block\)/i);
+  assert.match(referral, /settlementBlockFromKey\(settlementKey\)/i);
+  assert.match(referral, /referral-mining:\$\{referredAccountId\}:\$\{settlementKey\}/i);
 });

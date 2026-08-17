@@ -94,6 +94,20 @@ async function ensureSchema(db: D1Database) {
       CREATE INDEX IF NOT EXISTS ledger_entries_account_created_idx
       ON ledger_entries (account_id, created_at)
     `),
+    // One authoritative record per account and settled server block.  The
+    // game state version check already protects the balance, while this
+    // ledger makes the settlement boundary idempotent across GET refreshes,
+    // action POSTs and concurrent sessions.
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS mining_settlements (
+        account_id TEXT NOT NULL,
+        settled_block INTEGER NOT NULL,
+        settled_blocks INTEGER NOT NULL,
+        rewards_json TEXT DEFAULT '{}' NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, settled_block)
+      )
+    `),
     db.prepare(`
       CREATE TABLE IF NOT EXISTS game_sessions (
         id TEXT PRIMARY KEY NOT NULL,
@@ -205,6 +219,21 @@ function parseState(row: StoredRow): PublicGameState {
   }
   delete parsed.gamePoolAllocations;
   return parsed as PublicGameState;
+}
+
+function settlementKeyFor(settled: {
+  settledBlocks: number;
+  state: Pick<PublicGameState, "lastSettledBlock">;
+}) {
+  return settled.settledBlocks > 0
+    ? `blocks:${String(settled.state.lastSettledBlock)}`
+    : null;
+}
+
+function settlementBlockForKey(key: string | null) {
+  if (!key) return null;
+  const match = /^blocks:(\d+)$/.exec(key);
+  return match ? Number(match[1]) : null;
 }
 
 function secureRandomUnit() {
@@ -442,7 +471,22 @@ export async function GET() {
   let responseState = settled.state;
   let settledBlockCount = settled.settledBlocks;
   if (settled.settledBlocks > 0) {
-    const settlementKey = "blocks:" + String(settled.state.lastSettledBlock);
+    const settlementKey = settlementKeyFor(settled);
+    const settlementBlock = settlementBlockForKey(settlementKey);
+    if (!settlementKey || settlementBlock === null) {
+      return json(
+        responsePayload(
+          row,
+          parseState(row),
+          now,
+          "Liquidação aguardando validação do servidor.",
+          temporaryPowerGh,
+          temporaryPowerSummary,
+          network,
+        ),
+        409,
+      );
+    }
     const settlementMetadata = {
       settledBlocks: settled.settledBlocks,
       rewards: settled.rewards,
@@ -481,32 +525,59 @@ export async function GET() {
         settledBlockCount = 0;
       }
     } else {
-    const nextVersion = row.version + 1;
-    const updateResult = await context.db
-      .prepare(
-        `UPDATE game_states
-         SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-         WHERE account_id = ? AND version = ?`,
-      )
-      .bind(
-        JSON.stringify(settled.state),
-        nextVersion,
-        context.user.displayName,
-        now,
-        context.accountId,
-        row.version,
-      )
-      .run();
-
-    if ((updateResult.meta.changes ?? 0) === 1) {
-      await context.db
-        .prepare(
+      const nextVersion = row.version + 1;
+      // Keep the state transition, settlement boundary and audit row in one
+      // D1 batch. If any part fails, none of the writes is committed, so a
+      // retry cannot advance the cursor without recording the reward.
+      const settlementResults = await context.db.batch([
+        context.db.prepare(
+          `UPDATE game_states
+           SET state_json = ?, version = ?, display_name = ?, updated_at = ?
+           WHERE account_id = ? AND version = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM mining_settlements
+               WHERE account_id = ? AND settled_block = ?
+             )`,
+        ).bind(
+          JSON.stringify(settled.state),
+          nextVersion,
+          context.user.displayName,
+          now,
+          context.accountId,
+          row.version,
+          context.accountId,
+          settlementBlock,
+        ),
+        context.db.prepare(
+          `INSERT OR IGNORE INTO mining_settlements (
+            account_id, settled_block, settled_blocks, rewards_json, created_at
+          )
+          SELECT ?, ?, ?, ?, ?
+          WHERE EXISTS (
+            SELECT 1 FROM game_states
+            WHERE account_id = ? AND version = ? AND state_json = ?
+          )`,
+        ).bind(
+          context.accountId,
+          settlementBlock,
+          settled.settledBlocks,
+          JSON.stringify(settled.rewards),
+          now,
+          context.accountId,
+          nextVersion,
+          JSON.stringify(settled.state),
+        ),
+        context.db.prepare(
           `INSERT OR IGNORE INTO ledger_entries (
             id, account_id, action, idempotency_key, state_version,
             delta_cma_micros, metadata_json, created_at
-          ) VALUES (?, ?, 'block_settlement', ?, ?, ?, ?, ?)`,
-        )
-        .bind(
+          )
+          SELECT ?, ?, 'block_settlement', ?, ?, ?, ?, ?
+          WHERE EXISTS (
+            SELECT 1 FROM game_states
+            WHERE account_id = ? AND version = ? AND state_json = ?
+          )`,
+        ).bind(
           crypto.randomUUID(),
           context.accountId,
           settlementKey,
@@ -514,22 +585,31 @@ export async function GET() {
           settled.rewards.cma,
           JSON.stringify(settlementMetadata),
           now,
-        )
-        .run();
-      row = {
-        ...row,
-        state_json: JSON.stringify(settled.state),
-        version: nextVersion,
-        updated_at: now,
-      };
-    } else {
-      const latest = await readState(context.db, context.accountId);
-      if (latest) {
-        row = latest;
-        responseState = parseState(latest);
-        settledBlockCount = 0;
+          context.accountId,
+          nextVersion,
+          JSON.stringify(settled.state),
+        ),
+      ]);
+
+      if (
+        Number(settlementResults[0]?.meta.changes ?? 0) === 1 &&
+        Number(settlementResults[1]?.meta.changes ?? 0) === 1 &&
+        Number(settlementResults[2]?.meta.changes ?? 0) === 1
+      ) {
+        row = {
+          ...row,
+          state_json: JSON.stringify(settled.state),
+          version: nextVersion,
+          updated_at: now,
+        };
+      } else {
+        const latest = await readState(context.db, context.accountId);
+        if (latest) {
+          row = latest;
+          responseState = parseState(latest);
+          settledBlockCount = 0;
+        }
       }
-    }
     }
   }
 
@@ -609,6 +689,8 @@ export async function POST(request: Request) {
     network.playerPowerGh,
     network.blockRewardAtomic,
   );
+  const settlementKey = settlementKeyFor(settlementPreview);
+  const settlementBlock = settlementBlockForKey(settlementKey);
 
   if (body.action === "bootstrap") {
     return json(
@@ -732,21 +814,28 @@ export async function POST(request: Request) {
   }
 
   const primaryMetadata: Record<string, unknown> = { ...result.metadata };
-  if (
-    settlementPreview.settledBlocks > 0 &&
-    !Object.prototype.hasOwnProperty.call(primaryMetadata, "rewards")
-  ) {
-    Object.assign(primaryMetadata, {
-      settledBlocks: settlementPreview.settledBlocks,
-      rewards: settlementPreview.rewards,
-      blockRewardAtomic: network.blockRewardAtomic,
-      bonusBps: network.bonusBps,
-      networkPowerGh: network.playerPowerGh,
-    });
+  if (settlementPreview.settledBlocks > 0) {
+    if (!Object.prototype.hasOwnProperty.call(primaryMetadata, "rewards")) {
+      Object.assign(primaryMetadata, {
+        settledBlocks: settlementPreview.settledBlocks,
+        rewards: settlementPreview.rewards,
+        blockRewardAtomic: network.blockRewardAtomic,
+        bonusBps: network.bonusBps,
+        networkPowerGh: network.playerPowerGh,
+      });
+    }
+    primaryMetadata.settlementKey = settlementKey;
+    if (body.action === "sync") {
+      // The canonical block row below is the only mining activity entry. The
+      // sync row remains solely as the request idempotency marker.
+      primaryMetadata.settlementRecordedSeparately = true;
+    }
   }
   const primaryDeltaCmaMicros =
     body.action === "sync"
-      ? result.deltaCmaMicros
+      ? settlementPreview.settledBlocks > 0
+        ? 0
+        : result.deltaCmaMicros
       : result.deltaCmaMicros + settlementPreview.rewards.cma;
   const referralResult: ReferralSettlementResult =
     settlementPreview.settledBlocks > 0
@@ -756,12 +845,19 @@ export async function POST(request: Request) {
           row,
           result.state,
           settlementPreview.rewards,
-          body.idempotencyKey,
+          settlementKey ?? body.idempotencyKey,
           {
             action: body.action,
             idempotencyKey: body.idempotencyKey,
             deltaCmaMicros: primaryDeltaCmaMicros,
-            metadata: primaryMetadata,
+            // The referral transaction writes the primary action and the
+            // referral bonus together. Keep the sync row as the single
+            // visible mining event in that branch; the no-referral branch
+            // records a separate canonical block row below.
+            metadata:
+              body.action === "sync"
+                ? { ...primaryMetadata, settlementRecordedSeparately: false }
+                : primaryMetadata,
           },
           now,
         )
@@ -814,23 +910,86 @@ export async function POST(request: Request) {
   }
 
   const nextVersion = row.version + 1;
-  const updateResult = await context.db
-    .prepare(
-      `UPDATE game_states
-       SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-       WHERE account_id = ? AND version = ?`,
-    )
-    .bind(
-      JSON.stringify(result.state),
-      nextVersion,
-      context.user.displayName,
-      now,
-      context.accountId,
-      row.version,
-    )
-    .run();
-
-  if ((updateResult.meta.changes ?? 0) !== 1) {
+  const ledgerStatements: D1PreparedStatement[] = [];
+  let settlementStatementCount = 0;
+  if (settlementBlock !== null && settlementKey) {
+    settlementStatementCount = 1;
+    ledgerStatements.push(
+      context.db.prepare(
+        `INSERT OR IGNORE INTO mining_settlements (
+          account_id, settled_block, settled_blocks, rewards_json, created_at
+        )
+        SELECT ?, ?, ?, ?, ?
+        WHERE EXISTS (
+          SELECT 1 FROM game_states
+          WHERE account_id = ? AND version = ? AND state_json = ?
+        )`,
+      ).bind(
+        context.accountId,
+        settlementBlock,
+        settlementPreview.settledBlocks,
+        JSON.stringify(settlementPreview.rewards),
+        now,
+        context.accountId,
+        nextVersion,
+        JSON.stringify(result.state),
+      ),
+    );
+  }
+  ledgerStatements.push(
+    context.db
+      .prepare(
+        `INSERT INTO ledger_entries (
+          id, account_id, action, idempotency_key, state_version,
+          delta_cma_micros, metadata_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        context.accountId,
+        body.action,
+        body.idempotencyKey,
+        nextVersion,
+        primaryDeltaCmaMicros,
+        JSON.stringify(primaryMetadata),
+        now,
+      ),
+  );
+  const stateAndLedgerResults = await context.db.batch([
+    context.db
+      .prepare(
+        `UPDATE game_states
+         SET state_json = ?, version = ?, display_name = ?, updated_at = ?
+         WHERE account_id = ? AND version = ?
+           AND (
+             ? IS NULL OR NOT EXISTS (
+               SELECT 1 FROM mining_settlements
+               WHERE account_id = ? AND settled_block = ?
+             )
+           )`,
+      )
+      .bind(
+        JSON.stringify(result.state),
+        nextVersion,
+        context.user.displayName,
+        now,
+        context.accountId,
+        row.version,
+        settlementBlock,
+        context.accountId,
+        settlementBlock,
+      ),
+    ...ledgerStatements,
+  ]);
+  const stateWriteSucceeded =
+    Number(stateAndLedgerResults[0]?.meta.changes ?? 0) === 1;
+  const settlementWriteSucceeded =
+    settlementStatementCount === 0 ||
+    Number(stateAndLedgerResults[1]?.meta.changes ?? 0) === 1;
+  const actionLedgerIndex = settlementStatementCount + 1;
+  const actionLedgerSucceeded =
+    Number(stateAndLedgerResults[actionLedgerIndex]?.meta.changes ?? 0) === 1;
+  if (!stateWriteSucceeded || !settlementWriteSucceeded || !actionLedgerSucceeded) {
     const latest = (await readState(context.db, context.accountId)) ?? row;
     return json(
       {
@@ -848,25 +1007,6 @@ export async function POST(request: Request) {
       409,
     );
   }
-
-  await context.db
-    .prepare(
-      `INSERT INTO ledger_entries (
-        id, account_id, action, idempotency_key, state_version,
-        delta_cma_micros, metadata_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      crypto.randomUUID(),
-      context.accountId,
-      body.action,
-      body.idempotencyKey,
-      nextVersion,
-      primaryDeltaCmaMicros,
-      JSON.stringify(primaryMetadata),
-      now,
-    )
-    .run();
 
   const updatedRow: StoredRow = {
     ...row,

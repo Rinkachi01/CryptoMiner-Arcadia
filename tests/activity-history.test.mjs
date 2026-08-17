@@ -30,6 +30,18 @@ test("diferencia vitória e encerramento sem recompensa no Arcade", () => {
   assert.match(failed.description, /sem recompensa/);
 });
 
+test("sincronização não duplica no histórico o bloco já registrado", () => {
+  const sync = presentLedgerActivity("sync", {
+    settledBlocks: 1,
+    settlementRecordedSeparately: true,
+  });
+  assert.equal(sync.title, "Conta sincronizada");
+  assert.match(
+    presentLedgerActivity("block_settlement", { settledBlocks: 1 }).title,
+    /Bloco de mineração processado/,
+  );
+});
+
 test("histórico é pessoal, autenticado e lido de fontes autoritativas", async () => {
   const [route, panel, career] = await Promise.all([
     readFile(new URL("../app/api/activity/route.ts", import.meta.url), "utf8"),

@@ -77,6 +77,16 @@ export async function ensureReferralSchema(db: D1Database) {
       `CREATE INDEX IF NOT EXISTS ledger_entries_referral_in_idx
        ON ledger_entries (account_id, action, created_at)`,
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS mining_settlements (
+        account_id TEXT NOT NULL,
+        settled_block INTEGER NOT NULL,
+        settled_blocks INTEGER NOT NULL,
+        rewards_json TEXT DEFAULT '{}' NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (account_id, settled_block)
+      )`,
+    ),
   ]);
 }
 
@@ -207,6 +217,11 @@ function hasShare(share: MiningRewards) {
   return share.cma > 0 || share.btc > 0 || share.doge > 0 || share.ltc > 0;
 }
 
+function settlementBlockFromKey(settlementKey: string) {
+  const match = /^blocks:(\d+)$/.exec(settlementKey);
+  return match ? Number(match[1]) : null;
+}
+
 function addRewards(state: PublicGameState, rewards: MiningRewards, sign = 1) {
   return {
     ...state,
@@ -294,6 +309,13 @@ export async function settleReferralMiningShare(
   const share = referralShare(rewards);
   if (!hasShare(share)) return { applied: false, conflict: false };
 
+  const settlementBlock = settlementBlockFromKey(settlementKey);
+  if (settlementBlock === null) {
+    // Referral payouts must always be tied to the same canonical settlement
+    // boundary as the referred operator's block credit.
+    return { applied: false, conflict: false };
+  }
+
   const payoutKey = `referral-mining:${referredAccountId}:${settlementKey}`;
   const alreadyPaid = await db
     .prepare(
@@ -342,12 +364,28 @@ export async function settleReferralMiningShare(
     share,
     settlementKey,
   });
+  const settledBlocks = Math.max(
+    1,
+    Math.floor(
+      Number(
+        (primaryLedger.metadata as Record<string, unknown>).settledBlocks ?? 1,
+      ),
+    ),
+  );
 
   const results = await db.batch([
     db.prepare(
       `UPDATE game_states
        SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-       WHERE account_id = ? AND version = ?`,
+       WHERE account_id = ? AND version = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM mining_settlements
+           WHERE account_id = ? AND settled_block = ?
+         )
+         AND EXISTS (
+           SELECT 1 FROM game_states
+           WHERE account_id = ? AND version = ?
+         )`,
     ).bind(
       referredJson,
       referredNextVersion,
@@ -355,11 +393,19 @@ export async function settleReferralMiningShare(
       now,
       referredAccountId,
       referredRow.version,
+      referredAccountId,
+      settlementBlock,
+      referrerRow.account_id,
+      referrerRow.version,
     ),
     db.prepare(
       `UPDATE game_states
        SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-       WHERE account_id = ? AND version = ?`,
+       WHERE account_id = ? AND version = ?
+         AND EXISTS (
+           SELECT 1 FROM game_states
+           WHERE account_id = ? AND version = ? AND state_json = ?
+         )`,
     ).bind(
       referrerJson,
       referrerNextVersion,
@@ -367,9 +413,37 @@ export async function settleReferralMiningShare(
       now,
       referrerRow.account_id,
       referrerRow.version,
+      referredAccountId,
+      referredNextVersion,
+      referredJson,
     ),
     db.prepare(
-      `INSERT INTO ledger_entries (
+      `INSERT OR IGNORE INTO mining_settlements (
+        account_id, settled_block, settled_blocks, rewards_json, created_at
+      )
+      SELECT ?, ?, ?, ?, ?
+      WHERE EXISTS (
+        SELECT 1 FROM game_states
+        WHERE account_id = ? AND version = ? AND state_json = ?
+      ) AND EXISTS (
+        SELECT 1 FROM game_states
+        WHERE account_id = ? AND version = ? AND state_json = ?
+      )`,
+    ).bind(
+      referredAccountId,
+      settlementBlock,
+      settledBlocks,
+      JSON.stringify(rewards),
+      now,
+      referredAccountId,
+      referredNextVersion,
+      referredJson,
+      referrerRow.account_id,
+      referrerNextVersion,
+      referrerJson,
+    ),
+    db.prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
         id, account_id, action, idempotency_key, state_version,
         delta_cma_micros, metadata_json, created_at
       )
@@ -458,9 +532,10 @@ export async function settleReferralMiningShare(
     Number(results[0]?.meta.changes ?? 0) !== 1 ||
     Number(results[1]?.meta.changes ?? 0) !== 1 ||
     Number(results[2]?.meta.changes ?? 0) !== 1 ||
-    Number(results[3]?.meta.changes ?? 0) !== 1 ||
+    ![0, 1].includes(Number(results[3]?.meta.changes ?? 0)) ||
     Number(results[4]?.meta.changes ?? 0) !== 1 ||
-    Number(results[5]?.meta.changes ?? 0) !== 1
+    Number(results[5]?.meta.changes ?? 0) !== 1 ||
+    Number(results[6]?.meta.changes ?? 0) !== 1
   ) {
     return { applied: false, conflict: true, share };
   }
