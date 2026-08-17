@@ -173,10 +173,6 @@ export function OperatorProgressPanel({
         </p>
       </div>
 
-      <p className="operator-progress-note">
-        Temporada, liga e histórico completo ficam nas áreas próprias; este
-        resumo mantém apenas o essencial para acompanhar sua operação.
-      </p>
     </section>
   );
 }
