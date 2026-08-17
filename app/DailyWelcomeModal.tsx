@@ -140,7 +140,7 @@ export function DailyWelcomeModal({
               </small>
             </div>
             <a
-              href="https://discord.gg/Kj4c4PFe8"
+              href="https://discord.gg/XGW4JzrTP"
               target="_blank"
               rel="noopener noreferrer"
             >

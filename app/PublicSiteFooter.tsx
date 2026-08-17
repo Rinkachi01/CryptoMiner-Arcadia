@@ -53,7 +53,7 @@ export function PublicSiteFooter() {
             </a>
             <a
               className="public-footer-contact-link public-footer-discord"
-              href="https://discord.gg/Kj4c4PFe8"
+              href="https://discord.gg/XGW4JzrTP"
               target="_blank"
               rel="noopener noreferrer"
               title={t("footer.discord")}

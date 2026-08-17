@@ -73,7 +73,7 @@ export function PublicLanding({ signInPath, signUpPath }: PublicLandingProps) {
           <nav aria-label={t("landing.communityTitle")}>
             <a href="/faq">{t("landing.communityFaq")}</a>
             <a href="/support">{t("landing.communitySupport")}</a>
-            <a href="https://discord.gg/Kj4c4PFe8" target="_blank" rel="noopener noreferrer">
+            <a href="https://discord.gg/XGW4JzrTP" target="_blank" rel="noopener noreferrer">
               {t("landing.communityDiscord")}
             </a>
           </nav>
