@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [game, arcade, career, progress, admin, inbox, styles] = await Promise.all([
+const [game, arcade, career, progress, admin, inbox, styles, footer, route] = await Promise.all([
   readFile(new URL("../app/ArcadiaGame.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/PacketCatchView.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/CareerView.tsx", import.meta.url), "utf8"),
@@ -10,6 +10,8 @@ const [game, arcade, career, progress, admin, inbox, styles] = await Promise.all
   readFile(new URL("../app/AdminDashboard.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/OperatorInbox.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  readFile(new URL("../app/PublicSiteFooter.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/[view]/page.tsx", import.meta.url), "utf8"),
 ]);
 const firstDay = await readFile(
   new URL("../app/FirstDayPanel.tsx", import.meta.url),
@@ -41,6 +43,9 @@ test("Central do Operador mantém somente visão geral, indicações e históric
   assert.match(career, /Meu histórico/);
   assert.match(career, /ActivityPanel/);
   assert.match(career, /Indicações/);
+  assert.match(footer, /href="\/operador\?tab=referrals"/);
+  assert.match(route, /initialCareerTab/);
+  assert.match(route, /tab === "referrals"/);
   assert.doesNotMatch(career, /label: "Temporada"/);
   assert.doesNotMatch(career, /missions-tab-layout/);
   assert.match(progress, /show-\$\{section\}/);

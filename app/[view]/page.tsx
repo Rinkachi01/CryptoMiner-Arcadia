@@ -33,15 +33,27 @@ const routeAliases: Record<string, ViewId> = {
 
 export default async function ViewRoute({
   params,
+  searchParams,
 }: {
   params: Promise<{ view: string }>;
+  searchParams?: Promise<{ tab?: string | string[] }>;
 }) {
   const { view } = await params;
+  const rawTab = (await searchParams)?.tab;
+  const tab = Array.isArray(rawTab) ? rawTab[0] : rawTab;
+  const initialCareerTab =
+    tab === "referrals" || tab === "activity" || tab === "overview"
+      ? tab
+      : "overview";
   const initialView = routeAliases[view];
   if (!initialView) notFound();
 
   const user = await getArcadiaUser();
-  if (!user) redirect(arcadiaSignInPath(`/${view}`));
+  const returnPath =
+    initialView === "career" && tab
+      ? `/${view}?tab=${encodeURIComponent(initialCareerTab)}`
+      : `/${view}`;
+  if (!user) redirect(arcadiaSignInPath(returnPath));
 
   const accountId = await accountIdForUser(user);
   const isOwner = isConfiguredAdminOwner(
@@ -62,7 +74,10 @@ export default async function ViewRoute({
   if (initialView === "career") {
     return (
       <div className="app-route-shell">
-        <OperatorRouteClient {...sharedProps} />
+        <OperatorRouteClient
+          {...sharedProps}
+          initialCareerTab={initialCareerTab}
+        />
         <PublicSiteFooter />
       </div>
     );

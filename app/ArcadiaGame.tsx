@@ -102,6 +102,7 @@ type ArcadiaGameProps = {
   signOutPath: string;
   unreadSupportReplies: number;
   initialView?: ViewId;
+  initialCareerTab?: "overview" | "referrals" | "activity";
 };
 
 type GameApiResponse = {
@@ -308,6 +309,7 @@ export function ArcadiaGame({
   signOutPath,
   unreadSupportReplies,
   initialView = "mine",
+  initialCareerTab = "overview",
 }: ArcadiaGameProps) {
   const { t, locale } = useArcadiaLanguage();
   const english = locale === "en";
@@ -317,7 +319,9 @@ export function ArcadiaGame({
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
     useState<ShopCategory>("miners");
-  const [careerStartTab, setCareerStartTab] = useState<"overview">("overview");
+  const [careerStartTab, setCareerStartTab] = useState<
+    "overview" | "referrals" | "activity"
+  >(initialCareerTab);
   const [selectedPoolId, setSelectedPoolId] = useState<PoolId>("cma");
   const [poolAllocations, setPoolAllocations] = useState<PoolAllocations>(
     defaultPoolAllocations,

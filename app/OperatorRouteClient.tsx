@@ -20,6 +20,7 @@ type OperatorRouteClientProps = {
   isOwner: boolean;
   signOutPath: string;
   unreadSupportReplies: number;
+  initialCareerTab?: "overview" | "referrals" | "activity";
 };
 
 /**
@@ -36,6 +37,7 @@ export function OperatorRouteClient({
   isOwner,
   signOutPath,
   unreadSupportReplies,
+  initialCareerTab,
 }: OperatorRouteClientProps) {
   const hydrated = useSyncExternalStore(
     noHydrationSubscription,
@@ -66,6 +68,7 @@ export function OperatorRouteClient({
           isOwner={isOwner}
           signOutPath={signOutPath}
           unreadSupportReplies={unreadSupportReplies}
+          initialCareerTab={initialCareerTab}
         />
       </Suspense>
     </GameErrorBoundary>

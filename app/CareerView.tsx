@@ -33,7 +33,7 @@ const tabs: Array<{
 export function CareerView({
   initialTab = "overview",
 }: {
-  initialTab?: "overview";
+  initialTab?: CareerTab;
 }) {
   const { locale } = useArcadiaLanguage();
   const english = locale === "en";
