@@ -571,7 +571,6 @@ function formatBrl(value: number) {
 
 const resolvedCryptoDepositStatuses = new Set([
   "credited",
-  "finished",
   "provider_failed",
   "expired",
 ]);
@@ -595,7 +594,7 @@ function formatCryptoDepositStatus(status: string) {
     case "credited":
       return "CREDITADO";
     case "finished":
-      return "CONCLUÍDO";
+      return "AGUARDANDO CRÉDITO";
     case "review_required":
       return "REVISÃO NECESSÁRIA";
     case "pending_account":

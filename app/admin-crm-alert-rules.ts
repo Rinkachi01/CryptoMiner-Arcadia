@@ -104,7 +104,7 @@ function treasuryTitle(kind: CrmTreasuryEvent["kind"], status: string) {
     if (status === "rejected") return { severity: "attention" as const, title: "Saque recusado" };
     return { severity: "attention" as const, title: "Novo saque solicitado" };
   }
-  if (status === "credited" || status === "finished") {
+  if (status === "credited") {
     return { severity: "success" as const, title: "Depósito confirmado" };
   }
   if (
@@ -127,6 +127,7 @@ function treasuryTitle(kind: CrmTreasuryEvent["kind"], status: string) {
       "pending_account",
       "partially_paid",
       "waiting_transfer",
+      "finished",
     ].includes(status)
   ) {
     return { severity: "attention" as const, title: "Depósito pendente" };

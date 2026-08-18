@@ -48,15 +48,17 @@ test("CRM mantém depósitos sem confirmação fora do estado recebido", () => {
     treasuryEvents: [
       { createdAt: now - 4_000, displayName: "Lia", id: "waiting-1", kind: "deposit", status: "waiting" },
       { createdAt: now - 3_000, displayName: "Lia", id: "confirming-1", kind: "deposit", status: "confirming" },
-      { createdAt: now - 2_000, displayName: "Lia", id: "credited-1", kind: "deposit", status: "credited" },
+      { createdAt: now - 2_000, displayName: "Lia", id: "finished-1", kind: "deposit", status: "finished" },
+      { createdAt: now - 1_000, displayName: "Lia", id: "credited-1", kind: "deposit", status: "credited" },
     ],
   });
   assert.deepEqual(
     alerts.map((alert) => alert.title),
-    ["Depósito pendente", "Depósito pendente", "Depósito confirmado"],
+    ["Depósito pendente", "Depósito pendente", "Depósito pendente", "Depósito confirmado"],
   );
   assert.equal(alerts[0].severity, "attention");
-  assert.equal(alerts[2].severity, "success");
+  assert.equal(alerts[2].severity, "attention");
+  assert.equal(alerts[3].severity, "success");
 });
 
 test("CRM diferencia chamado novo, em análise e resolvido", () => {
