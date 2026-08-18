@@ -221,6 +221,15 @@ export function presentLedgerActivity(
       description: `${cmaPercent}% em CMA e ${cryptoPercent}% em BTC, DOGE e LTC da mineração validada de um indicado entraram no saldo.`,
     };
   }
+  if (action === "referral_validated") {
+    const hours = Math.max(0, numberValue(metadata.eligibilityHours, 24));
+    const games = Math.max(0, Math.floor(numberValue(metadata.minimumCompletedGames, 3)));
+    return {
+      category: "mining",
+      title: "Indicação validada",
+      description: `Um operador indicado passou pela validação (${hours}h e ${games} partidas). Os bônus por bloco já podem ser registrados no seu histórico.`,
+    };
+  }
   if (action === "open_supply_crate") {
     const supplyCrate = objectValue(metadata.supplyCrate);
     const reward = objectValue(supplyCrate.reward);

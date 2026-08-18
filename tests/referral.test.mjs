@@ -35,7 +35,18 @@ test("proposta de bônus é calculada por bloco e preserva o indicado", async ()
   assert.match(server, /const nextReferredState = referredState/);
   assert.match(server, /payoutMode: "per_validated_block"/);
   assert.match(server, /hasPayoutCap: false/);
-  assert.match(panel, /sem recompensa acumulada/i);
+  assert.doesNotMatch(panel, /sem recompensa acumulada/i);
+  assert.match(panel, /faq#referrals/);
   assert.match(panel, /cmaRewardPercent/);
   assert.match(panel, /cryptoRewardPercent/);
+});
+
+test("validação da indicação gera um registro próprio no histórico", async () => {
+  const [server, rules] = await Promise.all([
+    readFile(new URL("../app/referral-server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/activity-rules.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /'referral_validated'/);
+  assert.match(server, /referral-validated:/);
+  assert.match(rules, /Indicação validada/);
 });

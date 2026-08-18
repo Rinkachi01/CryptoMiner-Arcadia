@@ -71,9 +71,11 @@ export function ReferralPanel() {
         <article><strong>{data.proposal.cmaRewardPercent}%</strong><span>{english ? "of each CMA block" : "de cada bloco CMA"}</span></article>
         <article><strong>{data.proposal.cryptoRewardPercent}%</strong><span>{english ? "of each BTC, DOGE or LTC block" : "de cada bloco BTC, DOGE ou LTC"}</span></article>
         <article><strong>{english ? "PER BLOCK" : "POR BLOCO"}</strong><span>{english ? "paid as blocks are validated" : "pago conforme os blocos são validados"}</span></article>
-        <article><strong>{data.proposal.hasPayoutCap ? "CAP" : english ? "NO CAP" : "SEM TETO"}</strong><span>{english ? "no accumulated balance" : "sem recompensa acumulada"}</span></article>
       </div>
-      <p className="referral-note">{english ? `After ${data.proposal.eligibilityHours} hours and ${data.proposal.minimumCompletedGames} completed games, the bonus is credited block by block. The invited operator keeps the full block reward; no balance is accumulated and the program does not change the fixed reward per block.` : `Após ${data.proposal.eligibilityHours} horas e ${data.proposal.minimumCompletedGames} partidas concluídas, o bônus é creditado bloco a bloco. O operador indicado mantém a recompensa integral do bloco; não há saldo acumulado e o programa não altera a recompensa fixa por bloco.`}</p>
+      <p className="referral-help">
+        {english ? "Your validated referral bonuses and activations appear in My history." : "Os bônus e as ativações validadas aparecem em Meu histórico."}{" "}
+        <a href="/faq#referrals">{english ? "Learn how referrals work." : "Saiba como funcionam as indicações."}</a>
+      </p>
       {message && <p className="conversion-success" role="status">{message}</p>}
     </section>
   );

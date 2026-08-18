@@ -161,7 +161,7 @@ export default function FaqPage() {
 
       <div className="faq-section-grid">
         {copy.sections.map((section) => (
-          <section className="faq-section-card" key={section.label}>
+          <section className="faq-section-card" id={section.label === "ECONOMIA" || section.label === "ECONOMY" ? "referrals" : undefined} key={section.label}>
             <header>
               <span>{section.label}</span>
               <h2>{section.title}</h2>

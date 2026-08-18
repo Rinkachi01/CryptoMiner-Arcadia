@@ -274,7 +274,7 @@ export async function settleReferralMiningShare(
   await ensureReferralSchema(db);
   const attribution = await db
     .prepare(
-      `SELECT referrer_account_id
+      `SELECT referrer_account_id, referral_code
        FROM referral_attributions
        WHERE referred_account_id = ?
          AND status IN ('tracked', 'validated')
@@ -282,7 +282,7 @@ export async function settleReferralMiningShare(
        LIMIT 1`,
     )
     .bind(referredAccountId, now)
-    .first<{ referrer_account_id: string }>();
+    .first<{ referrer_account_id: string; referral_code: string }>();
   if (!attribution || attribution.referrer_account_id === referredAccountId) {
     return { applied: false, conflict: false };
   }
@@ -526,6 +526,33 @@ export async function settleReferralMiningShare(
        SET status = 'validated', validated_at = COALESCE(validated_at, ?), expires_at = 0
        WHERE referred_account_id = ? AND referrer_account_id = ?`,
     ).bind(now, referredAccountId, referrerRow.account_id),
+    db.prepare(
+      `INSERT OR IGNORE INTO ledger_entries (
+        id, account_id, action, idempotency_key, state_version,
+        delta_cma_micros, metadata_json, created_at
+      )
+      SELECT ?, ?, 'referral_validated', ?, ?, 0, ?, ?
+      WHERE EXISTS (
+        SELECT 1 FROM game_states
+        WHERE account_id = ? AND version = ? AND state_json = ?
+      )`,
+    ).bind(
+      crypto.randomUUID(),
+      referrerRow.account_id,
+      `referral-validated:${referredAccountId}`,
+      referrerNextVersion,
+      JSON.stringify({
+        referredAccountId,
+        referralCode: attribution.referral_code,
+        eligibilityHours: REFERRAL_MIN_ACCOUNT_AGE_MS / (60 * 60 * 1000),
+        minimumCompletedGames: REFERRAL_MIN_COMPLETED_GAMES,
+        validatedAt: now,
+      }),
+      now,
+      referrerRow.account_id,
+      referrerNextVersion,
+      referrerJson,
+    ),
   ]);
 
   if (
@@ -535,7 +562,8 @@ export async function settleReferralMiningShare(
     ![0, 1].includes(Number(results[3]?.meta.changes ?? 0)) ||
     Number(results[4]?.meta.changes ?? 0) !== 1 ||
     Number(results[5]?.meta.changes ?? 0) !== 1 ||
-    Number(results[6]?.meta.changes ?? 0) !== 1
+    Number(results[6]?.meta.changes ?? 0) !== 1 ||
+    ![0, 1].includes(Number(results[7]?.meta.changes ?? 0))
   ) {
     return { applied: false, conflict: true, share };
   }
