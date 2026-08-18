@@ -100,13 +100,10 @@ function feedbackTitle(status: string) {
 function treasuryTitle(kind: CrmTreasuryEvent["kind"], status: string) {
   if (kind === "withdrawal") {
     if (status === "reviewing") return { severity: "attention" as const, title: "Saque em análise" };
-    if (status === "paid") return { severity: "success" as const, title: "Saque pago" };
-    if (status === "rejected") return { severity: "attention" as const, title: "Saque recusado" };
+    if (status === "paid" || status === "rejected") return null;
     return { severity: "attention" as const, title: "Novo saque solicitado" };
   }
-  if (status === "credited") {
-    return { severity: "success" as const, title: "Depósito confirmado" };
-  }
+  if (status === "credited" || status === "expired") return null;
   if (
     status === "review_required" ||
     status.includes("failed") ||
@@ -141,6 +138,14 @@ function securityTitle(category: string) {
   return "Revisão antifraude necessária";
 }
 
+function isActiveSupportStatus(status: string) {
+  return status === "open" || status === "reviewing";
+}
+
+function isActiveFeedbackStatus(status: string) {
+  return status === "new" || status === "reviewing";
+}
+
 /**
  * Builds the small, founder-only activity feed shown in the CRM cockpit.
  * The window is intentionally short so old operational details do not become
@@ -160,6 +165,7 @@ export function buildAdminCrmAlerts(input: {
 
   for (const event of input.supportEvents ?? []) {
     if (event.createdAt < since || event.createdAt > input.now) continue;
+    if (!isActiveSupportStatus(event.status)) continue;
     const status = supportTitle(event.status);
     const subject = textValue(event.subject) || "Atendimento sem assunto";
     alerts.push({
@@ -175,6 +181,7 @@ export function buildAdminCrmAlerts(input: {
 
   for (const event of input.feedbackEvents ?? []) {
     if (event.createdAt < since || event.createdAt > input.now) continue;
+    if (!isActiveFeedbackStatus(event.status)) continue;
     const status = feedbackTitle(event.status);
     const source = textValue(event.displayName) || "Operador";
     const category = textValue(event.category);
@@ -192,6 +199,7 @@ export function buildAdminCrmAlerts(input: {
   for (const event of input.treasuryEvents ?? []) {
     if (event.createdAt < since || event.createdAt > input.now) continue;
     const status = treasuryTitle(event.kind, event.status);
+    if (!status) continue;
     const owner = textValue(event.displayName) || "Operador";
     const details = [owner, textValue(event.asset), textValue(event.amount)].filter(Boolean).join(" · ");
     alerts.push({
@@ -226,6 +234,7 @@ export function buildAdminCrmAlerts(input: {
     const publicId = textValue(metadata.publicId);
     const statusValue = textValue(metadata.status);
     if (!publicId || !statusValue) continue;
+    if (!isActiveSupportStatus(statusValue)) continue;
     const status = supportTitle(statusValue);
     alerts.push({
       category: "support",

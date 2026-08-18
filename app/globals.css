@@ -25611,6 +25611,61 @@ body {
     rgba(8, 20, 29, 0.88);
 }
 
+.admin-queue-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-color: rgba(255, 190, 77, 0.38);
+  background:
+    linear-gradient(110deg, rgba(255, 190, 77, 0.08), transparent 58%),
+    rgba(8, 20, 29, 0.84);
+}
+
+.admin-queue-summary > div {
+  min-width: 0;
+}
+
+.admin-queue-summary span {
+  color: #ffcf7c;
+  font: 750 0.68rem/1.2 var(--font-ui);
+  letter-spacing: 0.14em;
+}
+
+.admin-queue-summary h2 {
+  margin: 7px 0 4px;
+  color: #f2fbff;
+  font: 850 clamp(1rem, 2vw, 1.35rem)/1.1 var(--font-ui);
+}
+
+.admin-queue-summary p {
+  max-width: 720px;
+  margin: 0;
+  color: #9db5c1;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.admin-queue-summary button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 190, 77, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 190, 77, 0.12);
+  color: #ffcf7c;
+  font: 800 0.68rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.admin-queue-summary button:hover,
+.admin-queue-summary button:focus-visible {
+  border-color: #a9ff3f;
+  color: #a9ff3f;
+  outline: none;
+}
+
 .admin-crm-alert-list {
   display: grid;
   gap: 8px;
@@ -26094,6 +26149,15 @@ body {
 
   .admin-crm-alert time {
     display: none;
+  }
+
+  .admin-queue-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-queue-summary button {
+    width: 100%;
   }
 }
 

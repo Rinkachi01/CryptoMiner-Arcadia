@@ -54,11 +54,10 @@ test("CRM mantém depósitos sem confirmação fora do estado recebido", () => {
   });
   assert.deepEqual(
     alerts.map((alert) => alert.title),
-    ["Depósito pendente", "Depósito pendente", "Depósito pendente", "Depósito confirmado"],
+    ["Depósito pendente", "Depósito pendente", "Depósito pendente"],
   );
   assert.equal(alerts[0].severity, "attention");
   assert.equal(alerts[2].severity, "attention");
-  assert.equal(alerts[3].severity, "success");
 });
 
 test("CRM diferencia chamado novo, em análise e resolvido", () => {
@@ -75,10 +74,25 @@ test("CRM diferencia chamado novo, em análise e resolvido", () => {
     [
       "Chamado de suporte em análise",
       "Novo chamado de suporte",
-      "Chamado de suporte resolvido",
     ],
   );
   assert.ok(alerts.every((alert) => alert.category === "support"));
+});
+
+test("CRM remove itens resolvidos e expirados da fila operacional", () => {
+  const alerts = buildAdminCrmAlerts({
+    now,
+    feedbackEvents: [
+      { createdAt: now - 4_000, id: "fb-resolved", status: "resolved" },
+      { createdAt: now - 3_000, id: "fb-planned", status: "planned" },
+    ],
+    treasuryEvents: [
+      { createdAt: now - 2_000, id: "dep-credited", kind: "deposit", status: "credited" },
+      { createdAt: now - 1_000, id: "dep-expired", kind: "deposit", status: "expired" },
+      { createdAt: now - 500, id: "withdrawal-paid", kind: "withdrawal", status: "paid" },
+    ],
+  });
+  assert.equal(alerts.length, 0);
 });
 
 test("CRM ignora eventos antigos e limita o feed", () => {

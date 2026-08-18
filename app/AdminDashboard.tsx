@@ -357,6 +357,7 @@ type AdminUserSearchResult = {
 };
 type AdminSection =
   | "overview"
+  | "queue"
   | "treasury"
   | "season"
   | "support"
@@ -370,6 +371,7 @@ const adminSections: Array<{
   description: string;
 }> = [
   { id: "overview", label: "Cockpit", description: "Visão geral e Alertas" },
+  { id: "queue", label: "Pendências", description: "Fila para resolver" },
   { id: "treasury", label: "Tesouraria", description: "Fluxo de caixa" },
   { id: "season", label: "Temporada", description: "Passe, XP e resultados" },
   { id: "support", label: "Suporte (CRM)", description: "Atendimento aos jogadores" },
@@ -1249,6 +1251,23 @@ export function AdminDashboard({
         </aside>
       </section>
 
+      <section className="admin-panel admin-queue-summary" hidden={adminSection !== "overview"}>
+        <div>
+          <span>FILA OPERACIONAL</span>
+          <h2>
+            {overview.crmAlerts.length === 0
+              ? "Tudo em dia"
+              : `${overview.crmAlerts.length} pendência(s) para resolver`}
+          </h2>
+          <p>
+            Suporte, tesouraria e sinais antifraude que ainda exigem uma decisão ficam reunidos em um único lugar.
+          </p>
+        </div>
+        <button type="button" onClick={() => setAdminSection("queue")}>
+          ABRIR PENDÊNCIAS
+        </button>
+      </section>
+
       {(message || error) && (
         <div className={`admin-feedback ${error ? "error" : "success"}`}>
           <span>{error ? "!" : "✓"}</span>
@@ -1278,22 +1297,22 @@ export function AdminDashboard({
         </button>
       )}
 
-      <section className="admin-panel admin-crm-alerts-panel" hidden={adminSection !== "overview"}>
+      <section className="admin-panel admin-crm-alerts-panel" hidden={adminSection !== "queue"}>
         <div className="admin-panel-heading">
           <div>
-            <span>ATIVIDADE DO CRM</span>
-            <h2>Fila operacional</h2>
+            <span>ATIVIDADE DO CRM · AÇÃO NECESSÁRIA</span>
+            <h2>Pendências para resolver</h2>
           </div>
           <small>
             {overview.crmAlerts.length === 0
               ? "SEM PENDÊNCIAS"
-              : `${overview.crmAlerts.length} ALERTA(S) NAS ÚLTIMAS 24H`}
+              : `${overview.crmAlerts.length} ITEM(NS) ABERTO(S)`}
           </small>
         </div>
         {overview.crmAlerts.length === 0 ? (
           <div className="admin-crm-alert-empty">
             <span>✓</span>
-            <p>Novos suportes, feedbacks, depósitos, saques e sinais antifraude aparecerão aqui.</p>
+            <p>Novos suportes, revisões financeiras e sinais antifraude aparecerão aqui até serem resolvidos.</p>
           </div>
         ) : (
           <div className="admin-crm-alert-list" aria-live="polite">
