@@ -1395,7 +1395,7 @@ export function AdminDashboard({
           <button type="button" onClick={() => setAdminSection("operations")}>
             <span>OPERAÇÕES</span>
             <strong>{overview.operations.status === "stable" ? "SAUDÁVEL" : "ATENÇÃO"}</strong>
-            <small>{activeAlertCount} alerta(s) econômico(s)</small>
+            <small>{overview.metrics.openReviews} revisão(ões) antifraude</small>
           </button>
         </div>
       </section>
@@ -3897,51 +3897,10 @@ export function AdminDashboard({
               )}
             </div>
 
-            <section className="admin-release-readiness">
-              <header>
-                <span>PRÓXIMAS FASES ACELERADAS</span>
-                <h3>Prontidão operacional</h3>
-              </header>
-              <div>
-                <article className={overview.operations.status === "stable" ? "ready" : "waiting"}>
-                  <b>{overview.operations.status === "stable" ? "✓" : "1"}</b>
-                  <div>
-                    <strong>Integridade operacional</strong>
-                    <span>Central sem sinais críticos e checkpoint recente.</span>
-                  </div>
-                </article>
-                <article className={overview.recovery.status === "stable" ? "ready" : "waiting"}>
-                  <b>{overview.recovery.status === "stable" ? "✓" : "2"}</b>
-                  <div>
-                    <strong>Recuperação comprovada</strong>
-                    <span>Cópia externa recente e ensaio aprovado.</span>
-                  </div>
-                </article>
-                <article className={overview.seasonReport?.readyForEconomyReview ? "ready" : "waiting"}>
-                  <b>{overview.seasonReport?.readyForEconomyReview ? "✓" : "3"}</b>
-                  <div>
-                    <strong>Temporada econômica</strong>
-                    <span>Os cinco portões precisam encerrar verdes.</span>
-                  </div>
-                </article>
-                <article className="external">
-                  <b>4</b>
-                  <div>
-                    <strong>Autenticação pública</strong>
-                    <span>Depende da escolha do provedor e da hospedagem final.</span>
-                  </div>
-                </article>
-                <article className="external">
-                  <b>5</b>
-                  <div>
-                    <strong>Validação com jogadores reais</strong>
-                    <span>Leitura, toque e onboarding precisam de validação externa.</span>
-                  </div>
-                </article>
-              </div>
-            </section>
           </section>
 
+          {false && (
+            <>
           <section className="admin-panel admin-alerts-panel">
             <div className="admin-panel-heading">
               <div>
@@ -4202,6 +4161,8 @@ export function AdminDashboard({
               })}
             </div>
           </section>
+          </>
+          )}
 
           <section className="admin-panel">
             <div className="admin-panel-heading">
