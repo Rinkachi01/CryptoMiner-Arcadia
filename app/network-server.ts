@@ -287,29 +287,12 @@ export async function ensureNetworkSchema(db: D1Database) {
       `CREATE INDEX IF NOT EXISTS account_network_power_energy_expiry_idx
        ON account_network_power (energy_expires_at)`,
     ),
-    db.prepare(
-      `INSERT OR IGNORE INTO network_runtime_settings (
-        singleton_id, base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
-        reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
-        reward_ltc_atomic,
-        reward_bonus_bps, reward_bonus_starts_at, reward_bonus_ends_at,
-        reward_bonus_schedule_json, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 10000, 0, 0, '{}', 0)`,
-    )
-    .bind(
-      DEFAULT_NETWORK_BASE_POWER.cma,
-      DEFAULT_NETWORK_BASE_POWER.btc,
-      DEFAULT_NETWORK_BASE_POWER.doge,
-      DEFAULT_NETWORK_BASE_POWER.ltc,
-      DEFAULT_BLOCK_REWARDS.cma,
-      DEFAULT_BLOCK_REWARDS.btc,
-      DEFAULT_BLOCK_REWARDS.doge,
-      DEFAULT_BLOCK_REWARDS.ltc,
-    ),
   ]);
 
   // Upgrade databases created before scheduled bonuses without requiring a
-  // manual production migration.
+  // manual production migration. These ALTERs must run before the seed INSERT:
+  // older D1 databases do not have the new columns, and a batch containing the
+  // INSERT would fail before these compatibility upgrades could run.
   try {
     await db
       .prepare(
@@ -331,6 +314,28 @@ export async function ensureNetworkSchema(db: D1Database) {
   } catch {
     // The column already exists.
   }
+
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO network_runtime_settings (
+        singleton_id, base_cma_gh, base_btc_gh, base_doge_gh, base_ltc_gh,
+        reward_cma_atomic, reward_btc_atomic, reward_doge_atomic,
+        reward_ltc_atomic,
+        reward_bonus_bps, reward_bonus_starts_at, reward_bonus_ends_at,
+        reward_bonus_schedule_json, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, 10000, 0, 0, '{}', 0)`,
+    )
+    .bind(
+      DEFAULT_NETWORK_BASE_POWER.cma,
+      DEFAULT_NETWORK_BASE_POWER.btc,
+      DEFAULT_NETWORK_BASE_POWER.doge,
+      DEFAULT_NETWORK_BASE_POWER.ltc,
+      DEFAULT_BLOCK_REWARDS.cma,
+      DEFAULT_BLOCK_REWARDS.btc,
+      DEFAULT_BLOCK_REWARDS.doge,
+      DEFAULT_BLOCK_REWARDS.ltc,
+    )
+    .run();
 
 }
 
