@@ -95,6 +95,29 @@ test("CRM remove itens resolvidos e expirados da fila operacional", () => {
   assert.equal(alerts.length, 0);
 });
 
+test("CRM mantém telemetria de limite fora da fila acionável", () => {
+  const alerts = buildAdminCrmAlerts({
+    now,
+    securityEvents: [
+      {
+        createdAt: now - 2_000,
+        category: "rate_limit",
+        displayName: "Makan",
+        id: "security-rate-1",
+        reason: "Limite global do Arcade alcançado.",
+      },
+      {
+        createdAt: now - 1_000,
+        category: "turnstile_failure",
+        displayName: "Conta 7",
+        id: "security-human-1",
+        reason: "Validação expirada.",
+      },
+    ],
+  });
+  assert.deepEqual(alerts.map((alert) => alert.title), ["Falha de verificação humana"]);
+});
+
 test("CRM ignora eventos antigos e limita o feed", () => {
   const alerts = buildAdminCrmAlerts({
     limit: 2,

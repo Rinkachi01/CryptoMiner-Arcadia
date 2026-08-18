@@ -138,6 +138,13 @@ function securityTitle(category: string) {
   return "Revisão antifraude necessária";
 }
 
+function shouldAppearInCrm(category: string) {
+  const normalized = category.toLowerCase();
+  // Rate-limit telemetry is a platform safety metric, not a player/account
+  // case. Keep it in the security view and out of the actionable CRM queue.
+  return !normalized.includes("rate") && !normalized.includes("limit");
+}
+
 function isActiveSupportStatus(status: string) {
   return status === "open" || status === "reviewing";
 }
@@ -215,6 +222,7 @@ export function buildAdminCrmAlerts(input: {
 
   for (const event of input.securityEvents ?? []) {
     if (event.createdAt < since || event.createdAt > input.now) continue;
+    if (!shouldAppearInCrm(event.category)) continue;
     const owner = textValue(event.displayName) || "Conta não identificada";
     alerts.push({
       category: "operations",
