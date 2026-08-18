@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { spanishRuntime } from "./spanish-runtime";
+import { englishArcadeRuntime, spanishArcadeRuntime } from "./arcade-runtime";
 
 export type ArcadiaLocale = "pt-BR" | "en" | "es";
 type Localized = [string, string];
@@ -317,13 +318,48 @@ function applyLocale(next: ArcadiaLocale) {
 function spanishText(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  const secure = trimmed.match(/^TRANSMISSÃO SEGURA · (.+)$/);
+  if (secure) return `TRANSMISIÓN SEGURA · ${secure[1]}`;
+  const recharge = trimmed.match(/^RECARGA (.+)$/);
+  if (recharge) return `RECARGA ${recharge[1]}`;
+  const wait = trimmed.match(/^Aguarde (.+) para iniciar outra rodada\. A recarga evita geração ilimitada de poder\.$/);
+  if (wait) return `Espera ${wait[1]} para iniciar otra ronda. La recarga evita la generación ilimitada de poder.`;
+  if (trimmed === "Você usou as partidas disponíveis nesta janela de 24 horas. O acesso volta automaticamente quando a janela renovar.") return "Usaste las partidas disponibles en esta ventana de 24 horas. El acceso volverá automáticamente cuando se renueve la ventana.";
+  if (trimmed === "A proteção do Arcade pausou novas partidas nesta hora. Seu progresso já está salvo; tente novamente quando a janela renovar.") return "La protección del Arcade pausó nuevas partidas durante esta hora. Tu progreso ya está guardado; inténtalo de nuevo cuando se renueve la ventana.";
+  if (trimmed === "O servidor está criando uma sessão única e protegida.") return "El servidor está creando una sesión única y protegida.";
+  if (trimmed === "Sessão disponível. O resultado e o poder temporário serão conferidos pelo servidor.") return "Sesión disponible. El resultado y el poder temporal serán comprobados por el servidor.";
+  if (trimmed === "LIMITE DIÁRIO ATINGIDO") return "LÍMITE DIARIO ALCANZADO";
+  if (trimmed === "LIMITE DA HORA ATINGIDO") return "LÍMITE HORARIO ALCANZADO";
+  const history = trimmed.match(/^ÚLTIMOS (\d+) DIAS · CONTA PESSOAL$/);
+  if (history) return `ÚLTIMOS ${history[1]} DÍAS · CUENTA PERSONAL`;
   const dynamic = trimmed.match(/^(\d+)% REMAINING$/);
   if (dynamic) return `${dynamic[1]}% RESTANTE`;
   const over = trimmed.match(/^(\d+)% OVER$/);
   if (over) return `${over[1]}% SUPERIOR`;
   const cells = trimmed.match(/^(\d+) of 8 cells charged$/);
   if (cells) return `${cells[1]} de 8 celdas cargadas`;
-  const translated = spanishRuntime[trimmed];
+  const translated = spanishRuntime[trimmed] ?? spanishArcadeRuntime[trimmed];
+  return translated && translated !== trimmed ? translated : null;
+}
+
+function englishText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const secure = trimmed.match(/^TRANSMISSÃO SEGURA · (.+)$/);
+  if (secure) return `SECURE TRANSMISSION · ${secure[1]}`;
+  const recharge = trimmed.match(/^RECARGA (.+)$/);
+  if (recharge) return `RECHARGE ${recharge[1]}`;
+  const wait = trimmed.match(/^Aguarde (.+) para iniciar outra rodada\. A recarga evita geração ilimitada de poder\.$/);
+  if (wait) return `Wait ${wait[1]} before starting another round. Recharge prevents unlimited power generation.`;
+  if (trimmed === "Você usou as partidas disponíveis nesta janela de 24 horas. O acesso volta automaticamente quando a janela renovar.") return "You used all games available in this 24-hour window. Access returns automatically when the window renews.";
+  if (trimmed === "A proteção do Arcade pausou novas partidas nesta hora. Seu progresso já está salvo; tente novamente quando a janela renovar.") return "Arcade protection paused new games this hour. Your progress is saved; try again when the window renews.";
+  if (trimmed === "O servidor está criando uma sessão única e protegida.") return "The server is creating a unique protected session.";
+  if (trimmed === "Sessão disponível. O resultado e o poder temporário serão conferidos pelo servidor.") return "Session available. The result and temporary power will be checked by the server.";
+  if (trimmed === "LIMITE DIÁRIO ATINGIDO") return "DAILY LIMIT REACHED";
+  if (trimmed === "LIMITE DA HORA ATINGIDO") return "HOURLY LIMIT REACHED";
+  const history = trimmed.match(/^ÚLTIMOS (\d+) DIAS · CONTA PESSOAL$/);
+  if (history) return `LAST ${history[1]} DAYS · PERSONAL ACCOUNT`;
+  const translated = englishArcadeRuntime[trimmed];
   return translated && translated !== trimmed ? translated : null;
 }
 
@@ -333,9 +369,10 @@ function translatedWithWhitespace(original: string, translated: string) {
   return `${leading}${translated}${trailing}`;
 }
 
-function useSpanishRuntime(locale: ArcadiaLocale) {
+function useLocaleRuntime(locale: ArcadiaLocale) {
   useEffect(() => {
-    if (typeof document === "undefined" || locale !== "es") return;
+    if (typeof document === "undefined" || locale === "pt-BR") return;
+    const translate = locale === "es" ? spanishText : englishText;
     const root = document.body;
     type TextRecord = { original: string; translated: string };
     type AttributeRecord = { original: string; translated: string };
@@ -356,7 +393,7 @@ function useSpanishRuntime(locale: ArcadiaLocale) {
             const current = textNode.nodeValue ?? "";
             const record = textRecords.get(textNode);
             const source = record && current === record.translated ? record.original : current;
-            const translated = spanishText(source);
+            const translated = translate(source);
             if (translated) {
               const next = translatedWithWhitespace(source, translated);
               textRecords.set(textNode, { original: source, translated: next });
@@ -375,7 +412,7 @@ function useSpanishRuntime(locale: ArcadiaLocale) {
             if (current === null) return;
             const record = records.get(name);
             const source = record && current === record.translated ? record.original : current;
-            const translated = spanishText(source);
+            const translated = translate(source);
             if (!translated) return;
             const next = translatedWithWhitespace(source, translated);
             records.set(name, { original: source, translated: next });
@@ -434,7 +471,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);
   }, [locale]);
-  useSpanishRuntime(locale);
+  useLocaleRuntime(locale);
 
   const setLocale = (next: ArcadiaLocale) => {
     if (!supportedLocales.includes(next)) return;
