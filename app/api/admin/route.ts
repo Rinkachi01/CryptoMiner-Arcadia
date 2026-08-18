@@ -862,6 +862,7 @@ export async function GET(request: Request) {
     security,
     conversion,
     pixDeposits,
+    cryptoDeposits,
     support: {
       ...support,
       emailEnabled: readSupportEmailConfig(env).enabled,

@@ -221,6 +221,19 @@ type AdminOverview = {
       updatedAt: number;
     }>;
   };
+  cryptoDeposits: Array<{
+    amount: string;
+    asset: string;
+    createdAt: number;
+    displayName: string;
+    id: string;
+    reference?: string;
+    received?: string;
+    settlement?: string;
+    settlementAsset?: string;
+    status: string;
+    updatedAt: number;
+  }>;
   metrics: {
     activePlayers24h: number;
     batteryClaims24h: number;
@@ -556,6 +569,46 @@ function formatBrl(value: number) {
   }).format(value);
 }
 
+const resolvedCryptoDepositStatuses = new Set([
+  "credited",
+  "finished",
+  "provider_failed",
+  "expired",
+]);
+
+function isResolvedCryptoDepositStatus(status: string) {
+  return resolvedCryptoDepositStatuses.has(status);
+}
+
+function formatCryptoDepositStatus(status: string) {
+  switch (status) {
+    case "waiting":
+      return "PENDENTE · AGUARDANDO PAGAMENTO";
+    case "creating":
+      return "PENDENTE · CRIANDO COBRANÇA";
+    case "confirming":
+      return "EM CONFIRMAÇÃO";
+    case "confirmed":
+      return "CONFIRMADO PELO PROVEDOR";
+    case "sending":
+      return "EM LIQUIDAÇÃO";
+    case "credited":
+      return "CREDITADO";
+    case "finished":
+      return "CONCLUÍDO";
+    case "review_required":
+      return "REVISÃO NECESSÁRIA";
+    case "pending_account":
+      return "PENDENTE · CONTA NÃO ENCONTRADA";
+    case "provider_failed":
+      return "FALHA DO PROVEDOR";
+    case "expired":
+      return "EXPIRADO";
+    default:
+      return status.replaceAll("_", " ").replaceAll(":", " · ").toUpperCase();
+  }
+}
+
 function formatBytes(value: number) {
   if (value >= 1024 * 1024) {
     return `${(value / (1024 * 1024)).toLocaleString("pt-BR", {
@@ -674,6 +727,8 @@ export function AdminDashboard({
   const [supportQuery, setSupportQuery] = useState("");
   const [pixTab, setPixTab] = useState<"pending" | "resolved">("pending");
   const [pixQuery, setPixQuery] = useState("");
+  const [cryptoDepositTab, setCryptoDepositTab] = useState<"pending" | "resolved">("pending");
+  const [cryptoDepositQuery, setCryptoDepositQuery] = useState("");
   const [withdrawalTab, setWithdrawalTab] = useState<"pending" | "resolved">("pending");
   const [withdrawalQuery, setWithdrawalQuery] = useState("");
   const [maintenanceArmed, setMaintenanceArmed] = useState(false);
@@ -1057,6 +1112,32 @@ export function AdminDashboard({
     .sort((a, b) => {
       const aPending = !["credited", "provider_failed"].includes(a.status);
       const bPending = !["credited", "provider_failed"].includes(b.status);
+      if (aPending !== bPending) return aPending ? -1 : 1;
+      return aPending ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+    });
+  const cryptoDeposits = overview.cryptoDeposits ?? [];
+  const cryptoPendingCount = cryptoDeposits.filter(
+    (deposit) => !isResolvedCryptoDepositStatus(deposit.status),
+  ).length;
+  const cryptoResolvedCount = cryptoDeposits.length - cryptoPendingCount;
+  const cryptoDepositSearchTerm = normalizeSearch(cryptoDepositQuery);
+  const filteredCryptoDeposits = cryptoDeposits
+    .filter((deposit) => {
+      const pending = !isResolvedCryptoDepositStatus(deposit.status);
+      if ((cryptoDepositTab === "pending") !== pending) return false;
+      if (!cryptoDepositSearchTerm) return true;
+      return [
+        deposit.id,
+        deposit.reference ?? "",
+        deposit.displayName,
+        deposit.asset,
+        deposit.amount,
+        deposit.status,
+      ].some((value) => normalizeSearch(value).includes(cryptoDepositSearchTerm));
+    })
+    .sort((a, b) => {
+      const aPending = !isResolvedCryptoDepositStatus(a.status);
+      const bPending = !isResolvedCryptoDepositStatus(b.status);
       if (aPending !== bPending) return aPending ? -1 : 1;
       return aPending ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
     });
@@ -2546,6 +2627,85 @@ export function AdminDashboard({
                     </button>
                   </div>
                 )}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="admin-panel admin-pix-exception-panel" hidden={adminSection !== "treasury"} id="crypto-deposits">
+        <div className="admin-panel-heading">
+          <div>
+            <span>TESOURARIA · DEPÓSITOS CRIPTO</span>
+            <h2>Extrato de depósitos</h2>
+          </div>
+          <small>
+            {cryptoPendingCount} PENDENTE(S) · {cryptoResolvedCount} RESOLVIDO(S)
+          </small>
+        </div>
+        <p className="admin-pix-exception-warning">
+          Cobranças em <strong>waiting</strong> permanecem pendentes. O saldo só é
+          atualizado após confirmação final do provedor e processamento idempotente no servidor.
+        </p>
+        <div className="admin-queue-toolbar">
+          <div className="admin-queue-tabs" role="tablist" aria-label="Status dos depósitos cripto">
+            <button
+              type="button"
+              className={cryptoDepositTab === "pending" ? "active" : ""}
+              onClick={() => setCryptoDepositTab("pending")}
+            >
+              Pendentes ({cryptoPendingCount})
+            </button>
+            <button
+              type="button"
+              className={cryptoDepositTab === "resolved" ? "active" : ""}
+              onClick={() => setCryptoDepositTab("resolved")}
+            >
+              Resolvidos ({cryptoResolvedCount})
+            </button>
+          </div>
+          <label className="admin-queue-search">
+            <span>BUSCAR DEPÓSITO</span>
+            <input
+              type="search"
+              value={cryptoDepositQuery}
+              onChange={(event) => setCryptoDepositQuery(event.target.value)}
+              placeholder="ID, referência, operador ou moeda"
+            />
+          </label>
+        </div>
+        <div className="admin-pix-exception-list">
+          {filteredCryptoDeposits.length === 0 ? (
+            <div className="admin-feedback-empty">
+              Nenhum depósito cripto encontrado nesta fila.
+            </div>
+          ) : filteredCryptoDeposits.map((deposit) => {
+            const pending = !isResolvedCryptoDepositStatus(deposit.status);
+            return (
+              <article className={pending ? "pending" : deposit.status} key={deposit.id}>
+                <header>
+                  <div>
+                    <span>#{deposit.id.slice(-8).toUpperCase()}</span>
+                    <strong>{deposit.asset} · {deposit.amount || "valor indisponível"}</strong>
+                    <small>
+                      {deposit.displayName} · {deposit.reference || "sem referência"} · {formatDate(deposit.createdAt)}
+                    </small>
+                    {(deposit.received || deposit.settlement) && (
+                      <small>
+                        {deposit.received ? `Recebido: ${deposit.received} ${deposit.asset}` : ""}
+                        {deposit.received && deposit.settlement ? " · " : ""}
+                        {deposit.settlement
+                          ? `Liquidação: ${deposit.settlement} ${deposit.settlementAsset || ""}`
+                          : ""}
+                      </small>
+                    )}
+                  </div>
+                  <em>{formatCryptoDepositStatus(deposit.status)}</em>
+                </header>
+                <footer className="admin-crypto-deposit-footer">
+                  <span>ID da cobrança: {deposit.id}</span>
+                  <time>Última atualização: {formatDate(deposit.updatedAt)}</time>
+                </footer>
               </article>
             );
           })}

@@ -34,12 +34,29 @@ test("CRM reúne feedback, tesouraria e antifraude em alertas acionáveis", () =
   });
   assert.deepEqual(
     alerts.map((alert) => alert.title),
-    ["Falha de verificação humana", "Novo saque solicitado", "Novo depósito recebido", "Novo feedback recebido"],
+    ["Falha de verificação humana", "Novo saque solicitado", "Depósito pendente", "Novo feedback recebido"],
   );
   assert.deepEqual(
     alerts.map((alert) => alert.category),
     ["operations", "treasury", "treasury", "feedback"],
   );
+});
+
+test("CRM mantém depósitos sem confirmação fora do estado recebido", () => {
+  const alerts = buildAdminCrmAlerts({
+    now,
+    treasuryEvents: [
+      { createdAt: now - 4_000, displayName: "Lia", id: "waiting-1", kind: "deposit", status: "waiting" },
+      { createdAt: now - 3_000, displayName: "Lia", id: "confirming-1", kind: "deposit", status: "confirming" },
+      { createdAt: now - 2_000, displayName: "Lia", id: "credited-1", kind: "deposit", status: "credited" },
+    ],
+  });
+  assert.deepEqual(
+    alerts.map((alert) => alert.title),
+    ["Depósito pendente", "Depósito pendente", "Depósito confirmado"],
+  );
+  assert.equal(alerts[0].severity, "attention");
+  assert.equal(alerts[2].severity, "success");
 });
 
 test("CRM diferencia chamado novo, em análise e resolvido", () => {

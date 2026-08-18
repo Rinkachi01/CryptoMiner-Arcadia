@@ -15920,6 +15920,24 @@ body {
   font-style: normal;
 }
 
+.admin-pix-exception-list .admin-crypto-deposit-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(79, 109, 124, 0.22);
+  color: #7f98a4;
+  font: 650 0.66rem/1.4 var(--font-ui);
+}
+
+.admin-pix-exception-list > article.provider_failed,
+.admin-pix-exception-list > article.expired {
+  border-color: rgba(127, 152, 164, 0.3);
+  opacity: 0.76;
+}
+
 .admin-pix-exception-form {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(150px, 0.5fr) auto;

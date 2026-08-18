@@ -3,6 +3,7 @@ import {
   type PublicGameState,
 } from "./game-server.ts";
 import { amountToAtomic } from "./conversion-rules.ts";
+import { formatAtomic } from "./game-rules.ts";
 import {
   applyCryptoDepositBalances,
   parseDecimalAtomic,
@@ -1797,6 +1798,7 @@ export async function readAdminCryptoDeposits(db: D1Database) {
   const result = await db
     .prepare(`SELECT deposits.id, deposits.asset, deposits.provider,
       deposits.provider_reference, deposits.status, deposits.requested_usd_micros,
+      deposits.received_atomic, deposits.settlement_asset, deposits.settlement_atomic,
       deposits.created_at, deposits.updated_at, states.display_name
       FROM wallet_deposit_intents deposits
       LEFT JOIN game_states states ON states.account_id = deposits.account_id
@@ -1809,7 +1811,10 @@ export async function readAdminCryptoDeposits(db: D1Database) {
       display_name: string | null;
       id: string;
       provider_reference: string | null;
+      received_atomic: number;
       requested_usd_micros: number;
+      settlement_asset: string | null;
+      settlement_atomic: number;
       status: string;
       updated_at: number;
     }>();
@@ -1818,12 +1823,25 @@ export async function readAdminCryptoDeposits(db: D1Database) {
     amount: row.requested_usd_micros > 0
       ? `$${(row.requested_usd_micros / 1_000_000).toFixed(2)}`
       : "",
-    createdAt: Number(row.updated_at || row.created_at),
+    createdAt: Number(row.created_at),
     displayName: row.display_name ?? "Operador",
     id: row.id,
     reference: row.provider_reference ?? undefined,
+    received: formatAtomicValue(row.received_atomic, row.asset),
     status: row.status,
+    settlement: formatAtomicValue(row.settlement_atomic, row.settlement_asset),
+    settlementAsset: row.settlement_asset ?? undefined,
+    updatedAt: Number(row.updated_at || row.created_at),
   }));
+}
+
+function formatAtomicValue(value: number, asset: string | null) {
+  if (!asset || !Number.isSafeInteger(value) || value <= 0) return "";
+  try {
+    return formatAtomic(BigInt(value), settlementAssetDecimals(asset));
+  } catch {
+    return "";
+  }
 }
 
 export async function reviewManualWithdrawal(input: {

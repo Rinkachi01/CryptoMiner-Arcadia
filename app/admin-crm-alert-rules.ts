@@ -107,10 +107,31 @@ function treasuryTitle(kind: CrmTreasuryEvent["kind"], status: string) {
   if (status === "credited" || status === "finished") {
     return { severity: "success" as const, title: "Depósito confirmado" };
   }
-  if (status === "review_required" || status.includes("failed")) {
+  if (
+    status === "review_required" ||
+    status.includes("failed") ||
+    status === "expired" ||
+    status.includes("rejected") ||
+    status.includes("canceled")
+  ) {
     return { severity: "attention" as const, title: "Depósito exige revisão" };
   }
-  return { severity: "info" as const, title: "Novo depósito recebido" };
+  if (
+    [
+      "creating",
+      "waiting",
+      "confirming",
+      "confirmed",
+      "sending",
+      "pending",
+      "pending_account",
+      "partially_paid",
+      "waiting_transfer",
+    ].includes(status)
+  ) {
+    return { severity: "attention" as const, title: "Depósito pendente" };
+  }
+  return { severity: "info" as const, title: "Novo depósito criado" };
 }
 
 function securityTitle(category: string) {
