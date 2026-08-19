@@ -586,7 +586,7 @@ async function readBrlRates(
     return rates;
   } catch (error) {
     try {
-      const liveFallback = await readMercadoBitcoinBrlRates(now);
+      const liveFallback = await readBinanceBrlRates(now);
       await db.batch(
         liveFallback.map((rate) =>
           db
