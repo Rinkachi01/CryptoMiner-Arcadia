@@ -197,7 +197,7 @@ export const PIX_WITHDRAWAL_MINIMUM_BRL_CENTS = 2_000;
 export const PIX_WITHDRAWAL_FEE_BPS = 250;
 
 const BRL_RATE_CACHE_MS = 60 * 1000;
-const BRL_RATE_MAX_STALE_MS = 15 * 60 * 1000;
+const BRL_RATE_MAX_STALE_MS = 2 * 60 * 60 * 1000;
 const BRL_WITHDRAWAL_QUOTE_TTL_MS = 2 * 60 * 1000;
 
 type BrlRateRow = {
@@ -288,8 +288,14 @@ export function walletProviderReadiness(environment: unknown) {
   };
 }
 
-export async function ensureWalletSchema(db: D1Database) {
-  await db.batch([
+const walletSchemaReadyByDatabase = new WeakMap<object, Promise<void>>();
+
+export function ensureWalletSchema(db: D1Database) {
+  const cached = walletSchemaReadyByDatabase.get(db);
+  if (cached) return cached;
+
+  const ready = (async () => {
+    await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS player_wallet_accounts (
       account_id TEXT PRIMARY KEY NOT NULL,
       ledger_model TEXT DEFAULT 'individual' NOT NULL,
@@ -393,6 +399,12 @@ export async function ensureWalletSchema(db: D1Database) {
         ADD COLUMN payout_brl_cents INTEGER DEFAULT 0 NOT NULL`)
       .run();
   }
+  })().catch((error) => {
+    walletSchemaReadyByDatabase.delete(db);
+    throw error;
+  });
+  walletSchemaReadyByDatabase.set(db, ready);
+  return ready;
 }
 
 /**
@@ -433,7 +445,7 @@ export async function pruneWalletOperationalHistory(
         AND NOT EXISTS (SELECT 1 FROM ledger_entries
           WHERE idempotency_key = 'deposit:' || wallet_deposit_intents.id)`)
       .bind(now, now - WALLET_CREDITING_STALE_MS),
-  ]);
+    ]);
 }
 
 function validSandboxAsset(value: unknown): value is WalletSandboxAsset {
