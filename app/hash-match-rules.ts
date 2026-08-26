@@ -8,6 +8,7 @@ import {
 export const HASH_MATCH_HOURLY_LIMIT = 6;
 export const HASH_MATCH_DAILY_LIMIT = 18;
 export const HASH_MATCH_POWER_DURATION_HOURS = 6;
+export const HASH_MATCH_REWARD_POWER_CAP_GH = 200;
 
 export type HashCard = {
   id: string;
@@ -82,7 +83,10 @@ export function hashMatchRewardPower(
   const extraMoves = Math.max(0, moves - idealMoves);
   return Math.max(
     60,
-    Math.min(300, 65 + pairs * 15 + level * 12 - extraMoves * 4),
+    Math.min(
+      HASH_MATCH_REWARD_POWER_CAP_GH,
+      65 + pairs * 15 + level * 12 - extraMoves * 4,
+    ),
   );
 }
 

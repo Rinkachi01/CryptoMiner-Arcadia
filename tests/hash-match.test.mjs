@@ -40,5 +40,5 @@ test("recompensa da memória penaliza excesso de jogadas e possui teto", () => {
   const ideal = hashMatchRewardPower(5, 6, 6);
   const wasteful = hashMatchRewardPower(5, 6, 20);
   assert.equal(ideal > wasteful, true);
-  assert.equal(hashMatchRewardPower(10, 8, 8) <= 300, true);
+  assert.equal(hashMatchRewardPower(10, 8, 8) <= 200, true);
 });

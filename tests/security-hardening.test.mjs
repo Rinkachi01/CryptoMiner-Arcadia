@@ -15,7 +15,7 @@ test("detector recusa rajada impossível e intervalo robótico sem punir ritmo h
     detectAutomationPattern([100, 500, 900, 1300, 1700, 2100, 2500, 2900]),
     /uniforme/,
   );
-  assert.equal(
+  assert.deepEqual(
     detectAutomationPattern([100, 420, 910, 1_550, 2_020, 2_800, 3_180]),
     null,
   );
@@ -27,12 +27,23 @@ test("detector recusa rajada impossível e intervalo robótico sem punir ritmo h
 
 test("Turnstile só fica configurado com as duas chaves e falha fechado quando exigido", () => {
   assert.deepEqual(readSecurityConfig({ TURNSTILE_REQUIRED: "true" }), {
+    allowedHostnames: [],
     configured: false,
     hostname: null,
     required: true,
     secret: "",
     siteKey: "",
   });
+  assert.deepEqual(
+    readSecurityConfig({
+      TURNSTILE_REQUIRED: "true",
+      TURNSTILE_SECRET: "secret",
+      TURNSTILE_SITE_KEY: "site",
+      TURNSTILE_HOSTNAME: "example.com",
+      TURNSTILE_ALLOWED_HOSTNAMES: "example.com,worker.dev",
+    }).allowedHostnames,
+    ["example.com", "worker.dev"],
+  );
   assert.equal(
     readSecurityConfig({
       TURNSTILE_REQUIRED: "true",

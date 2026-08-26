@@ -364,6 +364,10 @@ async function readAdminOverview(
     stateRows,
     auditRows,
     treasuryTotals,
+    whales,
+    affiliates,
+    inflation,
+    funnel,
   ] = await Promise.all([
     db
       .prepare("SELECT COUNT(*) AS total FROM game_states")
@@ -395,7 +399,7 @@ async function readAdminOverview(
     db
       .prepare(
         `SELECT COUNT(*) AS total FROM ledger_entries
-         WHERE action = 'open_supply_crate' AND created_at >= ?`,
+         WHERE action IN ('open_supply_crate', 'open_luck_crate', 'open_season_box', 'open_part_case') AND created_at >= ?`,
       )
       .bind(since)
       .first<CountRow>(),
@@ -461,7 +465,7 @@ async function readAdminOverview(
                 ledger.created_at, states.display_name, states.email
          FROM ledger_entries ledger
          LEFT JOIN game_states states ON states.account_id = ledger.account_id
-         WHERE ledger.action = 'open_supply_crate'
+         WHERE ledger.action IN ('open_supply_crate', 'open_luck_crate', 'open_season_box', 'open_part_case')
          ORDER BY ledger.created_at DESC
          LIMIT 15`,
       )
@@ -484,11 +488,32 @@ async function readAdminOverview(
       .prepare(
         `SELECT action, COALESCE(SUM(delta_cma_micros), 0) AS cma_micros
          FROM ledger_entries
-         WHERE action IN ('pix_deposit', 'crypto_deposit', 'crypto_withdrawal')
+         
          GROUP BY action`,
       )
       .all<{ action: string; cma_micros: number }>(),
-  ]);
+      db
+        .prepare(
+          "SELECT states.display_name, states.account_id, states.email, SUM(ledger.delta_cma_micros) AS balance FROM ledger_entries ledger JOIN game_states states ON states.account_id = ledger.account_id WHERE states.account_id NOT IN (SELECT account_id FROM admin_owners) GROUP BY ledger.account_id ORDER BY balance DESC LIMIT 10"
+        )
+        .all<any>(),
+      db
+        .prepare(
+          "SELECT states.display_name, states.account_id, states.email, (SELECT COUNT(*) FROM referral_attributions ref WHERE ref.referrer_account_id = states.account_id) AS referrals, SUM(ledger.delta_cma_micros) AS cma_earned FROM ledger_entries ledger JOIN game_states states ON states.account_id = ledger.account_id WHERE ledger.action IN ('referral_mining_share_in', 'referral_validated', 'referral_mining_bonus_in') AND states.account_id NOT IN (SELECT account_id FROM admin_owners) GROUP BY ledger.account_id ORDER BY cma_earned DESC LIMIT 10"
+        )
+        .all<any>(),
+      db
+        .prepare(
+          "SELECT DATE(created_at / 1000, 'unixepoch') AS date, SUM(CASE WHEN delta_cma_micros > 0 THEN delta_cma_micros ELSE 0 END) AS minted, SUM(CASE WHEN delta_cma_micros < 0 THEN delta_cma_micros ELSE 0 END) AS burned FROM ledger_entries WHERE created_at >= ? GROUP BY date ORDER BY date ASC"
+        )
+        .bind(now - 30 * 24 * 60 * 60 * 1000)
+        .all<any>(),
+      db
+        .prepare(
+          "SELECT action, COUNT(DISTINCT account_id) AS unique_players FROM ledger_entries WHERE action IN ('account_initialized', 'set_wallet_symbol', 'place_rack', 'install_miner') GROUP BY action"
+        )
+        .all<any>(),
+    ]);
 
   const minerCounts = new Map<string, number>();
   let batteriesInInventory = 0;
@@ -545,17 +570,28 @@ async function readAdminOverview(
   const treasury = {
     depositsCma: 0,
     withdrawalsCma: 0,
+    circulatingCma: 0,
   };
   for (const row of treasuryTotals.results) {
-    if (row.action === 'pix_deposit' || row.action === 'crypto_deposit') {
+    if (row.action === 'pix_deposit' || row.action === 'crypto_deposit' || row.action === 'credit_pix_cma' || row.action === 'convert_crypto_to_cma') {
       treasury.depositsCma += Number(row.cma_micros) / 1_000_000;
     }
-    if (row.action === 'crypto_withdrawal') {
+    if (row.action === 'crypto_withdrawal' || row.action === 'reserve_crypto_withdrawal' || row.action === 'reserve_brl_withdrawal') {
       treasury.withdrawalsCma += Math.abs(Number(row.cma_micros) / 1_000_000);
-    }
+      }
+      treasury.circulatingCma += Number(row.cma_micros) / 1_000_000;
   }
 
   return {
+    whales: whales.results.map((row) => ({ accountId: row.account_id, balance: Number(row.balance) / 1000000, displayName: row.display_name || "Operador", email: row.email || "" })),
+    affiliates: affiliates.results.map((row) => ({ accountId: row.account_id, cmaEarned: Number(row.cma_earned) / 1000000, displayName: row.display_name || "Operador", email: row.email || "", referrals: Number(row.referrals) })),
+    inflation: inflation.results.map((row) => ({ burned: Number(row.burned) / 1000000, date: row.date, minted: Number(row.minted) / 1000000 })),
+    funnel: {
+      accounts: Number(funnel.results.find((r) => r.action === 'account_initialized')?.unique_players || 0),
+      miners: Number(funnel.results.find((r) => r.action === 'install_miner')?.unique_players || 0),
+      racks: Number(funnel.results.find((r) => r.action === 'place_rack')?.unique_players || 0),
+      wallets: Number(funnel.results.find((r) => r.action === 'set_wallet_symbol')?.unique_players || 0),
+    },
     emission24h: {
       rewardsAtomic: emissionRewardsAtomic,
       settlementRecords: blockSettlements.results.length,
@@ -793,7 +829,7 @@ export async function GET(request: Request) {
     feedbackEvents: feedback.recent,
     now,
     securityEvents: security.recentEvents,
-    supportEvents: support.tickets.filter((ticket) => ticket.status === "open").map((ticket) => ({
+    supportEvents: support.tickets.map((ticket) => ({
       createdAt: ticket.createdAt,
       email: ticket.email,
       publicId: ticket.publicId,
@@ -988,7 +1024,7 @@ export async function POST(request: Request) {
     await ensureSupportSchema(context.db);
     const ticket = await context.db
       .prepare(
-        `SELECT public_id, email, subject, admin_note, reply_delivery_status
+        `SELECT public_id, email, subject, admin_note, reply_delivery_status, status
          FROM support_tickets
          WHERE public_id = ?`,
       )
@@ -1020,7 +1056,17 @@ export async function POST(request: Request) {
       .bind(body.supportStatus, now, ticket.public_id)
       .run();
 
+    
+    if (body.supportStatus !== ticket.status) {
+      await context.db
+        .prepare(
+          `UPDATE support_tickets SET status = ?, updated_at = ? WHERE public_id = ?`
+        )
+        .bind(body.supportStatus, now, ticket.public_id)
+        .run();
+    }
     let replyStatus = ticket.reply_delivery_status;
+
     const shouldSendReply = Boolean(
       supportReply &&
         (supportReply !== ticket.admin_note ||

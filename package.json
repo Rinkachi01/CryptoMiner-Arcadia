@@ -6,6 +6,8 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "backup:worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/backup-worktree.ps1",
+    "verify:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-backup.ps1",
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",

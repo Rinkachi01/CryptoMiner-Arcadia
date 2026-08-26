@@ -178,74 +178,117 @@ async function fetchCoinGeckoRates(environment: unknown, now: number) {
   );
   if (!response.ok) throw new Error(`Cotação externa indisponível (${response.status}).`);
   const body = await readBoundedJsonObject(response);
-  return conversionAssets.map((asset) => {
+  return conversionAssets.flatMap((asset) => {
     const result = body[asset.coingeckoId] as
       | { last_updated_at?: number; usd?: number }
       | undefined;
     if (!result || !Number.isFinite(result.usd) || Number(result.usd) <= 0) {
-      throw new Error(`Cotação de ${asset.id} indisponível.`);
+      return [];
     }
     const observedAt =
       Number.isFinite(result.last_updated_at) && Number(result.last_updated_at) > 0
         ? Number(result.last_updated_at) * 1000
         : now;
     if (observedAt > now + 60_000 || now - observedAt > MAX_STALE_PRICE_MS) {
-      throw new Error(`Cotação de ${asset.id} está desatualizada.`);
+      return [];
     }
-    return {
+    return [{
       asset: asset.id,
       observedAt,
       provider: "coingecko" as const,
       stale: false,
       usdPrice: Number(result.usd),
-    };
+    }];
   });
 }
 
-async function fetchCoinbaseRates(now: number): Promise<MarketRate[]> {
-  return Promise.all(
-    conversionAssets.map(async (asset) => {
-      const response = await fetch(
-        `https://api.coinbase.com/v2/exchange-rates?currency=${asset.id}`,
-        {
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(PRICE_FETCH_TIMEOUT_MS),
-        },
-      );
-      if (!response.ok) {
-        throw new Error(`Cotação alternativa indisponível (${response.status}).`);
-      }
-      const body = await readBoundedJsonObject(response);
-      const data = body.data;
-      if (!data || typeof data !== "object") {
-        throw new Error(`Cotação alternativa de ${asset.id} inválida.`);
-      }
-      const currency = String(Reflect.get(data, "currency") ?? "").toUpperCase();
-      const rates = Reflect.get(data, "rates");
-      const usd =
-        rates && typeof rates === "object"
-          ? Number(Reflect.get(rates, "USD"))
-          : Number.NaN;
-      if (currency !== asset.id || !Number.isFinite(usd) || usd <= 0) {
-        throw new Error(`Cotação alternativa de ${asset.id} indisponível.`);
-      }
-      return {
-        asset: asset.id,
-        observedAt: now,
-        provider: "coinbase" as const,
-        stale: false,
-        usdPrice: usd,
-      };
-    }),
+async function fetchCoinbaseRate(
+  asset: (typeof conversionAssets)[number],
+  now: number,
+): Promise<MarketRate> {
+  const response = await fetch(
+    `https://api.coinbase.com/v2/exchange-rates?currency=${asset.id}`,
+    {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(PRICE_FETCH_TIMEOUT_MS),
+    },
   );
+  if (!response.ok) {
+    throw new Error(`Cotação alternativa indisponível (${response.status}).`);
+  }
+  const body = await readBoundedJsonObject(response);
+  const data = body.data;
+  if (!data || typeof data !== "object") {
+    throw new Error(`Cotação alternativa de ${asset.id} inválida.`);
+  }
+  const currency = String(Reflect.get(data, "currency") ?? "").toUpperCase();
+  const rates = Reflect.get(data, "rates");
+  const usd =
+    rates && typeof rates === "object"
+      ? Number(Reflect.get(rates, "USD"))
+      : Number.NaN;
+  if (currency !== asset.id || !Number.isFinite(usd) || usd <= 0) {
+    throw new Error(`Cotação alternativa de ${asset.id} indisponível.`);
+  }
+  return {
+    asset: asset.id,
+    observedAt: now,
+    provider: "coinbase",
+    stale: false,
+    usdPrice: usd,
+  };
 }
 
-async function fetchFreshRates(environment: unknown, now: number) {
+async function fetchCoinbaseRates(now: number): Promise<MarketRate[]> {
+  return Promise.all(conversionAssets.map((asset) => fetchCoinbaseRate(asset, now)));
+}
+
+async function fetchFreshRates(
+  environment: unknown,
+  now: number,
+  cached: Map<ConversionAssetId, PriceRow>,
+) {
+  const byAsset = new Map<ConversionAssetId, MarketRate>();
   try {
-    return await fetchCoinGeckoRates(environment, now);
+    for (const rate of await fetchCoinGeckoRates(environment, now)) {
+      byAsset.set(rate.asset, rate);
+    }
   } catch {
-    return fetchCoinbaseRates(now);
+    // A provider outage for one source must not prevent the other sources
+    // from supplying the assets they still cover.
   }
+
+  const missing = conversionAssets.filter((asset) => !byAsset.has(asset.id));
+  const fallbackRates = await Promise.all(
+    missing.map(async (asset) => {
+      try {
+        return await fetchCoinbaseRate(asset, now);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  for (const rate of fallbackRates) {
+    if (rate) byAsset.set(rate.asset, rate);
+  }
+
+  for (const asset of conversionAssets) {
+    if (byAsset.has(asset.id)) continue;
+    const row = cached.get(asset.id);
+    if (!row || now - row.observed_at > MAX_STALE_PRICE_MS) continue;
+    byAsset.set(asset.id, {
+      asset: asset.id,
+      observedAt: row.observed_at,
+      provider: marketProvider(row.provider),
+      stale: true,
+      usdPrice: row.usd_price_micros / 1_000_000,
+    });
+  }
+
+  if (byAsset.size !== conversionAssets.length) {
+    throw new Error("Cotação externa indisponível para uma ou mais moedas.");
+  }
+  return conversionAssets.map((asset) => byAsset.get(asset.id)!);
 }
 
 export async function readMarketRates(
@@ -272,9 +315,9 @@ export async function readMarketRates(
   }
 
   try {
-    const rates = await fetchFreshRates(environment, now);
+    const rates = await fetchFreshRates(environment, now, cached);
     await db.batch(
-      rates.map((rate) =>
+      rates.filter((rate) => !rate.stale).map((rate) =>
         db
           .prepare(`INSERT INTO market_price_snapshots (
             asset, usd_price_micros, provider, observed_at, updated_at

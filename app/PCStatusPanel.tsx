@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { type GameSummaryResult } from "./api/games/summary/route";
 import { ARCADE_POWER_DAYS_BY_LEVEL } from "./arcade-progression-rules";
+import { assetsManifest } from "./assets.manifest";
 import {
   pcLevelForPlays,
   pcNextPlayTarget,
@@ -12,9 +13,11 @@ import {
 export function PCStatusPanel({
   refreshKey,
   temporaryPowerGh = 0,
+  stagingVisuals = false,
 }: {
   refreshKey?: number;
   temporaryPowerGh?: number;
+  stagingVisuals?: boolean;
 }) {
   const [summary, setSummary] = useState<GameSummaryResult | null>(null);
 
@@ -31,6 +34,13 @@ export function PCStatusPanel({
   const progress = pcProgressPercent(totalPlays, pcLevel);
   const powerDays = ARCADE_POWER_DAYS_BY_LEVEL[pcLevel] ?? 0;
   const pcEmoji = pcLevel >= 5 ? "🖥️" : pcLevel >= 3 ? "💻" : pcLevel >= 1 ? "📟" : "📱";
+  const pcSprite = [
+    assetsManifest.pcLevel1,
+    assetsManifest.pcLevel2,
+    assetsManifest.pcLevel3,
+    assetsManifest.pcLevel4,
+    assetsManifest.pcLevel5,
+  ][Math.min(4, Math.max(0, pcLevel - 1))];
 
   return (
     <section className="pc-status-panel" aria-label="Progresso do PC">
@@ -51,8 +61,12 @@ export function PCStatusPanel({
         )}
       </div>
 
-      <div className="pc-visual" aria-hidden="true">
-        <span className="pc-emoji">{pcEmoji}</span>
+      <div className={`pc-visual${stagingVisuals ? " pc-visual--sprite" : ""}`} aria-hidden="true">
+        {stagingVisuals ? (
+          <img className="pc-level-sprite" src={pcSprite.path} alt="" />
+        ) : (
+          <span className="pc-emoji">{pcEmoji}</span>
+        )}
       </div>
 
       <div className="pc-progress">

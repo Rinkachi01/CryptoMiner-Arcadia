@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { assetsManifest } from "./assets.manifest";
 import { useArcadiaLanguage } from "./i18n";
 import type { OnboardingStatus } from "./onboarding-rules";
 
-type TourTarget = "mine" | "games" | "pools" | "career";
+type TourTarget = "mine" | "games" | "pools" | "career" | "conversion" | "season" | "forge";
 
 type OperatorTourProps = {
   accountKey: string;
   status: OnboardingStatus | null;
+  stagingVisuals: boolean;
   onNavigate: (target: TourTarget) => void;
   onOpenStarterRack: () => void;
 };
@@ -22,68 +24,105 @@ const steps: Array<{
   action: "navigate" | "rack";
   label: string;
   labelEn: string;
+  image: string;
+  imageAlt: string;
+  visualClass?: string;
 }> = [
   {
-    title: "Seu kit já está na sala",
-    titleEn: "Your starter kit is in the room",
-    text: "Você recebeu um rack e um minerador inicial. Abra o rack para instalar o Byte Spark e começar sua operação.",
-    textEn: "You received a rack and a starter miner. Open the rack to install Byte Spark and begin your operation.",
+    title: "Comece pela sala de mineração",
+    titleEn: "Start in the mining room",
+    text: "A sala é o centro da operação. Abra um rack, instale seus mineradores e acompanhe poder, energia e próximo bloco no painel lateral.",
+    textEn: "The room is the heart of your operation. Open a rack, install miners, and follow power, energy, and the next block in the side panel.",
     target: "mine",
     action: "rack",
-    label: "Abrir rack",
-    labelEn: "Open rack",
+    label: "Ver a sala",
+    labelEn: "View the room",
+    image: assetsManifest.roomOne.path,
+    imageAlt: assetsManifest.roomOne.alt,
+    visualClass: "room",
   },
   {
-    title: "Jogue para ativar energia",
-    titleEn: "Play to activate energy",
-    text: "Os minigames validam sua atividade e liberam energia para manter os mineradores ligados.",
-    textEn: "Minigames validate your activity and release energy to keep your miners running.",
+    title: "Sua carteira guarda os saldos",
+    titleEn: "Your wallet holds your balances",
+    text: "Na carteira você consulta CMA e as moedas recebidas, acompanha o histórico e encontra as opções de depósito, conversão e saque disponíveis para a sua conta.",
+    textEn: "In the wallet you check CMA and received coins, review history, and find the deposit, conversion, and withdrawal options available to your account.",
+    target: "conversion",
+    action: "navigate",
+    label: "Abrir carteira",
+    labelEn: "Open wallet",
+    image: assetsManifest.cmaCoin.path,
+    imageAlt: assetsManifest.cmaCoin.alt,
+    visualClass: "wallet",
+  },
+  {
+    title: "Jogue minigames para progredir",
+    titleEn: "Play minigames to progress",
+    text: "Escolha um jogo, leia o objetivo antes de iniciar e conclua a partida. O servidor valida o resultado e registra XP e poder temporário quando a rodada é aprovada.",
+    textEn: "Choose a game, read its objective before starting, and finish the round. The server validates the result and records XP and temporary power when approved.",
     target: "games",
     action: "navigate",
     label: "Ir para minigames",
     labelEn: "Go to minigames",
+    image: "/assets/minigames/packet-catch-thumb.png",
+    imageAlt: "Miniatura do minigame Packet Catch",
+    visualClass: "game",
   },
   {
-    title: "Escolha onde seu poder trabalha",
-    titleEn: "Choose where your power works",
-    text: "Na tela de pools, distribua o poder entre CMA, Bitcoin, Dogecoin e Litecoin. A recompensa de cada bloco é fixa.",
-    textEn: "In Pools, distribute power across CMA, Bitcoin, Dogecoin, and Litecoin. Each block has a fixed reward.",
-    target: "pools",
+    title: "A temporada transforma XP em recompensas",
+    titleEn: "The season turns XP into rewards",
+    text: "Missões diárias, semanais e partidas válidas geram XP. Avance os níveis para resgatar baterias, mineradores, peças e recompensas do passe.",
+    textEn: "Daily and weekly missions plus valid rounds grant XP. Advance through the levels to claim batteries, miners, parts, and pass rewards.",
+    target: "season",
     action: "navigate",
-    label: "Abrir pools",
-    labelEn: "Open pools",
+    label: "Ver temporada",
+    labelEn: "View season",
+    image: "/assets/season/space-race/banner.png",
+    imageAlt: "Banner da temporada Corrida Espacial",
+    visualClass: "season",
   },
   {
-    title: "Acompanhe seus blocos",
-    titleEn: "Track your blocks",
-    text: "O servidor sincroniza a operação e mostra cada bloco processado no canto da tela. O saldo fica no extrato da carteira.",
-    textEn: "The server syncs your operation and shows each processed block in the corner of the screen. Your balance is recorded in the wallet ledger.",
-    target: "career",
+    title: "Melhore sua operação na oficina",
+    titleEn: "Improve your operation in the workshop",
+    text: "Quando você tiver duas unidades idênticas ou peças suficientes, use a Oficina Arcadia para fundir e evoluir. O custo e os requisitos aparecem antes da confirmação.",
+    textEn: "When you have two identical units or enough parts, use Arcadia Forge to merge and evolve them. The cost and requirements are shown before confirmation.",
+    target: "forge",
     action: "navigate",
-    label: "Ver operação",
-    labelEn: "View operation",
+    label: "Abrir oficina",
+    labelEn: "Open workshop",
+    image: assetsManifest.rackBasic.path,
+    imageAlt: assetsManifest.rackBasic.alt,
+    visualClass: "forge",
   },
 ];
 
 export function OperatorTour({
   accountKey,
   status,
+  stagingVisuals,
   onNavigate,
   onOpenStarterRack,
 }: OperatorTourProps) {
   const { locale } = useArcadiaLanguage();
   const english = locale !== "pt-BR";
-  const storageKey = `arcadia-operator-tour:${accountKey.toLowerCase()}`;
+  const storageKey = `arcadia-intro-guide:v1:${accountKey.toLowerCase()}`;
   const [dismissed, setDismissed] = useState(() =>
     typeof window === "undefined"
       ? true
       : window.localStorage.getItem(storageKey) === "dismissed",
   );
+  const [stepIndex, setStepIndex] = useState(0);
+  // The workshop is a staging-only experience. Keep it out of the shared
+  // production guide so the tour can never navigate a live account there.
+  const guideSteps = stagingVisuals
+    ? steps
+    : steps.filter((item) => item.target !== "forge");
 
-  if (!status?.eligible || status.completed || dismissed) return null;
+  // The visual guide is intentionally independent from the task checklist.
+  // Existing accounts also get one clear explanation on their next visit,
+  // while the checklist below the room remains authoritative for starter kits.
+  if (!status || dismissed) return null;
 
-  const stepIndex = Math.min(steps.length - 1, status.completedCount);
-  const step = steps[stepIndex] ?? steps[0];
+  const step = guideSteps[stepIndex] ?? guideSteps[0];
 
   function closeTour() {
     window.localStorage.setItem(storageKey, "dismissed");
@@ -96,7 +135,11 @@ export function OperatorTour({
     } else {
       onNavigate(step.target);
     }
-    closeTour();
+    if (stepIndex >= guideSteps.length - 1) {
+      closeTour();
+    } else {
+      setStepIndex((current) => current + 1);
+    }
   }
 
   return (
@@ -110,27 +153,39 @@ export function OperatorTour({
         <header>
           <div>
             <span>{english ? "FIRST ACCESS · OPERATOR TOUR" : "PRIMEIRO ACESSO · TOUR DO OPERADOR"}</span>
-            <strong>{stepIndex + 1}/{steps.length}</strong>
+            <strong>{stepIndex + 1}/{guideSteps.length}</strong>
           </div>
           <button type="button" onClick={closeTour} aria-label={english ? "Close tour" : "Fechar tour"}>
             ×
           </button>
         </header>
         <div className="operator-tour-progress" aria-hidden="true">
-          {steps.map((_, index) => (
+          {guideSteps.map((_, index) => (
             <i key={index} className={index <= stepIndex ? "active" : ""} />
           ))}
         </div>
         <div className="operator-tour-body">
+          <div className={`operator-tour-visual ${step.visualClass ?? ""}`}>
+            <img src={step.image} alt={step.imageAlt} />
+            {step.visualClass === "wallet" && (
+              <div className="operator-tour-coin-row" aria-hidden="true">
+                <img src={assetsManifest.dogecoin.path} alt="" />
+                <img src={assetsManifest.litecoin.path} alt="" />
+                <img src={assetsManifest.bitcoin.path} alt="" />
+              </div>
+            )}
+          </div>
           <span className="operator-tour-kicker">{english ? "STEP" : "PASSO"} {stepIndex + 1}</span>
           <h2 id="operator-tour-title">{english ? step.titleEn : step.title}</h2>
           <p>{english ? step.textEn : step.text}</p>
           <div className="operator-tour-actions">
             <button type="button" className="secondary" onClick={closeTour}>
-              {english ? "Skip tour" : "Pular tour"}
+              {english ? "Close guide" : "Fechar guia"}
             </button>
             <button type="button" onClick={continueToStep}>
-              {english ? step.labelEn : step.label}
+              {stepIndex >= guideSteps.length - 1
+                ? english ? "Finish" : "Concluir"
+                : english ? step.labelEn : step.label}
             </button>
           </div>
         </div>

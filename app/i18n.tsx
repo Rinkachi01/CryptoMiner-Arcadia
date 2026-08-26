@@ -74,6 +74,8 @@ const entries: Record<string, Localized> = {
   "workspace.pools": ["Pools de mineração", "Mining pools"],
   "workspace.wallet": ["Carteira e conversão", "Wallet and conversion"],
   "workspace.inventory": ["Inventário de equipamentos", "Equipment inventory"],
+  "workspace.forgeEyebrow": ["Oficina Arcadia · fusões controladas", "Arcadia Workshop · controlled merges"],
+  "workspace.forge": ["Oficina Arcadia", "Arcadia Workshop"],
   "workspace.shop": ["Loja de equipamentos", "Equipment shop"],
   "workspace.games": ["Central de minigames", "Minigame center"],
   "workspace.season": ["Passe da temporada", "Season pass"],
@@ -215,6 +217,8 @@ const spanishEntries: Record<string, string> = {
   "workspace.pools": "Pools de minería",
   "workspace.wallet": "Billetera y conversión",
   "workspace.inventory": "Inventario de equipos",
+  "workspace.forgeEyebrow": "Taller Arcadia · fusiones controladas",
+  "workspace.forge": "Taller Arcadia",
   "workspace.shop": "Tienda de equipos",
   "workspace.games": "Centro de minijuegos",
   "workspace.season": "Pase de temporada",
@@ -455,11 +459,20 @@ type LanguageContextValue = { locale: ArcadiaLocale; setLocale: (locale: Arcadia
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<ArcadiaLocale>(() => {
-    if (typeof window === "undefined") return "en";
+  // Keep the first render identical on the server and in the browser. Reading
+  // localStorage or navigator.language in the state initializer makes the
+  // client choose a different locale during hydration, which triggers React
+  // error #418 and forces the whole tree to be rendered again. Restore the
+  // visitor's preference after hydration instead.
+  const [locale, setLocaleState] = useState<ArcadiaLocale>("en");
+
+  useEffect(() => {
     const saved = window.localStorage.getItem(localeStorageKey);
-    return isArcadiaLocale(saved) ? saved : browserLocale();
-  });
+    const preferred = isArcadiaLocale(saved) ? saved : browserLocale();
+    if (preferred === "en") return;
+    const timer = window.setTimeout(() => setLocaleState(preferred), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     applyLocale(locale);

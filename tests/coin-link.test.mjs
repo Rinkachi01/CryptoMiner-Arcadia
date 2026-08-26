@@ -5,10 +5,12 @@ import {
   COIN_LINK_BOARD_SIZE,
   coinLinkRewardPower,
   coinLinkTargetScore,
+  coinLinkBoardHasMove,
   createCoinLinkBoard,
   coinLinkCoinPool,
   findCoinLinkMatchGroups,
   findCoinLinkMatches,
+  reshuffleCoinLinkBoard,
   validateCoinLink,
 } from "../app/coin-link-rules.ts";
 
@@ -92,8 +94,30 @@ test("servidor rejeita troca distante e combinação inexistente", () => {
   assert.equal(invalidReplay.valid, false);
 });
 
+test("tabuleiro sem jogadas é reorganizado sem perder moedas", () => {
+  // A Latin-square layout with six coin types has no existing run and no
+  // adjacent swap that can create a run, so it is a genuine dead board.
+  const deadBoard = [
+    "doge", "matic", "usdt", "xrp", "ltc", "btc",
+    "matic", "usdt", "xrp", "ltc", "btc", "doge",
+    "usdt", "xrp", "ltc", "btc", "doge", "matic",
+    "xrp", "ltc", "btc", "doge", "matic", "usdt",
+    "ltc", "btc", "doge", "matic", "usdt", "xrp",
+    "btc", "doge", "matic", "usdt", "xrp", "ltc",
+  ];
+  assert.equal(coinLinkBoardHasMove(deadBoard), false);
+  const reshuffled = reshuffleCoinLinkBoard(deadBoard, "dead-seed", 1, 4);
+  assert.deepEqual([...reshuffled].sort(), [...deadBoard].sort());
+  assert.deepEqual(findCoinLinkMatches(reshuffled), []);
+  assert.equal(coinLinkBoardHasMove(reshuffled), true);
+  assert.deepEqual(
+    reshuffled,
+    reshuffleCoinLinkBoard(deadBoard, "dead-seed", 1, 4),
+  );
+});
+
 test("recompensa exige a meta e respeita o teto econômico", () => {
   const target = coinLinkTargetScore(10);
   assert.equal(coinLinkRewardPower(10, target - 1), 0);
-  assert.equal(coinLinkRewardPower(10, target + 100_000), 300);
+  assert.equal(coinLinkRewardPower(10, target + 100_000), 200);
 });

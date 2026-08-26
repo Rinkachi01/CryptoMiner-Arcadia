@@ -36,6 +36,10 @@ import {
 import type { AdminWithdrawalOverview } from "./wallet-server";
 
 type AdminOverview = {
+    whales: Array<{ accountId: string; balance: number; displayName: string; email: string; }>;
+    affiliates: Array<{ accountId: string; cmaEarned: number; displayName: string; email: string; referrals: number; }>;
+    inflation: Array<{ burned: number; date: string; minted: number; }>;
+    funnel: { accounts: number; miners: number; racks: number; wallets: number; };
   alerts: AdminAlert[];
   crmAlerts: Array<{
     category: "support" | "feedback" | "treasury" | "operations";
@@ -1097,7 +1101,7 @@ export function AdminDashboard({
       deposit.status.includes("unknown"),
   ).length;
   const pixPendingCount = overview.pixDeposits.pendingCount;
-  const normalizeSearch = (value: string) => value.trim().toLocaleLowerCase("pt-BR");
+  const normalizeSearch = (value: string | null | undefined) => (value || "").trim().toLocaleLowerCase("pt-BR");
   const pixSearchTerm = normalizeSearch(pixQuery);
   const filteredPixDeposits = overview.pixDeposits.deposits
     .filter((deposit) => {
@@ -1108,7 +1112,7 @@ export function AdminDashboard({
       if ((pixTab === "pending") !== pending) return false;
       if (!pixSearchTerm) return true;
       return [deposit.id, deposit.providerReference ?? "", deposit.displayName, deposit.email]
-        .some((value) => value.toLocaleLowerCase("pt-BR").includes(pixSearchTerm));
+        .some((value) => (value || "").toLocaleLowerCase("pt-BR").includes(pixSearchTerm));
     })
     .sort((a, b) => {
       const aPending = !["credited", "provider_failed"].includes(a.status);
@@ -1149,7 +1153,7 @@ export function AdminDashboard({
       if ((withdrawalTab === "pending") !== pending) return false;
       if (!withdrawalSearchTerm) return true;
       return [request.id, request.displayName, request.email, request.asset, request.destinationAddress]
-        .some((value) => value.toLocaleLowerCase("pt-BR").includes(withdrawalSearchTerm));
+        .some((value) => (value || "").toLocaleLowerCase("pt-BR").includes(withdrawalSearchTerm));
     })
     .sort((a, b) => {
       const aPending = ["requested", "reviewing"].includes(a.status);
@@ -1164,7 +1168,7 @@ export function AdminDashboard({
       : ["resolved", "closed"].includes(ticket.status)))
     .filter((ticket) => !supportSearchTerm || [
       ticket.publicId, ticket.subject, ticket.email, ticket.message,
-    ].some((value) => value.toLocaleLowerCase("pt-BR").includes(supportSearchTerm)))
+    ].some((value) => (value || "").toLocaleLowerCase("pt-BR").includes(supportSearchTerm)))
     .sort((a, b) => supportTab === "open"
       ? a.createdAt - b.createdAt
       : b.updatedAt - a.updatedAt);
@@ -1345,7 +1349,12 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-metric-grid" hidden={adminSection !== "overview"}>
+      <section className="admin-metric-grid" hidden={adminSection !== "overview"} style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          <article>
+            <span>FUNIL (RETENÇÃO)</span>
+            <strong>{Math.round(((overview!.funnel?.miners || 0) / Math.max(1, (overview!.funnel?.accounts || 1))) * 100)}%</strong>
+            <small>{overview!.funnel?.accounts} Contas → {overview!.funnel?.miners} c/ Minerador</small>
+          </article>
         <article>
           <span>JOGADORES</span>
           <strong>{formatNumber(overview.metrics.totalPlayers)}</strong>
@@ -1378,9 +1387,9 @@ export function AdminDashboard({
         </div>
         <div className="admin-crm-command-grid">
           <button type="button" onClick={() => setAdminSection("treasury")}>
-            <span>FINANCEIRO</span>
-            <strong>{formatCma(overview.treasury.depositsCma - overview.treasury.withdrawalsCma)}</strong>
-            <small>fluxo líquido registrado</small>
+            <span>ECONOMIA</span>
+            <strong>{formatCma(overview.treasury.circulatingCma)}</strong>
+            <small>CMA circulante no jogo</small>
           </button>
           <button type="button" onClick={() => setAdminSection("season")}>
             <span>TEMPORADA</span>
@@ -1398,346 +1407,6 @@ export function AdminDashboard({
             <small>{overview.metrics.openReviews} revisão(ões) antifraude</small>
           </button>
         </div>
-      </section>
-
-      <section className="admin-panel admin-launch-readiness" hidden={adminSection !== "overview"}>
-        <div className="admin-panel-heading">
-          <div>
-            <span>PRÉ-LANÇAMENTO PÚBLICO · SEGURANÇA E FINANÇAS</span>
-            <h2>Portões antes de abrir o Arcadia</h2>
-          </div>
-          <small>
-            CRIPTO CONTROLADO · PIX {overview.launch.pix.enabled
-              ? overview.launch.pix.mode === "production"
-                ? "PRODUÇÃO ATIVA"
-                : "HOMOLOGAÇÃO ATIVA"
-              : "AGUARDA CONFIGURAÇÃO"} · SAQUES MANUAIS
-          </small>
-        </div>
-
-        <div className="admin-launch-grid">
-          <article className="ready">
-            <b>01</b>
-            <span>SERVIDOR AUTORITATIVO</span>
-            <strong>PRONTO</strong>
-            <p>Sessões, placar, recompensas e limites são conferidos no servidor.</p>
-          </article>
-          <article className="ready">
-            <b>02</b>
-            <span>ANTI-AUTOMAÇÃO</span>
-            <strong>ATIVO</strong>
-            <p>Limite global por conta e padrões impossíveis entram em revisão.</p>
-          </article>
-          <article className={overview.security.configured ? "ready" : "pending"}>
-            <b>03</b>
-            <span>DESAFIO HUMANO</span>
-            <strong>
-              {overview.security.required
-                ? "OBRIGATÓRIO"
-                : overview.security.configured
-                  ? "PREPARADO"
-                  : "AGUARDA CHAVES"}
-            </strong>
-            <p>Turnstile obrigatório, validado no servidor e com passe de 4 horas.</p>
-          </article>
-          <article
-            className={overview.launch.identity.projectConfigured ? "ready" : "pending"}
-          >
-            <b>04</b>
-            <span>LOGIN PÚBLICO</span>
-            <strong>
-              {overview.launch.identity.publicLoginEnabled
-                ? "ATIVO"
-                : overview.launch.identity.projectConfigured
-                  ? "SUPABASE PREPARADO"
-                  : "AGUARDA PROJETO"}
-            </strong>
-            <p>
-              Supabase conectado com confirmação de e-mail, recuperação de senha
-              e sessões seguras.
-            </p>
-          </article>
-          <article className="ready">
-            <b>05</b>
-            <span>CONVERSÃO PARA CMA</span>
-            <strong>BTC / DOGE / LTC ATIVO</strong>
-            <p>Conversão interna registrada; depósitos entram em BTC, DOGE ou LTC e só viram CMA por decisão do jogador.</p>
-          </article>
-          <article className="pending">
-            <b>06</b>
-            <span>ABERTURA PÚBLICA</span>
-            <strong>EXIGE APROVAÇÃO</strong>
-            <p>Domínio, termos, privacidade, teste de carga e recuperação primeiro.</p>
-          </article>
-        </div>
-
-        <section className="launch-architecture" aria-labelledby="launch-architecture-title">
-          <header>
-            <div>
-              <span>ARQUITETURA RECOMENDADA</span>
-              <h3 id="launch-architecture-title">Uma função clara para cada serviço</h3>
-            </div>
-              <strong>CLOUDFLARE + SUPABASE · SEM MIGRAR PARA FIREBASE</strong>
-          </header>
-          <div>
-            <article className="ready">
-              <b>01</b>
-              <span>HOSPEDAGEM E SERVIDOR</span>
-              <strong>Sites + Cloudflare</strong>
-              <p>
-                Executa o jogo, APIs, blocos e proteção. D1 continua guardando o
-                progresso e R2 mantém as cópias de recuperação.
-              </p>
-              <em>{overview.launch.hosting.https ? "HTTPS ATIVO" : "AGUARDA HTTPS"}</em>
-            </article>
-            <article
-              className={overview.launch.identity.projectConfigured ? "ready" : "waiting"}
-            >
-              <b>02</b>
-              <span>CADASTRO E LOGIN</span>
-              <strong>Supabase Auth</strong>
-              <p>
-                Usado somente para conta pública, confirmação de e-mail,
-                recuperação de senha e sessão do jogador.
-              </p>
-              <em>
-                {overview.launch.identity.projectConfigured
-                  ? "PROJETO CONECTADO"
-                  : "FALTAM URL E CHAVE PUBLICÁVEL"}
-              </em>
-            </article>
-            <article className="ready">
-              <b>03</b>
-              <span>CARTEIRA DO JOGADOR</span>
-              <strong>Livro-razão individual</strong>
-              <p>
-                Cada usuário possui saldo e histórico próprios, mas o Arcadia não
-                cria, recebe ou armazena seed phrase e chave privada.
-              </p>
-              <em>ESTRUTURA PRONTA</em>
-            </article>
-            <article className={overview.launch.deposits.configured ? "ready" : "waiting"}>
-              <b>04</b>
-              <span>DEPÓSITOS BTC / DOGE / LTC</span>
-              <strong>Fatura do provedor</strong>
-              <p>
-                O provedor cria uma cobrança única vinculada à conta. Somente uma
-                confirmação consultada pelo servidor pode creditar o saldo.
-              </p>
-              <em>
-                {overview.launch.deposits.enabled
-                  ? "ATIVO"
-                  : overview.launch.deposits.configured
-                    ? "CONFIGURADO, MAS BLOQUEADO"
-                    : overview.launch.deposits.sandboxEnabled
-                      ? "SIMULAÇÃO SEM DINHEIRO ATIVA"
-                    : "NOWPAYMENTS AGUARDANDO CONTA"}
-              </em>
-            </article>
-            <article className={overview.launch.withdrawals.cryptoEnabled ? "ready" : "blocked"}>
-              <b>05</b>
-              <span>SAQUES</span>
-              <strong>Fila manual do proprietário</strong>
-              <p>
-                CMA não é sacável. BTC, DOGE e LTC ficam reservados no pedido;
-                o pagamento externo e a conferência continuam manuais.
-              </p>
-              <em>
-                {overview.launch.withdrawals.cryptoEnabled
-                  ? "FILA MANUAL ATIVA"
-                  : overview.launch.withdrawals.sandboxEnabled
-                    ? "SOMENTE SIMULAÇÃO"
-                    : "PAUSADA"}
-              </em>
-            </article>
-            <article className={overview.launch.pix.configured ? "ready" : "waiting"}>
-              <b>06</b>
-              <span>PIX PARA CMA</span>
-              <strong>Mercado Pago</strong>
-              <p>
-                Checkout Transparente via Orders API, PTAX oficial e crédito único
-                somente depois da confirmação assinada do provedor.
-              </p>
-              <em>
-                {overview.launch.pix.enabled
-                  ? overview.launch.pix.mode === "test"
-                    ? "HOMOLOGAÇÃO ATIVA"
-                    : "PRODUÇÃO ATIVA"
-                  : overview.launch.pix.configured
-                    ? "CONFIGURADO, MAS BLOQUEADO"
-                    : "AGUARDA CREDENCIAIS DO PROVEDOR"}
-              </em>
-            </article>
-          </div>
-        </section>
-
-        <section className="owner-launch-checklist" aria-labelledby="owner-next-actions">
-          <header>
-            <div>
-              <span>PRÓXIMAS AÇÕES DO PROPRIETÁRIO</span>
-              <h3 id="owner-next-actions">O que você precisa providenciar</h3>
-            </div>
-            <strong>
-              DEPÓSITOS {overview.launch.pix.enabled
-                ? overview.launch.pix.mode === "production"
-                  ? "EM PRODUÇÃO"
-                  : "EM HOMOLOGAÇÃO"
-                : "AGUARDANDO CONFIGURAÇÃO"} · SAQUES MANUAIS
-            </strong>
-          </header>
-          <div>
-            <article className="next">
-              <b>1</b>
-              <div>
-                <span>DOMÍNIO E CONTATO</span>
-                <strong>Conectar o domínio oficial ao Cloudflare</strong>
-                <p>
-                  Escolha o endereço do Arcadia e crie um e-mail administrativo
-                  separado da conta dos jogadores. O HTTPS será configurado na
-                  hospedagem, sem comprar certificado à parte.
-                </p>
-              </div>
-              <em>{overview.launch.hosting.customDomain ? "CONCLUÍDO" : "VOCÊ"}</em>
-            </article>
-            <article className="next">
-              <b>2</b>
-              <div>
-                <span>CADASTRO E LOGIN</span>
-                <strong>Conectar o projeto do Supabase</strong>
-                <p>
-                  Precisamos de e-mail verificado, recuperação de senha, sessões
-                  seguras e autenticação reforçada na conta do proprietário.
-                </p>
-              </div>
-              <em>
-                {overview.launch.identity.projectConfigured
-                  ? "CONFIGURADO"
-                  : "VOCÊ + ARCADIA"}
-              </em>
-            </article>
-            <article className="blocked">
-              <b>3</b>
-              <div>
-                <span>BASE LEGAL</span>
-                <strong>Validar empresa, termos e privacidade</strong>
-                <p>
-                  Antes de aceitar dinheiro real, confirme o modelo com contador e
-                  assessoria jurídica, incluindo LGPD, política de reembolso e idade
-                  mínima.
-                </p>
-              </div>
-              <em>EXTERNO</em>
-            </article>
-            <article className="blocked">
-              <b>4</b>
-              <div>
-                <span>DEPÓSITOS BTC / DOGE / LTC</span>
-                  <strong>Monitorar o provedor conectado</strong>
-                <p>
-                  A estrutura individual, o histórico e as faturas de produção estão
-                  conectados. Confira diariamente IPNs, liquidação, saldos internos e
-                  cobertura da tesouraria antes de ampliar os limites.
-                </p>
-              </div>
-              <em>
-                {overview.launch.deposits.configured
-                  ? "CONTA CONECTADA"
-                  : "AGUARDA CONTRATO"}
-              </em>
-            </article>
-            <article className={overview.launch.withdrawals.cryptoEnabled ? "next" : "later"}>
-              <b>5</b>
-              <div>
-                <span>SAQUES</span>
-                <strong>Operar a fila com dupla conferência</strong>
-                <p>
-                  Revise endereço e rede, faça o envio externo e só então registre o
-                  hash. Recusas estornam o saldo reservado automaticamente.
-                </p>
-              </div>
-              <em>{overview.launch.withdrawals.cryptoEnabled ? "ATIVO" : "PAUSADO"}</em>
-            </article>
-          </div>
-        </section>
-
-        <div className="admin-security-summary">
-          <div>
-            <span>EVENTOS DE SEGURANÇA · 24H</span>
-            <strong>{formatNumber(overview.security.events24h)}</strong>
-          </div>
-          <div>
-            <span>CONTAS LIMITADAS · 24H</span>
-            <strong>{formatNumber(overview.security.blockedAccounts24h)}</strong>
-          </div>
-          <div>
-            <span>PASSES HUMANOS ATIVOS</span>
-            <strong>{formatNumber(overview.security.activePasses)}</strong>
-          </div>
-          <div>
-            <span>AUTOMAÇÕES DETECTADAS · 24H</span>
-            <strong>{formatNumber(overview.security.automationEvents24h)}</strong>
-          </div>
-          <div>
-            <span>LIMITES ACIONADOS · 24H</span>
-            <strong>{formatNumber(overview.security.rateLimitEvents24h)}</strong>
-          </div>
-          <div>
-            <span>TURNSTILE RECUSADO · 24H</span>
-            <strong>{formatNumber(overview.security.turnstileFailures24h)}</strong>
-          </div>
-        </div>
-
-        <section className={`admin-security-monitor ${overview.security.status}`}>
-          <header>
-            <div>
-              <span>MONITOR ANTIFRAUDE · TEMPO REAL DO SERVIDOR</span>
-              <h3>Fila de sinais do Arcade</h3>
-            </div>
-            <strong>
-              {overview.security.status === "stable"
-                ? "OPERAÇÃO ESTÁVEL"
-                : overview.security.status === "attention"
-                  ? "EXIGE ACOMPANHAMENTO"
-                  : "AÇÃO PRIORITÁRIA"}
-            </strong>
-          </header>
-          <p>
-            Os eventos abaixo não removem saldo automaticamente. Eles ajudam o
-            proprietário a separar falha humana, excesso de tentativas e automação
-            antes de qualquer decisão sobre a conta.
-          </p>
-          <div className="admin-security-events">
-            {overview.security.recentEvents.length === 0 ? (
-              <article className="empty">
-                <strong>Nenhum sinal recente</strong>
-                <span>O servidor continua aplicando os limites normalmente.</span>
-              </article>
-            ) : (
-              overview.security.recentEvents.map((event, index) => (
-                <article key={`${event.accountId}-${event.createdAt}-${index}`}>
-                  <div>
-                    <span>
-                      {securityCategoryLabels[event.category] ?? "Evento de segurança"}
-                    </span>
-                    <time>{formatDate(event.createdAt)}</time>
-                  </div>
-                  <strong>{event.displayName}</strong>
-                  <small>
-                    {event.email || `Conta ${shortId(event.accountId)}`}
-                  </small>
-                  <button
-                    className="secondary"
-                    type="button"
-                    onClick={() => locatePlayer(event.accountId, event.displayName, event.email)}
-                  >
-                    LOCALIZAR JOGADOR
-                  </button>
-                  <p>{event.reason}</p>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
       </section>
 
       <section className="admin-panel admin-user-search" hidden={adminSection !== "players"}>
@@ -2489,6 +2158,24 @@ export function AdminDashboard({
       </section>
 
       <section className="admin-metric-grid" hidden={adminSection !== "treasury"}>
+          <article style={{ gridColumn: '1 / -1' }}>
+            <span>GRÁFICO DE INFLAÇÃO E QUEIMA (30 DIAS)</span>
+            <div style={{ display: 'flex', gap: '4px', height: '120px', alignItems: 'flex-end', marginTop: '1rem', overflowX: 'auto', paddingBottom: '8px' }}>
+              {overview.inflation?.map(day => {
+                const total = Math.max(day.minted + Math.abs(day.burned), 1);
+                const mintHeight = Math.max((day.minted / total) * 100, 2);
+                const burnHeight = Math.max((Math.abs(day.burned) / total) * 100, 2);
+                return (
+                  <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, gap: '2px' }} title={`${day.date}: Gerado ${day.minted.toFixed(0)} | Queimado ${day.burned.toFixed(0)}`}>
+                    <div style={{ width: '100%', height: `${mintHeight}%`, background: 'var(--lime)', borderRadius: '2px 2px 0 0', opacity: day.minted > 0 ? 1 : 0.2 }} />
+                    <div style={{ width: '100%', height: `${burnHeight}%`, background: 'var(--danger)', borderRadius: '0 0 2px 2px', opacity: day.burned < 0 ? 1 : 0.2 }} />
+                    <small style={{ fontSize: '9px', opacity: 0.5 }}>{day.date.split('-')[2]}</small>
+                  </div>
+                );
+              })}
+            </div>
+            <small>Verde: CMA Gerado | Vermelho: CMA Queimado nas lojas. Gráfico normalizado diariamente.</small>
+          </article>
         <article>
           <span>ENTRADAS (PIX &amp; CRYPTO)</span>
           <strong>{formatCma(overview.treasury.depositsCma)}</strong>
@@ -3033,9 +2720,10 @@ export function AdminDashboard({
                     <button
                       type="button"
                       disabled={
-                        reply.trim().length < 10 ||
-                        busyAction === `support-reply-${ticket.publicId}`
-                      }
+                          reply.trim().length < 10 ||
+                          busyAction === `support-reply-${ticket.publicId}` ||
+                          (ticket.adminNote ? reply === ticket.adminNote : false)
+                        }
                       onClick={() =>
                         void runAdminAction(
                           `support-reply-${ticket.publicId}`,
@@ -3052,10 +2740,12 @@ export function AdminDashboard({
                       }
                     >
                       {busyAction === `support-reply-${ticket.publicId}`
-                        ? "SALVANDO..."
-                        : overview.support.emailEnabled
-                          ? "ENVIAR RESPOSTA"
-                          : "SALVAR RESPOSTA"}
+                          ? "SALVANDO..."
+                          : (ticket.adminNote && reply === ticket.adminNote)
+                            ? "RESPOSTA SALVA"
+                            : overview.support.emailEnabled
+                              ? "ENVIAR RESPOSTA"
+                              : "SALVAR RESPOSTA"}
                     </button>
                   </footer>
                 </article>
@@ -3065,7 +2755,43 @@ export function AdminDashboard({
         )}
       </section>
 
-      <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "players"}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '2rem' }} hidden={adminSection !== "players"}>
+          <section className="admin-panel">
+            <header style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <strong>WHALE TRACKING (TOP 10 BALEIAS)</strong>
+            </header>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {overview.whales?.map((w, i) => (
+                <div key={w.accountId} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>#{i+1} {w.displayName}</strong>
+                    <small style={{ opacity: 0.5, whiteSpace: 'nowrap' }}>{w.email}</small>
+                  </div>
+                  <strong style={{ color: 'var(--lime)', flexShrink: 0 }}>{formatCma(w.balance)}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+          
+          <section className="admin-panel">
+            <header style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <strong>TOP AFILIADOS (REFERRALS)</strong>
+            </header>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {overview.affiliates?.map((a, i) => (
+                <div key={a.accountId} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>#{i+1} {a.displayName}</strong>
+                    <small style={{ opacity: 0.5, whiteSpace: 'nowrap' }}>{a.referrals} indicados</small>
+                  </div>
+                  <strong style={{ color: 'var(--lime)', flexShrink: 0 }}>{formatCma(a.cmaEarned)} ganhos</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <section className="admin-panel admin-feedback-panel" hidden={adminSection !== "players"}>
         <div className="admin-panel-heading">
           <div>
             <span>VOZ DO JOGADOR · ÚLTIMOS 30 DIAS</span>
@@ -4365,7 +4091,7 @@ export function AdminDashboard({
             <div className="admin-panel-heading compact">
               <div>
                 <span>ÚLTIMAS ABERTURAS</span>
-                <h2>Caixas Arcadia</h2>
+                <h2>Caixas e Suprimentos</h2>
               </div>
             </div>
             <div className="admin-crate-feed">

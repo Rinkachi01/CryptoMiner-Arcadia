@@ -44,6 +44,9 @@ const gameNames: Record<string, string> = {
   "packet-catch": "Packet Catch",
   "hash-match": "Hash Match",
   "circuit-rush": "Circuit Rush",
+  "coin-link": "Coin Cascade",
+  "sky-dash": "Sky Dash",
+  "crypto-2048": "Crypto 2048",
 };
 
 export function OperatorProgressPanel({

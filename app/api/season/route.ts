@@ -4,6 +4,7 @@ import type { SeasonTrack } from "../../season-rules";
 import {
   claimSeasonQuest,
   claimSeasonReward,
+  claimWelcomeXpBundle,
   purchaseSeasonPremium,
   readSeasonOverview,
   registerSeasonDailyLogin,
@@ -11,7 +12,27 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+function allowsSeasonalCurrency(request: Request) {
+  const hostname = new URL(request.url).hostname.toLowerCase();
+  // Season 2 is the current campaign in both environments. Keep the
+  // allow-list explicit so preview/unknown hosts cannot mint seasonal credit.
+  return new Set([
+    "staging.cryptominerarcadia.com",
+    "cryptominerarcadia.com",
+    "www.cryptominerarcadia.com",
+  ]).has(hostname) || (
+    hostname.endsWith(".workers.dev") && hostname.includes("staging")
+  );
+}
+
+// The welcome-bonus cadence is a production-only policy. Keeping the host
+// gate here prevents the staging/test environment from inheriting production
+// reset behavior or changing its existing one-claim-per-season semantics.
+function enablesDailyWelcomeXpReset(request: Request) {
+  return !new URL(request.url).hostname.toLowerCase().includes("staging");
+}
+
+export async function GET(request: Request) {
   const user = await getArcadiaUser();
   if (!user || !env.DB) {
     return Response.json(
@@ -21,11 +42,17 @@ export async function GET() {
   }
   const now = Date.now();
   const accountId = await accountIdForUser(user);
+  const allowSeasonalCurrency = allowsSeasonalCurrency(request);
+  const welcomeXpDailyReset = enablesDailyWelcomeXpReset(request);
+  const stagingXpBoost = new URL(request.url).hostname.toLowerCase().includes("staging");
   const overview = await readSeasonOverview(
     env.DB,
     accountId,
     now,
     true,
+    allowSeasonalCurrency,
+    welcomeXpDailyReset,
+    stagingXpBoost,
   );
   const isSpaceRace = overview.season?.campaignSlug === "space-race-01";
   return Response.json(
@@ -54,6 +81,9 @@ export async function POST(request: Request) {
     | null;
   const accountId = await accountIdForUser(user);
   const now = Date.now();
+  const allowSeasonalCurrency = allowsSeasonalCurrency(request);
+  const welcomeXpDailyReset = enablesDailyWelcomeXpReset(request);
+  const stagingXpBoost = new URL(request.url).hostname.toLowerCase().includes("staging");
   try {
     let message = "Temporada atualizada.";
     if (body?.action === "daily-login") {
@@ -61,6 +91,16 @@ export async function POST(request: Request) {
       message = result.awarded
         ? `Login do dia: +${result.xp} XP.`
         : "O XP de login de hoje já foi registrado.";
+    } else if (body?.action === "claim-welcome-xp") {
+      const result = await claimWelcomeXpBundle(
+        env.DB,
+        accountId,
+        now,
+        welcomeXpDailyReset,
+      );
+      message = result.alreadyClaimed
+        ? "O Bundle XP de boas-vindas já foi resgatado."
+        : `Bundle XP de boas-vindas: +${result.xp} XP.`;
     } else if (body?.action === "buy-premium" || body?.action === "buy-premium-max") {
       const isMax = body?.action === "buy-premium-max";
       const result = await purchaseSeasonPremium(env.DB, accountId, now, isMax);
@@ -83,6 +123,8 @@ export async function POST(request: Request) {
         body.track as SeasonTrack,
         body.level,
         now,
+        allowSeasonalCurrency,
+        stagingXpBoost,
       );
       message = result.alreadyClaimed
         ? "Este prêmio já foi resgatado."
@@ -98,6 +140,7 @@ export async function POST(request: Request) {
         body.questId,
         body.cycleKey,
         now,
+        stagingXpBoost,
       );
       message = `Quest concluída: +${result.xp} XP.`;
     } else {
@@ -107,7 +150,15 @@ export async function POST(request: Request) {
     return Response.json(
       {
         message,
-        ...(await readSeasonOverview(env.DB, accountId, refreshedAt)),
+        ...(await readSeasonOverview(
+          env.DB,
+          accountId,
+          refreshedAt,
+          false,
+          allowSeasonalCurrency,
+          welcomeXpDailyReset,
+          stagingXpBoost,
+        )),
         serverTime: refreshedAt,
       },
       { headers: { "Cache-Control": "no-store" } },

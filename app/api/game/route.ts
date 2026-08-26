@@ -13,6 +13,7 @@ import {
   type PublicGameState,
 } from "../../game-server";
 import { getSupplyCrate } from "../../supply-crate-rules";
+import { getMinerOffer, type MinerOffer } from "../../miner-offers-rules";
 import {
   readNetworkPowerSnapshot,
   syncAccountNetworkPower,
@@ -31,6 +32,31 @@ import {
 
 export const dynamic = "force-dynamic";
 
+// These actions were originally isolated to staging while the Season 2
+// mechanics were being validated.  Promotion is now controlled explicitly by
+// ARCADIA_EXTENDED_GAMEPLAY_ENABLED so production can receive the same rules
+// without sharing the staging database or its balances.
+const EXTENDED_GAMEPLAY_ACTIONS = new Set([
+  "open_luck_crate",
+  "open_part_case",
+  "open_season_box",
+  "buy_miner_offer",
+  "merge_part",
+  "merge_miner",
+]);
+
+function isStagingRequest(request: Request) {
+  const hostname = new URL(request.url).hostname.toLowerCase();
+  return hostname === "staging.cryptominerarcadia.com" || hostname.includes("staging");
+}
+
+function extendedGameplayEnabled(request: Request) {
+  if (isStagingRequest(request)) return true;
+  const configured = (env as unknown as Record<string, unknown>)
+    .ARCADIA_EXTENDED_GAMEPLAY_ENABLED;
+  return String(configured ?? "").toLowerCase() === "true";
+}
+
 type StoredRow = {
   account_id: string;
   email: string;
@@ -39,6 +65,11 @@ type StoredRow = {
   version: number;
   created_at: number;
   updated_at: number;
+};
+
+type ReservedMinerOffer = {
+  offer: MinerOffer;
+  quantity: number;
 };
 
 function json(
@@ -93,6 +124,21 @@ async function ensureSchema(db: D1Database) {
     db.prepare(`
       CREATE INDEX IF NOT EXISTS ledger_entries_account_created_idx
       ON ledger_entries (account_id, created_at)
+    `),
+    // Offer lots are server-wide inventory, not a per-account allowance.
+    // The account state still keeps a local purchase history for compatibility,
+    // while this table is the authoritative shared stock counter.
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS miner_offer_stock (
+        offer_id TEXT PRIMARY KEY NOT NULL,
+        rotation_key TEXT NOT NULL,
+        purchased INTEGER DEFAULT 0 NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    `),
+    db.prepare(`
+      CREATE INDEX IF NOT EXISTS miner_offer_stock_rotation_idx
+      ON miner_offer_stock (rotation_key)
     `),
     // One authoritative record per account and settled server block.  The
     // game state version check already protects the balance, while this
@@ -180,6 +226,55 @@ async function ensureSchema(db: D1Database) {
       ON temporary_power_grants (account_id, expires_at)
     `),
   ]);
+}
+
+async function reserveMinerOfferStock(
+  db: D1Database,
+  offer: MinerOffer,
+  quantity: number,
+  now: number,
+) {
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO miner_offer_stock (
+        offer_id, rotation_key, purchased, updated_at
+      ) VALUES (?, ?, 0, ?)`,
+    )
+    .bind(offer.id, offer.rotationKey, now)
+    .run();
+  const result = await db
+    .prepare(
+      `UPDATE miner_offer_stock
+       SET purchased = purchased + ?, updated_at = ?
+       WHERE offer_id = ? AND rotation_key = ?
+         AND purchased + ? <= ?`,
+    )
+    .bind(
+      quantity,
+      now,
+      offer.id,
+      offer.rotationKey,
+      quantity,
+      offer.lotSize,
+    )
+    .run();
+  return Number(result.meta.changes ?? 0) === 1;
+}
+
+async function releaseMinerOfferStock(
+  db: D1Database,
+  offer: MinerOffer,
+  quantity: number,
+  now: number,
+) {
+  await db
+    .prepare(
+      `UPDATE miner_offer_stock
+       SET purchased = MAX(0, purchased - ?), updated_at = ?
+       WHERE offer_id = ? AND rotation_key = ? AND purchased >= ?`,
+    )
+    .bind(quantity, now, offer.id, offer.rotationKey, quantity)
+    .run();
 }
 
 async function readState(db: D1Database, accountId: string) {
@@ -645,6 +740,18 @@ export async function POST(request: Request) {
     return json({ error: "Ação inválida." }, 400);
   }
 
+  if (
+    EXTENDED_GAMEPLAY_ACTIONS.has(body.action) &&
+    !extendedGameplayEnabled(request)
+  ) {
+    return json(
+      {
+        error: "Esta ação está temporariamente indisponível.",
+      },
+      403,
+    );
+  }
+
   const now = Date.now();
   let row = await readState(context.db, context.accountId);
   if (!row) {
@@ -757,6 +864,62 @@ export async function POST(request: Request) {
     );
   }
 
+  let reservedMinerOffer: ReservedMinerOffer | null = null;
+  if (body.action === "buy_miner_offer") {
+    const actionPayload =
+      body.payload && typeof body.payload === "object"
+        ? body.payload as Record<string, unknown>
+        : {};
+    const offer = getMinerOffer(actionPayload.offerId, now);
+    const quantity = Number(actionPayload.quantity);
+    if (
+      !offer ||
+      !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > 3
+    ) {
+      return json(
+        {
+          ...responsePayload(
+            row,
+            parseState(row),
+            now,
+            "Oferta de minerador indisponível.",
+            temporaryPowerGh,
+            temporaryPowerSummary,
+            network,
+          ),
+          error: "Oferta de minerador inválida ou indisponível.",
+        },
+        400,
+      );
+    }
+    const reserved = await reserveMinerOfferStock(
+      context.db,
+      offer,
+      quantity,
+      now,
+    );
+    if (!reserved) {
+      return json(
+        {
+          ...responsePayload(
+            row,
+            parseState(row),
+            now,
+            "Esta oferta esgotou o lote global do servidor.",
+            temporaryPowerGh,
+            temporaryPowerSummary,
+            network,
+          ),
+          error: `Oferta esgotada: o lote global de ${offer.lotSize} unidades já foi reservado.`,
+        },
+        409,
+      );
+    }
+    reservedMinerOffer = { offer, quantity };
+  }
+
   let result;
   try {
     const crateId =
@@ -774,6 +937,16 @@ export async function POST(request: Request) {
         );
       }
     }
+    const actionPayload =
+      body.payload && typeof body.payload === "object"
+        ? { ...(body.payload as Record<string, unknown>) }
+        : {};
+    // Outcomes must be generated at the edge, never trusted from the browser.
+    // The pure reducer still accepts an explicit roll for deterministic tests,
+    // while live luck/season openings always receive fresh server entropy.
+    if (body.action === "open_luck_crate" || body.action === "open_season_box") {
+      actionPayload.roll = secureRandomUnit();
+    }
     result =
       body.action === "open_supply_crate" && crate
         ? applySupplyCratePurchase(
@@ -788,13 +961,21 @@ export async function POST(request: Request) {
         : applyGameAction(
             parseState(row),
             body.action as GameActionName,
-            body.payload,
+            actionPayload,
             now,
             eligibleTemporaryPowerGh,
             network.playerPowerGh,
             network.blockRewardAtomic,
           );
   } catch (error) {
+    if (reservedMinerOffer) {
+      await releaseMinerOfferStock(
+        context.db,
+        reservedMinerOffer.offer,
+        reservedMinerOffer.quantity,
+        now,
+      );
+    }
     return json(
       {
         error:
@@ -814,6 +995,30 @@ export async function POST(request: Request) {
   }
 
   const primaryMetadata: Record<string, unknown> = { ...result.metadata };
+  if (reservedMinerOffer) {
+    const stock = await context.db
+      .prepare(
+        `SELECT purchased FROM miner_offer_stock WHERE offer_id = ? AND rotation_key = ?`,
+      )
+      .bind(
+        reservedMinerOffer.offer.id,
+        reservedMinerOffer.offer.rotationKey,
+      )
+      .first<{ purchased: number }>();
+    const offerMetadata =
+      primaryMetadata.minerOffer && typeof primaryMetadata.minerOffer === "object"
+        ? primaryMetadata.minerOffer as Record<string, unknown>
+        : {};
+    primaryMetadata.minerOffer = {
+      ...offerMetadata,
+      globalPurchased: Number(stock?.purchased ?? reservedMinerOffer.quantity),
+      globalRemaining: Math.max(
+        0,
+        reservedMinerOffer.offer.lotSize - Number(stock?.purchased ?? reservedMinerOffer.quantity),
+      ),
+      stockScope: "server",
+    };
+  }
   if (settlementPreview.settledBlocks > 0) {
     if (!Object.prototype.hasOwnProperty.call(primaryMetadata, "rewards")) {
       Object.assign(primaryMetadata, {
@@ -863,6 +1068,14 @@ export async function POST(request: Request) {
         )
       : { applied: false, conflict: false };
   if (referralResult.conflict) {
+    if (reservedMinerOffer) {
+      await releaseMinerOfferStock(
+        context.db,
+        reservedMinerOffer.offer,
+        reservedMinerOffer.quantity,
+        now,
+      );
+    }
     const latest = (await readState(context.db, context.accountId)) ?? row;
     return json(
       {
@@ -955,32 +1168,53 @@ export async function POST(request: Request) {
         now,
       ),
   );
-  const stateAndLedgerResults = await context.db.batch([
-    context.db
-      .prepare(
-        `UPDATE game_states
-         SET state_json = ?, version = ?, display_name = ?, updated_at = ?
-         WHERE account_id = ? AND version = ?
-           AND (
-             ? IS NULL OR NOT EXISTS (
-               SELECT 1 FROM mining_settlements
-               WHERE account_id = ? AND settled_block = ?
-             )
-           )`,
-      )
-      .bind(
-        JSON.stringify(result.state),
-        nextVersion,
-        context.user.displayName,
+  let stateAndLedgerResults;
+  try {
+    stateAndLedgerResults = await context.db.batch([
+      context.db
+        .prepare(
+          `UPDATE game_states
+           SET state_json = ?, version = ?, display_name = ?, updated_at = ?
+           WHERE account_id = ? AND version = ?
+             AND (
+               ? IS NULL OR NOT EXISTS (
+                 SELECT 1 FROM mining_settlements
+                 WHERE account_id = ? AND settled_block = ?
+               )
+             )`,
+        )
+        .bind(
+          JSON.stringify(result.state),
+          nextVersion,
+          context.user.displayName,
+          now,
+          context.accountId,
+          row.version,
+          settlementBlock,
+          context.accountId,
+          settlementBlock,
+        ),
+      ...ledgerStatements,
+    ]);
+  } catch (error) {
+    if (reservedMinerOffer) {
+      await releaseMinerOfferStock(
+        context.db,
+        reservedMinerOffer.offer,
+        reservedMinerOffer.quantity,
         now,
-        context.accountId,
-        row.version,
-        settlementBlock,
-        context.accountId,
-        settlementBlock,
-      ),
-    ...ledgerStatements,
-  ]);
+      );
+    }
+    return json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível persistir a compra.",
+      },
+      500,
+    );
+  }
   const stateWriteSucceeded =
     Number(stateAndLedgerResults[0]?.meta.changes ?? 0) === 1;
   const settlementWriteSucceeded =
@@ -990,6 +1224,14 @@ export async function POST(request: Request) {
   const actionLedgerSucceeded =
     Number(stateAndLedgerResults[actionLedgerIndex]?.meta.changes ?? 0) === 1;
   if (!stateWriteSucceeded || !settlementWriteSucceeded || !actionLedgerSucceeded) {
+    if (reservedMinerOffer) {
+      await releaseMinerOfferStock(
+        context.db,
+        reservedMinerOffer.offer,
+        reservedMinerOffer.quantity,
+        now,
+      );
+    }
     const latest = (await readState(context.db, context.accountId)) ?? row;
     return json(
       {

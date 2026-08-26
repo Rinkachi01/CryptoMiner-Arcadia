@@ -10,6 +10,7 @@ export const COIN_LINK_HOURLY_LIMIT = 6;
 export const COIN_LINK_DAILY_LIMIT = 18;
 export const COIN_LINK_POWER_DURATION_HOURS = 6;
 export const COIN_LINK_MAX_MOVES = 24;
+export const COIN_LINK_REWARD_POWER_CAP_GH = 200;
 
 export type CoinLinkMove = {
   from: number;
@@ -23,6 +24,7 @@ export type CoinLinkMoveResult = {
   score: number;
   cascades: number;
   steps: CoinLinkCascadeStep[];
+  reshuffled?: boolean;
 };
 
 export type CoinLinkMatchGroup = {
@@ -178,7 +180,7 @@ function scoreCoinLinkCascade(
   };
 }
 
-function boardHasMove(board: GameCoinId[]) {
+export function coinLinkBoardHasMove(board: GameCoinId[]) {
   for (let index = 0; index < board.length; index += 1) {
     for (const other of [index + 1, index + COIN_LINK_BOARD_SIZE]) {
       if (!isAdjacent(index, other)) continue;
@@ -190,9 +192,51 @@ function boardHasMove(board: GameCoinId[]) {
   return false;
 }
 
+function shuffleCoinLinkBoard(board: GameCoinId[], random: () => number) {
+  const shuffled = [...board];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  return shuffled;
+}
+
+/**
+ * Reorganizes a dead board without changing its inventory of coins. The seed
+ * and move index keep the result identical in the browser and on the server.
+ */
+export function reshuffleCoinLinkBoard(
+  board: GameCoinId[],
+  seed: string,
+  difficulty: number,
+  moveIndex: number,
+) {
+  if (
+    board.length !== COIN_LINK_BOARD_SIZE ** 2 ||
+    coinLinkBoardHasMove(board)
+  ) {
+    return board;
+  }
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    const candidate = shuffleCoinLinkBoard(
+      board,
+      seededRandom(
+        `coin-link-reshuffle:${seed}:${difficulty}:${moveIndex}:${attempt}`,
+      ),
+    );
+    if (
+      findCoinLinkMatches(candidate).length === 0 &&
+      coinLinkBoardHasMove(candidate)
+    ) {
+      return candidate;
+    }
+  }
+  return board;
+}
+
 export function createCoinLinkBoard(seed: string, difficulty: number) {
   const pool = coinLinkCoinPool(difficulty);
-  for (let attempt = 0; attempt < 24; attempt += 1) {
+  for (let attempt = 0; attempt < 96; attempt += 1) {
     const random = seededRandom(`coin-link:${seed}:${difficulty}:${attempt}`);
     const board: GameCoinId[] = [];
     for (let index = 0; index < COIN_LINK_BOARD_SIZE ** 2; index += 1) {
@@ -216,7 +260,7 @@ export function createCoinLinkBoard(seed: string, difficulty: number) {
       }
       board.push(choices[Math.floor(random() * choices.length)] ?? pool[0]);
     }
-    if (boardHasMove(board)) return board;
+    if (coinLinkBoardHasMove(board)) return board;
   }
   throw new Error("Não foi possível montar um tabuleiro jogável.");
 }
@@ -297,7 +341,20 @@ export function applyCoinLinkMove(
     });
     groups = findCoinLinkMatchGroups(next);
   }
-  return { valid: true, board: next, score, cascades, steps };
+  const playableBoard = reshuffleCoinLinkBoard(
+    next,
+    seed,
+    difficulty,
+    moveIndex,
+  );
+  return {
+    valid: true,
+    board: playableBoard,
+    score,
+    cascades,
+    steps,
+    reshuffled: playableBoard !== next,
+  };
 }
 
 export function validateCoinLink(
@@ -351,7 +408,10 @@ export function coinLinkRewardPower(difficulty: number, score: number) {
   const target = coinLinkTargetScore(difficulty);
   if (score < target) return 0;
   const level = normalizedDifficulty(difficulty);
-  return Math.min(300, 65 + level * 12 + Math.floor((score - target) / 18));
+  return Math.min(
+    COIN_LINK_REWARD_POWER_CAP_GH,
+    65 + level * 12 + Math.floor((score - target) / 18),
+  );
 }
 
 export { gameCooldownSeconds };

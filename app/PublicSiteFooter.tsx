@@ -5,6 +5,15 @@ import { LanguageSwitcher, useArcadiaLanguage } from "./i18n";
 export function PublicSiteFooter() {
   const { t, locale } = useArcadiaLanguage();
   const isPortuguese = locale === "pt-BR";
+  const isSpanish = locale === "es";
+
+  const referralLabel = isPortuguese
+    ? "Programa de indicação"
+    : isSpanish
+      ? "Programa de referidos"
+      : "Referral program";
+  const signInLabel = isPortuguese ? "Entrar" : isSpanish ? "Iniciar sesión" : "Sign in";
+  const signUpLabel = isPortuguese ? "Criar conta" : isSpanish ? "Crear cuenta" : "Create account";
 
   return (
     <footer className="public-site-footer">
@@ -20,7 +29,7 @@ export function PublicSiteFooter() {
             <a href="/">{t("nav.mine")}</a>
             <a href="/faq">FAQ</a>
             <a href="/support">{t("nav.support")}</a>
-            <a href="/operador?tab=referrals">{isPortuguese ? "Programa de indicação" : "Referral program"}</a>
+            <a href="/operador?tab=referrals">{referralLabel}</a>
             <a href="/legal">{t("footer.documents")}</a>
             <a href="/perfil">{t("profile.open")}</a>
           </nav>
@@ -28,8 +37,8 @@ export function PublicSiteFooter() {
         <section className="public-footer-column">
           <h2>{t("footer.account")}</h2>
           <nav aria-label={t("footer.account")}>
-            <a href="/auth?mode=signin">{isPortuguese ? "Entrar" : "Sign in"}</a>
-            <a href="/auth?mode=signup">{isPortuguese ? "Criar conta" : "Create account"}</a>
+            <a href="/auth?mode=signin">{signInLabel}</a>
+            <a href="/auth?mode=signup">{signUpLabel}</a>
             <a href="/legal#terms">{t("footer.terms")}</a>
             <a href="/legal#privacy">{t("footer.privacy")}</a>
             <a href="/legal#risk">{t("footer.risk")}</a>

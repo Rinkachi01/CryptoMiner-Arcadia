@@ -104,16 +104,18 @@ test("conversão debita a moeda e credita CMA em precisão de micros", () => {
 });
 
 test("cotação vem do servidor, expira e a execução é autoritativa", async () => {
-  const [route, server, view] = await Promise.all([
+  const [route, server, view, wallet] = await Promise.all([
     readFile(new URL("../app/api/conversion/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/conversion-server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/ConversionView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/wallet-server.ts", import.meta.url), "utf8"),
   ]);
   assert.match(route, /getArcadiaUser/);
   assert.match(route, /readMarketRates/);
   assert.match(server, /api\.coingecko\.com/);
   assert.match(server, /api\.coinbase\.com/);
   assert.match(server, /fetchFreshRates/);
+  assert.match(server, /fetchCoinbaseRate/);
   assert.match(server, /CONVERSION_QUOTE_TTL_MS/);
   assert.match(server, /QUOTE_LIMIT_10_MIN/);
   assert.match(server, /AbortSignal\.timeout\(PRICE_FETCH_TIMEOUT_MS\)/);
@@ -127,6 +129,8 @@ test("cotação vem do servidor, expira e a execução é autoritativa", async (
   assert.match(view, /CONFIRMAR CONVERSÃO/);
   assert.match(view, /COMPRAR O MÁXIMO INTEIRO/);
   assert.match(view, /QUANTIDADE INTEIRA DE CMA/);
+  assert.match(wallet, /readMercadoBitcoinBrlRates\(now\)/);
+  assert.doesNotMatch(wallet, /readBinanceBrlRates/);
 });
 
 test("migração e recuperação incluem execução e carteiras", async () => {

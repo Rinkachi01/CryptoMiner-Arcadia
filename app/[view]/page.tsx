@@ -23,6 +23,7 @@ const routeAliases: Record<string, ViewId> = {
   pools: "pools",
   carteira: "conversion",
   inventario: "inventory",
+  oficina: "forge",
   loja: "shop",
   minigames: "games",
   temporada: "season",

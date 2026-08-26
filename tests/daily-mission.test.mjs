@@ -9,12 +9,15 @@ import {
   isDailyArcadeMissionEligible,
 } from "../app/daily-mission-rules.ts";
 
-test("tour diário exige participação nos três minigames", () => {
+test("tour diário reconhece todos os seis minigames", () => {
   assert.equal(
     isDailyArcadeMissionEligible([
       "packet-catch",
       "hash-match",
       "circuit-rush",
+      "coin-link",
+      "sky-dash",
+      "crypto-2048",
     ]),
     true,
   );

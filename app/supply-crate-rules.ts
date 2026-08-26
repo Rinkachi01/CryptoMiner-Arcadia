@@ -21,6 +21,8 @@ export type SupplyCrate = {
   name: string;
   shortName: string;
   description: string;
+  /** Public sprite used by the shop card and the opening animation. */
+  imagePath: string;
   priceCma: number;
   tier: "signal" | "grid" | "quantum";
   rewards: SupplyCrateReward[];
@@ -42,6 +44,7 @@ export const supplyCrates: SupplyCrate[] = [
     name: "Caixa Sinal",
     shortName: "SINAL",
     description: "Suprimentos de entrada com chance de minerador Dual Nova.",
+    imagePath: "/assets/boxes/supply-signal.png",
     priceCma: 0.9,
     tier: "signal",
     rewards: [
@@ -95,6 +98,7 @@ export const supplyCrates: SupplyCrate[] = [
     name: "Caixa Rede",
     shortName: "REDE",
     description: "Pacote intermediário com equipamentos de até 4.500 GH/s.",
+    imagePath: "/assets/boxes/supply-grid.png",
     priceCma: 3.5,
     tier: "grid",
     rewards: [
@@ -157,6 +161,7 @@ export const supplyCrates: SupplyCrate[] = [
     name: "Caixa Quantum",
     shortName: "QUANTUM",
     description: "Suprimentos avançados com chance do lendário Helix Gold.",
+    imagePath: "/assets/boxes/supply-quantum.png",
     priceCma: 12,
     tier: "quantum",
     rewards: [

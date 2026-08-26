@@ -3,6 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   calculateSeasonScore,
+  ALCHEMY_SEASON_LEVELS,
+  ALCHEMY_SEASON_PREMIUM_MAX_PRICE_CMA,
+  ALCHEMY_SEASON_PREMIUM_PRICE_CMA,
+  ALCHEMY_SEASON_SLUG,
+  alchemyRewards,
   compareSeasonSnapshots,
   normalizeSeasonDurationDays,
   seasonLevelForXp,
@@ -11,11 +16,108 @@ import {
   isSeasonTrackUnlocked,
   seasonProgressPercent,
   seasonXpRequiredForLevel,
+  seasonBannerPathForCampaign,
+  seasonLevelsForCampaign,
   SPACE_RACE_DURATION_DAYS,
   SPACE_RACE_LEVELS,
   SPACE_RACE_PREMIUM_PRICE_CMA,
+  spaceRaceRewardsForEnvironment,
   spaceRaceRewards,
 } from "../app/season-rules.ts";
+import {
+  DAILY_MINIGAME_ROTATION_QUESTS,
+  dailyQuestsForActivity,
+  weeklyQuestsForCampaign,
+} from "../app/season-server.ts";
+
+test("missão diária de minigame percorre todos os jogos em ciclo determinístico", () => {
+  const rotated = Array.from(
+    { length: DAILY_MINIGAME_ROTATION_QUESTS.length },
+    (_, day) => dailyQuestsForActivity(day).at(-1)?.gameId,
+  );
+  assert.deepEqual(rotated, [
+    "packet-catch",
+    "hash-match",
+    "circuit-rush",
+    "coin-link",
+    "sky-dash",
+    "crypto-2048",
+  ]);
+  assert.equal(
+    dailyQuestsForActivity(DAILY_MINIGAME_ROTATION_QUESTS.length).at(-1)?.gameId,
+    "packet-catch",
+  );
+  assert.equal(new Set(rotated).size, 6);
+});
+
+test("passe oficial unifica as recompensas sem AMC em 21 níveis contínuos", () => {
+  const productionRewards = spaceRaceRewardsForEnvironment(false);
+  assert.equal(productionRewards.length, 21);
+  assert.deepEqual(
+    productionRewards.map((reward) => reward.level),
+    Array.from({ length: 21 }, (_, index) => index + 1),
+  );
+  assert.equal(
+    productionRewards.some((reward) => reward.reward.type === "season_currency"),
+    false,
+  );
+  assert.equal(spaceRaceRewardsForEnvironment(true).length, spaceRaceRewards.length);
+});
+
+test("Alchemy Pass tem 60 níveis, banner e distribuição de mineradores para fusão", () => {
+  assert.equal(ALCHEMY_SEASON_LEVELS, 60);
+  assert.equal(seasonLevelsForCampaign(ALCHEMY_SEASON_SLUG), 60);
+  assert.equal(seasonBannerPathForCampaign(ALCHEMY_SEASON_SLUG), "/assets/seasons/alchemy/banner.png");
+  assert.equal(ALCHEMY_SEASON_PREMIUM_PRICE_CMA, 100);
+  assert.equal(ALCHEMY_SEASON_PREMIUM_MAX_PRICE_CMA, 300);
+  const byTrack = (track) => alchemyRewards.filter((reward) => reward.track === track);
+  const freeMiners = byTrack("free").filter((reward) => reward.reward.type === "miner");
+  const premiumMiners = byTrack("premium").filter((reward) => reward.reward.type === "miner");
+  assert.equal(freeMiners.length, 13);
+  assert.equal(freeMiners.filter((reward) => (reward.reward.minerLevel ?? 1) === 1).length, 11);
+  assert.equal(freeMiners.filter((reward) => reward.reward.minerLevel === 2).length, 2);
+  assert.deepEqual(
+    [...new Set(freeMiners.map((reward) => reward.reward.minerId))],
+    ["alchemy-crystal-s2"],
+  );
+  assert.equal(premiumMiners.length, 20);
+  assert.equal(premiumMiners.filter((reward) => (reward.reward.minerLevel ?? 1) === 1).length, 8);
+  assert.equal(premiumMiners.filter((reward) => reward.reward.minerLevel === 2).length, 11);
+  assert.equal(premiumMiners.filter((reward) => reward.reward.minerLevel === 3).length, 1);
+  assert.deepEqual(
+    [...new Set(premiumMiners.map((reward) => reward.reward.minerId))].sort(),
+    ["alchemy-cauldron-s2", "alchemy-orrery-s2", "alchemy-spellbook-s2", "alchemy-tower-s2"].sort(),
+  );
+  for (const reward of alchemyRewards.filter((item) => item.reward.type === "miner")) {
+    assert.equal(
+      ["alchemy-desk-s2", "alchemy-lantern-s2", "alchemy-alembic-s2", "alchemy-mana-s2", "alchemy-forge-s2"].includes(reward.reward.minerId),
+      false,
+    );
+  }
+  for (const reward of alchemyRewards.filter((item) => item.reward.type === "season_currency")) {
+    assert.equal(Number.isInteger(reward.reward.quantity), true);
+    assert.equal(reward.reward.quantity >= (reward.track === "free" ? 50 : 100), true);
+  }
+  for (const reward of alchemyRewards.filter((item) => item.reward.type === "parts")) {
+    assert.equal(reward.reward.quantity <= 150, true);
+  }
+  assert.equal(alchemyRewards.some((reward) => reward.title.includes("Hack Arcano")), false);
+  assert.equal(alchemyRewards.some((reward) => reward.reward.type === "rack"), true);
+});
+
+test("XP reforçado do Alchemy staging completa 60 níveis em 70 dias", () => {
+  const required = seasonXpRequiredForLevel(ALCHEMY_SEASON_LEVELS, ALCHEMY_SEASON_LEVELS);
+  const dailyMissionXp = dailyQuestsForActivity(0, true).reduce((total, quest) => total + quest.xp, 0);
+  const weeklyXp = weeklyQuestsForCampaign(true).reduce((total, quest) => total + quest.xp, 0);
+  const loginXp = 10 * [20, 30, 40, 50, 60, 80, 100].reduce((total, xp) => total + xp, 0);
+  const availableXp = 70 * dailyMissionXp + 10 * weeklyXp + loginXp;
+
+  assert.equal(dailyMissionXp, 150);
+  assert.equal(weeklyXp, 195);
+  assert.equal(required, 16225);
+  assert.equal(availableXp, 16250);
+  assert.equal(availableXp >= required, true);
+});
 
 test("pontuação da temporada privilegia vitória e dificuldade validada", () => {
   assert.equal(
@@ -97,7 +199,7 @@ test("Orbit Pass Max tem posse própria e libera a trilha sem fabricar XP", asyn
   assert.match(server, /CREATE TABLE IF NOT EXISTS season_pass_max/);
   assert.match(server, /maxUnlocked: Boolean\(maxPass\)/);
   assert.match(server, /progress\.maxUnlocked/);
-  assert.match(server, /season\.premium_price_cma_micros/);
+  assert.match(server, /seasonPricePolicyForCampaign\(season\.campaign_slug\)\.premiumPriceCma/);
   assert.doesNotMatch(server, /xpToGrant/);
   assert.match(server, /quest_id != 'buy-premium-max'/);
   assert.match(route, /Orbit Pass Max ativado/);

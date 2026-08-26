@@ -12,6 +12,7 @@ import {
   CONVERSION_MIN_USD,
   conversionAssets,
 } from "../../conversion-rules";
+import { readBoundedRequestJson } from "../../request-json";
 
 export const dynamic = "force-dynamic";
 
@@ -63,19 +64,24 @@ export async function GET() {
 export async function POST(request: Request) {
   const current = await conversionContext();
   if (!current) return json({ error: "Faça login para gerar uma cotação." }, 401);
-  const body = (await request.json().catch(() => null)) as
-    | {
-        action?: unknown;
-        asset?: unknown;
-        expectedVersion?: unknown;
-        idempotencyKey?: unknown;
-        quoteId?: unknown;
-        targetCma?: unknown;
-      }
-    | null;
-  if (!body) {
-    return json({ error: "Dados da cotação inválidos." }, 400);
+  const parsed = await readBoundedRequestJson<{
+    action?: unknown;
+    asset?: unknown;
+    expectedVersion?: unknown;
+    idempotencyKey?: unknown;
+    quoteId?: unknown;
+    targetCma?: unknown;
+  }>(request, 16_000);
+  if ("error" in parsed) {
+    const message =
+      parsed.error === "payload_too_large"
+        ? "Dados da cotação excederam o limite seguro."
+        : parsed.error === "unsupported_media_type"
+          ? "Envie a cotação em JSON."
+          : "Dados da cotação inválidos.";
+    return json({ error: message }, parsed.error === "payload_too_large" ? 413 : 400);
   }
+  const body = parsed.value;
 
   if (body.action === "execute") {
     if (

@@ -13,6 +13,7 @@ type WithdrawalMethod = "crypto" | "pix";
 type PixKeyType = "cpf_cnpj" | "email" | "phone" | "random";
 type WalletTab = "convert" | "deposit" | "withdraw";
 type DepositMethod = "PIX" | ConvertibleAsset;
+type WalletSelection = "CMA" | ConvertibleAsset | "AMC";
 
 type MarketRate = {
   asset: ConversionAssetId;
@@ -69,23 +70,34 @@ type WalletResponse = {
     enabled: boolean;
     liveActivationRequested: boolean;
     mode: "disabled" | "live" | "sandbox";
-    provider: "nowpayments";
+    provider: "nowpayments" | "ccpayment";
     providerReady: boolean;
     providerSandbox: boolean;
+    ccpayment?: {
+      enabled: boolean;
+      webhookReady: boolean;
+      checkoutReady: boolean;
+      checkoutEnabled: boolean;
+      customerFeeBps: number;
+      testnet: boolean;
+    };
     ownerOnly: boolean;
     missingSetup: Array<"api_key" | "ipn_secret" | "public_url">;
     sandboxEnabled: boolean;
     recent: Array<{
       asset: string;
+      blockchainUrl: string | null;
       checkoutUrl: string | null;
       createdAt: number;
       expiresAt: number | null;
       id: string;
+      invoiceReference: string | null;
       provider: string;
       requestedUsd: number;
       receivedAtomic: number;
       settlementAsset: string | null;
       status: string;
+      transactionHash: string | null;
     }>;
   };
   error?: string;
@@ -142,8 +154,15 @@ type DepositResponse = {
     checkoutUrl: string;
     expiresAt: number;
     id: string;
-    provider: "nowpayments";
+    provider: "nowpayments" | "ccpayment";
     requestedUsd: number;
+    requestedAmount?: string;
+    checkoutAmount?: string;
+    customerFeeAmount?: string;
+    decimals?: number;
+    checkoutUsd?: number;
+    customerFeeBps?: number;
+    customerFeeUsd?: number;
     status: "waiting";
   };
   error?: string;
@@ -159,6 +178,13 @@ type DepositMinimumResponse = {
     settlementAsset: string;
   };
 };
+
+// These are native same-asset payment rails. The provider still supplies the
+// live minimum for each network; the UI never hard-codes or bypasses it.
+const cryptoDepositAssets = ["DOGE", "LTC", "BTC"] as const satisfies ConvertibleAsset[];
+// The sandbox endpoints remain available for internal QA, but their controls
+// are intentionally hidden from the operator-facing wallet UI.
+const SHOW_WALLET_SANDBOX_LAB = false;
 
 type PixQuote = {
   brlAmount: number;
@@ -246,8 +272,12 @@ type ConversionViewProps = {
   cmaBalance: number;
   dogeBalanceAtomic: number;
   ltcBalanceAtomic: number;
+  onOpenSeasonStore: () => void;
   onRefreshAccount: () => Promise<boolean>;
+  seasonalWalletAmc: number;
   serverVersion: number;
+  /** Keeps wallet-only presentation changes isolated to the staging build. */
+  stagingVisuals?: boolean;
 };
 
 const assetVisuals: Record<ConvertibleAsset, { asset: string; name: string }> = {
@@ -263,6 +293,10 @@ function formatUsd(value: number) {
     minimumFractionDigits: value < 1 ? 2 : 2,
     style: "currency",
   }).format(value);
+}
+
+function defaultDepositCryptoAmount(assetId: ConvertibleAsset) {
+  return assetId === "LTC" || assetId === "BTC" ? "0.0001" : "1";
 }
 
 function formatBrl(value: number) {
@@ -336,13 +370,20 @@ function nowPaymentsStatus(status: string, english: boolean) {
     review_required: { en: "Under review", pt: "Em revisão", tone: "review" },
     pending_account: { en: "Waiting for account sync", pt: "Aguardando sincronização da conta", tone: "review" },
     crediting: { en: "Applying credit", pt: "Aplicando crédito", tone: "review" },
+    pending: { en: "Waiting for payment", pt: "Aguardando pagamento", tone: "waiting" },
+    created: { en: "Checkout created", pt: "Checkout criado", tone: "waiting" },
+    processing: { en: "Processing payment", pt: "Processando pagamento", tone: "review" },
+    paid: { en: "Credited", pt: "Saldo creditado", tone: "success" },
+    completed: { en: "Credited", pt: "Saldo creditado", tone: "success" },
+    success: { en: "Credited", pt: "Saldo creditado", tone: "success" },
+    canceled: { en: "Payment canceled", pt: "Pagamento cancelado", tone: "failed" },
   };
   const fallback = english ? "Status unavailable" : "Status indisponível";
   const entry = labels[status] ?? { en: fallback, pt: fallback, tone: "waiting" };
   return { label: english ? entry.en : entry.pt, tone: entry.tone };
 }
 
-function isPendingNowPaymentsStatus(status: string) {
+function isPendingDepositStatus(status: string) {
   return [
     "waiting",
     "confirming",
@@ -352,6 +393,9 @@ function isPendingNowPaymentsStatus(status: string) {
     "crediting",
     "pending_account",
     "review_required",
+    "pending",
+    "created",
+    "processing",
   ].includes(status);
 }
 
@@ -360,8 +404,11 @@ export function ConversionView({
   cmaBalance,
   dogeBalanceAtomic,
   ltcBalanceAtomic,
+  onOpenSeasonStore,
   onRefreshAccount,
+  seasonalWalletAmc,
   serverVersion,
+  stagingVisuals = false,
 }: ConversionViewProps) {
   const { locale } = useArcadiaLanguage();
   const english = locale !== "pt-BR";
@@ -385,8 +432,13 @@ export function ConversionView({
   const [sandboxMessage, setSandboxMessage] = useState("");
   const [sandboxUsd, setSandboxUsd] = useState("10");
   const [depositAsset, setDepositAsset] = useState<ConvertibleAsset>("LTC");
-  const [depositMethod, setDepositMethod] = useState<DepositMethod>("PIX");
-  const [depositUsd, setDepositUsd] = useState("5");
+  const [walletSelection, setWalletSelection] = useState<WalletSelection>("LTC");
+  // Start on a real crypto rail. Pix is an explicit CMA action, so it must
+  // never be the default while a crypto asset is selected.
+  const [depositMethod, setDepositMethod] = useState<DepositMethod>("LTC");
+  const [depositAmount, setDepositAmount] = useState(
+    defaultDepositCryptoAmount("LTC"),
+  );
   const [depositMinimums, setDepositMinimums] = useState<
     Partial<Record<ConvertibleAsset, number>>
   >({});
@@ -409,9 +461,21 @@ export function ConversionView({
   const [pixTargetCma, setPixTargetCma] = useState("1");
   const [pixQuote, setPixQuote] = useState<PixQuote | null>(null);
   const [pixOrder, setPixOrder] = useState<PixResponse["pix"] | null>(null);
+  const [pixUnlocked, setPixUnlocked] = useState(false);
   const [pixBusy, setPixBusy] = useState<"quote" | "create" | "refresh" | null>(null);
   const [pixError, setPixError] = useState("");
   const [pixMessage, setPixMessage] = useState("");
+  const ccpaymentFeeBps = wallet?.deposits?.ccpayment?.customerFeeBps ?? 0;
+  const ccpaymentNetAmount = Number(depositAmount.replace(",", "."));
+  const selectedCrypto = walletSelection === "BTC" || walletSelection === "DOGE" || walletSelection === "LTC"
+    ? walletSelection
+    : depositAsset;
+  const canWithdrawSelected = walletSelection !== "CMA" && walletSelection !== "AMC";
+  const visibleDepositMethods: DepositMethod[] = walletSelection === "CMA"
+    ? ["PIX"]
+    : walletSelection === "BTC" || walletSelection === "DOGE" || walletSelection === "LTC"
+      ? [walletSelection]
+      : ["PIX", ...cryptoDepositAssets];
 
   useEffect(() => {
     let active = true;
@@ -494,7 +558,7 @@ export function ConversionView({
 
   const hasPendingCrypto = Boolean(
     wallet?.deposits?.recent?.some((entry) =>
-      isPendingNowPaymentsStatus(entry.status),
+      isPendingDepositStatus(entry.status),
     ),
   );
 
@@ -557,7 +621,7 @@ export function ConversionView({
     let active = true;
     const controller = new AbortController();
     Promise.all(
-      (["BTC", "DOGE", "LTC"] as ConvertibleAsset[]).map(async (assetId) => {
+      cryptoDepositAssets.map(async (assetId) => {
         const response = await fetch("/api/wallet", {
           body: JSON.stringify({ action: "deposit-minimum", asset: assetId }),
           headers: { "Content-Type": "application/json" },
@@ -579,7 +643,6 @@ export function ConversionView({
           minimums.map((minimum) => [minimum.asset, minimum.minimumUsd]),
         ) as Record<ConvertibleAsset, number>;
         setDepositMinimums(values);
-        setDepositUsd(values.LTC.toFixed(2));
       })
       .catch((reason) => {
         if (!active || controller.signal.aborted) return;
@@ -597,7 +660,7 @@ export function ConversionView({
 
   const depositMinimumBusy = Boolean(
     wallet?.deposits?.enabled &&
-      !depositMinimums.BTC &&
+      cryptoDepositAssets.some((assetId) => !depositMinimums[assetId]) &&
       !depositMinimumError,
   );
 
@@ -791,11 +854,14 @@ export function ConversionView({
 
   async function createDeposit(assetId: ConvertibleAsset) {
     const minimumUsd = depositMinimums[assetId];
-    const requestedUsd = Number(depositUsd);
-    if (!minimumUsd || !Number.isFinite(requestedUsd) || requestedUsd < minimumUsd) {
+    const requestedAmount = Number(depositAmount.replace(",", "."));
+    const rate = rates.find((entry) => entry.asset === assetId);
+    const requestedUsd = rate ? requestedAmount * rate.usdPrice : Number.NaN;
+    if (!minimumUsd || !Number.isFinite(requestedAmount) || requestedAmount <= 0 ||
+        !Number.isFinite(requestedUsd) || requestedUsd < minimumUsd) {
       setDepositError(
         minimumUsd
-          ? `O mínimo atual para ${assetId} é ${formatUsd(minimumUsd)}.`
+          ? `A quantidade informada equivale a menos que o mínimo atual de ${assetId} (${formatUsd(minimumUsd)}).`
           : `Aguarde a consulta do mínimo atual de ${assetId}.`,
       );
       return;
@@ -807,7 +873,7 @@ export function ConversionView({
         body: JSON.stringify({
           action: "create-deposit",
           asset: assetId,
-          usdAmount: depositUsd,
+          usdAmount: requestedUsd.toFixed(2),
         }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -820,6 +886,39 @@ export function ConversionView({
     } catch (reason) {
       setDepositError(
         reason instanceof Error ? reason.message : "Não foi possível criar a fatura.",
+      );
+      setDepositBusy(null);
+    }
+  }
+
+  async function createCCPaymentDeposit(assetId: ConvertibleAsset) {
+    const requestedAmount = Number(depositAmount.replace(",", "."));
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      setDepositError(`Informe uma quantidade válida de ${assetId}.`);
+      return;
+    }
+    setDepositBusy(assetId);
+    setDepositError("");
+    try {
+      const response = await fetch("/api/wallet", {
+        body: JSON.stringify({
+          action: "create-ccpayment-deposit",
+          asset: assetId,
+          amount: depositAmount,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json()) as DepositResponse;
+      if (!response.ok || !payload.deposit?.checkoutUrl) {
+        throw new Error(payload.error ?? "O CCPayment não criou o checkout.");
+      }
+      window.location.assign(payload.deposit.checkoutUrl);
+    } catch (reason) {
+      setDepositError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível criar o checkout CCPayment.",
       );
       setDepositBusy(null);
     }
@@ -941,11 +1040,51 @@ export function ConversionView({
   }
 
   function selectDepositAsset(assetId: ConvertibleAsset) {
+    setWalletSelection(assetId);
     setDepositAsset(assetId);
     setDepositMethod(assetId);
     setDepositError("");
-    const minimumUsd = depositMinimums[assetId];
-    if (minimumUsd) setDepositUsd(minimumUsd.toFixed(2));
+    setDepositAmount(defaultDepositCryptoAmount(assetId));
+  }
+
+  function openWalletDeposit(method: DepositMethod) {
+    if (method === "PIX") {
+      setWalletSelection("CMA");
+      setDepositMethod("PIX");
+      setPixUnlocked(true);
+      setPixTargetCma("1");
+      setPixQuote(null);
+      setPixOrder(null);
+      setPixError("");
+      setPixMessage("");
+    } else {
+      selectDepositAsset(method);
+    }
+    setDepositError("");
+    setDepositMinimumError("");
+    setTab("deposit");
+    // The tab is rendered below the category cards. Move the user to the
+    // selected rail after React paints it, especially on narrow screens.
+    window.setTimeout(() => {
+      document.getElementById("wallet-deposit-panel")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
+  function openWalletConvert() {
+    setTab("convert");
+    setAsset(selectedCrypto);
+    setQuote(null);
+    setSuccess("");
+    setError("");
+    window.setTimeout(() => {
+      document.getElementById("wallet-convert-panel")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 0);
   }
 
   async function refreshPixStatement() {
@@ -1027,24 +1166,97 @@ export function ConversionView({
         </aside>
       </header>
 
-      <div className="wallet-balance-overview" aria-label={english ? "Wallet balances" : "Saldos da carteira"}>
-        <article>
-          <img src={assetsManifest.cmaCoin.path} alt="" />
-          <span><small>{english ? "INTERNAL BALANCE" : "SALDO INTERNO"}</small><strong>{formatCma(cmaBalance)} CMA</strong></span>
-        </article>
-        <article>
-          <img src={assetsManifest.bitcoin.path} alt="" />
-          <span><small>BITCOIN</small><strong>{formatCryptoAtomic(btcBalanceAtomic)} BTC</strong></span>
-        </article>
-        <article>
-          <img src={assetsManifest.dogecoin.path} alt="" />
-          <span><small>DOGECOIN</small><strong>{formatCryptoAtomic(dogeBalanceAtomic)} DOGE</strong></span>
-        </article>
-        <article>
-          <img src={assetsManifest.litecoin.path} alt="" />
-          <span><small>LITECOIN</small><strong>{formatCryptoAtomic(ltcBalanceAtomic)} LTC</strong></span>
-        </article>
-      </div>
+      <section className="wallet-category-shell" aria-label={english ? "Wallet categories" : "Categorias da carteira"}>
+        <header className="wallet-category-header">
+          <div>
+            <span>{english ? "YOUR WALLET" : "SUA CARTEIRA"}</span>
+            <h3>{english ? "Balances organized by purpose" : "Saldos organizados por finalidade"}</h3>
+          </div>
+          <small>{english ? "Select a currency to manage its wallet actions." : "Selecione uma moeda para gerenciar as ações da carteira."}</small>
+        </header>
+        <div className="wallet-category-grid">
+          <article className={`wallet-category-card wallet-category-primary ${walletSelection === "CMA" ? "selected" : ""}`}>
+            <div className="wallet-category-card-title">
+              <span>{english ? "GAME BALANCE" : "SALDO DO JOGO"}</span>
+              <b>CMA</b>
+            </div>
+            <button
+              className="wallet-category-main-value wallet-category-select"
+              type="button"
+              onClick={() => openWalletDeposit("PIX")}
+              aria-controls="wallet-deposit-panel"
+              title={english ? "Select CMA wallet actions" : "Selecionar ações da carteira CMA"}
+            >
+              <img src={assetsManifest.cmaCoin.path} alt="" />
+              <strong>{formatCma(cmaBalance)} CMA</strong>
+            </button>
+            <p>{english ? "Used for miners, upgrades and in-game actions." : "Usado para mineradores, melhorias e ações dentro do jogo."}</p>
+            <div className="wallet-category-actions">
+              <button
+                type="button"
+                onClick={() => openWalletDeposit("PIX")}
+                data-wallet-action="cma-pix-deposit"
+                aria-controls="wallet-deposit-panel"
+                title={english ? "Open the Pix deposit for CMA" : "Abrir depósito Pix de CMA"}
+              >
+                {english ? "DEPOSIT CMA VIA PIX" : "DEPOSITAR CMA VIA PIX"}
+              </button>
+              <button
+                type="button"
+                onClick={openWalletConvert}
+                data-wallet-action="convert-to-cma"
+                aria-controls="wallet-convert-panel"
+                title={english ? "Convert a received coin to CMA" : "Converter uma moeda recebida para CMA"}
+              >
+                {english ? "CONVERT TO CMA" : "CONVERTER PARA CMA"}
+              </button>
+            </div>
+          </article>
+          <article className="wallet-category-card wallet-category-received">
+            <div className="wallet-category-card-title">
+              <span>{english ? "RECEIVED COINS" : "MOEDAS RECEBIDAS"}</span>
+              <b>ON-CHAIN</b>
+            </div>
+            <div className="wallet-category-assets">
+              {cryptoDepositAssets.map((id) => {
+                const balance = id === "BTC" ? btcBalanceAtomic : id === "DOGE" ? dogeBalanceAtomic : ltcBalanceAtomic;
+                return (
+                  <button
+                    key={id}
+                    className={walletSelection === id ? "selected" : ""}
+                    type="button"
+                    onClick={() => openWalletDeposit(id)}
+                    title={english ? `Open ${id} deposit in CCPayment` : `Abrir depósito de ${id} no CCPayment`}
+                  >
+                    <img src={assetVisuals[id].asset} alt="" />
+                    <span><strong>{id}</strong><small>{formatCryptoAtomic(balance)}</small></span>
+                    <em>CCPAYMENT</em>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="wallet-category-received-note">{english ? "Payments stay in the selected coin. They are not converted to CMA automatically." : "O pagamento permanece na moeda escolhida. Ele não vira CMA automaticamente."}</p>
+          </article>
+          <article className="wallet-category-card wallet-category-season">
+            <div className="wallet-category-card-title">
+              <span>{english ? "SEASONAL CREDIT" : "CRÉDITO DA TEMPORADA"}</span>
+              <b>AMC</b>
+            </div>
+            <div className="wallet-category-season-value">
+              <span>
+                <img src={assetsManifest.arcadiaCoin.path} alt={assetsManifest.arcadiaCoin.alt} />
+              </span>
+              <strong>
+                {seasonalWalletAmc.toLocaleString(english ? "en-US" : "pt-BR", { maximumFractionDigits: 2 })} AMC
+              </strong>
+            </div>
+            <p className="wallet-category-season-note">{english ? "Temporary rewards remain separate from your crypto balances." : "As recompensas temporárias continuam separadas dos saldos cripto."}</p>
+            <button type="button" onClick={onOpenSeasonStore}>
+              {english ? "OPEN SEASON SHOP" : "ABRIR LOJA DA TEMPORADA"}
+            </button>
+          </article>
+        </div>
+      </section>
 
       <div className="wallet-tabs" role="tablist" aria-label={english ? "Wallet actions" : "Ações da carteira"}>
         <button
@@ -1054,7 +1266,11 @@ export function ConversionView({
           type="button"
           onClick={() => setTab("deposit")}
         >
-          1 · {english ? "DEPOSIT" : "DEPOSITAR"}
+          1 · {walletSelection === "CMA"
+            ? english ? "DEPOSIT CMA" : "DEPOSITAR CMA"
+            : walletSelection === "AMC"
+              ? english ? "SEASON CREDIT" : "CRÉDITO DA TEMPORADA"
+              : english ? `DEPOSIT ${walletSelection}` : `DEPOSITAR ${walletSelection}`}
         </button>
         <button
           className={tab === "convert" ? "active" : ""}
@@ -1065,20 +1281,25 @@ export function ConversionView({
         >
           2 · {english ? "CONVERT TO CMA" : "CONVERTER PARA CMA"}
         </button>
-        <button
-          className={tab === "withdraw" ? "active" : ""}
-          role="tab"
-          aria-selected={tab === "withdraw"}
-          type="button"
-          onClick={() => setTab("withdraw")}
-        >
-          3 · {english ? "REQUEST WITHDRAWAL" : "SOLICITAR SAQUE"}
-        </button>
+        {canWithdrawSelected && (
+          <button
+            className={tab === "withdraw" ? "active" : ""}
+            role="tab"
+            aria-selected={tab === "withdraw"}
+            type="button"
+            onClick={() => {
+              setWithdrawAsset(selectedCrypto);
+              setTab("withdraw");
+            }}
+          >
+            3 · {english ? `WITHDRAW ${selectedCrypto}` : `SOLICITAR SAQUE ${selectedCrypto}`}
+          </button>
+        )}
       </div>
 
       {tab === "convert" ? (
         <>
-          <div className="conversion-rate-strip" aria-live="polite">
+          <div id="wallet-convert-panel" className="conversion-rate-strip" aria-live="polite">
             {(["BTC", "DOGE", "LTC"] as ConvertibleAsset[]).map((id) => {
               const rate = rates.find((item) => item.asset === id);
               const balance =
@@ -1222,7 +1443,7 @@ export function ConversionView({
           </div>
         </>
       ) : tab === "deposit" ? (
-        <section className="wallet-deposit-panel">
+        <section id="wallet-deposit-panel" className="wallet-deposit-panel">
           {!wallet && error && (
             <p className="conversion-error" role="alert">{error}</p>
           )}
@@ -1232,31 +1453,33 @@ export function ConversionView({
             <p>{english ? "The amount, network and minimum are shown before confirmation." : "O valor, a rede e o mínimo aparecem antes da confirmação."}</p>
           </header>
           <div className="wallet-payment-methods">
-            <button
-              className={depositMethod === "PIX" ? "active" : ""}
-              aria-pressed={depositMethod === "PIX"}
-              type="button"
-              onClick={() => setDepositMethod("PIX")}
-            >
-              <b className="wallet-brl-symbol">R$</b>
-              <span><strong>Pix</strong><small>{english ? "Payment in Brazilian reais" : "Pagamento em reais"}</small></span>
-            </button>
-            {(["LTC", "DOGE", "BTC"] as ConvertibleAsset[]).map((id) => (
-              <button
-                className={depositMethod === id ? "active" : ""}
-                aria-pressed={depositMethod === id}
-                type="button"
-                key={id}
-                onClick={() => {
-                  selectDepositAsset(id);
-                }}
-              >
-                <img src={assetVisuals[id].asset} alt="" />
-                <span><strong>{id}</strong><small>{assetVisuals[id].name}</small></span>
-              </button>
-            ))}
+            {visibleDepositMethods.map((method) =>
+              method === "PIX" ? (
+                <button
+                  className={depositMethod === "PIX" ? "active" : ""}
+                  aria-pressed={depositMethod === "PIX"}
+                  type="button"
+                  key={method}
+                  onClick={() => openWalletDeposit("PIX")}
+                >
+                  <b className="wallet-brl-symbol">R$</b>
+                  <span><strong>Pix</strong><small>{english ? "Payment in Brazilian reais" : "Pagamento em reais"}</small></span>
+                </button>
+              ) : (
+                <button
+                  className={depositMethod === method ? "active" : ""}
+                  aria-pressed={depositMethod === method}
+                  type="button"
+                  key={method}
+                  onClick={() => selectDepositAsset(method)}
+                >
+                  <img src={assetVisuals[method].asset} alt="" />
+                  <span><strong>{method}</strong><small>{assetVisuals[method].name}</small></span>
+                </button>
+              ),
+            )}
           </div>
-          {depositMethod === "PIX" ? (
+          {depositMethod === "PIX" && (!stagingVisuals || pixUnlocked) ? (
           <section id="wallet-pix" className={`wallet-pix-panel ${pix?.enabled ? "ready" : "pending"}`}>
             <header>
               <div>
@@ -1402,10 +1625,37 @@ export function ConversionView({
           </section>
           ) : (
           <div id="wallet-crypto" className={`wallet-provider-gate ${wallet?.deposits?.enabled ? "ready" : "pending"}`}>
+            <div className="wallet-provider-options" aria-label="Provedores de depósito">
+              
+              {wallet?.deposits?.provider === "ccpayment" && <article className="wallet-provider-option active ready">
+                <div>
+                  <small>PROVEDOR ATUAL</small>
+                  <strong>CCPayment</strong>
+                  <span>
+                    {wallet?.deposits?.ccpayment?.checkoutEnabled
+                      ? "Checkout de depósito ativo."
+                      : wallet?.deposits?.ccpayment?.checkoutReady
+                        ? "Checkout configurado; ativação aguardando validação."
+                      : wallet?.deposits?.ccpayment?.webhookReady
+                        ? "Webhook conectado; checkout ainda não ativado."
+                        : "Aguardando configuração do provedor."}
+                  </span>
+                </div>
+                <b>
+                  {wallet?.deposits?.ccpayment?.checkoutEnabled
+                    ? "ATIVO"
+                    : wallet?.deposits?.ccpayment?.checkoutReady
+                      ? "CONFIGURADO"
+                    : wallet?.deposits?.ccpayment?.webhookReady
+                      ? "WEBHOOK OK"
+                      : "PENDENTE"}
+                </b>
+              </article>}
+            </div>
             <div>
               <small>PROVEDOR DE ENTRADA</small>
-              <strong>NOWPayments · somente depósitos</strong>
-              <span>{wallet?.deposits?.enabled ? "Faturas disponíveis" : "Temporariamente indisponível"}</span>
+              <strong>CCPayment · depósitos</strong>
+              <span>{wallet?.deposits?.enabled ? "Checkout disponível" : "Temporariamente indisponível"}</span>
             </div>
             <label>
               MOEDA E VALOR DA FATURA
@@ -1415,38 +1665,55 @@ export function ConversionView({
                   selectDepositAsset(event.target.value as ConvertibleAsset)
                 }
               >
-                <option value="DOGE">Dogecoin · DOGE</option>
-                <option value="LTC">Litecoin · LTC</option>
-                <option value="BTC">Bitcoin · BTC</option>
+                {cryptoDepositAssets.map((assetId) => (
+                  <option key={assetId} value={assetId}>
+                    {assetVisuals[assetId].name} · {assetId}
+                  </option>
+                ))}
               </select>
               <input
                 inputMode="decimal"
-                min={depositMinimums[depositAsset]}
-                step="0.01"
-                value={depositUsd}
-                onChange={(event) => setDepositUsd(event.target.value)}
+                min="0.00000001"
+                step="0.00000001"
+                value={depositAmount}
+                onChange={(event) => setDepositAmount(event.target.value)}
               />
               <small>
-                {depositMinimumBusy
-                  ? "Consultando o mínimo atual do provedor…"
-                  : depositMinimums[depositAsset]
-                    ? `Mínimo dinâmico do provedor ${formatUsd(depositMinimums[depositAsset]!)} · máximo local US$ 1.000`
-                    : "O valor mínimo precisa ser confirmado antes da fatura."}
+                {wallet?.deposits?.provider === "ccpayment"
+                  ? `Quantidade em ${depositAsset}. O CCPayment valida o mínimo da moeda no checkout; até 8 casas decimais.`
+                  : depositMinimumBusy
+                    ? "Consultando o mínimo atual do provedor…"
+                    : depositMinimums[depositAsset]
+                      ? `Mínimo dinâmico do provedor: ${formatUsd(depositMinimums[depositAsset]!)} (convertido para ${depositAsset}).`
+                      : "O valor mínimo precisa ser confirmado antes da fatura."}
               </small>
               <strong className="wallet-deposit-estimate">O VALOR NA MOEDA ESCOLHIDA APARECE NA FATURA</strong>
-              <button
-                className="wallet-deposit-submit"
+              
+              {wallet?.deposits?.provider === "ccpayment" && <button
+                className="wallet-deposit-submit wallet-ccpayment-submit"
                 disabled={
                   !wallet?.deposits?.enabled ||
-                  depositMinimumBusy ||
-                  !depositMinimums[depositAsset] ||
+                  !wallet?.deposits?.ccpayment?.checkoutEnabled ||
                   depositBusy !== null
                 }
                 type="button"
-                onClick={() => void createDeposit(depositAsset)}
+                onClick={() => void createCCPaymentDeposit(depositAsset)}
               >
-                {depositBusy === depositAsset ? "CRIANDO FATURA…" : "CRIAR FATURA SEGURA"}
-              </button>
+                {depositBusy === depositAsset
+                  ? "CRIANDO CHECKOUT…"
+                  : wallet?.deposits?.ccpayment?.checkoutEnabled
+                    ? "PAGAR COM CCPAYMENT"
+                    : "CCPAYMENT · AGUARDANDO ATIVAÇÃO"}
+              </button>}
+              {ccpaymentFeeBps > 0 &&
+                Number.isFinite(ccpaymentNetAmount) &&
+                ccpaymentNetAmount > 0 && (
+                  <small className="wallet-ccpayment-fee-note">
+                    {english
+                      ? `CCPayment provider fee: ${(ccpaymentFeeBps / 100).toFixed(2)}%.`
+                      : `CCPayment: taxa do provedor de ${(ccpaymentFeeBps / 100).toFixed(2).replace(".", ",")}%.`}
+                  </small>
+                )}
             </label>
           </div>
           )}
@@ -1454,7 +1721,7 @@ export function ConversionView({
             <p className="conversion-error" role="alert">{depositMinimumError}</p>
           )}
           {depositError && <p className="conversion-error" role="alert">{depositError}</p>}
-          {wallet?.deposits?.sandboxEnabled && (
+          {SHOW_WALLET_SANDBOX_LAB && wallet?.deposits?.sandboxEnabled && (
             <section className="wallet-sandbox-lab" aria-labelledby="wallet-sandbox-title">
               <header>
                 <div>
@@ -1519,10 +1786,10 @@ export function ConversionView({
               </div>
             </section>
           )}
-          {wallet?.deposits?.recent.some((item) => item.provider === "nowpayments") && (
+          {wallet?.deposits?.recent.length > 0 && (
             <div className="wallet-live-history">
               <div className="wallet-live-history-header">
-                <span>{english ? "RECENT INVOICES · LAST 30 DAYS" : "FATURAS RECENTES · ÚLTIMOS 30 DIAS"}</span>
+                <span>{english ? "RECENT DEPOSITS · LAST 30 DAYS" : "DEPÓSITOS RECENTES · ÚLTIMOS 30 DIAS"}</span>
                 <button
                   className="wallet-history-refresh"
                   disabled={walletRefreshing}
@@ -1535,21 +1802,35 @@ export function ConversionView({
                 </button>
               </div>
               {wallet.deposits.recent
-                .filter((item) => item.provider === "nowpayments")
                 .slice(0, 4)
                 .map((item) => (
                   <article key={item.id}>
-                    <b>{item.asset}</b>
-                    <span>{formatUsd(item.requestedUsd)}</span>
+                    <b>{item.asset}<small>{item.provider === "ccpayment" ? "CCPAYMENT" : "FATURA"}</small></b>
+                    <span>{item.requestedUsd > 0 ? formatUsd(item.requestedUsd) : item.settlementAsset ?? item.asset}</span>
                     <em className={nowPaymentsStatus(item.status, english).tone}>
                       {nowPaymentsStatus(item.status, english).label}
                     </em>
                     {item.status === "credited" && (
                       <strong>+{formatCryptoAtomic(item.receivedAtomic)} {item.asset}</strong>
                     )}
-                    {item.checkoutUrl && isPendingNowPaymentsStatus(item.status) && (
+                    {item.checkoutUrl && isPendingDepositStatus(item.status) && (
                       <a href={item.checkoutUrl} rel="noreferrer" target="_blank">
                         {english ? "OPEN INVOICE" : "ABRIR FATURA"}
+                      </a>
+                    )}
+                    {item.invoiceReference && (
+                      <small className="wallet-history-reference">
+                        {english ? "Invoice" : "Fatura"}: {item.invoiceReference}
+                      </small>
+                    )}
+                    {item.blockchainUrl && (
+                      <a
+                        className="wallet-history-explorer"
+                        href={item.blockchainUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {english ? "VERIFY ON BLOCKCHAIN" : "VER NA BLOCKCHAIN"}
                       </a>
                     )}
                   </article>
@@ -1557,7 +1838,13 @@ export function ConversionView({
             </div>
           )}
           <p className="wallet-provider-notice">
-            <strong>{wallet?.deposits?.mode === "sandbox" ? "SIMULAÇÃO ATIVA: NÃO ENVIE DINHEIRO REAL." : wallet?.deposits?.enabled ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR." : "DEPÓSITO INDISPONÍVEL."}</strong>{" "}
+            <strong>
+              {wallet?.deposits?.mode === "sandbox"
+                  ? "SIMULAÇÃO ATIVA: NÃO ENVIE DINHEIRO REAL."
+                  : wallet?.deposits?.enabled
+                    ? "DEPÓSITOS CONTROLADOS PELO SERVIDOR."
+                    : "DEPÓSITO INDISPONÍVEL."}
+            </strong>{" "}
             Nunca envie criptomoeda para um endereço ou fatura que não tenha sido gerado
             dentro desta tela após a ativação oficial.
           </p>
@@ -1569,9 +1856,9 @@ export function ConversionView({
               <h4>Como as faturas funcionam?</h4>
               <p>Depósitos reais usam fatura externa. Deposite LTC, DOGE ou BTC no seu saldo interno somente por uma fatura criada nesta tela.</p>
               <h4>O depósito vira CMA automaticamente?</h4>
-              <p>Não. BTC, DOGE e LTC entram no saldo da moeda escolhida; nenhum CMA é criado automaticamente. A conversão para CMA é manual.</p>
+              <p>Não. BTC, DOGE e LTC entram no saldo da moeda escolhida. CMA permanece separado até uma conversão ser solicitada.</p>
               <h4>Como funciona o saque?</h4>
-              <p>A solicitação reserva o saldo e segue para conferência e pagamento manual do fundador. O recebimento pode ser na própria cripto ou, após uma cotação, por Pix em real.</p>
+              <p>A solicitação reserva o saldo e segue para processamento. O recebimento pode ser na própria cripto ou, após uma cotação, por Pix em real.</p>
               <h4>Posso sacar CMA?</h4>
               <p>CMA é crédito de uso dentro do jogo. O saque usa saldo BTC, DOGE ou LTC como origem.</p>
             </div>
@@ -1579,13 +1866,13 @@ export function ConversionView({
         </section>
       ) : (
         <section className="wallet-deposit-panel wallet-withdraw-panel">
-          <header>
-            <span>{english ? "WITHDRAWAL · MANUAL PROCESSING" : "SAQUE · PROCESSAMENTO MANUAL"}</span>
+          <header className="conversion-panel-header">
+              <span>{english ? "WITHDRAWAL" : "SAQUE"}</span>
             <h3>{english ? "Choose how you want to receive" : "Escolha como deseja receber"}</h3>
             <p>
               {english
-                ? "Receive BTC, DOGE or LTC on-chain, or convert the selected balance to a Pix payout quoted in BRL. Funds remain reserved during review."
-                : "Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um pagamento Pix cotado em real. O valor fica reservado até a análise."}
+                ? "Receive BTC, DOGE or LTC on-chain, or convert the selected balance to a Pix payout quoted in BRL. Funds remain reserved until transfer completion."
+                : "Receba BTC, DOGE ou LTC na rede, ou converta o saldo escolhido para um pagamento Pix cotado em real. O valor fica reservado até a conclusão da transferência."}
             </p>
           </header>
           <div className="wallet-withdraw-summary">
@@ -1804,7 +2091,7 @@ export function ConversionView({
               ))}
             </div>
           )}
-          {wallet?.withdrawals?.sandboxEnabled && (
+          {SHOW_WALLET_SANDBOX_LAB && wallet?.withdrawals?.sandboxEnabled && (
             <section className="wallet-sandbox-lab">
               <header><div><span>SIMULAÇÃO</span><h4>Simular pedido de saque</h4></div><strong>ZERO MOVIMENTAÇÃO</strong></header>
               <div className="wallet-sandbox-controls">
@@ -1835,7 +2122,7 @@ export function ConversionView({
         <summary>Como o saldo e as cotações funcionam?</summary>
         <div>
           <h4>Conversão</h4>
-          <p>BTC, DOGE ou LTC podem virar CMA. CMA permanece como crédito de uso dentro do jogo.</p>
+          <p>BTC, DOGE ou LTC podem virar CMA. nenhum CMA é criado automaticamente; o CMA permanece como crédito de uso dentro do jogo.</p>
           <h4>Registro individual</h4>
           <p>Cada conta tem saldos e histórico separados no servidor.</p>
           <h4>Cotação de mercado</h4>

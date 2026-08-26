@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { assetsManifest } from "./assets.manifest";
 import { GameErrorBoundary } from "./GameErrorBoundary";
 import { DailyWelcomeModal } from "./DailyWelcomeModal";
@@ -55,24 +55,54 @@ import type { NetworkPowerSnapshot } from "./network-server";
 import type { OnboardingStatus } from "./onboarding-rules";
 import {
   SUPPLY_CRATE_PITY_LIMIT,
-  formatCrateChance,
   supplyCrates,
   type SupplyCrateId,
   type SupplyCrateOpening,
 } from "./supply-crate-rules";
+import {
+  luckCrates,
+  type LuckCrateId,
+  type LuckCrateOpening,
+} from "./luck-crate-rules";
+import {
+  emptyPartsInventory,
+  getPartMergeCount,
+  partFamilies,
+  partKey,
+  partMergeFee,
+  partAssetPath,
+  partRarities,
+  type PartFamily,
+  type PartRarity,
+} from "./parts-rules";
+import {
+  SEASON_CURRENCY_SYMBOL,
+  seasonStoreBoxes,
+  type SeasonStoreBoxId,
+  type SeasonStoreOpening,
+} from "./season-store-rules";
+import {
+  getMinerMergeRequirement,
+  getMinerLevelCode,
+  getMinerPowerAtLevel as getMergedMinerPowerAtLevel,
+  getMinerLevelName,
+  normalizeMinerLevel,
+} from "./miner-merge-rules";
+import { getMinerOffers } from "./miner-offers-rules";
 
 export type ViewId =
   | "mine"
   | "pools"
   | "conversion"
   | "inventory"
+  | "forge"
   | "shop"
   | "games"
   | "season"
   | "leaderboard"
   | "tasks"
   | "career";
-type ShopCategory = "miners" | "racks" | "energy" | "crates";
+type ShopCategory = "offers" | "miners" | "racks" | "energy" | "crates" | "season";
 type TextScale = "comfortable" | "large" | "extra";
 
 type RoomDefinition = {
@@ -127,6 +157,13 @@ type GameApiResponse = {
     supplyCrate?: SupplyCrateOpening & {
       openCount: number;
     };
+    seasonStoreBox?: SeasonStoreOpening & {
+      priceAmc: number;
+      seasonId: string;
+    };
+    luckCrate?: LuckCrateOpening & {
+      openCount: number;
+    };
   };
 };
 
@@ -135,21 +172,24 @@ const navigation: Array<{
   label: string;
   shortLabel: string;
   glyph: string;
+  icon: string;
 }> = [
-  { id: "mine", label: "Sala de mineração", shortLabel: "Sala", glyph: "M" },
-  { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P" },
-  { id: "conversion", label: "Carteira", shortLabel: "Carteira", glyph: "W" },
-  { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I" },
-  { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$" },
-  { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G" },
-  { id: "season", label: "Temporada", shortLabel: "Season", glyph: "S" },
-  { id: "leaderboard", label: "Ranking Global", shortLabel: "Ranking", glyph: "R" },
-  { id: "tasks", label: "Tarefas", shortLabel: "Tasks", glyph: "T" },
+  { id: "mine", label: "Sala de mineração", shortLabel: "Sala", glyph: "M", icon: "/assets/icons/icone_sala_mineracao.png" },
+  { id: "pools", label: "Pools", shortLabel: "Pools", glyph: "P", icon: "/assets/icons/icone_torneios.png" },
+  { id: "conversion", label: "Carteira", shortLabel: "Carteira", glyph: "W", icon: "/assets/icons/icone_carteira.png" },
+  { id: "inventory", label: "Inventário", shortLabel: "Itens", glyph: "I", icon: "/assets/icons/icone_inventario.png" },
+  { id: "forge", label: "Oficina Arcadia", shortLabel: "Oficina", glyph: "F", icon: "/assets/icons/icone_forja_crafting.png" },
+  { id: "shop", label: "Loja", shortLabel: "Loja", glyph: "$", icon: "/assets/icons/icone_loja.png" },
+  { id: "games", label: "Minigames", shortLabel: "Jogos", glyph: "G", icon: "/assets/icons/icone_minigames.png" },
+  { id: "season", label: "Temporada", shortLabel: "Season", glyph: "S", icon: "/assets/icons/icone_passe_temporada.png" },
+  { id: "leaderboard", label: "Ranking Global", shortLabel: "Ranking", glyph: "R", icon: "/assets/icons/icone_ranking_global.png" },
+  { id: "tasks", label: "Tarefas", shortLabel: "Tasks", glyph: "T", icon: "/assets/icons/icone_tarefas.png" },
   {
     id: "career",
     label: "Central do operador",
     shortLabel: "Carreira",
     glyph: "C",
+    icon: "/assets/icons/icone_central_operador_perfil.png",
   },
 ];
 
@@ -158,6 +198,7 @@ const viewPaths: Record<ViewId, string> = {
   pools: "/pools",
   conversion: "/carteira",
   inventory: "/inventario",
+  forge: "/oficina",
   shop: "/loja",
   games: "/minigames",
   season: "/temporada",
@@ -205,6 +246,27 @@ const rackPositions: RackPosition[] = [
   { left: 50.7, top: 71, width: 14.8, height: 25, zIndex: 14 },
   { left: 67.2, top: 71, width: 14.8, height: 25, zIndex: 14 },
   { left: 83.7, top: 71, width: 14.8, height: 25, zIndex: 14 },
+];
+
+// Staging-only layout: the taller rack has a portrait aspect ratio, so the
+// room uses four columns and three rows with extra floor space below the art.
+// Production keeps the existing 6×2 map and the original rack asset.
+const stagingRackPositions: RackPosition[] = [
+  // The extended staging room keeps the operator area clear.  Each placement
+  // preserves the tall rack's native 2:3 aspect ratio and is arranged in
+  // three rows of four on the open floor below the workstation.
+  { left: 2, top: 27, width: 21, height: 23, zIndex: 12 },
+  { left: 27, top: 27, width: 21, height: 23, zIndex: 12 },
+  { left: 52, top: 27, width: 21, height: 23, zIndex: 12 },
+  { left: 77, top: 27, width: 21, height: 23, zIndex: 12 },
+  { left: 2, top: 51, width: 21, height: 23, zIndex: 14 },
+  { left: 27, top: 51, width: 21, height: 23, zIndex: 14 },
+  { left: 52, top: 51, width: 21, height: 23, zIndex: 14 },
+  { left: 77, top: 51, width: 21, height: 23, zIndex: 14 },
+  { left: 2, top: 75, width: 21, height: 23, zIndex: 16 },
+  { left: 27, top: 75, width: 21, height: 23, zIndex: 16 },
+  { left: 52, top: 75, width: 21, height: 23, zIndex: 16 },
+  { left: 77, top: 75, width: 21, height: 23, zIndex: 16 },
 ];
 
 const defaultRacks: RackInstance[] = [
@@ -294,13 +356,62 @@ function formatEnergy(totalSeconds: number) {
     .padStart(2, "0")}m`;
 }
 
-function rackMinerPosition(slotIndex: number): React.CSSProperties {
+function rackMinerPosition(
+  slotIndex: number,
+  slotSize = 1,
+  staging = false,
+  seasonal = false,
+): React.CSSProperties {
   const row = Math.floor(slotIndex / RACK_COLUMNS);
-  const column = slotIndex % RACK_COLUMNS;
+  // Two-slot miners always start at the first column of a row. The server
+  // rejects invalid placements, but normalising here keeps old placements
+  // from rendering across the whole rack while they are being migrated.
+  const column = slotSize > 1 ? 0 : slotIndex % RACK_COLUMNS;
+
+  if (staging) {
+    // The staging rack is a portrait 1024×1536 sprite with two columns and
+    // four shelves. Keep each art box inside its shelf instead of using the
+    // production landscape coordinates (which made one-slot miners stretch
+    // over an entire shelf and made two-slot miners spill below the rack).
+    // Keep every sprite inside the shelf rails. A one-slot art box is slightly
+    // narrower than half a cell and is pulled further inward from the side rails;
+    // this prevents transparent padding in the source sprite from making the
+    // miner look like it is floating outside the shelf. Two-slot art keeps the
+    // complete-row treatment that is already aligned with the rack.
+    // These values are staging-only; production still uses its original
+    // coordinates and dimensions.
+    const width = slotSize > 1 ? 98 : 18;
+    const left = slotSize > 1 ? 1 : column === 0 ? 27 : 55;
+    const height = slotSize > 1 ? 18 : seasonal ? 12.5 : 11.5;
+    const top = (slotSize > 1 ? 8.5 : seasonal ? 12.5 : 13.5) + row * 22.5;
+    return {
+      left: `${left}%`,
+      top: `${top}%`,
+      width: `${width}%`,
+      height: `${height}%`,
+      "--rack-miner-width": `${width}%`,
+      "--rack-miner-height": `${height}%`,
+    } as React.CSSProperties;
+  }
+
   return {
     left: `${31 + column * 21.5}%`,
     top: `${row * 23}%`,
   };
+}
+
+function minerVisualFamily(miner: { availability?: string; visualFamily?: string }) {
+  return miner.visualFamily ?? (miner.availability === "season" ? "space-race" : "standard");
+}
+
+function minerVisualStyle(
+  miner: { visualScale?: number },
+  position?: React.CSSProperties,
+): React.CSSProperties {
+  return {
+    ...position,
+    "--miner-art-scale": String(miner.visualScale ?? 1),
+  } as React.CSSProperties;
 }
 
 export function ArcadiaGame({
@@ -318,6 +429,8 @@ export function ArcadiaGame({
   const [textScale, setTextScale] =
     useState<TextScale>("comfortable");
   const [shopCategory, setShopCategory] =
+    // Keep production on the normal catalogue. Staging exposes the flash-offer
+    // tab from the shop navigation without leaking it into the public build.
     useState<ShopCategory>("miners");
   const [careerStartTab, setCareerStartTab] = useState<
     "overview" | "referrals" | "activity"
@@ -342,9 +455,14 @@ export function ArcadiaGame({
   );
   const [clockNow, setClockNow] = useState(0);
   const [activeRoomId, setActiveRoomId] = useState<RoomId>("room-1");
+  // Keep the server snapshot false to avoid hydration drift, then resolve the
+  // host on the client. Production can therefore never render staging-only
+  // workshop routes or assets.
+  const stagingVisuals = true;
   const [ownedRoomIds, setOwnedRoomIds] = useState<RoomId[]>(["room-1"]);
   const [rackInventoryCount, setRackInventoryCount] = useState(0);
   const [crateOpenCount, setCrateOpenCount] = useState(0);
+  const [luckCrateOpenCount, setLuckCrateOpenCount] = useState(0);
   const [cratePityStreaks, setCratePityStreaks] = useState<
     Record<SupplyCrateId, number>
   >({
@@ -352,6 +470,11 @@ export function ArcadiaGame({
     "grid-cache": 0,
     "quantum-cache": 0,
   });
+  const [partsInventory, setPartsInventory] = useState(
+    () => emptyPartsInventory(),
+  );
+  const [seasonalWalletAmc, setSeasonalWalletAmc] = useState(0);
+  const [minerOfferPurchases, setMinerOfferPurchases] = useState<Record<string, number>>({});
   const [minerInventory, setMinerInventory] =
     useState<MinerUnit[]>(defaultMinerInventory);
   const [racks, setRacks] = useState<RackInstance[]>(defaultRacks);
@@ -394,6 +517,18 @@ export function ArcadiaGame({
   const activeRoom =
     roomDefinitions.find((room) => room.id === activeRoomId) ??
     roomDefinitions[0];
+  const displayedActiveRoom = useMemo(() => {
+    if (!stagingVisuals) return activeRoom;
+    const stagingAsset =
+      activeRoom.id === "room-1"
+        ? assetsManifest.roomOneStaging
+        : assetsManifest.roomTwoStaging;
+    return {
+      ...activeRoom,
+      asset: stagingAsset.path,
+      alt: `${stagingAsset.alt} · staging`,
+    };
+  }, [activeRoom, stagingVisuals]);
   const [blockDeadline, setBlockDeadline] = useState(0);
   const playerInitial =
     accountDisplayName.trim().charAt(0).toLocaleUpperCase("pt-BR") || "M";
@@ -454,11 +589,15 @@ export function ArcadiaGame({
     setOwnedRoomIds(state.ownedRoomIds);
     setRackInventoryCount(state.rackInventoryCount);
     setCrateOpenCount(Math.max(0, state.crateOpenCount ?? 0));
+    setLuckCrateOpenCount(Math.max(0, state.luckCrateOpenCount ?? 0));
     setCratePityStreaks({
       "signal-cache": state.cratePityStreaks?.["signal-cache"] ?? 0,
       "grid-cache": state.cratePityStreaks?.["grid-cache"] ?? 0,
       "quantum-cache": state.cratePityStreaks?.["quantum-cache"] ?? 0,
     });
+    setPartsInventory(state.partsInventory);
+    setSeasonalWalletAmc(Math.max(0, Number(state.seasonalWallet?.amc ?? 0)));
+    setMinerOfferPurchases(state.minerOfferPurchases ?? {});
     setMinerInventory(state.minerInventory);
     setRacks(state.racks);
     setRackMiners(state.rackMiners);
@@ -806,6 +945,10 @@ export function ArcadiaGame({
     await performGameAction("buy_miners", { minerId, quantity });
   }
 
+  async function buyMinerOffer(offerId: string, quantity: number) {
+    await performGameAction("buy_miner_offer", { offerId, quantity });
+  }
+
   async function buyRacks(quantity: number) {
     await performGameAction("buy_racks", { quantity });
   }
@@ -816,6 +959,22 @@ export function ArcadiaGame({
 
   async function openSupplyCrate(crateId: SupplyCrateId) {
     return performGameAction("open_supply_crate", { crateId });
+  }
+
+  async function openLuckCrate(crateId: LuckCrateId) {
+    return performGameAction("open_luck_crate", { crateId });
+  }
+
+  async function openSeasonBox(boxId: SeasonStoreBoxId) {
+    return performGameAction("open_season_box", { boxId });
+  }
+
+  async function mergePart(family: PartFamily, rarity: PartRarity) {
+    await performGameAction("merge_part", { family, rarity });
+  }
+
+  async function mergeMiner(minerAId: string, minerBId: string) {
+    await performGameAction("merge_miner", { minerAId, minerBId });
   }
 
   async function activateBattery() {
@@ -878,6 +1037,8 @@ export function ArcadiaGame({
   return (
     <main
       className={`arcadia-shell text-scale-${textScale} ${
+        stagingVisuals ? "staging-shell" : ""
+      } ${
         actionPending ? "server-action-pending" : ""
       }`}
       data-server-status={serverStatus}
@@ -998,6 +1159,21 @@ export function ArcadiaGame({
                   </em>
                 </button>
               ))}
+              {stagingVisuals && (
+                <div
+                  className="wallet-balance-row wallet-seasonal-row"
+                  role="status"
+                  title={locale === "en" ? "Seasonal currency. Not available for withdrawal or conversion." : locale === "es" ? "Moneda de temporada. No disponible para retiro ni conversión." : "Moeda sazonal. Não disponível para saque ou conversão."}
+                  aria-label={`${SEASON_CURRENCY_SYMBOL} ${locale === "en" ? "seasonal balance" : locale === "es" ? "saldo de temporada" : "saldo sazonal"}`}
+                >
+                  <img src={assetsManifest.arcadiaCoin.path} alt={assetsManifest.arcadiaCoin.alt} />
+                  <span>{SEASON_CURRENCY_SYMBOL}</span>
+                  <strong title={seasonalWalletAmc.toLocaleString(locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "pt-BR", { maximumFractionDigits: 2 })}>
+                    {seasonalWalletAmc.toLocaleString(locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "pt-BR", { maximumFractionDigits: 2 })}
+                  </strong>
+                  <em>{locale === "en" ? "SEASONAL" : locale === "es" ? "TEMPORADA" : "TEMPORÁRIA"}</em>
+                </div>
+              )}
               <button
                 type="button"
                 className="wallet-conversion-link"
@@ -1098,34 +1274,46 @@ export function ArcadiaGame({
         </div>
 
         <nav>
-          {navigation.map((item) => (
+          {navigation.filter((item) => stagingVisuals || item.id !== "forge").map((item) => (
             <button
               className={activeView === item.id ? "active" : ""}
               type="button"
               key={item.id}
-              title={item.label}
+              data-nav-id={item.id}
+              title={t(`nav.${item.id}`, item.label)}
+              aria-label={t(`nav.${item.id}`, item.label)}
               onClick={(event) => {
                 event.currentTarget.blur();
                 setRackOpen(false);
                 setWalletOpen(false);
                 if (item.id === "career") setCareerStartTab("overview");
+                if (item.id === "shop" && stagingVisuals) setShopCategory("offers");
                 setActiveView(item.id);
               }}
             >
-              <span className="nav-glyph">{item.glyph}</span>
+              <span className="nav-glyph" aria-hidden="true">
+                <img src={item.icon} alt="" />
+                <span className="nav-glyph-fallback">{item.glyph}</span>
+              </span>
               <span>{t(`nav.${item.id}`, item.label)}</span>
             </button>
           ))}
-          <a className="support-nav-link" href="/support" title={t("nav.support")}>
-            <span className="nav-glyph">?</span>
+          <a className="support-nav-link" href="/support" title={t("nav.support")} aria-label={t("nav.support")}>
+            <span className="nav-glyph" aria-hidden="true">
+              <img src="/assets/icons/icone_suporte.png" alt="" />
+              <span className="nav-glyph-fallback">?</span>
+            </span>
             <span>{t("nav.support")}</span>
             {unreadSupportReplies > 0 ? (
               <small>{Math.min(99, unreadSupportReplies)}</small>
             ) : null}
           </a>
           {isOwner ? (
-            <a className="admin-nav-link" href="/admin" title={t("nav.owner")}>
-              <span className="nav-glyph">C</span>
+            <a className="admin-nav-link" href="/admin" title={t("nav.owner")} aria-label={t("nav.owner")}>
+              <span className="nav-glyph" aria-hidden="true">
+                <img src="/assets/icons/icone_central_operador_perfil.png" alt="" />
+                <span className="nav-glyph-fallback">C</span>
+              </span>
               <span>{t("nav.owner")}</span>
               <small>OWNER</small>
             </a>
@@ -1167,6 +1355,8 @@ export function ArcadiaGame({
                 <>{t("workspace.pools").toUpperCase()}</>
               ) : activeView === "inventory" ? (
                 <>{t("workspace.inventory").toUpperCase()}</>
+              ) : activeView === "forge" ? (
+                <>{t("workspace.forgeEyebrow").toUpperCase()}</>
               ) : (
                 <>
                   {locale !== "pt-BR" ? t("workspace.mineEyebrow").toUpperCase() : activeRoom.label} <i /> {activeRoom.name.toUpperCase()}
@@ -1184,6 +1374,8 @@ export function ArcadiaGame({
                       ? t("workspace.wallet")
                     : activeView === "inventory"
                       ? t("workspace.inventory")
+                      : activeView === "forge"
+                        ? t("workspace.forge")
                       : activeView === "shop"
                          ? t("workspace.shop")
                         : activeView === "games"
@@ -1256,6 +1448,7 @@ export function ArcadiaGame({
             onRecover={() => setRackOpen(false)}
           >
             <RackManager
+              stagingVisuals={stagingVisuals}
               rackLabel={`RACK ${String(
                 currentRoomRacks.findIndex(
                   (rack) => rack.id === activeRack.id,
@@ -1276,7 +1469,8 @@ export function ArcadiaGame({
           <div className="mine-view-container">
             <div className="mine-main-content">
               <MiningRoom
-                activeRoom={activeRoom}
+                activeRoom={displayedActiveRoom}
+                stagingVisuals={stagingVisuals}
                 roomRacks={currentRoomRacks}
                 rackMiners={rackMiners}
                 editMode={editMode}
@@ -1373,6 +1567,7 @@ export function ArcadiaGame({
             cmaBalance={cmaBalance}
             dogeBalanceAtomic={dogeBalanceAtomic}
             ltcBalanceAtomic={ltcBalanceAtomic}
+            seasonalWalletAmc={seasonalWalletAmc}
             onRefreshAccount={refreshServerState}
             serverVersion={serverVersion}
           />
@@ -1382,10 +1577,24 @@ export function ArcadiaGame({
           <InventoryView
             minerInventory={minerInventory}
             installedMiners={allInstalled}
+            installedRackCount={racks.length}
             rackInventoryCount={rackInventoryCount}
-            batteryCount={batteryCount}
+            partsInventory={partsInventory}
+            locale={locale}
             onOpenRack={openRackFromInventory}
+            onOpenForge={() => setActiveView("forge")}
             onOpenStore={openStore}
+          />
+        )}
+
+        {!rackOpen && stagingVisuals && activeView === "forge" && (
+        <ForgeView
+          minerInventory={minerInventory}
+          partsInventory={partsInventory}
+          cmaBalance={cmaBalance}
+          locale={locale}
+            onMergeMiner={mergeMiner}
+            onMergePart={mergePart}
           />
         )}
 
@@ -1398,12 +1607,21 @@ export function ArcadiaGame({
             rackInventoryCount={rackInventoryCount}
             batteryCount={batteryCount}
             crateOpenCount={crateOpenCount}
+            luckCrateOpenCount={luckCrateOpenCount}
             cratePityStreaks={cratePityStreaks}
+            seasonalWalletAmc={seasonalWalletAmc}
+            minerOfferPurchases={minerOfferPurchases}
+            serverTime={clockNow}
+            allowSeasonalShop={stagingVisuals}
+            locale={locale}
             onSetCategory={setShopCategory}
             onBuyMiners={buyMiners}
+            onBuyMinerOffer={buyMinerOffer}
             onBuyRacks={buyRacks}
             onBuyBatteries={buyBatteries}
             onOpenSupplyCrate={openSupplyCrate}
+            onOpenLuckCrate={openLuckCrate}
+            onOpenSeasonBox={openSeasonBox}
             onGoToRoom={() => {
               setActiveView("mine");
               setEditMode(true);
@@ -1417,6 +1635,7 @@ export function ArcadiaGame({
               <PCStatusPanel
                 refreshKey={serverVersion}
                 temporaryPowerGh={temporaryPowerGh}
+                stagingVisuals={stagingVisuals}
               />
               <PacketCatchView
                 temporaryPowerGh={temporaryPowerGh}
@@ -1430,6 +1649,7 @@ export function ArcadiaGame({
           <SeasonPanel
             refreshKey={serverVersion}
             onRefreshAccount={refreshServerState}
+            stagingVisuals={stagingVisuals}
           />
         )}
 
@@ -1457,23 +1677,32 @@ export function ArcadiaGame({
       </section>
 
       <nav className="mobile-nav" aria-label="Navegação móvel">
-        {navigation.map((item) => (
+        {navigation.filter((item) => stagingVisuals || item.id !== "forge").map((item) => (
           <button
             type="button"
             key={item.id}
             className={activeView === item.id ? "active" : ""}
             onClick={() => {
-              setRackOpen(false);
-              if (item.id === "career") setCareerStartTab("overview");
-              setActiveView(item.id);
-            }}
+                setRackOpen(false);
+                setWalletOpen(false);
+                setRoomsOpen(false);
+                if (item.id === "career") setCareerStartTab("overview");
+                if (item.id === "shop" && stagingVisuals) setShopCategory("offers");
+                setActiveView(item.id);
+              }}
           >
-            <span>{item.glyph}</span>
+            <span className="mobile-nav-icon" aria-hidden="true">
+              <img src={item.icon} alt="" />
+              <span className="nav-glyph-fallback">{item.glyph}</span>
+            </span>
             {t(`nav.short.${item.id}`, item.shortLabel)}
           </button>
         ))}
         <a className="mobile-support-link" href="/support">
-          <span>?</span>
+          <span className="mobile-nav-icon" aria-hidden="true">
+            <img src="/assets/icons/icone_suporte.png" alt="" />
+            <span className="nav-glyph-fallback">?</span>
+          </span>
           {t("nav.support")}
           {unreadSupportReplies > 0 ? (
             <b>{Math.min(99, unreadSupportReplies)}</b>
@@ -1485,6 +1714,7 @@ export function ArcadiaGame({
         <RoomsModal
           activeRoomId={activeRoomId}
           ownedRoomIds={ownedRoomIds}
+          stagingVisuals={stagingVisuals}
           cmaBalance={cmaBalance}
           purchasePending={actionPending}
           onChoose={chooseRoom}
@@ -1536,6 +1766,7 @@ export function ArcadiaGame({
 
 function MiningRoom({
   activeRoom,
+  stagingVisuals,
   roomRacks,
   rackMiners,
   editMode,
@@ -1563,6 +1794,7 @@ function MiningRoom({
   cyclePending,
 }: {
   activeRoom: RoomDefinition;
+  stagingVisuals: boolean;
   roomRacks: RackInstance[];
   rackMiners: Record<string, InstalledMiner[]>;
   editMode: boolean;
@@ -1592,17 +1824,21 @@ function MiningRoom({
   const { locale } = useArcadiaLanguage();
   const english = locale !== "pt-BR";
   const [operationsOpen, setOperationsOpen] = useState(false);
+  const roomRackPositions = stagingVisuals ? stagingRackPositions : rackPositions;
+  const rackAsset = stagingVisuals
+    ? assetsManifest.rackTallStaging
+    : assetsManifest.rackBasic;
   const orderedRoomRacks = [...roomRacks].sort(
     (first, second) => first.positionIndex - second.positionIndex,
   );
-  const firstEmptyRackPosition = rackPositions.findIndex(
+  const firstEmptyRackPosition = roomRackPositions.findIndex(
     (_, positionIndex) =>
       !roomRacks.some((rack) => rack.positionIndex === positionIndex),
   );
 
   return (
     <div className="mine-grid">
-      <section className="room-card">
+      <section className={`room-card ${stagingVisuals ? "room-card-staging" : ""}`}>
         <div className="room-toolbar">
           <span>
             <i className="online-dot" /> {activeRoom.label} · {activeRoom.name}
@@ -1628,14 +1864,19 @@ function MiningRoom({
           </div>
         </div>
 
-        <div className={`room-stage ${editMode ? "editing" : ""}`}>
-          <img
-            className="room-background"
-            src={activeRoom.asset}
-            alt={activeRoom.alt}
-          />
+        <div
+          className={`room-stage ${stagingVisuals ? "room-stage-staging" : ""} ${editMode ? "editing" : ""}`}
+          data-room-id={activeRoom.id}
+          data-room-layout={stagingVisuals ? "arcadia-staging-4x3" : "arcadia-4x3"}
+        >
+          <div className="room-scene-canvas">
+            <img
+              className="room-background"
+              src={activeRoom.asset}
+              alt={activeRoom.alt}
+            />
 
-          {rackPositions.map((position, positionIndex) => {
+            {roomRackPositions.map((position, positionIndex) => {
             const rack = roomRacks.find(
               (item) => item.positionIndex === positionIndex,
             );
@@ -1670,49 +1911,73 @@ function MiningRoom({
             }
 
             const installed = rackMiners[rack.id] ?? [];
-            return (
-              <button
-                type="button"
-                className="room-rack multi-rack"
-                onClick={() => onOpenRack(rack.id)}
-                aria-label={english ? `Open rack at position ${positionIndex + 1}` : `Abrir rack da posição ${positionIndex + 1}`}
-                style={style}
-                key={rack.id}
-              >
-                <span className="rack-visual">
-                  <img
-                    className="rack-frame"
-                    src={assetsManifest.rackBasic.path}
-                    alt=""
-                  />
-                  {installed.map((placement) => {
-                    const miner = getMiner(placement.minerId);
-                    if (!miner) return null;
+              return (
+                <button
+                  type="button"
+                  className="room-rack multi-rack"
+                  onClick={() => onOpenRack(rack.id)}
+                  aria-label={english ? `Open rack at position ${positionIndex + 1}` : `Abrir rack da posição ${positionIndex + 1}`}
+                  style={style}
+                  key={rack.id}
+                >
+                  <span className="rack-visual">
+                    <img
+                      className="rack-frame"
+                      src={rackAsset.path}
+                      alt=""
+                    />
+                    {installed.map((placement) => {
+                      const miner = getMiner(placement.minerId);
+                      if (!miner) return null;
 
-                    return (
-                      <img
-                        className={`rack-miner size-${miner.slotSize}`}
-                        data-rack-art={
-                          miner.availability === "season" ? "season" : "standard"
-                        }
-                        key={placement.instanceId}
-                        src={miner.asset}
-                        alt={miner.alt}
-                        style={rackMinerPosition(placement.slotIndex)}
-                      />
-                    );
-                  })}
-                </span>
-                <span className="rack-click-label">
-                  <b>RACK · {getUsedSlotCount(installed)}/8</b>
-                  {english ? "CLICK TO MANAGE" : "CLIQUE PARA GERENCIAR"}
-                </span>
-              </button>
-            );
-          })}
+                      return (
+                        <span className="rack-miner-wrap" key={placement.instanceId}>
+                          <img
+                            className={`rack-miner size-${miner.slotSize}`}
+                            data-rack-art={
+                              miner.availability === "season" ? "season" : "standard"
+                            }
+                            data-miner-family={minerVisualFamily(miner)}
+                            src={miner.asset}
+                            alt={miner.alt}
+                            style={minerVisualStyle(
+                              miner,
+                              stagingVisuals
+                                ? rackMinerPosition(
+                                    placement.slotIndex,
+                                    miner.slotSize,
+                                    true,
+                                    miner.availability === "season",
+                                  )
+                                // Base production anchor: rackMinerPosition(placement.slotIndex)
+                                // keeps legacy placements aligned while staging applies its own scale.
+                                : rackMinerPosition(placement.slotIndex, miner.slotSize),
+                            )}
+                          />
+                          {!stagingVisuals && (
+                            <b
+                              className="rack-miner-level-badge"
+                              style={rackMinerPosition(placement.slotIndex, miner.slotSize, stagingVisuals)}
+                              aria-label={`${english ? "Miner level" : "Nível do minerador"} ${normalizeMinerLevel(placement.level)}`}
+                            >
+                              {getMinerLevelCode(placement.level ?? 1)}
+                            </b>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </span>
+                  <span className="rack-click-label">
+                    <b>RACK · {getUsedSlotCount(installed)}/8</b>
+                    {english ? "CLICK TO MANAGE" : "CLIQUE PARA GERENCIAR"}
+                  </span>
+                </button>
+              );
+            })}
 
-          <div className="room-coordinates">
-            {ROOM_RACK_CAPACITY} {english ? "FREE POSITIONS" : "POSIÇÕES GRATUITAS"} · LAYOUT V.03
+            <div className="room-coordinates">
+              {ROOM_RACK_CAPACITY} {english ? "FREE POSITIONS" : "POSIÇÕES GRATUITAS"} · LAYOUT V.03
+            </div>
           </div>
         </div>
 
@@ -1765,23 +2030,42 @@ function MiningRoom({
                   <span className="mobile-rack-sprite" aria-hidden="true">
                     <img
                       className="rack-frame"
-                      src={assetsManifest.rackBasic.path}
+                      src={rackAsset.path}
                       alt=""
                     />
                     {installed.map((placement) => {
                       const miner = getMiner(placement.minerId);
                       if (!miner) return null;
                       return (
-                        <img
-                          className={`rack-miner size-${miner.slotSize}`}
-                          data-rack-art={
-                            miner.availability === "season" ? "season" : "standard"
-                          }
-                          key={placement.instanceId}
-                          src={miner.asset}
-                          alt=""
-                          style={rackMinerPosition(placement.slotIndex)}
-                        />
+                        <span className="rack-miner-wrap" key={placement.instanceId}>
+                          <img
+                            className={`rack-miner size-${miner.slotSize}`}
+                            data-rack-art={
+                              miner.availability === "season" ? "season" : "standard"
+                            }
+                            data-miner-family={minerVisualFamily(miner)}
+                            src={miner.asset}
+                            alt=""
+                            style={minerVisualStyle(
+                              miner,
+                              rackMinerPosition(
+                                placement.slotIndex,
+                                miner.slotSize,
+                                stagingVisuals,
+                                miner.availability === "season",
+                              ),
+                            )}
+                          />
+                          {!stagingVisuals && (
+                            <b
+                              className="rack-miner-level-badge"
+                              style={rackMinerPosition(placement.slotIndex, miner.slotSize, stagingVisuals)}
+                              aria-label={`${english ? "Miner level" : "Nível do minerador"} ${normalizeMinerLevel(placement.level)}`}
+                            >
+                              {getMinerLevelCode(placement.level ?? 1)}
+                            </b>
+                          )}
+                        </span>
                       );
                     })}
                   </span>
@@ -2542,21 +2826,180 @@ function PoolsView({
   );
 }
 
+function MinerMergeManager({
+  minerInventory,
+  partsInventory,
+  cmaBalance,
+  locale,
+  mode,
+  onModeChange,
+  modeLabels,
+  onMergeMiner,
+}: {
+  minerInventory: MinerUnit[];
+  partsInventory: PublicGameState["partsInventory"];
+  cmaBalance: number;
+  locale: "pt-BR" | "en" | "es";
+  mode: "miners" | "parts";
+  onModeChange: (mode: "miners" | "parts") => void;
+  modeLabels: { miners: string; parts: string };
+  onMergeMiner: (minerAId: string, minerBId: string) => Promise<void>;
+}) {
+  const [pending, setPending] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState("");
+  const copy = locale === "en"
+    ? { eyebrow: "MANAGER · MINER MERGE", title: "Fuse identical miners", description: "Select a model on the left, review every requirement in the center and confirm only when the server marks it ready.", empty: "No two identical miners are available yet.", select: "AVAILABLE MINERS", parts: "PARTS", fee: "FEE", ready: "READY", missing: "MISSING", merge: "MERGE TWO", max: "MAX LEVEL", result: "RESULT", after: "POWER AFTER MERGE", inventory: "PARTS INVENTORY" }
+    : locale === "es"
+      ? { eyebrow: "MANAGER · FUSIÓN DE MINEROS", title: "Fusiona mineros idénticos", description: "Elige un modelo a la izquierda, revisa los requisitos en el centro y confirma cuando el servidor lo marque como listo.", empty: "Aún no hay dos mineros idénticos disponibles.", select: "MINEROS DISPONIBLES", parts: "PIEZAS", fee: "COSTE", ready: "LISTO", missing: "FALTA", merge: "FUSIONAR DOS", max: "NIVEL MÁXIMO", result: "RESULTADO", after: "PODER TRAS LA FUSIÓN", inventory: "INVENTARIO DE PIEZAS" }
+      : { eyebrow: "MANAGER · FUSÃO DE MINERADORES", title: "Funda mineradores idênticos", description: "Escolha um modelo à esquerda, confira os requisitos no centro e confirme quando o servidor marcar como pronto.", empty: "Ainda não há dois mineradores idênticos disponíveis.", select: "MINERADORES DISPONÍVEIS", parts: "PEÇAS", fee: "CUSTO", ready: "PRONTO", missing: "FALTA", merge: "FUNDIR DOIS", max: "NÍVEL MÁXIMO", result: "RESULTADO", after: "PODER APÓS A FUSÃO", inventory: "INVENTÁRIO DE PEÇAS" };
+
+  const groups = useMemo(() => {
+    const grouped = new Map<string, MinerUnit[]>();
+    for (const unit of minerInventory) {
+      const key = `${unit.minerId}:${normalizeMinerLevel(unit.level)}`;
+      grouped.set(key, [...(grouped.get(key) ?? []), unit]);
+    }
+    return [...grouped.entries()]
+      .map(([key, units]) => ({ key, units, miner: getMiner(units[0].minerId) }))
+      .filter((group): group is { key: string; units: MinerUnit[]; miner: NonNullable<ReturnType<typeof getMiner>> } => Boolean(group.miner));
+  }, [minerInventory]);
+
+  const selected = groups.find((group) => group.key === selectedKey) ?? groups[0];
+  const level = selected ? normalizeMinerLevel(selected.units[0].level) : 1;
+  const requirement = selected ? getMinerMergeRequirement(level) : null;
+  const partRows = requirement
+    ? partFamilies.map((family) => ({ family, required: requirement.partRequirements[family.id], count: partsInventory[partKey(family.id, requirement.partRarity)] ?? 0 }))
+    : [];
+  const hasParts = Boolean(requirement && partRows.every((row) => row.count >= row.required * batchSize));
+  const hasCma = Boolean(requirement && cmaBalance >= requirement.feeCma * batchSize);
+  const canMerge = Boolean(selected && requirement && selected.units.length >= 2 * batchSize && hasParts && hasCma);
+  const missingParts = partRows.reduce((sum, row) => sum + Math.max(0, row.required * batchSize - row.count), 0);
+  const partTotals = partRarities.map((rarity) => ({
+    ...rarity,
+    count: partFamilies.reduce((sum, family) => sum + (partsInventory[partKey(family.id, rarity.id)] ?? 0), 0),
+  }));
+
+  return (
+    <section className="merge-center" aria-labelledby="miner-merge-title">
+      <div className="merge-center-heading"><div><span className="eyebrow">{copy.eyebrow}</span><h3 id="miner-merge-title">{copy.title}</h3><p>{copy.description}</p></div><strong className="merge-center-rule">2 → 1 · 32 básicos = C6</strong></div>
+      <div className="merge-inventory-strip"><span>{copy.inventory}</span>{partTotals.map((part) => <b className={`rarity-chip ${part.id}`} key={part.id}>{part.label} <em>{part.count.toLocaleString()}</em></b>)}</div>
+      <div className="merge-center-layout">
+          <aside className="merge-col merge-selection"><div className="merge-mode-switch" role="tablist" aria-label="Merge type"><button type="button" role="tab" aria-selected={mode === "miners"} className={mode === "miners" ? "active" : ""} onClick={() => onModeChange("miners")}><span aria-hidden="true">⚙</span>{modeLabels.miners}</button><button type="button" role="tab" aria-selected={mode === "parts"} className={mode === "parts" ? "active" : ""} onClick={() => onModeChange("parts")}><span aria-hidden="true">⌘</span>{modeLabels.parts}</button></div><header><span className="eyebrow">{copy.select}</span><strong>{groups.length}</strong></header><div className="merge-selection-list">{groups.map(({ key, units, miner }) => { const itemLevel = normalizeMinerLevel(units[0].level); return <button type="button" className={key === selected?.key ? "selected" : ""} key={key} onClick={() => setSelectedKey(key)}><span className="merge-selection-art"><img src={miner.asset} alt="" /><b>{getMinerLevelCode(itemLevel)}</b></span><span><strong>{miner.name}</strong><small>{getMinerLevelName(itemLevel, locale)} · {units.length}x</small></span></button>; })}</div></aside>
+          <div className="merge-col merge-recipe"><header><span className="eyebrow">{selected ? `${copy.parts} · ${getMinerLevelName(level, locale)}` : copy.parts}</span><h4>{selected?.miner.name ?? "—"}</h4></header>{selected && requirement ? <><div className="merge-recipe-preview"><span className="merge-art-wrap"><img data-miner-family={minerVisualFamily(selected.miner)} src={selected.miner.asset} alt={selected.miner.alt} /><b>{getMinerLevelCode(level)}</b></span><strong>2 {selected.miner.name} <small>→ C{requirement.targetLevel}</small></strong></div><div className="merge-recipe-list"><div className={selected.units.length >= 2 * batchSize ? "ok" : "missing"}><span>◈ {selected.miner.name}</span><b>{Math.min(selected.units.length, 2 * batchSize)} / {2 * batchSize}</b></div>{partRows.map((row) => <div className={row.count >= row.required ? "ok" : "missing"} key={row.family.id}><span>▣ {row.family.label} · {requirement.partRarity}</span><b>{Math.min(row.count, row.required * batchSize)} / {row.required * batchSize}</b></div>)}<div className={hasCma ? "ok" : "missing"}><span>◉ CMA</span><b>{formatCma(cmaBalance)} / {formatCma(requirement.feeCma * batchSize)}</b></div></div><div className="merge-batch-controls"><span>{copy.batch || "LOTE DE FUSÃO"}</span><div className="quantity-picker"><button type="button" onClick={() => setBatchSize(Math.max(1, batchSize - 1))} disabled={batchSize <= 1}>-</button><strong>{batchSize}</strong><button type="button" onClick={() => setBatchSize(batchSize + 1)} disabled={batchSize >= Math.floor(selected.units.length / 2)}>+</button></div></div><p className="merge-recipe-hint">{hasParts && hasCma && selected.units.length >= 2 * batchSize ? copy.ready : `${copy.missing} ${missingParts} ${copy.parts.toLowerCase()}`}</p><button type="button" className="primary-action merge-submit" disabled={!canMerge || pending !== null} onClick={() => { if (!canMerge || !selected.units[0] || !selected.units[1]) return; setPending(selected.key); void onMergeMiner(selected.units[0].instanceId, selected.units[1].instanceId, batchSize).finally(() => setPending(null)); }}>{pending === selected.key ? "..." : copy.merge}<small>{formatCma(requirement.feeCma * batchSize)} CMA</small></button></> : <p className="merge-empty">{groups.length === 0 ? copy.empty : copy.max}</p>}</div>
+          <aside className="merge-col merge-result"><span className="eyebrow">{copy.result}</span>{selected && requirement ? <><div className="merge-result-art"><img data-miner-family={minerVisualFamily(selected.miner)} src={selected.miner.asset} alt={selected.miner.alt} /><b>{getMinerLevelCode(requirement.targetLevel)}</b></div><h4>{selected.miner.name}</h4><strong className="merge-result-level">{getMinerLevelName(requirement.targetLevel, locale)} · C{requirement.targetLevel}</strong><span>{copy.after}</span><strong className="merge-result-power">{formatPower(getMergedMinerPowerAtLevel(selected.miner.powerGh, requirement.targetLevel))}</strong></> : <p className="merge-empty">{copy.max}</p>}</aside>
+        </div>
+    </section>
+  );
+}
+
+function ForgeView({
+  minerInventory,
+  partsInventory,
+  cmaBalance,
+  locale,
+  onMergeMiner,
+  onMergePart,
+}: {
+  minerInventory: MinerUnit[];
+  partsInventory: PublicGameState["partsInventory"];
+  cmaBalance: number;
+  locale: "pt-BR" | "en" | "es";
+  onMergeMiner: (minerAId: string, minerBId: string) => Promise<void>;
+  onMergePart: (family: PartFamily, rarity: PartRarity) => Promise<void>;
+}) {
+  const [mode, setMode] = useState<"miners" | "parts">("miners");
+  const copy = locale === "en"
+    ? {
+        eyebrow: "ARCADIA WORKSHOP · MERGE ONLY",
+        title: "Upgrade your operation",
+        description: "Combine identical miners or matching parts. The required quantity scales by rarity (50 → 25 → 10 → 5). Crafting is disabled for this test phase.",
+        miners: "MINER MERGE",
+        parts: "PART MERGE",
+      }
+    : locale === "es"
+      ? {
+          eyebrow: "TALLER ARCADIA · SOLO FUSIÓN",
+          title: "Mejora tu operación",
+          description: "Combina mineros idénticos o piezas iguales. La cantidad requerida baja por rareza (50 → 25 → 10 → 5). La creación está desactivada durante esta fase de pruebas.",
+          miners: "FUSIÓN DE MINEROS",
+          parts: "FUSIÓN DE PIEZAS",
+        }
+      : {
+          eyebrow: "OFICINA ARCADIA · SOMENTE FUSÃO",
+          title: "Evolua sua operação",
+        description: "Junte mineradores idênticos ou peças iguais. A quantidade necessária cai por raridade (50 → 25 → 10 → 5). A criação fica desativada nesta fase de testes.",
+          miners: "FUSÃO DE MINERADORES",
+          parts: "FUSÃO DE PEÇAS",
+        };
+
+  return (
+    <section className="arcadia-workshop" aria-labelledby="arcadia-workshop-title">
+      <header className="arcadia-workshop-hero">
+        <div>
+          <span className="eyebrow">{copy.eyebrow}</span>
+          <h2 id="arcadia-workshop-title">{copy.title}</h2>
+          <p>{copy.description}</p>
+        </div>
+        <div className="arcadia-workshop-rule">
+          <strong>2 → 1</strong>
+          <span>ou 5 → 1</span>
+        </div>
+      </header>
+
+      {mode === "miners" ? (
+        <MinerMergeManager
+          minerInventory={minerInventory}
+          partsInventory={partsInventory}
+          cmaBalance={cmaBalance}
+          locale={locale}
+          mode={mode}
+          onModeChange={setMode}
+          modeLabels={{ miners: copy.miners, parts: copy.parts }}
+          onMergeMiner={onMergeMiner}
+        />
+      ) : (
+        <PartsLab
+          partsInventory={partsInventory}
+          cmaBalance={cmaBalance}
+          locale={locale}
+          mode={mode}
+          onModeChange={setMode}
+          modeLabels={{ miners: copy.miners, parts: copy.parts }}
+          onMergePart={onMergePart}
+        />
+      )}
+    </section>
+  );
+}
+
 function InventoryView({
   minerInventory,
   installedMiners,
+  installedRackCount,
   rackInventoryCount,
-  batteryCount,
+  partsInventory,
+  locale,
   onOpenRack,
+  onOpenForge,
   onOpenStore,
 }: {
   minerInventory: MinerUnit[];
   installedMiners: InstalledMiner[];
+  installedRackCount: number;
   rackInventoryCount: number;
-  batteryCount: number;
+  partsInventory: PublicGameState["partsInventory"];
+  locale: "pt-BR" | "en" | "es";
   onOpenRack: () => void;
+  onOpenForge: () => void;
   onOpenStore: (category: ShopCategory) => void;
 }) {
+  const [section, setSection] = useState<"miners" | "racks" | "parts">("miners");
+  // Keep the inventory's localized aria labels in the same scope as the
+  // rendered cards. Without this declaration, opening the inventory throws
+  // `ReferenceError: english is not defined` during render.
+  const english = locale !== "pt-BR";
+  const totalParts = Object.values(partsInventory).reduce((sum, value) => sum + value, 0);
+
   return (
     <section className="inventory-view">
       <div className="section-intro">
@@ -2569,6 +3012,9 @@ function InventoryView({
           </p>
         </div>
         <div className="inventory-actions">
+          <button className="primary-action" type="button" onClick={onOpenForge}>
+            ABRIR OFICINA
+          </button>
           <button className="primary-action" type="button" onClick={onOpenRack}>
             GERENCIAR RACK
           </button>
@@ -2578,30 +3024,33 @@ function InventoryView({
         </div>
       </div>
 
-      <div className="inventory-summary">
-        <article>
-          <img src={assetsManifest.rackBasic.path} alt="" />
-          <span>
-            <small>RACKS DISPONÍVEIS</small>
-            <strong>{rackInventoryCount}</strong>
-          </span>
-          <button type="button" onClick={() => onOpenStore("racks")}>
-            COMPRAR
-          </button>
-        </article>
-        <article>
-          <img src={assetsManifest.battery.path} alt="" />
-          <span>
-            <small>BATERIAS DE 12H</small>
-            <strong>{batteryCount}</strong>
-          </span>
-          <button type="button" onClick={() => onOpenStore("energy")}>
-            COMPRAR
-          </button>
-        </article>
-      </div>
+      <nav className="inventory-tabs" aria-label="Seções do inventário">
+        <button
+          type="button"
+          className={section === "miners" ? "active" : ""}
+          onClick={() => setSection("miners")}
+        >
+          <span>⚙</span> MINERADORES <b>{minerInventory.length + installedMiners.length}</b>
+        </button>
+        <button
+          type="button"
+          className={section === "racks" ? "active" : ""}
+          onClick={() => setSection("racks")}
+        >
+          <span>▤</span> RACKS <b>{installedRackCount + rackInventoryCount}</b>
+        </button>
+        <button
+          type="button"
+          className={section === "parts" ? "active" : ""}
+          onClick={() => setSection("parts")}
+        >
+          <span>⌘</span> PEÇAS <b>{totalParts}</b>
+        </button>
+      </nav>
 
-      <div className="inventory-grid">
+      {section === "miners" && (
+        <>
+          <div className="inventory-grid">
         {miners.map((miner) => {
           const availableCount = minerInventory.filter(
             (unit) => unit.minerId === miner.id,
@@ -2610,6 +3059,15 @@ function InventoryView({
             (unit) => unit.minerId === miner.id,
           ).length;
           const ownedCount = availableCount + installedCount;
+          const ownedLevels = [
+            ...minerInventory
+              .filter((unit) => unit.minerId === miner.id)
+              .map((unit) => normalizeMinerLevel(unit.level)),
+            ...installedMiners
+              .filter((unit) => unit.minerId === miner.id)
+              .map((unit) => normalizeMinerLevel(unit.level)),
+          ];
+          const highestLevel = Math.max(1, ...ownedLevels);
 
           if (ownedCount === 0) return null;
 
@@ -2619,21 +3077,32 @@ function InventoryView({
                 ownedCount === 0 ? "not-owned" : ""
               }`}
               key={miner.id}
-            >
+              >
               <div className="inventory-art">
                 <span>{rarityLabels[miner.rarity]}</span>
-                <img src={miner.asset} alt={miner.alt} />
+                <b
+                  className="inventory-miner-level-badge"
+                  aria-label={`${english ? "Miner level" : "Nível do minerador"} ${highestLevel}`}
+                >
+                  {getMinerLevelCode(highestLevel)}
+                </b>
+                <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt={miner.alt} />
                 <b className="owned-badge">VOCÊ TEM · {ownedCount}</b>
               </div>
               <div className="inventory-info">
                 <span>
                   {miner.fanCount} {miner.fanCount === 1 ? "FAN" : "FANS"}
                 </span>
-                <h3>{miner.name}</h3>
+                <div className="inventory-miner-name-row">
+                  <h3>{miner.name}</h3>
+                  <span className="miner-level-pill">
+                    {getMinerLevelCode(highestLevel)} · {getMinerLevelName(highestLevel, locale)}
+                  </span>
+                </div>
                 <div className="inventory-stats">
                   <p>
-                    <small>PODER</small>
-                    <strong>{formatPower(miner.powerGh)}</strong>
+                    <small>PODER · NÍVEL {highestLevel}</small>
+                    <strong>{formatPower(getMergedMinerPowerAtLevel(miner.powerGh, highestLevel))}</strong>
                   </p>
                   <p>
                     <small>ESPAÇO</small>
@@ -2656,8 +3125,94 @@ function InventoryView({
             </article>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
+
+      {section === "racks" && (
+        <div className="inventory-racks-panel">
+          <article className="inventory-collection-card">
+            <div className="inventory-collection-art">
+              <img src={assetsManifest.rackBasic.path} alt="Rack básico" />
+            </div>
+            <div>
+              <span className="eyebrow">INFRAESTRUTURA DA SALA</span>
+              <h3>Racks Arcadia</h3>
+              <p>
+                {installedRackCount} instalado(s) na sala e {rackInventoryCount} disponível(is) para instalação.
+              </p>
+              <div className="inventory-collection-actions">
+                <button type="button" className="primary-action" onClick={onOpenRack}>GERENCIAR RACKS</button>
+                <button type="button" onClick={() => onOpenStore("racks")}>COMPRAR RACK</button>
+              </div>
+            </div>
+          </article>
+          <article className="inventory-collection-note">
+            <strong>ORGANIZAÇÃO</strong>
+            <span>Abra a sala para instalar, mover ou retirar mineradores sem sair do inventário.</span>
+          </article>
+        </div>
+      )}
+
+      {section === "parts" && (
+        <InventoryPartsPanel
+          partsInventory={partsInventory}
+          locale={locale}
+          onOpenForge={onOpenForge}
+        />
+      )}
     </section>
+  );
+}
+
+function InventoryPartsPanel({
+  partsInventory,
+  locale,
+  onOpenForge,
+}: {
+  partsInventory: PublicGameState["partsInventory"];
+  locale: "pt-BR" | "en" | "es";
+  onOpenForge: () => void;
+}) {
+  const familyLabels: Record<PartFamily, string> = locale === "en"
+    ? { cable: "Power Unit", hashboard: "Hashboard", fan: "Fan" }
+    : locale === "es"
+      ? { cable: "Fuente", hashboard: "Placa", fan: "Ventilador" }
+      : { cable: "Fonte", hashboard: "Placa", fan: "Ventoinha" };
+
+  return (
+    <div className="inventory-parts-panel">
+      <div className="inventory-parts-heading">
+        <div>
+          <span className="eyebrow">MANAGER · COMPONENTES DE PROGRESSÃO</span>
+          <h3>Manager de peças</h3>
+          <p>Organize seus componentes por família e raridade. Nesta etapa, o Manager trabalha apenas com fusões.</p>
+        </div>
+        <button type="button" className="primary-action" onClick={onOpenForge}>
+          ABRIR OFICINA
+        </button>
+      </div>
+      <div className="inventory-parts-grid">
+        {partFamilies.map((family) => {
+          const total = partRarities.reduce(
+            (sum, rarity) => sum + (partsInventory[partKey(family.id, rarity.id)] ?? 0),
+            0,
+          );
+          return (
+            <article className="inventory-part-family" key={family.id}>
+              <img src={partAssetPath(family.id, "common")} alt="" />
+              <div>
+                <span className="eyebrow">MATERIAL</span>
+                <h4>{familyLabels[family.id]}</h4>
+                <strong>{total}</strong>
+                <small>peça(s) no inventário</small>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <p className="inventory-parts-note">As fusões de peças ficam na Oficina Arcadia, com validação do servidor e custo em CMA.</p>
+    </div>
   );
 }
 
@@ -2693,6 +3248,448 @@ function QuantityPicker({
   );
 }
 
+function CrateRewardDetails({
+  title,
+  rewards,
+}: {
+  title: string;
+  rewards: readonly { id: string; label: string }[];
+}) {
+  return (
+    <details className="crate-reward-details">
+      <summary aria-label={title} title={title}>
+        <span aria-hidden="true">i</span>
+      </summary>
+      <div className="crate-reward-popover" role="dialog" aria-label={title}>
+        <strong>{title}</strong>
+        <ul>
+          {rewards.map((reward) => (
+            <li key={reward.id}>{reward.label}</li>
+          ))}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
+function PartsLab({
+  partsInventory,
+  cmaBalance,
+  locale,
+  mode,
+  onModeChange,
+  modeLabels,
+  onMergePart,
+}: {
+  partsInventory: PublicGameState["partsInventory"];
+  cmaBalance?: number;
+  locale: "pt-BR" | "en" | "es";
+  mode: "miners" | "parts";
+  onModeChange: (mode: "miners" | "parts") => void;
+  modeLabels: { miners: string; parts: string };
+  onMergePart: (family: PartFamily, rarity: PartRarity) => Promise<void>;
+}) {
+  const copy = {
+    "pt-BR": {
+      eyebrow: "MANAGER · FUSÃO DE PEÇAS",
+      title: "Funda peças por raridade",
+      description: "Escolha uma peça à esquerda, veja a receita no centro e confirme quando houver material e CMA suficientes.",
+      inventory: "INVENTÁRIO",
+      merge: "FUNDIR",
+      max: "MÁXIMO",
+      fee: "custo",
+      noParts: "Nenhuma peça desta raridade ainda.",
+      source: "MATERIAL",
+      select: "PEÇAS DISPONÍVEIS",
+      result: "RESULTADO",
+      ready: "PRONTO",
+      missing: "FALTA",
+    },
+    en: {
+      eyebrow: "MANAGER · PART MERGE",
+      title: "Merge parts by rarity",
+      description: "Select a part on the left, review the recipe in the center and confirm when materials and CMA are ready.",
+      inventory: "INVENTORY",
+      merge: "MERGE",
+      max: "MAX",
+      fee: "fee",
+      noParts: "No parts at this rarity yet.",
+      source: "MATERIAL",
+      select: "AVAILABLE PARTS",
+      result: "RESULT",
+      ready: "READY",
+      missing: "MISSING",
+    },
+    es: {
+      eyebrow: "MANAGER · FUSIÓN DE PIEZAS",
+      title: "Fusiona piezas por rareza",
+      description: "Elige una pieza a la izquierda, revisa la receta en el centro y confirma cuando haya materiales y CMA suficientes.",
+      inventory: "INVENTARIO",
+      merge: "FUSIONAR",
+      max: "MÁXIMO",
+      fee: "coste",
+      noParts: "Aún no tienes piezas de esta rareza.",
+      source: "MATERIAL",
+      select: "PIEZAS DISPONIBLES",
+      result: "RESULTADO",
+      ready: "LISTO",
+      missing: "FALTA",
+    },
+  }[locale];
+  const rarityLabel = (rarity: PartRarity) =>
+    locale === "en"
+      ? { common: "Common", uncommon: "Uncommon", rare: "Rare", epic: "Epic", legendary: "Legendary" }[rarity]
+      : locale === "es"
+        ? { common: "Común", uncommon: "Inusual", rare: "Rara", epic: "Épica", legendary: "Legendaria" }[rarity]
+        : { common: "Comum", uncommon: "Incomum", rare: "Raro", epic: "Épico", legendary: "Lendário" }[rarity];
+      const familyLabel = (family: PartFamily) =>
+    locale === "en"
+      ? { cable: "Power Unit", hashboard: "Hashboard", fan: "Fan" }[family]
+      : locale === "es"
+        ? { cable: "Fuente", hashboard: "Placa", fan: "Ventilador" }[family]
+        : { cable: "Fonte", hashboard: "Placa", fan: "Ventoinha" }[family];
+  const totalParts = Object.values(partsInventory).reduce((sum, value) => sum + value, 0);
+  const [mergePending, setMergePending] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState("");
+  const options = useMemo(
+    () => partFamilies.flatMap((family) => partRarities.filter((rarity) => rarity.id !== "legendary").map((rarity) => ({ family, rarity, key: partKey(family.id, rarity.id) }))),
+    [],
+  );
+  const selected = options.find((option) => option.key === selectedKey) ?? options[0];
+  const selectedCount = selected ? partsInventory[selected.key] ?? 0 : 0;
+  const nextRarity = selected ? partRarities.find((item) => item.order === selected.rarity.order + 1) : null;
+  const required = selected ? getPartMergeCount(selected.rarity.id) * batchSize : 0;
+  const fee = selected ? partMergeFee(selected.rarity.id) * batchSize : 0;
+  const canMerge = Boolean(selected && nextRarity && selectedCount >= required && (cmaBalance === undefined || cmaBalance >= fee));
+  const partTotals = partRarities.map((rarity) => ({
+    ...rarity,
+    count: partFamilies.reduce((sum, family) => sum + (partsInventory[partKey(family.id, rarity.id)] ?? 0), 0),
+  }));
+
+  async function merge(family: PartFamily, rarity: PartRarity, quantity: number) {
+    const id = `${family}:${rarity}`;
+    if (mergePending) return;
+    setMergePending(id);
+    try {
+      await onMergePart(family, rarity, quantity);
+    } finally {
+      setMergePending(null);
+    }
+  }
+
+  return (
+    <section className="merge-center parts-merge-center">
+      <div className="merge-center-heading"><div><span className="eyebrow">{copy.eyebrow}</span><h3>{copy.title}</h3><p>{copy.description}</p></div><strong className="merge-center-rule">50 → 25 → 10 → 5</strong></div>
+      <div className="merge-inventory-strip"><span>{copy.inventory} · {totalParts.toLocaleString()}</span>{partTotals.map((part) => <b className={`rarity-chip ${part.id}`} key={part.id}>{part.label} <em>{part.count.toLocaleString()}</em></b>)}</div>
+      <div className="merge-center-layout">
+         <aside className="merge-col merge-selection"><div className="merge-mode-switch" role="tablist" aria-label="Merge type"><button type="button" role="tab" aria-selected={mode === "miners"} className={mode === "miners" ? "active" : ""} onClick={() => onModeChange("miners")}><span aria-hidden="true">⚙</span>{modeLabels.miners}</button><button type="button" role="tab" aria-selected={mode === "parts"} className={mode === "parts" ? "active" : ""} onClick={() => onModeChange("parts")}><span aria-hidden="true">⌘</span>{modeLabels.parts}</button></div><header><span className="eyebrow">{copy.select}</span><strong>{options.length}</strong></header><div className="merge-selection-list">{options.map((option) => { const count = partsInventory[option.key] ?? 0; return <button type="button" className={option.key === selected?.key ? "selected" : ""} key={option.key} onClick={() => setSelectedKey(option.key)}><span className={`merge-selection-art part-art ${option.rarity.id}`}><img src={partAssetPath(option.family.id, option.rarity.id)} alt="" /></span><span><strong>{familyLabel(option.family.id)}</strong><small>{rarityLabel(option.rarity.id)} · {count.toLocaleString()}</small></span></button>; })}</div></aside>
+        <div className="merge-col merge-recipe"><header><span className="eyebrow">{selected ? `${familyLabel(selected.family.id)} · ${rarityLabel(selected.rarity.id)}` : copy.inventory}</span><h4>{selected ? `${copy.merge} ${rarityLabel(selected.rarity.id)}` : "—"}</h4></header>{selected && nextRarity ? <><div className="merge-recipe-preview"><span className={`merge-art-wrap part-art ${selected.rarity.id}`}><img src={partAssetPath(selected.family.id, selected.rarity.id)} alt="" /></span><strong>{required} {familyLabel(selected.family.id)} <small>→ {batchSize} {rarityLabel(nextRarity.id)}</small></strong></div><div className="merge-recipe-list"><div className={selectedCount >= required ? "ok" : "missing"}><span>▣ {rarityLabel(selected.rarity.id)}</span><b>{Math.min(selectedCount, required)} / {required}</b></div><div className={cmaBalance === undefined || cmaBalance >= fee ? "ok" : "missing"}><span>◉ CMA</span><b>{cmaBalance === undefined ? "—" : `${formatCma(cmaBalance)} / ${formatCma(fee)}`}</b></div></div><div className="merge-batch-controls"><span>{copy.batch || "LOTE DE FUSÃO"}</span><div className="quantity-picker"><button type="button" onClick={() => setBatchSize(Math.max(1, batchSize - 1))} disabled={batchSize <= 1}>-</button><strong>{batchSize}</strong><button type="button" onClick={() => setBatchSize(batchSize + 1)} disabled={batchSize >= Math.floor(selectedCount / (required / Math.max(1, batchSize)))}>+</button></div></div><p className="merge-recipe-hint">{canMerge ? copy.ready : `${copy.missing} ${Math.max(0, required - selectedCount)} ${copy.inventory.toLowerCase()}`}</p><button type="button" className="primary-action merge-submit" disabled={!canMerge || mergePending !== null} onClick={() => void merge(selected.family.id, selected.rarity.id, batchSize)}>{mergePending === selected.key ? "..." : copy.merge}<small>{formatCma(fee)} CMA · {required} {rarityLabel(selected.rarity.id)}</small></button></> : <p className="merge-empty">{copy.max}</p>}</div>
+        <aside className="merge-col merge-result"><span className="eyebrow">{copy.result}</span>{selected && nextRarity ? <><div className={`merge-result-art part-art ${nextRarity.id}`}><img src={partAssetPath(selected.family.id, nextRarity.id)} alt="" /><b>{rarityLabel(nextRarity.id)}</b></div><h4>{familyLabel(selected.family.id)}</h4><strong className="merge-result-level">{rarityLabel(selected.rarity.id)} → {rarityLabel(nextRarity.id)}</strong><span>{copy.inventory}</span><strong className="merge-result-power">+{batchSize} {rarityLabel(nextRarity.id)}</strong></> : <p className="merge-empty">{copy.max}</p>}</aside>
+      </div>
+    </section>
+  );
+}
+
+function SeasonStore({
+  seasonalWalletAmc,
+  locale,
+  onOpenSeasonBox,
+}: {
+  seasonalWalletAmc: number;
+  locale: "pt-BR" | "en" | "es";
+  onOpenSeasonBox: (boxId: SeasonStoreBoxId) => Promise<GameApiResponse | null>;
+}) {
+  const copy = locale === "en"
+    ? {
+        eyebrow: "ARCADIA PASS · SEASON 02",
+        title: "Season shop",
+        description: "Spend temporary AMC earned from the pass on part cases. AMC resets with the season and never becomes withdrawable balance.",
+        balance: "SEASON BALANCE",
+        reset: "Linked to the active season · resets when the season ends",
+        open: "BUY & OPEN",
+        insufficient: "INSUFFICIENT AMC",
+        opening: "SERVER VALIDATING THE DROP…",
+        received: "PARTS SENT TO INVENTORY",
+        rewards: "Possible contents",
+      }
+    : locale === "es"
+      ? {
+          eyebrow: "ARCADIA PASS · TEMPORADA 02",
+          title: "Tienda de temporada",
+          description: "Usa el AMC temporal del pase para abrir cajas de piezas. El AMC se reinicia con la temporada y nunca se puede retirar.",
+          balance: "SALDO DE TEMPORADA",
+          reset: "Vinculado a la temporada activa · se reinicia al terminar",
+          open: "COMPRAR Y ABRIR",
+          insufficient: "AMC INSUFICIENTE",
+          opening: "EL SERVIDOR ESTÁ VALIDANDO EL DROP…",
+          received: "PIEZAS ENVIADAS AL INVENTARIO",
+          rewards: "Contenido posible",
+        }
+      : {
+          eyebrow: "ARCADIA PASS · TEMPORADA 02",
+          title: "Loja da temporada",
+          description: "Use o AMC temporário do passe para abrir baús de peças. O AMC é reiniciado com a temporada e nunca vira saldo sacável.",
+          balance: "SALDO DA TEMPORADA",
+          reset: "Vinculado à temporada ativa · reinicia quando ela termina",
+          open: "COMPRAR E ABRIR",
+          insufficient: "AMC INSUFICIENTE",
+          opening: "O SERVIDOR ESTÁ VALIDANDO O DROP…",
+          received: "PEÇAS ENVIADAS AO INVENTÁRIO",
+          rewards: "Conteúdo possível",
+        };
+  const [opening, setOpening] = useState<{
+    box: SeasonStoreBoxId;
+    phase: "opening" | "revealed";
+    result?: SeasonStoreOpening;
+  } | null>(null);
+  const [storeError, setStoreError] = useState<string | null>(null);
+
+  async function openBox(boxId: SeasonStoreBoxId) {
+    if (opening?.phase === "opening") return;
+    setStoreError(null);
+    setOpening({ box: boxId, phase: "opening" });
+    const response = await onOpenSeasonBox(boxId);
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    const result = response?.actionResult?.seasonStoreBox;
+    if (!result) {
+      setOpening(null);
+      setStoreError("O servidor não confirmou esta abertura. Atualize a loja e tente novamente.");
+      return;
+    }
+    setOpening({ box: boxId, phase: "revealed", result });
+  }
+
+  return (
+    <div className="season-store">
+      <section className="season-store-hero">
+        <div>
+          <span className="eyebrow">{copy.eyebrow}</span>
+          <h3>{copy.title}</h3>
+          <p>{copy.description}</p>
+          <small>{copy.reset}</small>
+        </div>
+        <div className="season-store-wallet">
+          <img src={assetsManifest.arcadiaCoin.path} alt="Arcadia Coin" />
+          <span>
+            <small>{copy.balance}</small>
+            <strong>{seasonalWalletAmc.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} {SEASON_CURRENCY_SYMBOL}</strong>
+          </span>
+        </div>
+      </section>
+
+      {opening ? (
+        <section className={`season-store-opening ${opening.phase}`} aria-live="polite">
+          <img
+            src={
+              opening.result
+                ? partAssetPath(opening.result.family, opening.result.rarity)
+                : assetsManifest.arcadiaCoin.path
+            }
+            alt=""
+          />
+          <div>
+            <span>{opening.phase === "opening" ? copy.opening : copy.received}</span>
+            <strong>
+              {opening.phase === "opening"
+                ? "…"
+                : `${opening.result?.quantity.toLocaleString(locale === "en" ? "en-US" : "pt-BR")} ${opening.result?.family} · ${opening.result?.rarity}`}
+            </strong>
+            {opening.phase === "revealed" ? (
+              <button type="button" onClick={() => setOpening(null)}>CONTINUAR</button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+      {storeError ? <p className="store-action-error" role="alert">{storeError}</p> : null}
+
+      <div className="season-store-box-grid">
+        {seasonStoreBoxes.map((box) => {
+          const canOpen = seasonalWalletAmc >= box.priceAmc;
+          const rewardOptions = box.rewardOptions.map((reward) => ({
+            id: reward.id,
+            label: locale === "en" ? reward.labelEn : locale === "es" ? reward.labelEs : reward.labelPt,
+          }));
+          return (
+            <article className={`season-store-box ${box.id}`} key={box.id}>
+              <div className="season-store-box-art">
+                <img src={box.imagePath} alt={box.title} />
+                <span>{box.id === "mega-parts-case" ? "MEGA" : "COMMON"}</span>
+              </div>
+              <div className="season-store-box-copy">
+                <div className="crate-card-header">
+                  <span>{copy.rewards.toUpperCase()}</span>
+                  <CrateRewardDetails title={copy.rewards} rewards={rewardOptions} />
+                </div>
+                <h4>{box.title}</h4>
+                <p>{box.description}</p>
+                <small>{copy.rewards}: {box.contentsLabel}</small>
+                <strong>{box.priceAmc} {SEASON_CURRENCY_SYMBOL}</strong>
+                <button type="button" disabled={!canOpen || opening?.phase === "opening"} onClick={() => void openBox(box.id)}>
+                  {canOpen ? copy.open : copy.insufficient}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+    </div>
+  );
+}
+
+function MinerOffersView({
+  cmaBalance,
+  purchases,
+  serverTime,
+  locale,
+  onBuy,
+}: {
+  cmaBalance: number;
+  purchases: Record<string, number>;
+  serverTime: number;
+  locale: "pt-BR" | "en" | "es";
+  onBuy: (offerId: string, quantity: number) => void;
+}) {
+  // Keep the render pure: the snapshot clock is the source of truth, and a
+  // deterministic zero fallback avoids hydration drift before the first tick.
+  const offerServerTime = serverTime > 0 ? serverTime : 0;
+  const offers = getMinerOffers(offerServerTime);
+  const copy = locale === "en"
+    ? {
+        eyebrow: "LIMITED OFFERS · SEASON MINERS",
+        title: "Arcadia flash market",
+        description: "A small rotation of pass machines from the previous and current seasons. There is no per-account cap; CMA balance and inventory capacity still protect the economy.",
+        noAccountLimit: "No per-account cap",
+        purchased: "Bought this rotation",
+        power: "Mining power",
+        slots: "slots",
+        from: "from",
+        buy: "BUY OFFER",
+        insufficient: "INSUFFICIENT CMA",
+        soldOut: "SOLD OUT",
+        best: "Best value",
+        legacy: "Previous pass",
+        current: "Current pass",
+        rotation: "Rotates in",
+        lot: "Cycle lot",
+      }
+    : locale === "es"
+      ? {
+          eyebrow: "OFERTAS LIMITADAS · MINEROS DE TEMPORADA",
+          title: "Mercado flash de Arcadia",
+          description: "Una rotación pequeña de máquinas del pase anterior y actual. No hay límite por cuenta; el saldo CMA y la capacidad del inventario protegen la economía.",
+          noAccountLimit: "Sin límite por cuenta",
+          purchased: "Compradas en esta rotación",
+          power: "Poder de minería",
+          slots: "slots",
+          from: "de",
+          buy: "COMPRAR OFERTA",
+          insufficient: "CMA INSUFICIENTE",
+          soldOut: "AGOTADO",
+          best: "Mejor valor",
+          legacy: "Pase anterior",
+          current: "Pase actual",
+          rotation: "Cambia en",
+          lot: "Lote del ciclo",
+        }
+      : {
+          eyebrow: "OFERTAS LIMITADAS · MINERADORES DE PASSE",
+          title: "Mercado flash da Arcadia",
+          description: "Uma rotação enxuta de máquinas do passe anterior e atual. Não há limite por conta; o saldo CMA e a capacidade do inventário continuam protegendo a economia.",
+          noAccountLimit: "Sem limite por conta",
+          purchased: "Compradas nesta rotação",
+          power: "Poder de mineração",
+          slots: "slots",
+          from: "de",
+          buy: "COMPRAR OFERTA",
+          insufficient: "CMA INSUFICIENTE",
+        soldOut: "ESGOTADO",
+        best: "Melhor oferta",
+        legacy: "Passe anterior",
+        current: "Passe atual",
+        rotation: "Troca em",
+        lot: "Lote do ciclo",
+      };
+
+  const remainingMs = Math.max(
+    0,
+    (offers[0]?.rotationEndsAt ?? 0) - offerServerTime,
+  );
+  const rotationHours = Math.floor(remainingMs / (60 * 60 * 1000));
+  const rotationMinutes = Math.floor(
+    (remainingMs % (60 * 60 * 1000)) / (60 * 1000),
+  );
+  const rotationLabel =
+    String(rotationHours) + "h " + String(rotationMinutes).padStart(2, "0") + "m";
+
+  return (
+    <section className="miner-offers" aria-labelledby="miner-offers-title">
+      <header className="miner-offers-hero">
+        <div>
+          <span className="eyebrow">{copy.eyebrow}</span>
+          <h3 id="miner-offers-title">{copy.title} <span aria-hidden="true">✨</span></h3>
+          <p>{copy.description}</p>
+          <small className="miner-offers-rotation">
+            {copy.rotation}: {rotationLabel} · {copy.lot}: 240 / 96 / 64
+          </small>
+        </div>
+        <div className="miner-offers-balance">
+          <img src={assetsManifest.cmaCoin.path} alt="" />
+          <span>
+            <small>CMA</small>
+            <strong>{formatCma(cmaBalance)}</strong>
+          </span>
+        </div>
+      </header>
+
+      <div className="miner-offers-grid">
+        {offers.map((offer) => {
+          const miner = getMiner(offer.minerId);
+          if (!miner) return null;
+          const purchased = Math.max(0, purchases[offer.id] ?? 0);
+          const canBuy = cmaBalance >= offer.priceCma;
+          const badge = locale === "en" ? offer.badgeEn : locale === "es" ? offer.badgeEs : offer.badgePt;
+          const description = locale === "en" ? offer.descriptionEn : locale === "es" ? offer.descriptionEs : offer.descriptionPt;
+          const tierLabel = offer.tier === "premium" ? copy.best : offer.tier === "basic" ? copy.legacy : copy.current;
+          return (
+            <article className={`miner-offer-card ${offer.tier}`} key={offer.id}>
+              <div className="miner-offer-art">
+                <span className="miner-offer-discount">-{offer.discountPercent}%</span>
+                <span className="miner-offer-tier">{tierLabel}</span>
+                <span className="miner-offer-spark" aria-hidden="true">✦</span>
+                <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt={miner.alt} />
+                <strong>{formatPower(miner.powerGh)}</strong>
+              </div>
+              <div className="miner-offer-body">
+                <div className="miner-offer-kicker">{badge}</div>
+                <h4>{miner.name} <small>{getMinerLevelCode(1)}</small></h4>
+                <p>{description}</p>
+                <dl className="miner-offer-stats">
+                  <div><dt>{copy.power}</dt><dd>{formatPower(miner.powerGh)}</dd></div>
+                  <div><dt>Raridade</dt><dd>{rarityLabels[miner.rarity]}</dd></div>
+                  <div><dt>Espaço</dt><dd>{miner.slotSize} {copy.slots}</dd></div>
+                </dl>
+                <div className="miner-offer-price">
+                  <span>{copy.from} <s>{formatCma(offer.referencePriceCma)} CMA</s></span>
+                  <strong>{formatCma(offer.priceCma)} CMA</strong>
+                </div>
+                <div className="miner-offer-stock">
+                  <span>
+                    {copy.noAccountLimit} · {copy.purchased}: {purchased} · {copy.lot} {offer.lotSize}
+                  </span>
+                </div>
+                <button type="button" disabled={!canBuy} onClick={() => onBuy(offer.id, 1)}>
+                  {!canBuy ? copy.insufficient : copy.buy}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ShopView({
   activeCategory,
   cmaBalance,
@@ -2702,11 +3699,20 @@ function ShopView({
   batteryCount,
   crateOpenCount,
   cratePityStreaks,
+  luckCrateOpenCount,
+  seasonalWalletAmc,
+  minerOfferPurchases,
+  serverTime,
+  allowSeasonalShop,
+  locale,
   onSetCategory,
   onBuyMiners,
+  onBuyMinerOffer,
   onBuyRacks,
   onBuyBatteries,
   onOpenSupplyCrate,
+  onOpenLuckCrate,
+  onOpenSeasonBox,
   onGoToRoom,
 }: {
   activeCategory: ShopCategory;
@@ -2717,13 +3723,24 @@ function ShopView({
   batteryCount: number;
   crateOpenCount: number;
   cratePityStreaks: Record<SupplyCrateId, number>;
+  luckCrateOpenCount: number;
+  seasonalWalletAmc: number;
+  minerOfferPurchases: Record<string, number>;
+  serverTime: number;
+  allowSeasonalShop: boolean;
+  locale: "pt-BR" | "en" | "es";
   onSetCategory: (category: ShopCategory) => void;
   onBuyMiners: (minerId: string, quantity: number) => void;
+  onBuyMinerOffer: (offerId: string, quantity: number) => void;
   onBuyRacks: (quantity: number) => void;
   onBuyBatteries: (quantity: number) => void;
   onOpenSupplyCrate: (
     crateId: SupplyCrateId,
   ) => Promise<GameApiResponse | null>;
+  onOpenLuckCrate: (
+    crateId: LuckCrateId,
+  ) => Promise<GameApiResponse | null>;
+  onOpenSeasonBox: (boxId: SeasonStoreBoxId) => Promise<GameApiResponse | null>;
   onGoToRoom: () => void;
 }) {
   const [minerQuantities, setMinerQuantities] = useState<
@@ -2731,20 +3748,30 @@ function ShopView({
   >({});
   const [rackQuantity, setRackQuantity] = useState(1);
   const [batteryQuantity, setBatteryQuantity] = useState(1);
+  const [crateSection, setCrateSection] = useState<"supply" | "luck" | "season">("supply");
   const [crateOpening, setCrateOpening] = useState<{
     crateId: SupplyCrateId;
     phase: "opening" | "revealed";
     result?: SupplyCrateOpening;
   } | null>(null);
+  const [luckCrateOpening, setLuckCrateOpening] = useState<{
+    crateId: LuckCrateId;
+    phase: "opening" | "revealed";
+    result?: LuckCrateOpening;
+  } | null>(null);
+  const [crateError, setCrateError] = useState<string | null>(null);
+  const [luckCrateError, setLuckCrateError] = useState<string | null>(null);
 
   async function openCrate(crateId: SupplyCrateId) {
     if (crateOpening?.phase === "opening") return;
+    setCrateError(null);
     setCrateOpening({ crateId, phase: "opening" });
     const response = await onOpenSupplyCrate(crateId);
     await new Promise((resolve) => window.setTimeout(resolve, 1_150));
     const result = response?.actionResult?.supplyCrate;
     if (!result) {
       setCrateOpening(null);
+      setCrateError("O servidor não confirmou esta abertura. Atualize a loja e tente novamente.");
       return;
     }
     setCrateOpening({
@@ -2752,6 +3779,21 @@ function ShopView({
       phase: "revealed",
       result,
     });
+  }
+
+  async function openLuckCrate(crateId: LuckCrateId) {
+    if (luckCrateOpening?.phase === "opening") return;
+    setLuckCrateError(null);
+    setLuckCrateOpening({ crateId, phase: "opening" });
+    const response = await onOpenLuckCrate(crateId);
+    await new Promise((resolve) => window.setTimeout(resolve, 1_050));
+    const result = response?.actionResult?.luckCrate;
+    if (!result) {
+      setLuckCrateOpening(null);
+      setLuckCrateError("O servidor não confirmou esta abertura. Atualize a loja e tente novamente.");
+      return;
+    }
+    setLuckCrateOpening({ crateId, phase: "revealed", result });
   }
 
   return (
@@ -2776,6 +3818,15 @@ function ShopView({
       </div>
 
       <nav className="shop-tabs" aria-label="Categorias da loja">
+        {allowSeasonalShop && (
+          <button
+            type="button"
+            className={activeCategory === "offers" ? "active offers-tab" : "offers-tab"}
+            onClick={() => onSetCategory("offers")}
+          >
+            ✨ {locale === "en" ? "FLASH OFFERS" : locale === "es" ? "OFERTAS FLASH" : "OFERTAS FLASH"}
+          </button>
+        )}
         <button
           type="button"
           className={activeCategory === "miners" ? "active" : ""}
@@ -2804,10 +3855,64 @@ function ShopView({
         >
           CAIXAS · {crateOpenCount}
         </button>
+        {allowSeasonalShop && (
+          <button
+            type="button"
+            className={
+              activeCategory === "season" ||
+              (activeCategory === "crates" && crateSection === "season")
+                ? "active"
+                : ""
+            }
+            onClick={() => {
+              setCrateSection("season");
+              onSetCategory("crates");
+            }}
+          >
+            {locale === "en" ? "SEASON SHOP" : locale === "es" ? "TIENDA DE TEMPORADA" : "LOJA DA TEMPORADA"}
+          </button>
+        )}
       </nav>
+
+      {allowSeasonalShop && activeCategory === "offers" && (
+        <MinerOffersView
+          cmaBalance={cmaBalance}
+          purchases={minerOfferPurchases}
+          serverTime={serverTime}
+          locale={locale}
+          onBuy={onBuyMinerOffer}
+        />
+      )}
 
       {activeCategory === "crates" && (
         <div className="supply-crates-section">
+          <nav className="crate-section-tabs" aria-label="Tipos de caixas">
+            <button
+              type="button"
+              className={crateSection === "supply" ? "active" : ""}
+              onClick={() => setCrateSection("supply")}
+            >
+              📦 SUPRIMENTOS
+            </button>
+            <button
+              type="button"
+              className={crateSection === "luck" ? "active" : ""}
+              onClick={() => setCrateSection("luck")}
+            >
+              ✦ CAIXAS DA SORTE
+            </button>
+            {allowSeasonalShop && (
+              <button
+                type="button"
+                className={crateSection === "season" ? "active" : ""}
+                onClick={() => setCrateSection("season")}
+              >
+                ◈ LOJA DA TEMPORADA
+              </button>
+            )}
+          </nav>
+
+          {crateSection === "supply" && <>
           <div className="supply-crates-heading">
             <div>
               <span className="eyebrow">SUPRIMENTOS ALEATÓRIOS · CHANCES PÚBLICAS</span>
@@ -2827,84 +3932,62 @@ function ShopView({
           </div>
 
           {crateOpening && (
-            <section
-              className={`crate-opening-stage ${crateOpening.phase}`}
-              aria-live="polite"
-            >
-              <div className={`supply-crate-visual ${crateOpening.crateId}`}>
-                <i />
-                <b>CMA</b>
-                <span />
-              </div>
-              <div className="crate-opening-copy">
-                <span>
-                  {crateOpening.phase === "opening"
-                    ? "ABERTURA AUTORIZADA PELO SERVIDOR"
-                    : "ITEM ENVIADO AO INVENTÁRIO"}
-                </span>
-                <strong>
-                  {crateOpening.phase === "opening"
-                    ? "DECODIFICANDO SUPRIMENTOS..."
-                    : crateOpening.result?.reward.label}
-                </strong>
-                {crateOpening.phase === "opening" ? (
-                  <div className="crate-opening-progress">
-                    <i />
-                    <i />
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                ) : (
-                  <>
-                    <p>
-                      Raridade{" "}
-                      <b>{crateOpening.result?.reward.rarity.toUpperCase()}</b>
-                      {crateOpening.result?.pityTriggered
-                        ? " · proteção de azar ativada"
-                        : ""}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setCrateOpening(null)}
-                    >
-                      CONTINUAR NA LOJA
-                    </button>
-                  </>
-                )}
-              </div>
-            </section>
-          )}
+          <section
+            className={`luck-crate-opening ${crateOpening.phase}`}
+            aria-live="polite"
+          >
+            <img
+              src={supplyCrates.find((crate) => crate.id === crateOpening.crateId)?.imagePath}
+              alt=""
+            />
+            <div>
+              <span>
+                {crateOpening.phase === "opening"
+                  ? "ABERTURA AUTORIZADA PELO SERVIDOR"
+                  : "ITEM ENVIADO AO INVENTÁRIO"}
+              </span>
+              <strong>
+                {crateOpening.phase === "opening"
+                  ? "DECODIFICANDO SUPRIMENTOS..."
+                  : crateOpening.result?.reward.label}
+              </strong>
+              {crateOpening.phase === "revealed" ? (
+                <>
+                  <p style={{ margin: 0, color: "#9cabb7", fontSize: "10px" }}>
+                    Raridade <b>{crateOpening.result?.reward.rarity.toUpperCase()}</b>
+                    {crateOpening.result?.pityTriggered ? " — proteção de azar ativada" : ""}
+                  </p>
+                  <button type="button" onClick={() => setCrateOpening(null)}>
+                    CONTINUAR NA LOJA
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </section>
+        )}
+          {crateError ? <p className="store-action-error" role="alert">{crateError}</p> : null}
 
           <div className="supply-crate-grid">
             {supplyCrates.map((crate) => {
               const pityStreak = cratePityStreaks[crate.id] ?? 0;
               return (
                 <article className={`supply-crate-card ${crate.tier}`} key={crate.id}>
-                  <div className="supply-crate-card-art">
+                    <div className="supply-crate-card-art">
                     <div className={`supply-crate-visual ${crate.id}`}>
-                      <i />
-                      <b>CMA</b>
-                      <span />
+                      <img src={crate.imagePath} alt={crate.name} />
                     </div>
                     <small>{crate.shortName}</small>
                   </div>
                   <div className="supply-crate-card-info">
-                    <span>CAIXA DE SUPRIMENTOS</span>
+                    <div className="crate-card-header">
+                      <span>CAIXA DE SUPRIMENTOS</span>
+                      <CrateRewardDetails
+                        title="Possíveis recompensas"
+                        rewards={crate.rewards}
+                      />
+                    </div>
                     <h4>{crate.name}</h4>
                     <p>{crate.description}</p>
-                    <div className="crate-odds-table">
-                      <div>
-                        <strong>CONTEÚDO POSSÍVEL</strong>
-                        <b>CHANCE</b>
-                      </div>
-                      {crate.rewards.map((reward) => (
-                        <div className={reward.rarity} key={reward.id}>
-                          <span>{reward.label}</span>
-                          <b>{formatCrateChance(reward.chanceBasisPoints)}</b>
-                        </div>
-                      ))}
-                    </div>
                     <div className="crate-pity-meter">
                       <span>
                         PROTEÇÃO RARA · {pityStreak}/{SUPPLY_CRATE_PITY_LIMIT - 1}
@@ -2941,7 +4024,104 @@ function ShopView({
               );
             })}
           </div>
+          </>}
+
+          {crateSection === "luck" && <section className="luck-crates-section">
+            <div className="luck-crates-heading">
+              <div>
+                <span className="eyebrow">MOEDA PRINCIPAL · CMA</span>
+                <h3>Caixas da Sorte</h3>
+                <p>
+                  Use CMA para abrir uma caixa e receber outro prêmio CMA. O AMC
+                  continua reservado para recompensas e caixas da temporada.
+                </p>
+              </div>
+              <aside>
+                <strong>{cmaBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CMA DISPONÍVEL</strong>
+                <span>{luckCrateOpenCount} abertura(s) · prêmios definidos pelo servidor.</span>
+              </aside>
+            </div>
+
+            {luckCrateOpening ? (
+              <section className={`luck-crate-opening ${luckCrateOpening.phase}`} aria-live="polite">
+                <img
+                  src={luckCrates.find((crate) => crate.id === luckCrateOpening.crateId)?.imagePath}
+                  alt=""
+                />
+                <div>
+                  <span>
+                    {luckCrateOpening.phase === "opening"
+                      ? "ABERTURA VALIDADA PELO SERVIDOR"
+                      : "PRÊMIO ADICIONADO AO CMA"}
+                  </span>
+                  <strong>
+                    {luckCrateOpening.phase === "opening"
+                      ? "CALCULANDO O PRÊMIO..."
+                      : luckCrateOpening.result?.reward.label}
+                  </strong>
+                  {luckCrateOpening.phase === "revealed" ? (
+                    <button type="button" onClick={() => setLuckCrateOpening(null)}>
+                      CONTINUAR NA LOJA
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+            {luckCrateError ? <p className="store-action-error" role="alert">{luckCrateError}</p> : null}
+
+            <div className="luck-crate-grid">
+              {luckCrates.map((crate) => {
+                const canOpen = cmaBalance >= crate.priceCma;
+                return (
+                  <article className={`luck-crate-card ${crate.id}`} key={crate.id}>
+                    <div className="luck-crate-art">
+                      <img src={crate.imagePath} alt={crate.name} />
+                      <small>{crate.shortName}</small>
+                    </div>
+                    <div className="luck-crate-info">
+                      <div className="crate-card-header">
+                        <span>CAIXA DA SORTE · CMA</span>
+                        <CrateRewardDetails
+                          title="Prêmios possíveis"
+                          rewards={crate.rewards}
+                        />
+                      </div>
+                      <h4>{crate.name}</h4>
+                      <p>{crate.description}</p>
+                      <div className="crate-price">
+                        <span>ABERTURA</span>
+                        <strong>{crate.priceCma.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CMA</strong>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!canOpen || luckCrateOpening?.phase === "opening"}
+                        onClick={() => void openLuckCrate(crate.id)}
+                      >
+                        {canOpen ? "COMPRAR E ABRIR" : "CMA INSUFICIENTE"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>}
+
+          {allowSeasonalShop && crateSection === "season" && (
+            <SeasonStore
+              seasonalWalletAmc={seasonalWalletAmc}
+              locale={locale}
+              onOpenSeasonBox={onOpenSeasonBox}
+            />
+          )}
         </div>
+      )}
+
+      {allowSeasonalShop && activeCategory === "season" && (
+        <SeasonStore
+          seasonalWalletAmc={seasonalWalletAmc}
+          locale={locale}
+          onOpenSeasonBox={onOpenSeasonBox}
+        />
       )}
 
       {activeCategory === "miners" && (
@@ -2962,7 +4142,8 @@ function ShopView({
               >
                 <div className="shop-product-art">
                   <span>{rarityLabels[miner.rarity]}</span>
-                  <img src={miner.asset} alt={miner.alt} />
+                  <b className="miner-level-chip">{getMinerLevelCode(1)}</b>
+                  <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt={miner.alt} />
                   <b>{formatCma(miner.priceCma)} CMA</b>
                 </div>
                 <div className="shop-product-info">
@@ -3120,6 +4301,7 @@ function ShopView({
 }
 
 function RackManager({
+  stagingVisuals,
   rackLabel,
   roomName,
   installed,
@@ -3129,6 +4311,7 @@ function RackManager({
   onRemoveAll,
   onClose,
 }: {
+  stagingVisuals: boolean;
   rackLabel: string;
   roomName: string;
   installed: InstalledMiner[];
@@ -3140,6 +4323,9 @@ function RackManager({
 }) {
   const [targetSlot, setTargetSlot] = useState<number | null>(null);
   const usedSlots = getUsedSlotCount(installed);
+  const rackAsset = stagingVisuals
+    ? assetsManifest.rackTallStaging
+    : assetsManifest.rackBasic;
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -3151,7 +4337,7 @@ function RackManager({
 
   return (
       <section
-        className="rack-modal rack-inline-panel"
+        className={`rack-modal rack-inline-panel ${stagingVisuals ? "rack-inline-panel-staging" : ""}`}
         aria-labelledby="rack-title"
       >
         <header>
@@ -3180,7 +4366,7 @@ function RackManager({
             </div>
 
             <div className="rack-preview corrected">
-              <img src={assetsManifest.rackBasic.path} alt="" />
+              <img src={rackAsset.path} alt="" />
               {installed.map((placement) => {
                 const miner = getMiner(placement.minerId);
                 if (!miner) return null;
@@ -3191,12 +4377,22 @@ function RackManager({
                     data-rack-art={
                       miner.availability === "season" ? "season" : "standard"
                     }
+                    data-miner-family={minerVisualFamily(miner)}
                     key={placement.instanceId}
-                    style={rackMinerPosition(placement.slotIndex)}
+                    style={minerVisualStyle(
+                      miner,
+                      rackMinerPosition(
+                        placement.slotIndex,
+                        miner.slotSize,
+                        stagingVisuals,
+                        miner.availability === "season",
+                      ),
+                    )}
                     onClick={() => onRemove(placement.instanceId)}
                     title={`Retirar ${miner.name}`}
                   >
-                    <img src={miner.asset} alt={miner.alt} />
+                    <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt={miner.alt} />
+                    <b className="preview-miner-level-badge">{getMinerLevelCode(placement.level ?? 1)}</b>
                   </button>
                 );
               })}
@@ -3276,7 +4472,10 @@ function RackManager({
                       onClick={() => onRemove(placement.instanceId)}
                       key={slotIndex}
                     >
-                      <img src={miner.asset} alt="" />
+                      <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt="" />
+                      <b className="slot-installed-level">
+                        {getMinerLevelCode(placement.level ?? 1)}
+                      </b>
                       <span>
                         <strong>{miner.name}</strong>
                         {miner.slotSize}{" "}
@@ -3316,58 +4515,76 @@ function RackManager({
             </div>
 
             <div className="rack-miner-list">
-              {miners.map((miner) => {
-                const availableUnits = minerInventory.filter(
-                  (unit) => unit.minerId === miner.id,
-                );
-                if (availableUnits.length === 0) return null;
-                const nextUnit = availableUnits[0];
-                const possibleSlot =
-                  targetSlot === null
-                    ? findNextAvailableSlot(installed, miner)
-                    : canInstallAt(installed, miner, targetSlot)
-                      ? targetSlot
-                      : null;
+              {miners.flatMap((miner) => {
+                // Keep each level selectable. Previously all copies of a model
+                // were collapsed into one card and the first unit (usually C1)
+                // was always installed, making a freshly merged C2 appear to
+                // be missing from the rack manager.
+                const levels = Array.from(
+                  new Set(
+                    minerInventory
+                      .filter((unit) => unit.minerId === miner.id)
+                      .map((unit) => normalizeMinerLevel(unit.level)),
+                  ),
+                ).sort((a, b) => a - b);
 
-                return (
-                  <article className="rack-miner-card" key={miner.id}>
-                    <div className={`mini-rarity ${miner.rarity}`}>
-                      {rarityLabels[miner.rarity]}
-                    </div>
-                    <div className="rack-miner-art">
-                      <img src={miner.asset} alt={miner.alt} />
-                    </div>
-                    <div className="rack-miner-data">
-                      <span>
-                        {miner.fanCount} {miner.fanCount === 1 ? "FAN" : "FANS"}
-                      </span>
-                      <h3>{miner.name}</h3>
-                      <p>
-                        {formatPower(miner.powerGh)} ·{" "}
-                        {availableUnits.length} disponível
-                        {availableUnits.length === 1 ? "" : "is"}
-                      </p>
-                    </div>
-                    <div className="slot-cost">
-                      <small>OCUPA</small>
-                      <strong>
-                        {miner.slotSize}{" "}
-                        {miner.slotSize === 1 ? "SLOT" : "SLOTS"}
-                      </strong>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={possibleSlot === null}
-                      onClick={() => {
-                        if (possibleSlot === null) return;
-                        onInstall(nextUnit.instanceId, possibleSlot);
-                        setTargetSlot(null);
-                      }}
-                    >
-                      {possibleSlot === null ? "NÃO CABE" : "INSTALAR"}
-                    </button>
-                  </article>
-                );
+                return levels.map((level) => {
+                  const availableUnits = minerInventory.filter(
+                    (unit) =>
+                      unit.minerId === miner.id &&
+                      normalizeMinerLevel(unit.level) === level,
+                  );
+                  const nextUnit = availableUnits[0];
+                  if (!nextUnit) return null;
+                  const possibleSlot =
+                    targetSlot === null
+                      ? findNextAvailableSlot(installed, miner)
+                      : canInstallAt(installed, miner, targetSlot)
+                        ? targetSlot
+                        : null;
+
+                  return (
+                    <article className="rack-miner-card" key={`${miner.id}:C${level}`}>
+                      <div className={`mini-rarity ${miner.rarity}`}>
+                        {rarityLabels[miner.rarity]} · {getMinerLevelCode(level)}
+                      </div>
+                      <div className="rack-miner-art">
+                        <img data-miner-family={minerVisualFamily(miner)} src={miner.asset} alt={miner.alt} />
+                      </div>
+                      <div className="rack-miner-data">
+                        <span>
+                          {miner.fanCount} {miner.fanCount === 1 ? "FAN" : "FANS"}
+                        </span>
+                        <h3>
+                          {miner.name} <small className="miner-level-chip">{getMinerLevelCode(level)}</small>
+                        </h3>
+                        <p>
+                          {formatPower(getMergedMinerPowerAtLevel(miner.powerGh, level))} ·{" "}
+                          {availableUnits.length} disponível
+                          {availableUnits.length === 1 ? "" : "is"}
+                        </p>
+                      </div>
+                      <div className="slot-cost">
+                        <small>OCUPA</small>
+                        <strong>
+                          {miner.slotSize}{" "}
+                          {miner.slotSize === 1 ? "SLOT" : "SLOTS"}
+                        </strong>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={possibleSlot === null}
+                        onClick={() => {
+                          if (possibleSlot === null) return;
+                          onInstall(nextUnit.instanceId, possibleSlot);
+                          setTargetSlot(null);
+                        }}
+                      >
+                        {possibleSlot === null ? "NÃO CABE" : "INSTALAR"}
+                      </button>
+                    </article>
+                  );
+                });
               })}
               {minerInventory.length === 0 && (
                 <div className="empty-rack-inventory">
@@ -3395,6 +4612,7 @@ function RackManager({
 function RoomsModal({
   activeRoomId,
   ownedRoomIds,
+  stagingVisuals,
   cmaBalance,
   purchasePending,
   onChoose,
@@ -3403,6 +4621,7 @@ function RoomsModal({
 }: {
   activeRoomId: RoomId;
   ownedRoomIds: RoomId[];
+  stagingVisuals: boolean;
   cmaBalance: number;
   purchasePending: boolean;
   onChoose: (roomId: RoomId) => void;
@@ -3465,6 +4684,12 @@ function RoomsModal({
             const canAfford = cmaBalance >= room.priceCma;
             const lockedBySequence = !owned && !previousOwned;
             const unavailable = !owned && (!previousOwned || !canAfford);
+            const previewAsset =
+              stagingVisuals && room.id === "room-1"
+                ? assetsManifest.roomOneStaging
+                : stagingVisuals && room.id !== "room-1"
+                  ? assetsManifest.roomTwoStaging
+                  : null;
             return (
               <article
                 className={`room-store-card ${active ? "active" : ""} ${
@@ -3473,7 +4698,10 @@ function RoomsModal({
                 key={room.id}
               >
                 <div className="room-preview-image">
-                  <img src={room.asset} alt={room.alt} />
+                  <img
+                    src={previewAsset?.path ?? room.asset}
+                    alt={previewAsset?.alt ?? room.alt}
+                  />
                   <span>
                     {active
                       ? "SALA ATUAL"

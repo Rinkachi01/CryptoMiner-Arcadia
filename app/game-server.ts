@@ -21,6 +21,11 @@ import {
   type SupplyCrateId,
 } from "./supply-crate-rules.ts";
 import {
+  getLuckCrate,
+  resolveLuckCrate,
+  type LuckCrateId,
+} from "./luck-crate-rules.ts";
+import {
   ROOM_COUNT,
   getPreviousRoom,
   getRoomDefinition,
@@ -28,6 +33,40 @@ import {
   normalizeOwnedRoomIds,
   type RoomId,
 } from "./room-rules.ts";
+import {
+  PART_CASE_PRICE_CMA,
+  PART_MAX_PER_KEY,
+  partFamilies,
+  getPartMergeCount,
+  emptyPartsInventory,
+  isPartFamily,
+  isPartRarity,
+  nextPartRarity,
+  normalizePartsInventory,
+  partKey,
+  partMergeFee,
+  resolvePartCase,
+  type PartKey,
+} from "./parts-rules.ts";
+import {
+  getMinerMergeRequirement,
+  getMinerPowerAtLevel,
+  normalizeMinerLevel,
+} from "./miner-merge-rules.ts";
+import {
+  SEASON_CURRENCY_MAX,
+  SEASON_STORE_SEASON_ID,
+  emptySeasonalWallet,
+  getSeasonStoreBox,
+  normalizeSeasonalWallet,
+  resolveSeasonStoreBox,
+  type SeasonalWallet,
+  type SeasonStoreBoxId,
+} from "./season-store-rules.ts";
+import {
+  getMinerOffer,
+  normalizeMinerOfferPurchases,
+} from "./miner-offers-rules.ts";
 
 export type { RoomId } from "./room-rules.ts";
 export type WalletSymbol = "CMA" | "BTC" | "DOGE" | "LTC";
@@ -36,7 +75,11 @@ export type PoolAllocations = Record<PoolId, number>;
 export type MinerUnit = {
   instanceId: string;
   minerId: string;
+  /** Legacy inventory rows default to level 1 during normalization. */
+  level?: number;
 };
+
+export type PartsInventory = Record<PartKey, number>;
 
 export type RackInstance = {
   id: string;
@@ -65,6 +108,12 @@ export type PublicGameState = {
   dailyMissionClaims: Record<string, string>;
   crateOpenCount: number;
   cratePityStreaks: Record<SupplyCrateId, number>;
+  luckCrateOpenCount: number;
+  partsInventory: PartsInventory;
+  /** AMC is a season-bound pass currency; permanent inventory is separate. */
+  seasonalWallet: SeasonalWallet;
+  /** Per-account staging offer redemptions; omitted by legacy snapshots. */
+  minerOfferPurchases?: Record<string, number>;
 };
 
 export type GameActionName =
@@ -73,9 +122,15 @@ export type GameActionName =
   | "set_active_room"
   | "buy_room"
   | "buy_miners"
+  | "buy_miner_offer"
   | "buy_racks"
   | "buy_batteries"
   | "open_supply_crate"
+  | "open_luck_crate"
+  | "open_part_case"
+  | "open_season_box"
+  | "merge_part"
+  | "merge_miner"
   | "place_rack"
   | "install_miner"
   | "remove_miner"
@@ -96,6 +151,9 @@ const BLOCK_INTERVAL_MS = BLOCK_INTERVAL_SECONDS * 1000;
 const MAX_MINER_UNITS = ROOM_COUNT * ROOM_RACK_CAPACITY * 8 + 40;
 const MAX_BOOTSTRAP_MINER_UNITS = 80;
 const MAX_PURCHASE_QUANTITY = 20;
+/** A batch merge is intentionally bounded so one request cannot monopolize
+ * the reducer or create an unexpectedly large inventory mutation. */
+const MAX_MERGE_QUANTITY = 10;
 const MAX_BOOTSTRAP_BATTERY_INVENTORY = 8;
 
 function createId(prefix: string) {
@@ -209,6 +267,7 @@ export function createInitialGameState(now: number): PublicGameState {
       {
         instanceId: createId("starter-byte-spark"),
         minerId: "byte-spark",
+        level: 1,
       },
     ],
     racks: [{ id: "rack-01", roomId: "room-1", positionIndex: 0 }],
@@ -220,6 +279,10 @@ export function createInitialGameState(now: number): PublicGameState {
       "grid-cache": 0,
       "quantum-cache": 0,
     },
+    luckCrateOpenCount: 0,
+    partsInventory: emptyPartsInventory(),
+    seasonalWallet: emptySeasonalWallet(),
+    minerOfferPurchases: {},
   };
 }
 
@@ -303,6 +366,7 @@ export function normalizeBootstrapState(
           instanceId: placement.instanceId,
           minerId: miner.id,
           slotIndex: placement.slotIndex,
+          level: normalizeMinerLevel(placement.level),
         });
         usedUnitIds.add(placement.instanceId);
         totalUnits += 1;
@@ -333,6 +397,7 @@ export function normalizeBootstrapState(
       minerInventory.push({
         instanceId: unit.instanceId,
         minerId: unit.minerId,
+        level: normalizeMinerLevel(unit.level),
       });
       usedUnitIds.add(unit.instanceId);
       totalUnits += 1;
@@ -368,6 +433,13 @@ export function normalizeBootstrapState(
     ownedRoomIds.includes(candidate.activeRoomId)
       ? candidate.activeRoomId
       : "room-1";
+
+  const partsInventory = normalizePartsInventory(candidate.partsInventory);
+  const seasonalWallet = normalizeSeasonalWallet(candidate.seasonalWallet);
+  const minerOfferPurchases = normalizeMinerOfferPurchases(
+    candidate.minerOfferPurchases,
+    now,
+  );
 
   return {
     selectedPoolId,
@@ -416,6 +488,10 @@ export function normalizeBootstrapState(
       "grid-cache": 0,
       "quantum-cache": 0,
     },
+    luckCrateOpenCount: 0,
+    partsInventory,
+    seasonalWallet,
+    minerOfferPurchases,
   };
 }
 
@@ -590,6 +666,7 @@ export function applySupplyCratePurchase(
       ...Array.from({ length: reward.quantity }, () => ({
         instanceId: createId(`crate-${reward.minerId}`),
         minerId: reward.minerId as string,
+        level: 1,
       })),
     );
   }
@@ -604,6 +681,55 @@ export function applySupplyCratePurchase(
       supplyCrate: {
         ...opening,
         openCount: state.crateOpenCount,
+      },
+    },
+  );
+}
+
+export function applyLuckCratePurchase(
+  currentState: PublicGameState,
+  crateId: LuckCrateId,
+  roll: number,
+  now: number,
+  temporaryPowerGh = 0,
+  networkPowerGh?: Partial<Record<PoolId, number>>,
+  blockRewardAtomic?: Partial<Record<PoolId, number>>,
+): ActionResult {
+  const settled = settleMiningBlocks(
+    currentState,
+    now,
+    temporaryPowerGh,
+    networkPowerGh,
+    blockRewardAtomic,
+  );
+  const state = settled.state;
+  state.seasonalWallet = normalizeSeasonalWallet(
+    state.seasonalWallet,
+    SEASON_STORE_SEASON_ID,
+  );
+  const crate = getLuckCrate(crateId);
+  if (!crate) throw new Error("Caixa da sorte inválida.");
+  if (state.cmaBalance < crate.priceCma) {
+    throw new Error("Saldo CMA insuficiente para abrir essa caixa.");
+  }
+
+  const opening = resolveLuckCrate(crate.id, roll);
+  state.cmaBalance =
+    Math.round((state.cmaBalance - crate.priceCma + opening.reward.amountCma) * 1_000_000) /
+    1_000_000;
+  state.luckCrateOpenCount =
+    Math.max(0, Math.floor(state.luckCrateOpenCount ?? 0)) + 1;
+
+  return success(
+    state,
+    `${crate.name} aberta: ${opening.reward.label} adicionado ao saldo CMA.`,
+    Math.round((opening.reward.amountCma - crate.priceCma) * 1_000_000),
+    {
+      settledBlocks: settled.settledBlocks,
+      rewards: settled.rewards,
+      luckCrate: {
+        ...opening,
+        openCount: state.luckCrateOpenCount,
       },
     },
   );
@@ -627,6 +753,19 @@ export function applyGameAction(
   );
   const state = settled.state;
   const payload = payloadObject(rawPayload);
+  // Older accounts predate the component system. Normalize lazily so their
+  // first parts action is a normal migration instead of a runtime failure.
+  state.partsInventory = normalizePartsInventory(state.partsInventory);
+  state.minerOfferPurchases = normalizeMinerOfferPurchases(
+    state.minerOfferPurchases,
+    now,
+  );
+  // A season change invalidates only the temporary AMC wallet. Parts, miners,
+  // and other permanent inventory are intentionally preserved.
+  state.seasonalWallet = normalizeSeasonalWallet(
+    state.seasonalWallet,
+    SEASON_STORE_SEASON_ID,
+  );
 
   if (action === "sync") {
     return success(
@@ -656,6 +795,263 @@ export function applyGameAction(
     }
     state.activeRoomId = payload.roomId;
     return success(state, "Sala ativa atualizada.");
+  }
+
+  if (action === "open_season_box") {
+    const boxId = payload.boxId;
+    const box = getSeasonStoreBox(boxId);
+    if (!box) throw new Error("Caixa da temporada inválida.");
+    if (state.seasonalWallet.amc < box.priceAmc) {
+      throw new Error("Saldo AMC insuficiente para abrir essa caixa.");
+    }
+    const opening = resolveSeasonStoreBox(
+      box.id as SeasonStoreBoxId,
+      typeof payload.roll === "number" ? payload.roll : 0,
+    );
+    state.seasonalWallet.amc = Math.max(
+      0,
+      Math.min(
+        SEASON_CURRENCY_MAX,
+        state.seasonalWallet.amc - box.priceAmc,
+      ),
+    );
+    const seasonPartKey = opening.key as PartKey;
+    state.partsInventory[seasonPartKey] = Math.min(
+      PART_MAX_PER_KEY,
+      (state.partsInventory[seasonPartKey] ?? 0) + opening.quantity,
+    );
+    return success(
+      state,
+      `${box.title} aberta: ${opening.quantity.toLocaleString("pt-BR")} peças enviadas ao inventário.`,
+      0,
+      { seasonStoreBox: opening, priceAmc: box.priceAmc, seasonId: SEASON_STORE_SEASON_ID },
+    );
+  }
+
+  if (action === "open_luck_crate") {
+    const crateId = payload.crateId;
+    const crate = getLuckCrate(crateId);
+    if (!crate) throw new Error("Caixa da sorte inválida.");
+    if (state.cmaBalance < crate.priceCma) {
+      throw new Error("Saldo CMA insuficiente para abrir essa caixa.");
+    }
+    const opening = resolveLuckCrate(
+      crate.id as LuckCrateId,
+      typeof payload.roll === "number" ? payload.roll : 0,
+    );
+    state.cmaBalance =
+      Math.round((state.cmaBalance - crate.priceCma + opening.reward.amountCma) * 1_000_000) /
+      1_000_000;
+    state.luckCrateOpenCount =
+      Math.max(0, Math.floor(state.luckCrateOpenCount ?? 0)) + 1;
+    return success(
+      state,
+      `${crate.name} aberta: ${opening.reward.label} adicionado ao saldo CMA.`,
+      Math.round((opening.reward.amountCma - crate.priceCma) * 1_000_000),
+      { luckCrate: { ...opening, openCount: state.luckCrateOpenCount } },
+    );
+  }
+
+  if (action === "open_part_case") {
+    if (state.cmaBalance < PART_CASE_PRICE_CMA) {
+      throw new Error("Saldo CMA insuficiente para abrir a caixa de componentes.");
+    }
+    const opening = resolvePartCase(
+      typeof payload.roll === "number" ? payload.roll : 0,
+    );
+    const key = partKey(opening.family, opening.rarity);
+    state.cmaBalance =
+      Math.round((state.cmaBalance - PART_CASE_PRICE_CMA) * 1_000_000) / 1_000_000;
+    state.partsInventory[key] = Math.min(
+      PART_MAX_PER_KEY,
+      (state.partsInventory[key] ?? 0) + 1,
+    );
+    return success(
+      state,
+      `Caixa aberta: ${opening.rarity} ${opening.family} enviado ao laboratório.`,
+      -Math.round(PART_CASE_PRICE_CMA * 1_000_000),
+      {
+        partDrop: {
+          family: opening.family,
+          rarity: opening.rarity,
+          key,
+        },
+      },
+    );
+  }
+
+  if (action === "merge_part") {
+    if (!isPartFamily(payload.family) || !isPartRarity(payload.rarity)) {
+      throw new Error("Peça ou raridade inválida.");
+    }
+    const nextRarity = nextPartRarity(payload.rarity);
+    if (!nextRarity) {
+      throw new Error("A raridade lendária já é a maior disponível.");
+    }
+    const sourceKey = partKey(payload.family, payload.rarity);
+    const targetKey = partKey(payload.family, nextRarity);
+    const sourceCount = state.partsInventory[sourceKey] ?? 0;
+    const reqCount = getPartMergeCount(payload.rarity);
+    const quantity = payload.quantity === undefined
+      ? 1
+      : payload.quantity;
+    if (!requirePositiveInteger(quantity, MAX_MERGE_QUANTITY)) {
+      throw new Error(`A quantidade de fusões deve ser um número inteiro entre 1 e ${MAX_MERGE_QUANTITY}.`);
+    }
+    const totalRequired = reqCount * quantity;
+    const targetCount = state.partsInventory[targetKey] ?? 0;
+    if (sourceCount < totalRequired) {
+      throw new Error(`Você precisa de ${totalRequired} peças iguais para esse lote de fusão.`);
+    }
+    if (targetCount + quantity > PART_MAX_PER_KEY) {
+      throw new Error("O inventário da raridade de destino atingiu o limite.");
+    }
+    const fee = partMergeFee(payload.rarity);
+    const totalFee = fee * quantity;
+    if (state.cmaBalance < totalFee) {
+      throw new Error("Saldo CMA insuficiente para esse lote de fusões.");
+    }
+    state.partsInventory[sourceKey] = sourceCount - totalRequired;
+    state.partsInventory[targetKey] = targetCount + quantity;
+    state.cmaBalance = Math.round((state.cmaBalance - totalFee) * 1_000_000) / 1_000_000;
+    return success(
+      state,
+      `Fusão concluída: ${quantity} lote(s), ${totalRequired} peças ${payload.rarity} viraram ${quantity} ${nextRarity}.`,
+      -Math.round(totalFee * 1_000_000),
+      {
+        partMerge: {
+          family: payload.family,
+          from: payload.rarity,
+          to: nextRarity,
+          quantity,
+          consumed: totalRequired,
+          feeCma: totalFee,
+        },
+      },
+    );
+  }
+
+  if (action === "merge_miner") {
+    const quantity = payload.quantity === undefined
+      ? 1
+      : payload.quantity;
+    if (!requirePositiveInteger(quantity, MAX_MERGE_QUANTITY)) {
+      throw new Error(`A quantidade de fusões deve ser um número inteiro entre 1 e ${MAX_MERGE_QUANTITY}.`);
+    }
+    const minerAId =
+      typeof payload.minerAId === "string"
+        ? payload.minerAId
+        : Array.isArray(payload.minerIds) && typeof payload.minerIds[0] === "string"
+          ? payload.minerIds[0]
+          : null;
+    const minerBId =
+      typeof payload.minerBId === "string"
+        ? payload.minerBId
+        : Array.isArray(payload.minerIds) && typeof payload.minerIds[1] === "string"
+          ? payload.minerIds[1]
+          : null;
+    if (!minerAId) {
+      throw new Error("Selecione um minerador para iniciar o lote de fusão.");
+    }
+
+    const firstIndex = state.minerInventory.findIndex(
+      (unit) => unit.instanceId === minerAId,
+    );
+    const first = state.minerInventory[firstIndex];
+    if (!first) {
+      throw new Error("O minerador selecionado precisa estar disponível no inventário.");
+    }
+    const firstMiner = getMiner(first.minerId);
+    const firstLevel = normalizeMinerLevel(first.level);
+    if (!firstMiner) throw new Error("Minerador inválido para a fusão.");
+    const matchingUnits = state.minerInventory.filter(
+      (unit) => unit.minerId === first.minerId && normalizeMinerLevel(unit.level) === firstLevel,
+    );
+    const requestedIds = [minerAId, minerBId].filter(
+      (id): id is string => typeof id === "string",
+    );
+    if (requestedIds.length > 1 && requestedIds[0] === requestedIds[1]) {
+      throw new Error("Selecione mineradores diferentes para a fusão.");
+    }
+    if (requestedIds.some((id) => !matchingUnits.some((unit) => unit.instanceId === id))) {
+      throw new Error("Os mineradores selecionados precisam ser do mesmo modelo e nível.");
+    }
+    if (matchingUnits.length < quantity * 2) {
+      throw new Error(`Você precisa de ${quantity * 2} mineradores iguais para esse lote.`);
+    }
+    const consumedUnits = quantity === 1 && requestedIds.length > 1
+      ? matchingUnits.filter((unit) => requestedIds.includes(unit.instanceId))
+      : matchingUnits.slice(0, quantity * 2);
+    if (consumedUnits.length !== quantity * 2) {
+      throw new Error("Não foi possível montar o lote de mineradores selecionado.");
+    }
+    const requirement = getMinerMergeRequirement(firstLevel);
+    if (!requirement) {
+      throw new Error("Esse minerador já está no nível máximo.");
+    }
+    // One of each component family is required for a complete assembly. This
+    // keeps all three part families relevant without allowing one family to
+    // become an infinite substitute for the others.
+    const requiredPartKeys = partFamilies
+      .map((item) => item.id)
+      .map((family) => ({ family, key: partKey(family, requirement.partRarity) }));
+    const missingFamilies = requiredPartKeys.filter(
+      ({ family, key }) => (state.partsInventory[key] ?? 0) < requirement.partRequirements[family] * quantity,
+    );
+    if (missingFamilies.length > 0) {
+      const missing = missingFamilies
+        .map(({ family }) => `${requirement.partRequirements[family] * quantity} ${family}`)
+        .join(", ");
+      throw new Error(
+        `Faltam peças ${requirement.partRarity}: ${missing} são necessárias.`,
+      );
+    }
+    const totalFee = requirement.feeCma * quantity;
+    if (state.cmaBalance < totalFee) {
+      throw new Error("Saldo CMA insuficiente para esse lote de fusões.");
+    }
+
+    const consumedIds = consumedUnits.map((unit) => unit.instanceId);
+    const consumedIndices = consumedIds
+      .map((id) => state.minerInventory.findIndex((unit) => unit.instanceId === id))
+      .filter((index) => index >= 0)
+      .sort((a, b) => b - a);
+    for (const index of consumedIndices) state.minerInventory.splice(index, 1);
+    for (const { family, key } of requiredPartKeys) {
+      state.partsInventory[key] =
+        (state.partsInventory[key] ?? 0) - requirement.partRequirements[family] * quantity;
+    }
+    state.cmaBalance =
+      Math.round((state.cmaBalance - totalFee) * 1_000_000) / 1_000_000;
+    const nextLevel = requirement.targetLevel;
+    const mergedPowerGh = getMinerPowerAtLevel(firstMiner.powerGh, nextLevel);
+    const outputs = Array.from({ length: quantity }, () => ({
+      instanceId: createId(`merge-${firstMiner.id}`),
+      minerId: firstMiner.id,
+      level: nextLevel,
+    }));
+    state.minerInventory.push(...outputs);
+    return success(
+      state,
+      `Fusão concluída: ${quantity} lote(s) de ${firstMiner.name} agora estão no nível ${nextLevel}.`,
+      -Math.round(totalFee * 1_000_000),
+      {
+        minerMerge: {
+          minerId: firstMiner.id,
+          sourceLevel: firstLevel,
+          targetLevel: nextLevel,
+          quantity,
+          consumedMinerIds: consumedIds,
+          outputMinerIds: outputs.map((output) => output.instanceId),
+          partRarity: requirement.partRarity,
+          partRequirements: Object.fromEntries(
+            partFamilies.map((family) => [family.id, requirement.partRequirements[family.id] * quantity]),
+          ),
+          feeCma: totalFee,
+          powerGh: mergedPowerGh,
+        },
+      },
+    );
   }
 
   if (action === "buy_room") {
@@ -715,6 +1111,7 @@ export function applyGameAction(
       ...Array.from({ length: payload.quantity }, () => ({
         instanceId: createId(miner.id),
         minerId: miner.id,
+        level: 1,
       })),
     );
     return success(
@@ -724,6 +1121,66 @@ export function applyGameAction(
       {
         minerId: miner.id,
         quantity: payload.quantity,
+      },
+    );
+  }
+
+  if (action === "buy_miner_offer") {
+    if (
+      typeof payload.offerId !== "string" ||
+      !requirePositiveInteger(payload.quantity, 3)
+    ) {
+      throw new Error("Oferta de minerador inválida.");
+    }
+    const offer = getMinerOffer(payload.offerId, now);
+    const miner = offer ? getMiner(offer.minerId) : undefined;
+    if (!offer || !miner) {
+      throw new Error("Oferta de minerador indisponível.");
+    }
+    const purchases = normalizeMinerOfferPurchases(state.minerOfferPurchases, now);
+    const purchased = purchases[offer.id] ?? 0;
+    if (
+      offer.stockLimit !== null &&
+      purchased + payload.quantity > offer.stockLimit
+    ) {
+      throw new Error("O limite desta oferta já foi atingido nesta conta.");
+    }
+    if (getOwnedMinerUnitCount(state) + payload.quantity > MAX_MINER_UNITS) {
+      throw new Error("Limite de equipamentos do inventário atingido.");
+    }
+    const total = offer.priceCma * payload.quantity;
+    if (state.cmaBalance < total) {
+      throw new Error("Saldo CMA insuficiente para esta oferta.");
+    }
+    state.cmaBalance = Math.round((state.cmaBalance - total) * 1_000_000) / 1_000_000;
+    state.minerOfferPurchases = {
+      ...purchases,
+      [offer.id]: purchased + payload.quantity,
+    };
+    state.minerInventory.push(
+      ...Array.from({ length: payload.quantity }, () => ({
+        instanceId: createId(`offer-${miner.id}`),
+        minerId: miner.id,
+        level: 1,
+      })),
+    );
+    return success(
+      state,
+      `${payload.quantity}x ${miner.name} enviado(s) ao inventário pela oferta.`,
+      -Math.round(total * 1_000_000),
+      {
+        minerOffer: {
+          offerId: offer.id,
+          minerId: miner.id,
+          quantity: payload.quantity,
+          priceCma: offer.priceCma,
+          discountPercent: offer.discountPercent,
+          purchased: purchased + payload.quantity,
+          remaining:
+            offer.stockLimit === null
+              ? null
+              : offer.stockLimit - purchased - payload.quantity,
+        },
       },
     );
   }
@@ -842,6 +1299,7 @@ export function applyGameAction(
       instanceId: unit.instanceId,
       minerId: unit.minerId,
       slotIndex: requestedSlot,
+      level: normalizeMinerLevel(unit.level),
     });
     state.rackMiners[rack.id] = installed;
     state.minerInventory.splice(unitIndex, 1);
@@ -870,6 +1328,7 @@ export function applyGameAction(
     state.minerInventory.push({
       instanceId: placement.instanceId,
       minerId: placement.minerId,
+      level: normalizeMinerLevel(placement.level),
     });
     return success(state, "Minerador devolvido ao inventário.", 0, {
       rackId: payload.rackId,
@@ -883,9 +1342,10 @@ export function applyGameAction(
     }
     const installed = state.rackMiners[payload.rackId] ?? [];
     state.minerInventory.push(
-      ...installed.map(({ instanceId, minerId }) => ({
+      ...installed.map(({ instanceId, minerId, level }) => ({
         instanceId,
         minerId,
+        level: normalizeMinerLevel(level),
       })),
     );
     state.rackMiners[payload.rackId] = [];

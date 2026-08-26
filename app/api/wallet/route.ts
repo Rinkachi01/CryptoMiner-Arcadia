@@ -4,6 +4,7 @@ import { readBoundedRequestJson } from "../../request-json";
 import {
   createBrlWithdrawalQuote,
   createBrlWithdrawalRequest,
+  createCCPaymentDepositIntent,
   createProviderDepositIntent,
   createManualWithdrawalRequest,
   createSandboxDepositIntent,
@@ -88,6 +89,18 @@ export async function POST(request: Request) {
           db: env.DB,
           environment: env,
           usdAmount: body.usdAmount,
+        }),
+      });
+    }
+    if (body.action === "create-ccpayment-deposit") {
+      return json({
+        message: "Checkout CCPayment criado. A cripto só entra no saldo após confirmação assinada.",
+        deposit: await createCCPaymentDepositIntent({
+          accountId,
+          asset: body.asset,
+          db: env.DB,
+          environment: env,
+          amount: body.amount,
         }),
       });
     }

@@ -64,7 +64,7 @@ test("bomba zera a partida e precisa ser o último clique", () => {
 test("recompensa é nula ao tocar bomba e possui teto", () => {
   assert.equal(packetCatchRewardPower(500, 10, true), 0);
   assert.equal(packetCatchRewardPower(19, 1, false), 0);
-  assert.equal(packetCatchRewardPower(999, 10, false), 320);
+  assert.equal(packetCatchRewardPower(999, 10, false), 200);
 });
 
 test("recarga cresce com atividade e dificuldade", () => {

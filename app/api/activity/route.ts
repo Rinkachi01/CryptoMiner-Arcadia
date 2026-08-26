@@ -194,7 +194,7 @@ export async function GET() {
                   THEN -delta_cma_micros ELSE 0 END), 0) AS cma_spent_micros,
                 SUM(CASE WHEN action = 'block_settlement'
                   THEN 1 ELSE 0 END) AS mining_records,
-                SUM(CASE WHEN action = 'open_supply_crate'
+                SUM(CASE WHEN action IN ('open_supply_crate', 'open_luck_crate', 'open_season_box', 'open_part_case')
                   THEN 1 ELSE 0 END) AS crates_opened
          FROM ledger_entries
          WHERE account_id = ? AND created_at >= ?`,

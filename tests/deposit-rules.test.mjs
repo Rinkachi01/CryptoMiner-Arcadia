@@ -68,7 +68,7 @@ test("IPN concluído credita a moeda paga e exige conversão manual para CMA", a
     new URL("../app/wallet-server.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /is_fee_paid_by_user: false/);
+  assert.match(source, /is_fee_paid_by_user: true/);
   assert.match(source, /credencial de sandbox separada/);
   assert.match(source, /price_currency/);
   assert.match(source, /outcome_currency/);

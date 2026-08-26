@@ -7,7 +7,8 @@ import {
   seasonXpRequiredForLevel,
   isSeasonRewardUnlocked,
   isSeasonTrackUnlocked,
-  spaceRaceRewards,
+  seasonLevelsForCampaign,
+  seasonPricePolicyForCampaign,
   type SeasonReward,
 } from "./season-rules";
 import { dailyWindowIndex, dailyWindowKey } from "./daily-reset-rules";
@@ -31,6 +32,7 @@ export type SeasonResponse = {
   rewards: SeasonReward[];
   season: PublicSeason | null;
   serverTime: number;
+  welcomePass?: boolean;
 };
 
 function remainingLabel(endsAt: number, now: number, english = false) {
@@ -42,12 +44,17 @@ function remainingLabel(endsAt: number, now: number, english = false) {
     : `${hours}h ${english ? "left" : "restantes"}`;
 }
 
+// The API keeps durationDays for compatibility with existing season snapshots;
+// the welcome-pass UI intentionally hides the countdown for this campaign.
+
 export function SeasonPanel({
   onRefreshAccount,
   refreshKey,
+  stagingVisuals = false,
 }: {
   onRefreshAccount: () => Promise<boolean>;
   refreshKey: number;
+  stagingVisuals?: boolean;
 }) {
   const { locale } = useArcadiaLanguage();
   const english = locale !== "pt-BR";
@@ -67,15 +74,7 @@ export function SeasonPanel({
         if (!response.ok) {
           throw new Error(result.error ?? (english ? "Season unavailable." : "Temporada indisponível."));
         }
-        if (
-          result.season?.campaignSlug !== "space-race-01" ||
-          result.season.status !== "active"
-        ) return result;
-        return {
-          ...result,
-          competitiveOnly: false,
-          rewardNotice: result.rewardNotice,
-        };
+        return result;
       })
       .then((result) => {
         if (controller.signal.aborted) return;
@@ -137,10 +136,9 @@ export function SeasonPanel({
     }
   }
 
-  const presentedSeason =
-    data?.season?.campaignSlug === "space-race-01"
-      ? data.season
-      : data?.draft ?? data?.season ?? null;
+  // The player view must follow the active season. Drafts are founder previews
+  // and must never replace an active campaign in the public pass UI.
+  const presentedSeason = data?.season ?? null;
 
   if (!data || !presentedSeason) {
     return (
@@ -152,29 +150,17 @@ export function SeasonPanel({
 
   const season = presentedSeason;
   const isSpaceRace = season.campaignSlug === "space-race-01";
-  if (!isSpaceRace) {
-    return (
-      <section className={`season-panel ${season.status}`}>
-        <div className="season-summary-card">
-          <span>{season.status === "active" ? english ? "ACTIVE SEASON" : "TEMPORADA ATIVA" : english ? "SEASON ENDED" : "TEMPORADA ENCERRADA"}</span>
-          <h3>{season.name}</h3>
-          <p>{english ? "Progress by completing server-validated rounds." : "Avance completando partidas validadas pelo servidor."}</p>
-          <div className="season-progress">
-            <i><em style={{ width: `${season.progressPercent}%` }} /></i>
-            <span>{season.progressPercent}% {english ? "of cycle" : "do ciclo"}</span>
-            <strong>{season.status === "active" ? remainingLabel(season.endsAt, data.serverTime, english) : english ? "Cycle complete" : "Ciclo finalizado"}</strong>
-          </div>
-          <small className="season-no-reward">{data.rewardNotice}</small>
-        </div>
-      </section>
-    );
-  }
+  // Production keeps the welcome pass enabled even if an older cached API
+  // response omits the optional flag. Staging still follows the API exactly.
+  const welcomePass = Boolean(data.welcomePass || (isSpaceRace && !stagingVisuals));
+  const seasonLevels = season.levels ?? seasonLevelsForCampaign(season.campaignSlug);
   const progress: SeasonPlayerProgress = data.playerProgress ?? {
     claimedRewardKeys: [],
     level: 1,
     maxUnlocked: false,
     nextLevelXp: seasonXpRequiredForLevel(2),
     premiumUnlocked: false,
+    welcomeBundleClaimed: false,
     dailyLogin: {
       claimedToday: false,
       cycleDay: 1,
@@ -182,14 +168,15 @@ export function SeasonPanel({
       schedule: [20, 30, 40, 50, 60, 80, 100],
       streakDays: 0,
     },
-    sources: { games: 0, logins: 0, missions: 0, spending: 0 },
+    sources: { bonus: 0, games: 0, logins: 0, missions: 0, spending: 0 },
     quests: { daily: [], weekly: [] },
     xp: 0,
   };
-  const rewards = (data.rewards && data.rewards.length > 0) ? data.rewards : spaceRaceRewards;
-  const currentLevelStart = seasonXpRequiredForLevel(progress.level || 1);
+  const rewards = data.rewards ?? [];
+  const rewardCount = rewards.filter((reward) => welcomePass ? true : reward.track === "free").length;
+  const currentLevelStart = seasonXpRequiredForLevel(progress.level || 1, seasonLevels);
   const levelProgress =
-    progress.level >= 50
+    progress.level >= seasonLevels
       ? 100
       : Math.max(
           0,
@@ -220,37 +207,83 @@ export function SeasonPanel({
         ),
       )
     : 0;
+  const campaignLabel = isSpaceRace
+    ? english ? "SEASON 01 · SPACE RACE" : "TEMPORADA 01 · CORRIDA ESPACIAL"
+    : season.name.toUpperCase();
+  const campaignHeadline = welcomePass
+    ? english ? "Play, progress and claim the welcome rewards" : "Jogue, avance e resgate as recompensas de boas-vindas"
+    : isSpaceRace
+      ? english ? "Validated progress in Deep Space" : "Progresso validado no Espaço Profundo"
+      : season.name;
+  const campaignDescription = isSpaceRace
+    ? english
+      ? "Validated rounds, missions and limited CMA spending generate XP."
+      : "Partidas validadas, missões e gastos limitados em CMA geram XP."
+    : english
+      ? "Validated rounds and missions advance your seasonal rewards."
+      : "Partidas e missões validadas fazem você avançar nas recompensas da temporada.";
 
   return (
-    <section className="season-panel space-race-season">
+    <section className={`season-panel space-race-season${stagingVisuals ? " season-panel-staging" : ""}`}>
+      <div className="season-banner-shell">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="season-banner-image"
+          src={season.bannerPath || "/assets/seasons/alchemy/banner.png"}
+          alt={season.name}
+          loading="eager"
+          decoding="async"
+        />
+      </div>
       <header className="space-race-hero">
         <div>
-          <span>{english ? "SEASON 01 · SPACE RACE" : "TEMPORADA 01 · CORRIDA ESPACIAL"}</span>
-          <h3>{season.durationDays} {english ? "days to reach Deep Space" : "dias para alcançar o Espaço Profundo"}</h3>
-          <p>{english ? "Validated rounds, missions and limited CMA spending generate XP." : "Partidas validadas, missões e gastos limitados em CMA geram XP."}</p>
+          <span>{welcomePass ? english ? "WELCOME PASS" : "PASSE DE BOAS-VINDAS" : campaignLabel}</span>
+          <h3>{campaignHeadline}</h3>
+          <p>{campaignDescription}</p>
         </div>
         <aside>
           <strong>{english ? "LEVEL" : "NÍVEL"} {progress.level}</strong>
           <span>{progress.xp.toLocaleString("pt-BR")} XP</span>
-          <small>{remainingLabel(season.endsAt, data.serverTime, english)}</small>
+          {welcomePass ? <small>{english ? "Limited welcome campaign" : "Campanha de boas-vindas limitada"}</small> : <small>{remainingLabel(season.endsAt, data.serverTime, english)}</small>}
         </aside>
       </header>
 
       <div className="space-race-progress">
         <div><span>{english ? "LEVEL PROGRESS" : "PROGRESSO DO NÍVEL"}</span><strong>{levelProgress}%</strong></div>
         <i><em style={{ width: `${levelProgress}%` }} /></i>
-        <small>{progress.level >= 50 ? english ? "Track complete" : "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString(english ? "en-US" : "pt-BR")} XP ${english ? "to the next level" : "até o próximo nível"}`}</small>
+        <small>{progress.level >= seasonLevels ? english ? "Track complete" : "Trilha concluída" : `${Math.max(0, progress.nextLevelXp - progress.xp).toLocaleString(english ? "en-US" : "pt-BR")} XP ${english ? "to the next level" : "até o próximo nível"}`}</small>
       </div>
+
+      {welcomePass && (
+        <section className="season-welcome-xp-card" aria-label={english ? "Welcome XP bundle" : "Bundle XP de boas-vindas"}>
+          <div>
+            <span>{english ? "WELCOME BUNDLE" : "BUNDLE DE BOAS-VINDAS"}</span>
+            <strong>{english ? "+300 XP for this pass" : "+300 XP para este passe"}</strong>
+            <small>{english ? "One claim per account. It is linked only to the current welcome season." : "Um resgate por conta. Vinculado somente a esta temporada de boas-vindas."}</small>
+          </div>
+          <button
+            type="button"
+            disabled={progress.welcomeBundleClaimed || Boolean(busyAction)}
+            onClick={() => void runAction("claim-welcome-xp", { action: "claim-welcome-xp" })}
+          >
+            {progress.welcomeBundleClaimed
+              ? english ? "CLAIMED" : "RESGATADO"
+              : english ? "CLAIM BUNDLE" : "RESGATAR BUNDLE"}
+          </button>
+        </section>
+      )}
 
       {/* MISSÕES DIÁRIAS and weekly quests remain the XP source; only the old battery claim was removed. */}
       {/* Giveaways semanais are intentionally not part of the season economy. */}
       {/* RANKING DE XP stays out of the player-facing season interface by design. */}
       <section className="season-track-card">
         <header>
-          <div><span>{english ? "REWARD TRACKS" : "TRILHA DE RECOMPENSAS"}</span><h4>{english ? "Free + Premium" : "Gratuita + Premium"}</h4></div>
+          <div><span>{welcomePass ? english ? "WELCOME REWARDS" : "RECOMPENSAS DE BOAS-VINDAS" : english ? "SEASON REWARDS" : "RECOMPENSAS DA TEMPORADA"}</span><h4>{welcomePass ? english ? `Free pass · ${rewardCount} rewards` : `Passe gratuito · ${rewardCount} recompensas` : english ? "Free + Premium" : "Gratuita + Premium"}</h4></div>
           <div className="season-pass-purchase-actions">
             {error && <span style={{ color: "#ef4444", fontSize: "0.75rem", maxWidth: "200px", textAlign: "right", lineHeight: 1.2 }}>{error}</span>}
-            {progress.maxUnlocked ? (
+            {welcomePass ? (
+              <strong className="season-premium-owned">{english ? "WELCOME PASS · FREE" : "PASSE DE BOAS-VINDAS · GRATUITO"}</strong>
+            ) : progress.maxUnlocked ? (
               <strong className="season-max-owned">{english ? "ORBIT PASS MAX ACTIVE" : "ORBIT PASS MAX ATIVO"}</strong>
             ) : progress.premiumUnlocked ? (
               <strong className="season-premium-owned">{english ? "PREMIUM UNLOCKED" : "PREMIUM LIBERADO"}</strong>
@@ -264,10 +297,12 @@ export function SeasonPanel({
                 {`${english ? "BASIC" : "BÁSICO"} · ${season.premiumPriceCma} CMA`}
               </button>
             )}
-            {!progress.maxUnlocked && (() => {
+            {!welcomePass && !progress.maxUnlocked && (() => {
               const dynamicPrice = seasonPremiumMaxPriceCma(
                 progress.level,
                 progress.premiumUnlocked,
+                seasonPricePolicyForCampaign(season.campaignSlug),
+                seasonLevels,
               );
               return (
                 <button
@@ -285,33 +320,31 @@ export function SeasonPanel({
           </div>
         </header>
         <div className="season-pass-lanes">
-          {(["free", "premium"] as const).map((track) => (
+          {(welcomePass ? ["welcome"] : ["free", "premium"] as const).map((track) => (
             <section className={`season-pass-lane ${track}`} key={track}>
               <header>
-                <span>{track === "premium" ? "ORBIT PASS · PREMIUM" : english ? "FREE PASS" : "FREE PASS · GRATUITO"}</span>
-                <small>{track === "premium" ? english ? "Rare miners and more temporary power" : "Mineradores raros e maior poder temporário" : english ? "Essential rewards for everyone" : "Recompensas essenciais para todos"}</small>
+                <span>{track === "welcome" ? english ? "WELCOME PASS · FREE" : "PASSE DE BOAS-VINDAS · GRATUITO" : track === "premium" ? `${isSpaceRace ? "ORBIT PASS" : season.name} · PREMIUM` : english ? "FREE PASS" : "FREE PASS · GRATUITO"}</span>
+                <small>{track === "welcome" ? english ? `All ${rewardCount} rewards are available to every operator.` : `As ${rewardCount} recompensas estão disponíveis para todos os operadores.` : track === "premium" ? english ? "Rare miners and more temporary power" : "Mineradores raros e maior poder temporário" : english ? "Essential rewards for everyone" : "Recompensas essenciais para todos"}</small>
               </header>
               <div className="season-reward-grid">
-                {rewards.filter((reward) => reward.track === track).map((reward) => {
-                  const key = `${reward.track}:${reward.level}`;
+                {rewards.filter((reward) => track === "welcome" || reward.track === track).map((reward) => {
+                  const key = `${reward.claimTrack ?? reward.track}:${reward.claimLevel ?? reward.level}`;
                   const claimed = progress.claimedRewardKeys?.includes(key) ?? false;
                   const unlocked = isSeasonRewardUnlocked(
                     progress.level || 1,
                     reward.level,
                     progress.maxUnlocked,
                   );
-                  const premiumBlocked = !isSeasonTrackUnlocked(
-                    reward.track,
-                    progress.premiumUnlocked,
-                    progress.maxUnlocked,
-                  );
+                  const premiumBlocked = welcomePass
+                    ? false
+                    : !isSeasonTrackUnlocked(reward.track, progress.premiumUnlocked, progress.maxUnlocked);
                   return (
                     <article className={`${reward.track} ${reward.reward.type} ${unlocked ? "unlocked" : "locked"}`} key={key}>
                       <span>{english ? "LEVEL" : "NÍVEL"} {reward.level}</span>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={reward.asset} alt="" />
                       <strong>{reward.title}</strong>
-                      <small>{reward.reward.type === "miner" ? english ? "MINER" : "MINERADOR" : reward.reward.type === "battery" ? english ? "BATTERY" : "BATERIA" : english ? "TEMPORARY POWER" : "PODER TEMPORÁRIO"}</small>
+                      <small>{reward.reward.type === "miner" ? english ? "MINER" : "MINERADOR" : reward.reward.type === "battery" ? english ? "BATTERY" : "BATERIA" : reward.reward.type === "rack" ? "RACK" : reward.reward.type === "parts" ? english ? "PARTS" : "PEÇAS" : reward.reward.type === "season_currency" ? "AMC" : english ? "TEMPORARY POWER" : "PODER TEMPORÁRIO"}</small>
                       <button
                         type="button"
                         disabled={claimed || !unlocked || premiumBlocked || Boolean(busyAction)}

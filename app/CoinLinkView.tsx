@@ -330,7 +330,9 @@ export function CoinLinkView({
     resolvingRef.current = false;
     setResolving(false);
     setMessage(
-      result.cascades > 1
+      result.reshuffled
+        ? `Sem trocas disponíveis: tabuleiro reorganizado. +${result.score} pontos.`
+        : result.cascades > 1
         ? `Cascata x${result.cascades} concluída: +${result.score} pontos.`
         : `Combinação concluída: +${result.score} pontos.`,
     );

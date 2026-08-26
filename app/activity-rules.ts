@@ -77,7 +77,7 @@ export function presentLedgerActivity(
       title: `Depósito em ${asset} confirmado`,
       description: `${credited.toLocaleString("pt-BR", {
         maximumFractionDigits: 8,
-      })} ${asset} foram creditados no saldo interno. A conversão para CMA depende de confirmação manual do jogador.`,
+      })} ${asset} foram creditados no saldo interno.`,
     };
   }
   if (action === "block_settlement") {
@@ -241,7 +241,37 @@ export function presentLedgerActivity(
       description: `${rewardLabel} foi entregue pelo sorteio autoritativo.`,
     };
   }
-  if (action === "place_rack") {
+    if (action === "open_luck_crate") {
+    const luckCrate = objectValue(metadata.luckCrate);
+    const reward = objectValue(luckCrate.reward);
+    const rewardLabel = typeof reward.label === "string" ? reward.label : "item surpresa";
+    return {
+      category: "economy",
+      title: "Caixa da Sorte aberta",
+      description: `${rewardLabel} foi entregue pelo sorteio autoritativo.`,
+    };
+  }
+  if (action === "open_season_box") {
+    const box = objectValue(metadata.seasonStoreBox);
+    const quantity = typeof box.quantity === "number" ? box.quantity : 1;
+    const family = typeof box.family === "string" ? box.family : "";
+    return {
+      category: "economy",
+      title: "Caixa de Temporada aberta",
+      description: `${quantity} peça(s) ${family} adicionada(s) ao inventário.`,
+    };
+  }
+  if (action === "open_part_case") {
+    const partCase = objectValue(metadata.partCase);
+    const quantity = typeof partCase.quantity === "number" ? partCase.quantity : 1;
+    const family = typeof partCase.family === "string" ? partCase.family : "";
+    return {
+      category: "economy",
+      title: "Caixa de Suprimentos aberta",
+      description: `${quantity} peça(s) ${family} adicionada(s) ao inventário.`,
+    };
+  }
+    if (action === "place_rack") {
     return {
       category: "equipment",
       title: "Rack instalado na sala",

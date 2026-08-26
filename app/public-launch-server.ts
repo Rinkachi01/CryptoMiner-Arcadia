@@ -114,7 +114,7 @@ export function readPublicLaunchReadiness(
       configured: deposits.providerReady,
       enabled: deposits.depositsEnabled,
       model: "provider_invoice",
-      provider: "nowpayments",
+      provider: deposits.provider,
       sandboxEnabled: deposits.sandboxEnabled,
     },
     hosting: hostingStatus(requestUrl ?? source.PUBLIC_BASE_URL),

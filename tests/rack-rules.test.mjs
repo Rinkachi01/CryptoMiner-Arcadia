@@ -72,7 +72,7 @@ test("catálogo mantém preços acessíveis e progressão virtual conservadora",
   assert.equal(RACK_PRICE_CMA, 0.35);
   assert.equal(BATTERY_PRICE_CMA, 0.05);
   assert.ok(storeMiners.at(-1).powerGh / storeMiners.at(-1).slotSize > storeMiners[0].powerGh);
-  assert.equal(miners.filter((miner) => miner.availability === "season").length, 8);
+  assert.equal(miners.filter((miner) => miner.availability === "season").length, 18);
 });
 
 test("Violet Bit é premium mesmo usando apenas uma fan", () => {

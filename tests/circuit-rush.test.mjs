@@ -54,7 +54,7 @@ test("dificuldade reduz o tempo e aumenta a rota", () => {
 test("recompensa só existe com todos os pulsos e possui teto", () => {
   assert.equal(circuitRushRewardPower(4, 2, 10_000), 0);
   assert.equal(
-    circuitRushRewardPower(10, circuitRushStepCount(10), 1_000) <= 300,
+    circuitRushRewardPower(10, circuitRushStepCount(10), 1_000) <= 140,
     true,
   );
 });

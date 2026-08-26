@@ -6,6 +6,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const SIGNED_WEBHOOK_PATHS = new Set([
   "/api/wallet/mercadopago",
   "/api/wallet/nowpayments",
+  "/api/wallet/ccpayment",
 ]);
 
 const CONTENT_SECURITY_POLICY = [

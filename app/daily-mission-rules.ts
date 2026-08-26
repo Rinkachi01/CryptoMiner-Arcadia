@@ -7,6 +7,9 @@ export const DAILY_ARCADE_GAMES = [
   "packet-catch",
   "hash-match",
   "circuit-rush",
+  "coin-link",
+  "sky-dash",
+  "crypto-2048",
 ] as const;
 
 export type DailyArcadeGameId = (typeof DAILY_ARCADE_GAMES)[number];

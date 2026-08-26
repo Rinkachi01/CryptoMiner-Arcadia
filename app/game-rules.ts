@@ -1,4 +1,5 @@
 import { assetsManifest } from "./assets.manifest.ts";
+import { getMinerPowerAtLevel } from "./miner-merge-rules.ts";
 
 export const RACK_COLUMNS = 2;
 export const RACK_ROWS = 4;
@@ -37,12 +38,18 @@ export type MinerDefinition = {
   rarity: MinerRarity;
   priceCma: number;
   availability?: "store" | "season";
+  /** Visual family used to keep season art proportional inside a rack. */
+  visualFamily?: "standard" | "space-race" | "alchemy";
+  /** Optional art scale (1 = standard rack footprint). */
+  visualScale?: number;
 };
 
 export type InstalledMiner = {
   instanceId: string;
   minerId: string;
   slotIndex: number;
+  /** Legacy rows may omit this; the server treats them as level 1. */
+  level?: number;
 };
 
 export type PoolId = "cma" | "btc" | "doge" | "ltc";
@@ -68,7 +75,10 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerOne.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 100,
+    // The starter miner is the reference point for the whole catalogue.
+    // Keep it above a single minigame payout without making the first store
+    // purchase dominate the economy: 630 GH/s.
+    powerGh: 630,
     rarity: "common",
     priceCma: 0.6,
   },
@@ -79,7 +89,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerTwo.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 260,
+    powerGh: 1_638,
     rarity: "uncommon",
     priceCma: 1.5,
   },
@@ -90,7 +100,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerThree.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 1250,
+    powerGh: 7_875,
     rarity: "rare",
     priceCma: 7.2,
   },
@@ -101,7 +111,11 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerFour.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 2800,
+    // The sprite has less transparent padding than the reference Helix Gold
+    // art. A small visual reduction keeps both two-slot miners seated inside
+    // the same shelf rails without changing power or hitbox rules.
+    visualScale: 0.9,
+    powerGh: 17_640,
     rarity: "rare",
     priceCma: 16,
   },
@@ -112,7 +126,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerSix.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 4500,
+    powerGh: 28_350,
     rarity: "epic",
     priceCma: 26,
   },
@@ -123,7 +137,10 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerFive.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 6200,
+    // Match the Helix Gold footprint in the staging rack; this is cosmetic
+    // only and does not alter the miner's economy or slot occupancy.
+    visualScale: 0.9,
+    powerGh: 39_060,
     rarity: "epic",
     priceCma: 35,
   },
@@ -134,7 +151,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.minerSeven.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 14500,
+    powerGh: 91_350,
     rarity: "legendary",
     priceCma: 84,
   },
@@ -145,7 +162,10 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceRover.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 120,
+    // Season 1 legacy machines are intentionally useful rather than
+    // cosmetic-only: the first offer starts at 4x the starter miner and then
+    // follows a predictable rarity curve.
+    powerGh: 2_520,
     rarity: "common",
     priceCma: 0,
     availability: "season",
@@ -157,7 +177,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceSatellite.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 180,
+    powerGh: 3_780,
     rarity: "uncommon",
     priceCma: 0,
     availability: "season",
@@ -169,7 +189,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceSkiff.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 260,
+    powerGh: 5_040,
     rarity: "uncommon",
     priceCma: 0,
     availability: "season",
@@ -181,7 +201,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceScout.alt,
     fanCount: 1,
     slotSize: 1,
-    powerGh: 420,
+    powerGh: 7_560,
     rarity: "rare",
     priceCma: 0,
     availability: "season",
@@ -193,7 +213,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceDrill.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 600,
+    powerGh: 11_340,
     rarity: "rare",
     priceCma: 0,
     availability: "season",
@@ -205,7 +225,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceFreighter.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 900,
+    powerGh: 16_380,
     rarity: "epic",
     priceCma: 0,
     availability: "season",
@@ -217,7 +237,7 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceCruiser.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 1_250,
+    powerGh: 22_680,
     rarity: "epic",
     priceCma: 0,
     availability: "season",
@@ -229,10 +249,150 @@ export const miners: MinerDefinition[] = [
     alt: assetsManifest.spaceStation.alt,
     fanCount: 2,
     slotSize: 2,
-    powerGh: 1_800,
+    powerGh: 32_760,
     rarity: "legendary",
     priceCma: 0,
     availability: "season",
+  },
+  {
+    id: "alchemy-desk-s2",
+    name: "Apprentice Desk",
+    asset: assetsManifest.alchemyDesk.path,
+    alt: assetsManifest.alchemyDesk.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 1_134,
+    rarity: "common",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.78,
+  },
+  {
+    id: "alchemy-crystal-s2",
+    name: "Floating Crystal",
+    asset: assetsManifest.alchemyCrystal.path,
+    alt: assetsManifest.alchemyCrystal.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 1_638,
+    rarity: "common",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.78,
+  },
+  {
+    id: "alchemy-lantern-s2",
+    name: "Soul Lantern",
+    asset: assetsManifest.alchemyLantern.path,
+    alt: assetsManifest.alchemyLantern.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 2_268,
+    rarity: "common",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.78,
+  },
+  {
+    id: "alchemy-cauldron-s2",
+    name: "Magic Cauldron",
+    asset: assetsManifest.alchemyCauldron.path,
+    alt: assetsManifest.alchemyCauldron.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 3_276,
+    rarity: "uncommon",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.78,
+  },
+  {
+    id: "alchemy-alembic-s2",
+    name: "Potion Alembic",
+    asset: assetsManifest.alchemyAlembic.path,
+    alt: assetsManifest.alchemyAlembic.alt,
+    fanCount: 1,
+    slotSize: 1,
+    powerGh: 4_788,
+    rarity: "uncommon",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.78,
+  },
+  {
+    id: "alchemy-mana-s2",
+    name: "Mana Generator",
+    asset: assetsManifest.alchemyMana.path,
+    alt: assetsManifest.alchemyMana.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 6_930,
+    rarity: "rare",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.74,
+  },
+  {
+    id: "alchemy-orrery-s2",
+    name: "Astral Orrery",
+    asset: assetsManifest.alchemyOrrery.path,
+    alt: assetsManifest.alchemyOrrery.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 10_080,
+    rarity: "rare",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.74,
+  },
+  {
+    id: "alchemy-spellbook-s2",
+    name: "Spellbook Altar",
+    asset: assetsManifest.alchemySpellbook.path,
+    alt: assetsManifest.alchemySpellbook.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 15_120,
+    rarity: "epic",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.74,
+  },
+  {
+    id: "alchemy-forge-s2",
+    name: "Transmutation Forge",
+    asset: assetsManifest.alchemyForge.path,
+    alt: assetsManifest.alchemyForge.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 22_680,
+    rarity: "epic",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.72,
+  },
+  {
+    id: "alchemy-tower-s2",
+    name: "Arcanist Tower",
+    asset: assetsManifest.alchemyTower.path,
+    alt: assetsManifest.alchemyTower.alt,
+    fanCount: 2,
+    slotSize: 2,
+    powerGh: 32_760,
+    rarity: "legendary",
+    priceCma: 0,
+    availability: "season",
+    visualFamily: "alchemy",
+    visualScale: 0.7,
   },
 ];
 
@@ -371,7 +531,8 @@ export function findNextAvailableSlot(
 
 export function getInstalledPower(installed: InstalledMiner[]) {
   return installed.reduce((total, placement) => {
-    return total + (getMiner(placement.minerId)?.powerGh ?? 0);
+    const miner = getMiner(placement.minerId);
+    return total + getMinerPowerAtLevel(miner?.powerGh ?? 0, placement.level ?? 1);
   }, 0);
 }
 
@@ -398,16 +559,19 @@ export function calculateDailyEstimatedReward(
 
 export function calculateVirtualPaybackDays(miner: MinerDefinition) {
   const cmaPool = pools[0];
+  // This is a display-only estimate. Keep fractional atomic units here so
+  // low-power starter miners do not become "infinite" payback in the UI just
+  // because integer ledger units round a tiny daily share down to zero.
   const dailyRewardAtomic =
-    (cmaPool.rewardAtomic *
-      BigInt(miner.powerGh) *
-      BigInt(BLOCKS_PER_DAY)) /
-    BigInt(cmaPool.networkPowerGh);
+    Number(cmaPool.rewardAtomic) * miner.powerGh * BLOCKS_PER_DAY /
+    cmaPool.networkPowerGh;
 
-  if (dailyRewardAtomic <= 0n) return Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(dailyRewardAtomic) || dailyRewardAtomic <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
 
   const priceAtomic = BigInt(Math.round(miner.priceCma * 1_000_000));
-  return Number(priceAtomic) / Number(dailyRewardAtomic);
+  return Number(priceAtomic) / dailyRewardAtomic;
 }
 
 export function calculateEstimatedReward(

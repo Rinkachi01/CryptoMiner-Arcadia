@@ -7,6 +7,7 @@ export const PACKET_CATCH_DAILY_LIMIT = 24;
 export const PACKET_CATCH_POWER_DURATION_HOURS = 6;
 export const PACKET_CATCH_STARTING_LIVES = 3;
 export const MAX_GAME_DIFFICULTY = ARCADE_DIFFICULTY_MAX;
+export const PACKET_CATCH_REWARD_POWER_CAP_GH = 200;
 
 export type PacketTarget = {
   id: string;
@@ -193,7 +194,10 @@ export function packetCatchRewardPower(
 ) {
   if (bombHit || score < 20) return 0;
   const level = Math.min(MAX_GAME_DIFFICULTY, Math.max(1, difficulty));
-  return Math.min(320, Math.round(35 + score * 0.82 + level * 11));
+  return Math.min(
+    PACKET_CATCH_REWARD_POWER_CAP_GH,
+    Math.round(35 + score * 0.82 + level * 11),
+  );
 }
 
 export function gameCooldownSeconds(

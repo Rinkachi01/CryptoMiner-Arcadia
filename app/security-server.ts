@@ -10,6 +10,7 @@ const ACTION_LIMITS = {
 type ArcadeAction = keyof typeof ACTION_LIMITS;
 
 type SecurityEnvironment = {
+  TURNSTILE_ALLOWED_HOSTNAMES?: string;
   TURNSTILE_HOSTNAME?: string;
   TURNSTILE_REQUIRED?: string;
   TURNSTILE_SECRET?: string;
@@ -61,7 +62,15 @@ export function readSecurityConfig(value: unknown) {
   const siteKey = textSetting(source.TURNSTILE_SITE_KEY);
   const secret = textSetting(source.TURNSTILE_SECRET);
   const hostname = textSetting(source.TURNSTILE_HOSTNAME);
+  const allowedHostnames = Array.from(
+    new Set(
+      [hostname, ...textSetting(source.TURNSTILE_ALLOWED_HOSTNAMES).split(",")]
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
   return {
+    allowedHostnames,
     configured: Boolean(siteKey && secret),
     hostname: hostname || null,
     required: textSetting(source.TURNSTILE_REQUIRED).toLowerCase() === "true",
@@ -200,8 +209,11 @@ export async function verifyTurnstileAndCreatePass(
       error: "A verificação humana demorou demais. Tente novamente.",
     };
   }
+  const requestHostname = textSetting(requestContext?.expectedHostname).toLowerCase();
   const expectedHostname =
-    config.hostname || requestContext?.expectedHostname || null;
+    (requestHostname && config.allowedHostnames.includes(requestHostname)
+      ? requestHostname
+      : config.allowedHostnames[0]) || null;
   const valid = Boolean(
     response.ok &&
       result?.success &&

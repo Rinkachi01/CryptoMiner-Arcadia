@@ -1,5 +1,6 @@
 import {
   DEFAULT_SEASON_DURATION_DAYS,
+  ALCHEMY_SEASON_SLUG,
   SEASON_DAILY_GAME_XP_CAP,
   SEASON_DAILY_LOGIN_XP,
   SEASON_DAILY_SPEND_XP_CAP,
@@ -8,31 +9,37 @@ import {
   SPACE_RACE_DURATION_DAYS,
   SPACE_RACE_LEVELS,
   SPACE_RACE_PREMIUM_PRICE_CMA,
-  SPACE_RACE_PREMIUM_MAX_PRICE_CMA,
   SPACE_RACE_SEASON_ID,
   SPACE_RACE_SLUG,
+  SPACE_RACE_WELCOME_PASS,
+  SPACE_RACE_WELCOME_XP_BUNDLE,
   calculateSeasonScore,
   compareSeasonSnapshots,
   isSeasonRewardUnlocked,
   isSeasonTrackUnlocked,
   normalizeSeasonDurationDays,
+  seasonBannerPathForCampaign,
+  seasonLevelsForCampaign,
   seasonLevelForXp,
   seasonPremiumMaxPriceCma,
   seasonProgressPercent,
   seasonXpRequiredForLevel,
-  spaceRaceRewards,
+  seasonPricePolicyForCampaign,
+  seasonRewardsForCampaign,
   type SeasonReward,
   type SeasonTrack,
-} from "./season-rules";
-import { ensureAdminSchema } from "./admin-settings";
-import { getMiner } from "./game-rules";
-import type { PublicGameState } from "./game-server";
-import { ensureNetworkSchema } from "./network-server";
+} from "./season-rules.ts";
+import { ensureAdminSchema } from "./admin-settings.ts";
+import { getMiner } from "./game-rules.ts";
+import { PART_MAX_PER_KEY, normalizePartsInventory, partKey } from "./parts-rules.ts";
+import { normalizeSeasonalWallet } from "./season-store-rules.ts";
+import type { PublicGameState } from "./game-server.ts";
+import { ensureNetworkSchema } from "./network-server.ts";
 import {
   DAILY_RESET_OFFSET_MS,
   dailyResetWindow,
   dailyWindowIndex,
-} from "./daily-reset-rules";
+} from "./daily-reset-rules.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -79,6 +86,11 @@ type SeasonPassMaxRow = {
 type SeasonClaimRow = {
   level: number;
   track: string;
+};
+
+type SeasonXpBundleRow = {
+  cycle_key?: string;
+  xp: number;
 };
 
 type SeasonLoginRow = {
@@ -134,6 +146,8 @@ export type PublicSeason = {
   name: string;
   premiumPriceCma: number;
   premiumMaxPriceCma: number;
+  levels: number;
+  bannerPath: string;
   progressPercent: number;
   startsAt: number;
   status: "active" | "closed" | "draft";
@@ -152,7 +166,13 @@ export type SeasonLeaderboardEntry = {
 
 export type Quest = {
   id: string;
-  type: "games_played" | "games_won" | "cma_spent" | "crates_opened";
+  type:
+    | "games_played"
+    | "games_won"
+    | "games_won_specific"
+    | "cma_spent"
+    | "crates_opened";
+  gameId?: string;
   requirement: number;
   xp: number;
   title: string;
@@ -172,6 +192,109 @@ export const DAILY_QUESTS: Quest[] = [
   { id: "daily_spend_5", type: "cma_spent", requirement: 5, xp: 15, title: "Gastar 5 CMA na Loja" },
 ];
 
+// One focused minigame objective rotates each daily reset. Keeping the
+// rotation deterministic means the UI and claim validation always agree,
+// without storing another piece of mutable season state.
+export const DAILY_MINIGAME_ROTATION_QUESTS: Quest[] = [
+  {
+    id: "daily_wins_packet_catch_10",
+    type: "games_won_specific",
+    gameId: "packet-catch",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Packet Catch",
+  },
+  {
+    id: "daily_wins_hash_match_10",
+    type: "games_won_specific",
+    gameId: "hash-match",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Hash Match",
+  },
+  {
+    id: "daily_wins_circuit_rush_10",
+    type: "games_won_specific",
+    gameId: "circuit-rush",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Circuit Rush",
+  },
+  {
+    id: "daily_wins_coin_cascade_10",
+    type: "games_won_specific",
+    gameId: "coin-link",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Coin Cascade",
+  },
+  {
+    id: "daily_wins_sky_dash_10",
+    type: "games_won_specific",
+    gameId: "sky-dash",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Sky Dash",
+  },
+  {
+    id: "daily_wins_crypto_2048_10",
+    type: "games_won_specific",
+    gameId: "crypto-2048",
+    requirement: 10,
+    xp: 20,
+    title: "Vencer 10 Crypto 2048",
+  },
+];
+
+/**
+ * The 70-day Alchemy pass is currently being balanced in staging. The
+ * boosted values are deliberately opt-in so production keeps its existing
+ * economy until the pass is approved for release.
+ */
+const ALCHEMY_STAGING_DAILY_XP: Record<string, number> = {
+  daily_games_10: 20,
+  daily_wins_5: 30,
+  daily_spend_2: 20,
+  daily_spend_5: 30,
+  daily_wins_packet_catch_10: 50,
+  daily_wins_hash_match_10: 50,
+  daily_wins_circuit_rush_10: 50,
+  daily_wins_coin_cascade_10: 50,
+  daily_wins_sky_dash_10: 50,
+  daily_wins_crypto_2048_10: 50,
+};
+
+const ALCHEMY_STAGING_WEEKLY_XP: Record<string, number> = {
+  weekly_games_50: 40,
+  weekly_wins_30: 50,
+  weekly_spend_10: 25,
+  weekly_spend_50: 50,
+  weekly_crate_1: 30,
+};
+
+function boostedQuest(quest: Quest, enabled: boolean, xpTable: Record<string, number>) {
+  const xp = enabled ? xpTable[quest.id] : undefined;
+  return xp === undefined ? quest : { ...quest, xp };
+}
+
+export function dailyQuestsForActivity(
+  activityKey: number,
+  alchemyStagingXpBoost = false,
+): Quest[] {
+  const size = DAILY_MINIGAME_ROTATION_QUESTS.length;
+  const index = ((activityKey % size) + size) % size;
+  return [
+    ...DAILY_QUESTS.map((quest) =>
+      boostedQuest(quest, alchemyStagingXpBoost, ALCHEMY_STAGING_DAILY_XP),
+    ),
+    boostedQuest(
+      DAILY_MINIGAME_ROTATION_QUESTS[index],
+      alchemyStagingXpBoost,
+      ALCHEMY_STAGING_DAILY_XP,
+    ),
+  ];
+}
+
 export const WEEKLY_QUESTS: Quest[] = [
   { id: "weekly_games_50", type: "games_played", requirement: 50, xp: 40, title: "Jogar 50 minigames" },
   { id: "weekly_wins_30", type: "games_won", requirement: 30, xp: 50, title: "Vencer 30 minigames" },
@@ -180,12 +303,19 @@ export const WEEKLY_QUESTS: Quest[] = [
   { id: "weekly_crate_1", type: "crates_opened", requirement: 1, xp: 30, title: "Abrir 1 Caixa de Suprimentos" },
 ];
 
+export function weeklyQuestsForCampaign(alchemyStagingXpBoost = false): Quest[] {
+  return WEEKLY_QUESTS.map((quest) =>
+    boostedQuest(quest, alchemyStagingXpBoost, ALCHEMY_STAGING_WEEKLY_XP),
+  );
+}
+
 export type SeasonPlayerProgress = {
   claimedRewardKeys: string[];
   level: number;
   nextLevelXp: number;
   maxUnlocked: boolean;
   premiumUnlocked: boolean;
+  welcomeBundleClaimed: boolean;
   dailyLogin: {
     claimedToday: boolean;
     cycleDay: number;
@@ -198,6 +328,7 @@ export type SeasonPlayerProgress = {
     weekly: QuestProgress[];
   };
   sources: {
+    bonus: number;
     games: number;
     logins: number;
     missions: number;
@@ -394,7 +525,21 @@ export async function ensureSeasonSchema(db: D1Database) {
     ),
     db.prepare(
       `CREATE UNIQUE INDEX IF NOT EXISTS season_quest_claims_unique
-       ON season_quest_claims (season_id, account_id, quest_id, cycle_key)`,
+      ON season_quest_claims (season_id, account_id, quest_id, cycle_key)`,
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS season_xp_bundles (
+        id TEXT PRIMARY KEY,
+        season_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        xp INTEGER NOT NULL,
+        cycle_key TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+      )`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS season_xp_bundles_account_idx
+       ON season_xp_bundles (account_id, created_at)`,
     ),
     db.prepare(
       `CREATE TABLE IF NOT EXISTS ledger_entries (
@@ -422,19 +567,54 @@ export async function ensureSeasonSchema(db: D1Database) {
       GROUP BY season_id, account_id`,
     ),
   ]);
+
+  // Upgrade databases created before the daily welcome-bundle cycle. The
+  // existing row is assigned to the window in which it was claimed, so a
+  // claim made before this migration is not duplicated during that same day.
+  const xpBundleColumns = await db
+    .prepare(`PRAGMA table_info(season_xp_bundles)`)
+    .all<{ name: string }>();
+  if (!(xpBundleColumns.results ?? []).some((column) => column.name === "cycle_key")) {
+    await db
+      .prepare(
+        `ALTER TABLE season_xp_bundles
+         ADD COLUMN cycle_key TEXT NOT NULL DEFAULT ''`,
+      )
+      .run();
+  }
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE season_xp_bundles
+         SET cycle_key = CAST((created_at - ?) / ? AS TEXT)
+         WHERE cycle_key = ''`,
+      )
+      .bind(DAILY_RESET_OFFSET_MS, DAY_MS),
+    db.prepare(`DROP INDEX IF EXISTS season_xp_bundles_unique`),
+    db.prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS season_xp_bundles_unique
+       ON season_xp_bundles (season_id, account_id, cycle_key)`,
+    ),
+  ]);
 }
 
 function publicSeason(row: SeasonRow, now: number): PublicSeason {
+  const pricePolicy = seasonPricePolicyForCampaign(row.campaign_slug);
   return {
+    bannerPath: seasonBannerPathForCampaign(row.campaign_slug),
     campaignSlug: row.campaign_slug,
     closedAt: row.closed_at,
     createdAt: row.created_at,
     durationDays: row.duration_days,
     endsAt: row.ends_at,
     id: row.id,
+    levels: seasonLevelsForCampaign(row.campaign_slug),
     name: row.name,
-    premiumPriceCma: row.premium_price_cma_micros / 1_000_000,
-    premiumMaxPriceCma: SPACE_RACE_PREMIUM_MAX_PRICE_CMA,
+    // Keep the public price aligned with the campaign policy instead of a
+    // stale value left in an older season row (the Alchemy row was originally
+    // seeded with the Space Race price).
+    premiumPriceCma: pricePolicy.premiumPriceCma,
+    premiumMaxPriceCma: pricePolicy.premiumMaxPriceCma,
     progressPercent:
       row.status === "draft"
         ? 0
@@ -608,7 +788,10 @@ export async function readSeasonLeaderboard(
       wins: Number(row.wins),
     }));
 
-  if (season.campaign_slug !== SPACE_RACE_SLUG) {
+  if (
+    season.campaign_slug !== SPACE_RACE_SLUG &&
+    season.campaign_slug !== ALCHEMY_SEASON_SLUG
+  ) {
     return baseEntries
       .map((entry) => ({
         ...entry,
@@ -635,7 +818,7 @@ export async function readSeasonLeaderboard(
       }));
   }
 
-  const [loginRows, gameRows, spendingRows, questClaims] = await Promise.all([
+  const [loginRows, gameRows, spendingRows, questClaims, xpBundles] = await Promise.all([
     db
       .prepare(
         `SELECT account_id, 'login' AS activity_key, COALESCE(SUM(xp), 0) AS total
@@ -678,6 +861,15 @@ export async function readSeasonLeaderboard(
       )
       .bind(season.id)
       .all<DailyActivityRow>(),
+    db
+      .prepare(
+        `SELECT account_id, 'welcome_bundle' AS activity_key, COALESCE(SUM(xp), 0) AS total
+         FROM season_xp_bundles
+         WHERE season_id = ?
+         GROUP BY account_id`,
+      )
+      .bind(season.id)
+      .all<DailyActivityRow>(),
   ]);
 
   const xpByAccount = new Map<
@@ -687,7 +879,7 @@ export async function readSeasonLeaderboard(
   const ensureXp = (accountId: string) => {
     const existing = xpByAccount.get(accountId);
     if (existing) return existing;
-    const created = { games: 0, logins: 0, missions: 0, spending: 0, xp: 0 };
+    const created = { bonus: 0, games: 0, logins: 0, missions: 0, spending: 0, xp: 0 };
     xpByAccount.set(accountId, created);
     return created;
   };
@@ -700,6 +892,11 @@ export async function readSeasonLeaderboard(
   for (const row of questClaims.results) {
     const progress = ensureXp(row.account_id);
     progress.missions += Math.max(0, Number(row.total));
+  }
+
+  for (const row of xpBundles.results) {
+    const progress = ensureXp(row.account_id);
+    progress.bonus += Math.max(0, Number(row.total));
   }
 
   const weeklyGames = new Map<string, number>();
@@ -728,7 +925,11 @@ export async function readSeasonLeaderboard(
   }
   for (const progress of xpByAccount.values()) {
     progress.xp =
-      progress.games + progress.logins + progress.missions + progress.spending;
+      progress.bonus +
+      progress.games +
+      progress.logins +
+      progress.missions +
+      progress.spending;
   }
 
   const accounts = new Set([
@@ -754,7 +955,7 @@ export async function readSeasonLeaderboard(
         accountId,
         displayName: displayNames.get(accountId) ?? "Operador Arcadia",
         highestDifficulty: base?.highestDifficulty ?? 0,
-        level: seasonLevelForXp(xp),
+        level: seasonLevelForXp(xp, seasonLevelsForCampaign(season.campaign_slug)),
         plays: base?.plays ?? 0,
         score: xp,
         wins: base?.wins ?? 0,
@@ -776,8 +977,30 @@ async function readPlayerProgress(
   accountId: string,
   leaderboard: SeasonLeaderboardEntry[],
   now = Date.now(),
+  welcomeXpDailyReset = false,
+  stagingXpBoost = false,
 ): Promise<SeasonPlayerProgress> {
-  const [pass, maxPass, claims] = await Promise.all([
+  const alchemyStagingXpBoost =
+    stagingXpBoost && season.campaign_slug === ALCHEMY_SEASON_SLUG;
+  const xpBundleQuery = welcomeXpDailyReset
+    ? db
+        .prepare(
+          `SELECT xp, cycle_key
+           FROM season_xp_bundles
+           WHERE season_id = ? AND account_id = ? AND cycle_key = ?
+           LIMIT 1`,
+        )
+        .bind(season.id, accountId, dailyResetWindow(now).windowKey)
+    : db
+        .prepare(
+          `SELECT xp, cycle_key
+           FROM season_xp_bundles
+           WHERE season_id = ? AND account_id = ?
+           ORDER BY created_at ASC
+           LIMIT 1`,
+        )
+        .bind(season.id, accountId);
+  const [pass, maxPass, claims, xpBundle] = await Promise.all([
     db
       .prepare(
         `SELECT premium_unlocked, cma_paid_micros, purchased_at
@@ -802,10 +1025,12 @@ async function readPlayerProgress(
       )
       .bind(season.id, accountId)
       .all<SeasonClaimRow>(),
+    xpBundleQuery.first<SeasonXpBundleRow>(),
   ]);
   const entry = leaderboard.find((item) => item.accountId === accountId);
   const xp = entry?.score ?? 0;
-  const level = seasonLevelForXp(xp);
+  const seasonLevels = seasonLevelsForCampaign(season.campaign_slug);
+  const level = seasonLevelForXp(xp, seasonLevels);
 
   const [loginRows, gameDaily, spendingDaily, questClaims, crateDaily] = await Promise.all([
     db
@@ -819,16 +1044,17 @@ async function readPlayerProgress(
       .all<SeasonLoginRow>(),
     db
       .prepare(
-        `SELECT CAST((completed_at - ?) / ? AS INTEGER) AS activity_key,
+        `SELECT game_id,
+                CAST((completed_at - ?) / ? AS INTEGER) AS activity_key,
                 COUNT(*) AS total,
                 SUM(CASE WHEN score > 0 THEN 1 ELSE 0 END) AS wins
          FROM game_sessions
          WHERE account_id = ? AND completed_at >= ? AND completed_at <= ?
            AND status IN ('completed', 'failed')
-         GROUP BY activity_key`,
+         GROUP BY activity_key, game_id`,
       )
        .bind(DAILY_RESET_OFFSET_MS, DAY_MS, accountId, season.starts_at, season.ends_at)
-      .all<{ activity_key: string; total: number; wins: number }>(),
+      .all<{ game_id: string; activity_key: string; total: number; wins: number }>(),
     db
       .prepare(
         `SELECT CAST((created_at - ?) / ? AS INTEGER) AS activity_key,
@@ -868,6 +1094,8 @@ async function readPlayerProgress(
   let totalWinsWeek = 0;
   let cratesToday = 0;
   let cratesWeek = 0;
+  const todayWinsByGame = new Map<string, number>();
+  const gamesByActivity = new Map<number, number>();
   
   const seasonStartDay = dailyWindowIndex(season.starts_at);
   const todayActivityKey = dailyWindowIndex(now);
@@ -878,21 +1106,36 @@ async function readPlayerProgress(
   for (const row of gameDaily.results) {
     const count = Math.max(0, Number(row.total));
     const wins = Math.max(0, Number(row.wins));
-    games += Math.min(SEASON_DAILY_GAME_XP_CAP, count * SEASON_GAME_XP);
+    const activityKey = Number(row.activity_key);
+    gamesByActivity.set(
+      activityKey,
+      (gamesByActivity.get(activityKey) ?? 0) + count,
+    );
     
-    if (Number(row.activity_key) === todayActivityKey) {
+    if (activityKey === todayActivityKey) {
       totalGamesToday += count;
       totalWinsToday += wins;
+      todayWinsByGame.set(
+        row.game_id,
+        (todayWinsByGame.get(row.game_id) ?? 0) + wins,
+      );
     }
     
     const week = Math.floor(
-      (Number(row.activity_key) - seasonStartDay) / 7,
+      (activityKey - seasonStartDay) / 7,
     );
     if (week === currentWeek) {
       totalGamesWeek += count;
       totalWinsWeek += wins;
     }
   }
+
+  // Keep the existing per-day XP cap after grouping sessions by game so the
+  // per-game quest tracking cannot multiply the daily XP allowance.
+  games = [...gamesByActivity.values()].reduce(
+    (total, count) => total + Math.min(SEASON_DAILY_GAME_XP_CAP, count * SEASON_GAME_XP),
+    0,
+  );
 
   let spendingTodayCma = 0;
   let spendingWeekCma = 0;
@@ -955,15 +1198,18 @@ async function readPlayerProgress(
   }
 
   const quests = {
-    daily: DAILY_QUESTS.map(q => {
+    daily: dailyQuestsForActivity(todayActivityKey, alchemyStagingXpBoost).map(q => {
       let p = 0;
       if (q.type === "games_played") p = totalGamesToday;
       if (q.type === "games_won") p = totalWinsToday;
+      if (q.type === "games_won_specific") {
+        p = todayWinsByGame.get(q.gameId ?? "") ?? 0;
+      }
       if (q.type === "cma_spent") p = spendingTodayCma;
       if (q.type === "crates_opened") p = cratesToday;
       return evaluateQuest(q, p, cycleKeyDaily);
     }),
-    weekly: WEEKLY_QUESTS.map(q => {
+    weekly: weeklyQuestsForCampaign(alchemyStagingXpBoost).map(q => {
       let p = 0;
       if (q.type === "games_played") p = totalGamesWeek;
       if (q.type === "games_won") p = totalWinsWeek;
@@ -979,11 +1225,12 @@ async function readPlayerProgress(
     ),
     level,
     nextLevelXp:
-      level >= SPACE_RACE_LEVELS
-        ? seasonXpRequiredForLevel(SPACE_RACE_LEVELS)
-        : seasonXpRequiredForLevel(level + 1),
+      level >= seasonLevels
+        ? seasonXpRequiredForLevel(seasonLevels, seasonLevels)
+        : seasonXpRequiredForLevel(level + 1, seasonLevels),
     maxUnlocked: Boolean(maxPass),
     premiumUnlocked: pass?.premium_unlocked === 1,
+    welcomeBundleClaimed: Boolean(xpBundle),
     dailyLogin: {
       claimedToday,
       cycleDay,
@@ -993,6 +1240,7 @@ async function readPlayerProgress(
     },
     quests,
     sources: {
+      bonus: Math.max(0, Number(xpBundle?.xp ?? 0)),
       games,
       logins: loginRows.results.reduce(
         (total, row) => total + Math.max(0, Number(row.xp)),
@@ -1002,6 +1250,7 @@ async function readPlayerProgress(
       spending,
     },
     xp:
+      Math.max(0, Number(xpBundle?.xp ?? 0)) +
       games +
       missions +
       spending +
@@ -1049,6 +1298,9 @@ export async function readSeasonOverview(
   accountId: string,
   now: number,
   includeDraft = false,
+  allowSeasonalCurrency = true,
+  welcomeXpDailyReset = false,
+  stagingXpBoost = false,
 ) {
   const row = await ensureDefaultSeason(db, now);
   if (!row) {
@@ -1061,6 +1313,7 @@ export async function readSeasonOverview(
       rewards: [] as SeasonReward[],
       season: null,
       snapshots: [] as SeasonSnapshot[],
+      welcomePass: false,
     };
   }
   const leaderboard = await readSeasonLeaderboard(db, row);
@@ -1076,7 +1329,15 @@ export async function readSeasonOverview(
     .all<SnapshotRow>();
 
   const [playerProgress, draftRow, powerLeaderboard] = await Promise.all([
-    readPlayerProgress(db, row, accountId, leaderboard, now),
+    readPlayerProgress(
+      db,
+      row,
+      accountId,
+      leaderboard,
+      now,
+      welcomeXpDailyReset,
+      stagingXpBoost,
+    ),
     includeDraft ? readSpaceRaceDraftRow(db) : Promise.resolve(null),
     readPowerLeaderboard(db, now),
   ]);
@@ -1088,7 +1349,7 @@ export async function readSeasonOverview(
     leaderboard: leaderboard.slice(0, 25),
     playerProgress,
     powerLeaderboard,
-    rewards: spaceRaceRewards,
+    rewards: seasonRewardsForCampaign(row.campaign_slug, allowSeasonalCurrency),
     season: publicSeason(row, now),
     snapshots: snapshotRows.results.map((snapshot) => {
       return {
@@ -1098,6 +1359,7 @@ export async function readSeasonOverview(
         seasonId: snapshot.season_id,
       };
     }),
+    welcomePass: row.campaign_slug === SPACE_RACE_SLUG && SPACE_RACE_WELCOME_PASS,
   };
 }
 
@@ -1108,6 +1370,13 @@ function activeSpaceRace(row: SeasonRow | null) {
     row.campaign_slug !== SPACE_RACE_SLUG
   ) {
     throw new Error("A Corrida Espacial ainda não foi ativada pelo fundador.");
+  }
+  return row;
+}
+
+function activeSeason(row: SeasonRow | null) {
+  if (!row || row.status !== "active") {
+    throw new Error("Não existe uma temporada ativa no momento.");
   }
   return row;
 }
@@ -1154,7 +1423,7 @@ export async function registerSeasonDailyLogin(
   accountId: string,
   now: number,
 ) {
-  const season = activeSpaceRace(await ensureDefaultSeason(db, now));
+  const season = activeSeason(await ensureDefaultSeason(db, now));
   if (now < season.starts_at || now >= season.ends_at) {
     throw new Error("O ciclo de XP não está aberto.");
   }
@@ -1213,6 +1482,8 @@ function parseStoredGameState(row: StoredGameStateRow) {
   if (!state || typeof state !== "object" || !Array.isArray(state.minerInventory)) {
     throw new Error("O estado da conta precisa ser sincronizado antes de continuar.");
   }
+  state.partsInventory = normalizePartsInventory(state.partsInventory);
+  state.seasonalWallet = normalizeSeasonalWallet(state.seasonalWallet);
   return state;
 }
 
@@ -1227,7 +1498,10 @@ export async function purchaseSeasonPremium(
     throw new Error("Temporada não encontrada.");
   }
   const seasonRow = await readSeasonRow(db);
-  const season = activeSpaceRace(seasonRow);
+  const season = activeSeason(seasonRow);
+  if (season.campaign_slug === SPACE_RACE_SLUG && SPACE_RACE_WELCOME_PASS) {
+    throw new Error("O passe de boas-vindas está gratuito nesta temporada.");
+  }
 
   const [existingPass, existingMax] = await Promise.all([
     db
@@ -1266,8 +1540,14 @@ export async function purchaseSeasonPremium(
   const premiumOwned = existingPass?.premium_unlocked === 1;
   const priceMicros = Math.round(
     (isMax
-      ? seasonPremiumMaxPriceCma(overview.playerProgress.level, premiumOwned)
-      : season.premium_price_cma_micros / 1_000_000) * 1_000_000,
+      ? seasonPremiumMaxPriceCma(
+          overview.playerProgress.level,
+          premiumOwned,
+          seasonPricePolicyForCampaign(season.campaign_slug),
+          seasonLevelsForCampaign(season.campaign_slug),
+        )
+      : seasonPricePolicyForCampaign(season.campaign_slug).premiumPriceCma) *
+        1_000_000,
   );
   const purchaseKind = isMax ? "max" : "premium";
 
@@ -1429,9 +1709,95 @@ export async function purchaseSeasonPremium(
   throw new Error("Outra ação atualizou sua conta. Tente novamente.");
 }
 
-function rewardFor(track: SeasonTrack, level: number) {
-  return spaceRaceRewards.find(
+/** XP welcome bundle scoped to the active welcome pass and reset policy. */
+export async function claimWelcomeXpBundle(
+  db: D1Database,
+  accountId: string,
+  now: number,
+  welcomeXpDailyReset = false,
+) {
+  if (!SPACE_RACE_WELCOME_PASS) {
+    throw new Error("O bundle de boas-vindas não está disponível.");
+  }
+  const season = activeSpaceRace(await ensureDefaultSeason(db, now));
+  const cycleKey = welcomeXpDailyReset
+    ? dailyResetWindow(now).windowKey
+    : "legacy";
+  const existingQuery = welcomeXpDailyReset
+    ? db
+        .prepare(
+          `SELECT xp, cycle_key
+           FROM season_xp_bundles
+           WHERE season_id = ? AND account_id = ? AND cycle_key = ?
+           LIMIT 1`,
+        )
+        .bind(season.id, accountId, cycleKey)
+    : db
+        .prepare(
+          `SELECT xp, cycle_key
+           FROM season_xp_bundles
+           WHERE season_id = ? AND account_id = ?
+           ORDER BY created_at ASC
+           LIMIT 1`,
+        )
+        .bind(season.id, accountId);
+  const existing = await existingQuery.first<SeasonXpBundleRow>();
+  if (existing) {
+    return { alreadyClaimed: true, xp: Math.max(0, Number(existing.xp)) };
+  }
+
+  const bundleId = crypto.randomUUID();
+  const idempotencyKey = `season-welcome-xp:${season.id}:${accountId}:${cycleKey}`;
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO season_xp_bundles (
+          id, season_id, account_id, xp, cycle_key, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        bundleId,
+        season.id,
+        accountId,
+        SPACE_RACE_WELCOME_XP_BUNDLE,
+        cycleKey,
+        now,
+      ),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO ledger_entries (
+          id, account_id, action, idempotency_key, state_version,
+          delta_cma_micros, metadata_json, created_at
+        ) VALUES (?, ?, 'season_welcome_xp_bundle', ?, 0, 0, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        accountId,
+        idempotencyKey,
+        JSON.stringify({
+          seasonId: season.id,
+          xp: SPACE_RACE_WELCOME_XP_BUNDLE,
+        }),
+        now,
+      ),
+  ]);
+  if (Number(results[0]?.meta.changes ?? 0) !== 1) {
+    return { alreadyClaimed: true, xp: SPACE_RACE_WELCOME_XP_BUNDLE };
+  }
+  return { alreadyClaimed: false, xp: SPACE_RACE_WELCOME_XP_BUNDLE };
+}
+
+function rewardFor(
+  campaignSlug: string,
+  track: SeasonTrack,
+  level: number,
+  allowSeasonalCurrency = true,
+) {
+  const rewards = seasonRewardsForCampaign(campaignSlug, allowSeasonalCurrency);
+  return rewards.find(
     (reward) => reward.track === track && reward.level === level,
+  ) ?? rewards.find(
+    (reward) => reward.claimTrack === track && reward.claimLevel === level,
   );
 }
 
@@ -1441,19 +1807,35 @@ export async function claimSeasonReward(
   track: SeasonTrack,
   level: number,
   now: number,
+  allowSeasonalCurrency = true,
+  stagingXpBoost = false,
 ) {
-  const season = activeSpaceRace(await ensureDefaultSeason(db, now));
-  const reward = rewardFor(track, level);
+  const season = activeSeason(await ensureDefaultSeason(db, now));
+  const reward = rewardFor(season.campaign_slug, track, level, allowSeasonalCurrency);
   if (!reward) throw new Error("Recompensa sazonal inválida.");
+  const claimTrack = reward.claimTrack ?? reward.track;
+  const claimLevel = reward.claimLevel ?? reward.level;
   const leaderboard = await readSeasonLeaderboard(db, season);
-  const progress = await readPlayerProgress(db, season, accountId, leaderboard, now);
+  const progress = await readPlayerProgress(
+    db,
+    season,
+    accountId,
+    leaderboard,
+    now,
+    false,
+    stagingXpBoost,
+  );
   if (!isSeasonRewardUnlocked(progress.level, reward.level, progress.maxUnlocked)) {
     throw new Error(`Alcance o nível ${reward.level} para resgatar.`);
   }
-  if (!isSeasonTrackUnlocked(track, progress.premiumUnlocked, progress.maxUnlocked)) {
+  const welcomePass = season.campaign_slug === SPACE_RACE_SLUG && SPACE_RACE_WELCOME_PASS;
+  if (
+    !welcomePass &&
+    !isSeasonTrackUnlocked(track, progress.premiumUnlocked, progress.maxUnlocked)
+  ) {
     throw new Error("Libere a trilha premium antes de resgatar este prêmio.");
   }
-  if (progress.claimedRewardKeys.includes(`${track}:${level}`)) {
+  if (progress.claimedRewardKeys.includes(`${claimTrack}:${claimLevel}`)) {
     return { alreadyClaimed: true, reward };
   }
 
@@ -1477,7 +1859,28 @@ export async function claimSeasonReward(
       state.minerInventory.push({
         instanceId: `season-${miner.id}-${crypto.randomUUID()}`,
         minerId: miner.id,
+        level: reward.reward.minerLevel ?? 1,
       });
+    } else if (reward.reward.type === "rack") {
+      state.rackInventoryCount = Math.min(
+        24,
+        Math.max(0, Math.floor(state.rackInventoryCount)) + reward.reward.quantity,
+      );
+    } else if (reward.reward.type === "parts") {
+      const key = partKey(reward.reward.family, reward.reward.rarity);
+      state.partsInventory[key] = Math.min(
+        PART_MAX_PER_KEY,
+        Math.max(0, Math.floor(state.partsInventory[key] ?? 0)) + reward.reward.quantity,
+      );
+    } else if (reward.reward.type === "season_currency") {
+      if (!allowSeasonalCurrency) {
+        throw new Error("A moeda sazonal não está disponível neste ambiente.");
+      }
+      const wallet = normalizeSeasonalWallet(state.seasonalWallet, season.id);
+      state.seasonalWallet = normalizeSeasonalWallet(
+        { ...wallet, amc: wallet.amc + reward.reward.quantity },
+        season.id,
+      );
     }
     const stateJson = JSON.stringify(state);
     const nextVersion = stored.version + 1;
@@ -1501,8 +1904,8 @@ export async function claimSeasonReward(
           stored.version,
           season.id,
           accountId,
-          track,
-          level,
+          claimTrack,
+          claimLevel,
         ),
       db
         .prepare(
@@ -1520,8 +1923,8 @@ export async function claimSeasonReward(
           claimId,
           season.id,
           accountId,
-          level,
-          track,
+          claimLevel,
+          claimTrack,
           JSON.stringify(reward.reward),
           stored.version,
           nextVersion,
@@ -1543,14 +1946,21 @@ export async function claimSeasonReward(
         .bind(
           crypto.randomUUID(),
           accountId,
-          `season-reward:${season.id}:${track}:${level}:${accountId}`,
+          `season-reward:${season.id}:${claimTrack}:${claimLevel}:${accountId}`,
           nextVersion,
-          JSON.stringify({ level, reward: reward.reward, seasonId: season.id, track }),
+          JSON.stringify({
+            level: reward.level,
+            reward: reward.reward,
+            seasonId: season.id,
+            sourceLevel: claimLevel,
+            sourceTrack: claimTrack,
+            track: reward.track,
+          }),
           now,
           claimId,
         ),
     ];
-    if (reward.reward.type === "power") {
+    if (reward.reward.type === "power" || reward.reward.type === "hack") {
       batch.push(
         db
           .prepare(
@@ -1564,7 +1974,7 @@ export async function claimSeasonReward(
           .bind(
             crypto.randomUUID(),
             accountId,
-            `season:${season.id}:${track}:${level}:${accountId}`,
+            `season:${season.id}:${claimTrack}:${claimLevel}:${accountId}`,
             reward.reward.powerGh,
             now,
             now + reward.reward.days * DAY_MS,
@@ -1587,7 +1997,7 @@ export async function claimSeasonReward(
           `SELECT 1 AS claimed FROM season_reward_claims
            WHERE season_id = ? AND account_id = ? AND track = ? AND level = ?`,
         )
-        .bind(season.id, accountId, track, level)
+        .bind(season.id, accountId, claimTrack, claimLevel)
         .first<{ claimed: number }>();
       if (claimed) return { alreadyClaimed: true, reward };
       if (attempt === 2) throw error;
@@ -1814,8 +2224,17 @@ export async function claimSeasonQuest(
   questId: string,
   cycleKey: string,
   now: number,
+  stagingXpBoost = false,
 ) {
-  const overview = await readSeasonOverview(db, accountId, now);
+  const overview = await readSeasonOverview(
+    db,
+    accountId,
+    now,
+    false,
+    true,
+    false,
+    stagingXpBoost,
+  );
   if (!overview.season || overview.season.status !== "active") {
     throw new Error("Temporada inativa ou não encontrada.");
   }

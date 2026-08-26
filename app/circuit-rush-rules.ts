@@ -7,6 +7,7 @@ import {
 export const CIRCUIT_RUSH_HOURLY_LIMIT = 6;
 export const CIRCUIT_RUSH_DAILY_LIMIT = 18;
 export const CIRCUIT_RUSH_POWER_DURATION_HOURS = 6;
+export const CIRCUIT_RUSH_REWARD_POWER_CAP_GH = 140;
 
 export type CircuitStep = {
   id: string;
@@ -116,7 +117,10 @@ export function circuitRushRewardPower(
     0,
     Math.round((circuitRushDurationMs(level) - durationMs) / 450),
   );
-  return Math.min(300, 55 + hits * 10 + level * 11 + speedBonus);
+  return Math.min(
+    CIRCUIT_RUSH_REWARD_POWER_CAP_GH,
+    55 + hits * 10 + level * 11 + speedBonus,
+  );
 }
 
 export { gameCooldownSeconds };

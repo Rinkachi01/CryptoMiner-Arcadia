@@ -103,14 +103,8 @@ function treasuryTitle(kind: CrmTreasuryEvent["kind"], status: string) {
     if (status === "paid" || status === "rejected") return null;
     return { severity: "attention" as const, title: "Novo saque solicitado" };
   }
-  if (status === "credited" || status === "expired") return null;
-  if (
-    status === "review_required" ||
-    status.includes("failed") ||
-    status === "expired" ||
-    status.includes("rejected") ||
-    status.includes("canceled")
-  ) {
+  if (status === "credited" || status === "expired" || status === "provider_failed" || status.includes("canceled") || status.includes("rejected")) return null;
+  if (status === "review_required" || status === "failed") {
     return { severity: "attention" as const, title: "Depósito exige revisão" };
   }
   if (
@@ -232,26 +226,6 @@ export function buildAdminCrmAlerts(input: {
       reference: event.id,
       severity: "attention",
       title: securityTitle(event.category),
-    });
-  }
-
-  for (const event of input.auditEvents ?? []) {
-    if (event.action !== "support_ticket_updated") continue;
-    if (event.createdAt < since || event.createdAt > input.now) continue;
-    const metadata = event.metadata ?? {};
-    const publicId = textValue(metadata.publicId);
-    const statusValue = textValue(metadata.status);
-    if (!publicId || !statusValue) continue;
-    if (!isActiveSupportStatus(statusValue)) continue;
-    const status = supportTitle(statusValue);
-    alerts.push({
-      category: "support",
-      createdAt: event.createdAt,
-      id: `support-audit:${publicId}:${statusValue}:${event.createdAt}`,
-      message: `${publicId} · atualização registrada no protocolo.`,
-      reference: publicId,
-      severity: status.severity,
-      title: status.title,
     });
   }
 

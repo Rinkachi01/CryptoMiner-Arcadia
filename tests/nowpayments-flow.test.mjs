@@ -5,6 +5,7 @@ import { createInitialGameState } from "../app/game-server.ts";
 import { signNowPaymentsPayload } from "../app/nowpayments-rules.ts";
 import {
   ensureWalletSchema,
+  readProviderDepositMinimum,
   processNowPaymentsIpn,
 } from "../app/wallet-server.ts";
 
@@ -20,6 +21,32 @@ const ENVIRONMENT = {
   NOWPAYMENTS_SETTLEMENT_ASSET: "usdttrc20",
   PUBLIC_BASE_URL: "https://arcadia.example",
 };
+
+test("mínimo dinâmico consulta cada rede nativa sem conversão implícita", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(new URL(String(input)));
+    return Response.json({ fiat_equivalent: 0.03 });
+  };
+  try {
+    for (const asset of ["DOGE", "LTC", "BTC"]) {
+      const result = await readProviderDepositMinimum({
+        asset,
+        environment: ENVIRONMENT,
+      });
+      assert.equal(result.asset, asset);
+      assert.equal(result.settlementAsset, asset);
+      const url = requestedUrls.at(-1);
+      assert.equal(url.searchParams.get("currency_from"), asset.toLowerCase());
+      assert.equal(url.searchParams.get("currency_to"), asset.toLowerCase());
+      assert.equal(url.searchParams.get("fiat_equivalent"), "usd");
+      assert.equal(url.searchParams.get("is_fee_paid_by_user"), "true");
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 class SqliteD1Statement {
   constructor(database, sql, values = []) {
@@ -125,13 +152,14 @@ async function createFixture(asset) {
   return { db, intentId, invoiceId, initialState: state };
 }
 
-function finishedPayload({ asset, intentId, invoiceId, paidAmount }) {
+function finishedPayload({ asset, intentId, invoiceId, paidAmount, outcomeCurrency, outcomeAmount = "9.700000" }) {
+  const resolvedOutcomeCurrency = outcomeCurrency ?? asset.toLowerCase();
   return {
     actually_paid: paidAmount,
     invoice_id: invoiceId,
     order_id: intentId,
-    outcome_amount: "9.700000",
-    outcome_currency: "usdttrc20",
+    outcome_amount: outcomeAmount,
+    outcome_currency: resolvedOutcomeCurrency,
     pay_currency: asset.toLowerCase(),
     payment_id: `payment-${asset.toLowerCase()}`,
     payment_status: "finished",
@@ -263,5 +291,36 @@ test("IPN adulterado, parcial ou com liquidação errada nunca credita saldo", a
     assert.equal(wrongSettlement.db.prepare("SELECT COUNT(*) AS total FROM ledger_entries").first().total, 0);
   } finally {
     wrongSettlement.db.close();
+  }
+});
+
+test("IPN com liquidação na mesma moeda paga aceita o depósito nativo", async () => {
+  const fixture = await createFixture("DOGE");
+  try {
+    const payload = finishedPayload({
+      ...fixture,
+      asset: "DOGE",
+      paidAmount: "2.5",
+      outcomeAmount: "2.45000000",
+      outcomeCurrency: "doge",
+    });
+    const signature = await signNowPaymentsPayload(payload, IPN_SECRET);
+    const result = await processNowPaymentsIpn({
+      db: fixture.db,
+      environment: ENVIRONMENT,
+      now: NOW + 1_000,
+      payload,
+      signature,
+    });
+    assert.equal(result.status, "credited");
+    assert.equal(readState(fixture.db).state.dogeBalanceAtomic, 250_000_000);
+    assert.equal(
+      fixture.db.prepare("SELECT settlement_asset FROM wallet_deposit_intents WHERE id = ?")
+        .bind(fixture.intentId)
+        .first().settlement_asset,
+      "DOGE",
+    );
+  } finally {
+    fixture.db.close();
   }
 });

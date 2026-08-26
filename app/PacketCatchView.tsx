@@ -9,12 +9,15 @@ import { describeArcadeStart } from "./arcade-start-rules";
 import { ARCADE_POWER_DAYS_BY_LEVEL } from "./arcade-progression-rules";
 import { CircuitRushView } from "./CircuitRushView";
 import { CoinLinkView } from "./CoinLinkView";
+import { Crypto2048View } from "./Crypto2048View";
 import { gameCoins } from "./game-coin-catalog";
 import { GameSubmissionOverlay } from "./GameSubmissionOverlay";
 import { HashMatchView } from "./HashMatchView";
+import { SkyDashView } from "./SkyDashView";
 import { PlaysCounter } from "./PlaysCounter";
 import { DropNotification } from "./DropNotification";
 import type { GameDropValue } from "./drop-types";
+import { useArcadiaLanguage } from "./i18n";
 import {
   PACKET_CATCH_STARTING_LIVES,
   type PacketCatchEvent,
@@ -52,7 +55,100 @@ const arcadeGuides = {
     goal: "Combine três ou mais moedas iguais e provoque cascatas.",
     win: "Alcance a meta de pontos antes do tempo ou das jogadas acabarem.",
   },
+  sky: {
+    avoid: "Não encoste nos prédios, no teto ou no chão.",
+    goal: "Segure Espaço ou toque para subir e solte para descer.",
+    win: "Atravesse todos os vãos antes que o cronômetro termine.",
+  },
+  crypto: {
+    avoid: "Não deixe o tabuleiro lotar sem uma combinação disponível.",
+    goal: "Deslize as moedas e funda dois ranks iguais em um rank maior.",
+    win: "Sobreviva ao cronômetro e alcance o maior rank possível.",
+  },
 } as const;
+
+const arcadeGameCards = [
+  {
+    id: "packet" as const,
+    index: "01",
+    name: "Packet Catch",
+    subtitle: "Capture moedas e evite bombas",
+    subtitleEn: "Catch coins and avoid bombs",
+    subtitleEs: "Captura monedas y evita bombas",
+    duration: "40 s",
+    power: "até 200 GH/s",
+    icon: "/assets/brand/cma-coin.png",
+    thumbnail: "/assets/minigames/packet-catch-thumb.png?v=2",
+    color: "packet",
+  },
+  {
+    id: "hash" as const,
+    index: "02",
+    name: "Hash Match",
+    subtitle: "Encontre os pares de moedas",
+    subtitleEn: "Find matching coin pairs",
+    subtitleEs: "Encuentra las parejas de monedas",
+    duration: "60 s",
+    power: "até 200 GH/s",
+    icon: "/assets/coins/btc.svg",
+    thumbnail: "/assets/minigames/hash-match-thumb.png?v=2",
+    color: "hash",
+  },
+  {
+    id: "circuit" as const,
+    index: "03",
+    name: "Circuit Rush",
+    subtitle: "Siga o pulso e evite bloqueios",
+    subtitleEn: "Follow the pulse and avoid blocks",
+    subtitleEs: "Sigue el pulso y evita los bloqueos",
+    duration: "90 s",
+    power: "até 140 GH/s",
+    icon: "/assets/season/arcadia/amc-coin.png",
+    thumbnail: "/assets/minigames/circuit-rush-thumb.png?v=2",
+    color: "circuit",
+  },
+  {
+    id: "link" as const,
+    index: "04",
+    name: "Coin Cascade",
+    subtitle: "Combine moedas e crie cascatas",
+    subtitleEn: "Match coins and build cascades",
+    subtitleEs: "Combina monedas y crea cascadas",
+    duration: "60 s",
+    power: "até 200 GH/s",
+    icon: "/assets/coins/ltc.svg",
+    thumbnail: "/assets/minigames/coin-cascade-thumb.png?v=2",
+    color: "link",
+  },
+  {
+    id: "sky" as const,
+    index: "05",
+    name: "Sky Dash",
+    subtitle: "Voe entre os prédios",
+    subtitleEn: "Fly between the city gates",
+    subtitleEs: "Vuela entre los edificios",
+    duration: "40–52 s",
+    power: "até 180 GH/s",
+    icon: "/assets/minigames/sky-dash-ship.png",
+    thumbnail: "/assets/minigames/sky-dash-thumb.png?v=2",
+    color: "sky",
+  },
+  {
+    id: "crypto" as const,
+    index: "06",
+    name: "Crypto 2048",
+    subtitle: "Funda moedas e avance o rank",
+    subtitleEn: "Merge coins and climb the ranks",
+    subtitleEs: "Combina monedas y sube de rango",
+    duration: "30–46 s",
+    power: "até 200 GH/s",
+    icon: "/assets/coins/btc.svg",
+    thumbnail: "/assets/minigames/crypto-2048-thumb.png?v=2",
+    color: "crypto",
+  },
+] as const;
+
+type ArcadeGameId = (typeof arcadeGameCards)[number]["id"];
 
 function formatPower(powerGh: number) {
   if (powerGh >= 1000) {
@@ -70,9 +166,9 @@ export function PacketCatchView({
   temporaryPowerGh: number;
   onRefreshAccount: () => Promise<boolean>;
 }) {
-  const [activeGame, setActiveGame] = useState<
-    "packet" | "hash" | "circuit" | "link"
-  >("packet");
+  const { locale } = useArcadiaLanguage();
+  const english = locale !== "pt-BR";
+  const [activeGame, setActiveGame] = useState<ArcadeGameId>("packet");
   const [phase, setPhase] = useState<Phase>("idle");
   const [session, setSession] = useState<GameSession | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -99,6 +195,29 @@ export function PacketCatchView({
   const eventsRef = useRef<PacketCatchEvent[]>([]);
   const finishStarted = useRef(false);
   const missedIdsRef = useRef(new Set<string>());
+  const activeGameStageRef = useRef<HTMLDivElement>(null);
+  const focusStageAfterSelectionRef = useRef(false);
+  const [selectionRevision, setSelectionRevision] = useState(0);
+
+  const selectGame = useCallback((gameId: ArcadeGameId) => {
+    setActiveGame(gameId);
+    setSelectionRevision((revision) => revision + 1);
+    focusStageAfterSelectionRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!focusStageAfterSelectionRef.current) return;
+    focusStageAfterSelectionRef.current = false;
+
+    const frame = window.requestAnimationFrame(() => {
+      const stage = activeGameStageRef.current;
+      if (!stage) return;
+      stage.scrollIntoView({ behavior: "smooth", block: "start" });
+      stage.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeGame, selectionRevision]);
 
   const refreshArcadeAccount = useCallback(async () => {
     const refreshed = await onRefreshAccount();
@@ -373,7 +492,7 @@ export function PacketCatchView({
         <div className="games-balance-seal live">
           <strong>{formatPower(temporaryPowerGh)}</strong>
           <span>PODER TEMPORÁRIO ATIVO</span>
-          <small>4 MINIGAMES CONECTADOS</small>
+          <small>6 MINIGAMES CONECTADOS</small>
         </div>
       </div>
 
@@ -395,56 +514,42 @@ export function PacketCatchView({
 
       <div className="games-hub-body">
         <nav className="game-selector-list" aria-label="Lista de minigames">
-          <button
-            type="button"
-            className={activeGame === "packet" ? "active packet" : "packet"}
-            onClick={() => setActiveGame("packet")}
-            aria-pressed={activeGame === "packet"}
-          >
-            <span>01</span>
-            <strong>Packet Catch</strong>
-            <small>Capture moedas e evite bombas</small>
-            <b>ONLINE</b>
-          </button>
-          <button
-            type="button"
-            className={activeGame === "hash" ? "active hash" : "hash"}
-            onClick={() => setActiveGame("hash")}
-            aria-pressed={activeGame === "hash"}
-          >
-            <span>02</span>
-            <strong>Hash Match</strong>
-            <small>Encontre os pares de moedas</small>
-            <b>ONLINE</b>
-          </button>
-          <button
-            type="button"
-            className={
-              activeGame === "circuit" ? "active circuit" : "circuit"
-            }
-            onClick={() => setActiveGame("circuit")}
-            aria-pressed={activeGame === "circuit"}
-          >
-            <span>03</span>
-            <strong>Circuit Rush</strong>
-            <small>Siga o pulso e evite bloqueios</small>
-            <b>NOVO</b>
-          </button>
-          <button
-            type="button"
-            className={activeGame === "link" ? "active link" : "link"}
-            onClick={() => setActiveGame("link")}
-            aria-pressed={activeGame === "link"}
-          >
-            <span>04</span>
-            <strong>Coin Cascade</strong>
-            <small>Combine moedas e crie cascatas</small>
-            <b>NOVO</b>
-          </button>
+          {arcadeGameCards.map((game) => (
+            <button
+              type="button"
+              className={`${activeGame === game.id ? "active " : ""}${game.color}`}
+              onClick={() => selectGame(game.id)}
+              aria-pressed={activeGame === game.id}
+              key={game.id}
+            >
+              <span className="game-card-art" aria-hidden="true">
+                <i className="game-card-art-grid" />
+                <img className="game-card-thumbnail" src={game.thumbnail} alt="" />
+                <b>{game.index}</b>
+              </span>
+              <span className="game-card-body">
+                <strong>{game.name}</strong>
+                <small>{locale === "es" ? game.subtitleEs : english ? game.subtitleEn : game.subtitle}</small>
+                <span className="game-card-meta">
+                  <em>◷ {game.duration}</em>
+                  <em>ϟ {game.power}</em>
+                </span>
+                <span className="game-card-action">
+                  {english ? "PLAY" : "JOGAR"} <b aria-hidden="true">→</b>
+                </span>
+              </span>
+              <b className="game-card-status">{english ? "ONLINE" : "ONLINE"}</b>
+            </button>
+          ))}
         </nav>
 
         <ArcadeHumanGate>
-          <div className="active-game-stage">
+          <div
+            className="active-game-stage"
+            ref={activeGameStageRef}
+            tabIndex={-1}
+            aria-live="polite"
+          >
             <section
               className="arcade-quick-guide"
               aria-label={`Tutorial rápido do ${
@@ -454,7 +559,11 @@ export function PacketCatchView({
                     ? "Hash Match"
                     : activeGame === "circuit"
                       ? "Circuit Rush"
-                      : "Coin Cascade"
+                      : activeGame === "link"
+                        ? "Coin Cascade"
+                        : activeGame === "sky"
+                          ? "Sky Dash"
+                          : "Crypto 2048"
               }`}
             >
               <div>
@@ -635,6 +744,12 @@ export function PacketCatchView({
 
           {activeGame === "link" && (
             <CoinLinkView onRefreshAccount={refreshArcadeAccount} />
+          )}
+          {activeGame === "sky" && (
+            <SkyDashView onRefreshAccount={refreshArcadeAccount} />
+          )}
+          {activeGame === "crypto" && (
+            <Crypto2048View onRefreshAccount={refreshArcadeAccount} />
           )}
           </div>
         </ArcadeHumanGate>
